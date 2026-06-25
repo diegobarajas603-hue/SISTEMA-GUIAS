@@ -1,5 +1,2 @@
 node_modules/
-data/*.db
-data/*.db-shm
-data/*.db-wal
 .env

@@ -1,31 +1,28 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 
-const dataDir = path.join(__dirname, '..', 'data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
-const db = new Database(path.join(dataDir, 'guias.db'));
-db.pragma('journal_mode = WAL');
+async function init() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS guias (
+      numero_guia TEXT PRIMARY KEY,
+      origen TEXT NOT NULL,
+      destino TEXT NOT NULL,
+      estatus TEXT NOT NULL,
+      creado_en TIMESTAMPTZ NOT NULL,
+      actualizado_en TIMESTAMPTZ NOT NULL
+    );
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS guias (
-    numero_guia TEXT PRIMARY KEY,
-    origen TEXT NOT NULL,
-    destino TEXT NOT NULL,
-    estatus TEXT NOT NULL,
-    creado_en TEXT NOT NULL,
-    actualizado_en TEXT NOT NULL
-  );
+    CREATE TABLE IF NOT EXISTS eventos (
+      id SERIAL PRIMARY KEY,
+      numero_guia TEXT NOT NULL REFERENCES guias(numero_guia),
+      accion TEXT NOT NULL,
+      estatus TEXT NOT NULL,
+      creado_en TIMESTAMPTZ NOT NULL
+    );
+  `);
+}
 
-  CREATE TABLE IF NOT EXISTS eventos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    numero_guia TEXT NOT NULL,
-    accion TEXT NOT NULL,
-    estatus TEXT NOT NULL,
-    creado_en TEXT NOT NULL,
-    FOREIGN KEY (numero_guia) REFERENCES guias(numero_guia)
-  );
-`);
-
-module.exports = db;
+module.exports = { pool, init };

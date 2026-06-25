@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const { init } = require('./db');
 const guias = require('./guias');
 const { mensajeEstatus } = require('./estatus');
 const { extraerNumeroGuia, enviarMensaje } = require('./whatsapp');
@@ -21,49 +22,49 @@ function requireAppToken(req, res, next) {
 
 // ---------- API de escaneo (usada por la pistola / panel web) ----------
 
-app.post('/api/guias/ingreso', requireAppToken, (req, res) => {
+app.post('/api/guias/ingreso', requireAppToken, async (req, res) => {
   const { numeroGuia, origen } = req.body;
   if (!numeroGuia || !origen) return res.status(400).json({ error: 'numeroGuia y origen son requeridos' });
   try {
-    const guia = guias.ingresarGuia(numeroGuia.trim().toUpperCase(), origen.toUpperCase());
+    const guia = await guias.ingresarGuia(numeroGuia.trim().toUpperCase(), origen.toUpperCase());
     res.json(guia);
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
-app.post('/api/guias/salida', requireAppToken, (req, res) => {
+app.post('/api/guias/salida', requireAppToken, async (req, res) => {
   const { numeroGuia } = req.body;
   if (!numeroGuia) return res.status(400).json({ error: 'numeroGuia es requerido' });
   try {
-    const guia = guias.marcarSalida(numeroGuia.trim().toUpperCase());
+    const guia = await guias.marcarSalida(numeroGuia.trim().toUpperCase());
     res.json(guia);
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
-app.post('/api/guias/llegada', requireAppToken, (req, res) => {
+app.post('/api/guias/llegada', requireAppToken, async (req, res) => {
   const { numeroGuia } = req.body;
   if (!numeroGuia) return res.status(400).json({ error: 'numeroGuia es requerido' });
   try {
-    const guia = guias.marcarLlegada(numeroGuia.trim().toUpperCase());
+    const guia = await guias.marcarLlegada(numeroGuia.trim().toUpperCase());
     res.json(guia);
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
-app.get('/api/guias/:numeroGuia', requireAppToken, (req, res) => {
+app.get('/api/guias/:numeroGuia', requireAppToken, async (req, res) => {
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
-  const guia = guias.obtenerGuia(numeroGuia);
+  const guia = await guias.obtenerGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'Guia no encontrada' });
-  const historial = guias.obtenerHistorial(numeroGuia);
+  const historial = await guias.obtenerHistorial(numeroGuia);
   res.json({ ...guia, mensaje: mensajeEstatus(numeroGuia, guia.estatus), historial });
 });
 
-app.get('/api/guias', requireAppToken, (req, res) => {
-  res.json(guias.listarGuias());
+app.get('/api/guias', requireAppToken, async (req, res) => {
+  res.json(await guias.listarGuias());
 });
 
 // ---------- Webhook de WhatsApp Business Cloud API (Meta) ----------
@@ -98,7 +99,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
       return;
     }
 
-    const guia = guias.obtenerGuia(numeroGuia);
+    const guia = await guias.obtenerGuia(numeroGuia);
     if (!guia) {
       await enviarMensaje(de, `No encontramos la guia ${numeroGuia}. Verifica el numero e intenta de nuevo.`);
       return;
@@ -111,6 +112,13 @@ app.post('/webhook/whatsapp', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Sistema de guias escuchando en http://localhost:${PORT}`);
-});
+init()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Sistema de guias escuchando en http://localhost:${PORT}`);
+    });
+  })
+  .catch((e) => {
+    console.error('Error inicializando la base de datos:', e);
+    process.exit(1);
+  });
