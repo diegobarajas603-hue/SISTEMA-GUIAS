@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sistema de Guias MTY &lt;-&gt; CDMX</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; }
+  .card { background: #1e293b; border-radius: 12px; padding: 20px; max-width: 520px; margin: 0 auto 16px; }
+  h1 { font-size: 1.3rem; margin-top: 0; }
+  label { display: block; margin: 10px 0 4px; font-size: 0.9rem; color: #94a3b8; }
+  select, input[type=text] { width: 100%; padding: 10px; font-size: 1.1rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
+  .btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  button { flex: 1; padding: 12px; font-size: 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+  .b-ingreso { background: #2563eb; color: #fff; }
+  .b-salida { background: #d97706; color: #fff; }
+  .b-llegada { background: #16a34a; color: #fff; }
+  #log { max-width: 520px; margin: 0 auto; }
+  .row { background: #1e293b; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 0.9rem; }
+  .ok { border-left: 4px solid #16a34a; }
+  .err { border-left: 4px solid #dc2626; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Escaneo de guias - MTY &lt;-&gt; CDMX</h1>
+
+    <label for="token">Token de acceso</label>
+    <input type="text" id="token" placeholder="APP_TOKEN" />
+
+    <label for="accion">Accion</label>
+    <select id="accion">
+      <option value="ingreso">Ingreso a bodega</option>
+      <option value="salida">Salida (en camino)</option>
+      <option value="llegada">Llegada a destino</option>
+    </select>
+
+    <div id="origenWrap">
+      <label for="origen">Plaza de origen (solo para Ingreso)</label>
+      <select id="origen">
+        <option value="MTY">MTY</option>
+        <option value="CDMX">CDMX</option>
+      </select>
+    </div>
+
+    <label for="guia">Numero de guia (escanea aqui)</label>
+    <input type="text" id="guia" autofocus placeholder="Escanea o escribe el numero de guia" />
+  </div>
+
+  <div id="log"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const guiaInput = $('guia');
+  const accionSel = $('accion');
+  const origenWrap = $('origenWrap');
+
+  accionSel.addEventListener('change', () => {
+    origenWrap.style.display = accionSel.value === 'ingreso' ? '' : 'none';
+  });
+
+  localStorage.getItem('token') && ($('token').value = localStorage.getItem('token'));
+  $('token').addEventListener('change', () => localStorage.setItem('token', $('token').value));
+
+  function logRow(text, ok) {
+    const div = document.createElement('div');
+    div.className = 'row ' + (ok ? 'ok' : 'err');
+    div.textContent = text;
+    $('log').prepend(div);
+  }
+
+  async function procesar(numeroGuia) {
+    const accion = accionSel.value;
+    const token = $('token').value;
+    let url, body;
+    if (accion === 'ingreso') {
+      url = '/api/guias/ingreso';
+      body = { numeroGuia, origen: $('origen').value };
+    } else if (accion === 'salida') {
+      url = '/api/guias/salida';
+      body = { numeroGuia };
+    } else {
+      url = '/api/guias/llegada';
+      body = { numeroGuia };
+    }
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-App-Token': token },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error');
+      logRow(`${numeroGuia} -> ${data.estatus}`, true);
+    } catch (e) {
+      logRow(`${numeroGuia}: ${e.message}`, false);
+    }
+  }
+
+  // La pistola escaner envia el texto y luego un "Enter"
+  guiaInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const numeroGuia = guiaInput.value.trim();
+      if (numeroGuia) procesar(numeroGuia);
+      guiaInput.value = '';
+    }
+  });
+</script>
+</body>
+</html>
