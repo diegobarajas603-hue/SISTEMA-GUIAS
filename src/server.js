@@ -20,6 +20,8 @@ function requireAppToken(req, res, next) {
   next();
 }
 
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 // ---------- API de escaneo (usada por la pistola / panel web) ----------
 
 app.post('/api/guias/ingreso', requireAppToken, async (req, res) => {
