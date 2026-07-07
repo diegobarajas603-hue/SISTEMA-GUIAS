@@ -24,12 +24,19 @@
   .tab { flex: 1; padding: 12px; font-size: 1rem; font-weight: 600; border-radius: 10px; border: none; background: #1e293b; color: #94a3b8; cursor: pointer; }
   .tab.activa { background: #d92027; color: #fff; }
 
+  /* Modo de operacion */
+  .modos { display: flex; gap: 8px; }
+  .modo-btn { flex: 1; padding: 10px 6px; font-size: 0.88rem; font-weight: 600; border-radius: 8px; border: 2px solid #334155; background: #0f172a; color: #94a3b8; cursor: pointer; }
+  .modo-btn.activa { border-color: #d92027; background: #b31a20; color: #fff; }
+
   /* Resultado de escaneo */
   .resultado { border-radius: 12px; padding: 18px; margin-bottom: 14px; display: none; }
   .resultado h2 { margin: 0 0 6px; font-size: 1.35rem; }
   .resultado p { margin: 0; font-size: 1rem; }
   .r-salida { display: block; background: #78350f; border: 2px solid #d97706; }
   .r-llegada { display: block; background: #14532d; border: 2px solid #16a34a; }
+  .r-ruta { display: block; background: #1e3a8a; border: 2px solid #3b82f6; }
+  .r-entregado { display: block; background: #14532d; border: 2px solid #22c55e; }
   .r-repetido { display: block; background: #334155; border: 2px solid #94a3b8; }
   .r-error { display: block; background: #7f1d1d; border: 2px solid #dc2626; }
 
@@ -43,6 +50,8 @@
   .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
   .s-transito { background: #78350f; color: #fbbf24; }
   .s-bodega { background: #14532d; color: #4ade80; }
+  .s-ruta { background: #1e3a8a; color: #93c5fd; }
+  .s-entregado { background: #052e16; color: #86efac; }
 
   /* Resumen */
   .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -69,6 +78,8 @@
   .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #334155; }
   .timeline li.e-salida::before { background: #d97706; }
   .timeline li.e-llegada::before { background: #16a34a; }
+  .timeline li.e-ruta::before { background: #3b82f6; }
+  .timeline li.e-entrega::before { background: #22c55e; }
   .timeline .desc { font-size: 0.95rem; }
   .timeline .meta { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
 </style>
@@ -96,6 +107,12 @@
   <!-- ============ Vista: Escanear ============ -->
   <div id="vistaEscanear">
     <div class="card">
+      <label>Tipo de operacion</label>
+      <div class="modos">
+        <button class="modo-btn" data-modo="bodega">Bodega<br />MTY &harr; CDMX</button>
+        <button class="modo-btn" data-modo="domicilio">Entrega a<br />domicilio</button>
+        <button class="modo-btn" data-modo="ocurre">Ocurre<br />(recoge en bodega)</button>
+      </div>
       <label for="guia">Numero de guia (escanea aqui)</label>
       <input type="text" id="guia" autofocus autocomplete="off" placeholder="Escanea o escribe el numero de guia" />
     </div>
@@ -118,6 +135,10 @@
           <option value="EN_TRANSITO_A_MTY">En transito a MTY</option>
           <option value="EN_BODEGA_CDMX">En bodega CDMX</option>
           <option value="EN_BODEGA_MTY">En bodega MTY</option>
+          <option value="EN_RUTA_ENTREGA_CDMX">En ruta de entrega CDMX</option>
+          <option value="EN_RUTA_ENTREGA_MTY">En ruta de entrega MTY</option>
+          <option value="ENTREGADO_CDMX">Entregado CDMX</option>
+          <option value="ENTREGADO_MTY">Entregado MTY</option>
         </select>
       </div>
       <div class="card" style="padding: 6px 4px;">
@@ -149,16 +170,34 @@
     EN_TRANSITO_A_MTY: 'En transito a MTY',
     EN_BODEGA_CDMX: 'En bodega CDMX',
     EN_BODEGA_MTY: 'En bodega MTY',
+    EN_RUTA_ENTREGA_CDMX: 'En ruta de entrega CDMX',
+    EN_RUTA_ENTREGA_MTY: 'En ruta de entrega MTY',
+    ENTREGADO_CDMX: 'Entregado CDMX',
+    ENTREGADO_MTY: 'Entregado MTY',
   };
 
   function badge(estatus) {
-    const clase = estatus.startsWith('EN_BODEGA') ? 's-bodega' : 's-transito';
+    let clase = 's-transito';
+    if (estatus.startsWith('EN_BODEGA')) clase = 's-bodega';
+    else if (estatus.startsWith('EN_RUTA_ENTREGA')) clase = 's-ruta';
+    else if (estatus.startsWith('ENTREGADO')) clase = 's-entregado';
     return `<span class="badge ${clase}">${ETIQUETAS[estatus] || estatus}</span>`;
   }
 
   function fmtFecha(f) {
     return new Date(f).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   }
+
+  // ---------- Modo de operacion persistido ----------
+  let modo = localStorage.getItem('modo') || 'bodega';
+  function setModo(m) {
+    modo = m;
+    localStorage.setItem('modo', m);
+    document.querySelectorAll('.modo-btn').forEach((b) => b.classList.toggle('activa', b.dataset.modo === m));
+    $('guia').focus();
+  }
+  document.querySelectorAll('.modo-btn').forEach((b) => b.addEventListener('click', () => setModo(b.dataset.modo)));
+  setModo(modo);
 
   // ---------- Plaza y token persistidos ----------
   let plaza = localStorage.getItem('plaza') || 'MTY';
@@ -209,13 +248,19 @@
       const res = await fetch('/api/guias/escanear', {
         method: 'POST',
         headers: headers(),
-        body: JSON.stringify({ numeroGuia, plaza }),
+        body: JSON.stringify({ numeroGuia, plaza, modo }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error');
 
-      const titulos = { salida: 'SALIDA registrada', llegada: 'LLEGADA registrada', repetido: 'Escaneo repetido' };
-      const clases = { salida: 'warn', llegada: 'ok', repetido: 'warn' };
+      const titulos = {
+        salida: 'SALIDA registrada',
+        llegada: 'LLEGADA registrada',
+        ruta: 'EN RUTA DE ENTREGA',
+        entregado: 'ENTREGADO',
+        repetido: 'Escaneo repetido',
+      };
+      const clases = { salida: 'warn', llegada: 'ok', ruta: 'warn', entregado: 'ok', repetido: 'warn' };
       mostrarResultado(data.tipo, `${numeroGuia} - ${titulos[data.tipo] || data.tipo}`, data.mensaje);
       logRow(`${numeroGuia}: ${data.mensaje}`, clases[data.tipo] || 'ok');
     } catch (e) {
@@ -288,7 +333,8 @@
       $('detMensaje').textContent = data.mensaje;
       $('detHistorial').innerHTML = data.historial
         .map((ev) => {
-          const clase = ev.accion === 'SALIDA' ? 'e-salida' : ev.accion === 'LLEGADA' ? 'e-llegada' : '';
+          const clase =
+            { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega' }[ev.accion] || '';
           return `<li class="${clase}">
             <div class="desc">${ev.descripcion || ev.accion}</div>
             <div class="meta">${ev.plaza ? 'Plaza ' + ev.plaza + ' - ' : ''}${fmtFecha(ev.creado_en)}</div>

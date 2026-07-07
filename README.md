@@ -25,10 +25,29 @@ Ejemplo: estas en MTY y escaneas una guia nueva -> el sistema registra que
 salio hacia CDMX. Cuando esa guia llega a CDMX y la escanean alla -> el
 sistema detecta que ya esta en bodega de CDMX, lista.
 
+## Modos de operacion
+
+Ademas de la plaza, en el panel se elige el tipo de operacion:
+
+- **Bodega (MTY <-> CDMX)**: transito entre plazas, con la logica de la tabla
+  de arriba. Ademas, si se escanea en bodega un paquete que estaba
+  `EN_RUTA_ENTREGA_P`, se interpreta como regreso por entrega no completada
+  (vuelve a `EN_BODEGA_P`); un paquete `ENTREGADO_*` escaneado en bodega
+  inicia un nuevo embarque hacia la otra plaza.
+- **Entrega a domicilio**: `EN_BODEGA_P` -> `EN_RUTA_ENTREGA_P` (paquete en
+  ruta de entrega) y `EN_RUTA_ENTREGA_P` -> `ENTREGADO_P`.
+- **Ocurre (el cliente recoge en bodega)**: `EN_BODEGA_P` -> `ENTREGADO_P`
+  directamente.
+
+En los modos de entrega, si el paquete venia `EN_TRANSITO_A_P`, el mismo
+escaneo registra primero la llegada a bodega y continua con la entrega.
+
 ## Estatus posibles
 
 - `EN_TRANSITO_A_CDMX` / `EN_TRANSITO_A_MTY`: la guia va en camino a esa plaza.
 - `EN_BODEGA_CDMX` / `EN_BODEGA_MTY`: la guia llego y esta en esa bodega, lista.
+- `EN_RUTA_ENTREGA_CDMX` / `EN_RUTA_ENTREGA_MTY`: paquete en ruta de entrega a domicilio.
+- `ENTREGADO_CDMX` / `ENTREGADO_MTY`: paquete entregado (a domicilio o en ocurre).
 
 (Los estatus del modelo anterior `EN_CAMINO_X` y `LLEGO_X` se migran
 automaticamente al arrancar el servidor.)
@@ -102,9 +121,9 @@ de guias ni permite modificar nada.
 Todas las rutas requieren el header `X-App-Token: <APP_TOKEN>` (definido en
 `.env`) si `APP_TOKEN` esta configurado.
 
-- `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX" }` ->
-  aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje }`, donde
-  `tipo` es `salida`, `llegada` o `repetido`.
+- `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX", modo?: "bodega"|"domicilio"|"ocurre" }`
+  -> aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje }`, donde
+  `tipo` es `salida`, `llegada`, `ruta`, `entregado` o `repetido`.
 - `GET /api/guias?buscar=<texto>&estatus=<estatus>` -> lista de guias
   recientes, con busqueda por numero y filtro por estatus (ambos opcionales).
 - `GET /api/guias/resumen` -> conteo de guias por estatus.

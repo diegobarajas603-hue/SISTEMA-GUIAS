@@ -28,6 +28,7 @@
   .estatus-grande { font-size: 1.2rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 4px; }
   .e-transito { color: #d92027; }
   .e-bodega { color: #1e7d32; }
+  .e-ruta { color: #b45309; }
   .mensaje { margin: 0; color: #4b4b4b; }
   .actualizado { margin: 10px 0 0; font-size: 0.8rem; color: #9a9a9a; }
 
@@ -40,6 +41,7 @@
   .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #cfcfcf; }
   .timeline li.e-salida::before { background: #d92027; }
   .timeline li.e-llegada::before { background: #1e7d32; }
+  .timeline li.e-ruta::before { background: #b45309; }
   .timeline .desc { font-size: 0.95rem; color: #1a1a1a; }
   .timeline .fecha { font-size: 0.78rem; color: #9a9a9a; margin-top: 2px; }
 
@@ -109,6 +111,10 @@
     EN_TRANSITO_A_MTY: 'En tránsito a MTY',
     EN_BODEGA_CDMX: 'En bodega CDMX',
     EN_BODEGA_MTY: 'En bodega MTY',
+    EN_RUTA_ENTREGA_CDMX: 'En ruta de entrega',
+    EN_RUTA_ENTREGA_MTY: 'En ruta de entrega',
+    ENTREGADO_CDMX: 'Entregado',
+    ENTREGADO_MTY: 'Entregado',
   };
 
   const DETALLES = {
@@ -116,11 +122,24 @@
     EN_TRANSITO_A_MTY: 'Tu envío salió de bodega CDMX y está en tránsito hacia MTY.',
     EN_BODEGA_CDMX: 'Tu envío llegó a bodega CDMX y está listo.',
     EN_BODEGA_MTY: 'Tu envío llegó a bodega MTY y está listo.',
+    EN_RUTA_ENTREGA_CDMX: 'Tu paquete está en ruta de entrega en CDMX.',
+    EN_RUTA_ENTREGA_MTY: 'Tu paquete está en ruta de entrega en MTY.',
+    ENTREGADO_CDMX: 'Tu envío fue entregado. Gracias por tu preferencia.',
+    ENTREGADO_MTY: 'Tu envío fue entregado. Gracias por tu preferencia.',
   };
+
+  function claseEstatus(estatus) {
+    if (estatus.startsWith('EN_BODEGA') || estatus.startsWith('ENTREGADO')) return 'e-bodega';
+    if (estatus.startsWith('EN_RUTA_ENTREGA')) return 'e-ruta';
+    return 'e-transito';
+  }
 
   const EVENTOS = [
     [/^Salio de bodega (MTY|CDMX) con destino a (MTY|CDMX)/, (m) => `Salió de bodega ${m[1]} con destino a ${m[2]}`],
     [/^Llego a bodega (MTY|CDMX)/, (m) => `Llegó a bodega ${m[1]}`],
+    [/^Regreso a bodega (MTY|CDMX)/, (m) => `Regresó a bodega ${m[1]} (entrega no completada)`],
+    [/^Entregado a domicilio en (MTY|CDMX)/, (m) => `Entregado a domicilio en ${m[1]}`],
+    [/^Entregado en ocurre \(bodega (MTY|CDMX)\)/, (m) => `Entregado en bodega ${m[1]} (ocurre)`],
     // Textos de versiones anteriores del sistema
     [/Llego a bodega de Ciudad de Mexico/, () => 'Llegó a bodega CDMX'],
     [/Llego a bodega de Monterrey/, () => 'Llegó a bodega MTY'],
@@ -162,18 +181,22 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No pudimos consultar tu guía, intenta más tarde.');
 
-      const enBodega = data.estatus.startsWith('EN_BODEGA');
       $('resEstatus').textContent = (ETIQUETAS[data.estatus] || data.estatus) + ' - ' + data.numeroGuia;
-      $('resEstatus').className = 'estatus-grande ' + (enBodega ? 'e-bodega' : 'e-transito');
+      $('resEstatus').className = 'estatus-grande ' + claseEstatus(data.estatus);
       $('resMensaje').textContent = DETALLES[data.estatus] || data.mensaje;
       $('resActualizado').textContent = 'Última actualización: ' + fmtFecha(data.actualizado_en);
       $('resultado').style.display = 'block';
 
       $('historial').innerHTML = data.historial
-        .map((ev) => `<li class="${ev.accion === 'SALIDA' ? 'e-salida' : 'e-llegada'}">
+        .map((ev) => {
+          const clase =
+            { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-llegada' }[ev.accion] ||
+            'e-llegada';
+          return `<li class="${clase}">
             <div class="desc">${textoEvento(ev.descripcion, ev.accion)}</div>
             <div class="fecha">${fmtFecha(ev.creado_en)}</div>
-          </li>`)
+          </li>`;
+        })
         .join('');
       $('cardHistorial').style.display = data.historial.length ? 'block' : 'none';
       actualizarBotonWa(data.numeroGuia);

@@ -24,13 +24,18 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // ---------- API de escaneo (usada por la pistola / panel web) ----------
 
-// Escaneo inteligente: solo se indica en que plaza estas (MTY o CDMX) y el
-// sistema decide si el escaneo es una salida o una llegada.
+// Escaneo inteligente: se indica en que plaza estas (MTY o CDMX) y el modo de
+// operacion (bodega, domicilio u ocurre); el sistema decide que significa el
+// escaneo segun el estado actual de la guia.
 app.post('/api/guias/escanear', requireAppToken, async (req, res) => {
-  const { numeroGuia, plaza } = req.body;
+  const { numeroGuia, plaza, modo } = req.body;
   if (!numeroGuia || !plaza) return res.status(400).json({ error: 'numeroGuia y plaza son requeridos' });
   try {
-    const resultado = await guias.escanearGuia(numeroGuia.trim().toUpperCase(), plaza.trim().toUpperCase());
+    const resultado = await guias.escanearGuia(
+      numeroGuia.trim().toUpperCase(),
+      plaza.trim().toUpperCase(),
+      (modo || 'bodega').trim().toLowerCase()
+    );
     res.json(resultado);
   } catch (e) {
     res.status(400).json({ error: e.message });
