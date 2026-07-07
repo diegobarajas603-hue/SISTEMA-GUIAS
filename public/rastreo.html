@@ -3,56 +3,61 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Rastrea tu envio - Fletes Tauro</title>
+<title>Rastrea tu envío - Grupo Tauro</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: system-ui, sans-serif; background: #f1f5f9; color: #0f172a; margin: 0; padding: 24px 16px; }
-  .wrap { max-width: 560px; margin: 0 auto; }
-  .marca { text-align: center; margin-bottom: 18px; }
-  .marca h1 { font-size: 1.5rem; margin: 0; color: #1d4ed8; }
-  .marca p { margin: 4px 0 0; color: #64748b; font-size: 0.95rem; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #1a1a1a; margin: 0; padding: 0; }
+  .banda { height: 6px; background: #d92027; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 26px 16px; }
 
-  .card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 4px rgba(15,23,42,0.08); margin-bottom: 14px; }
+  .marca { text-align: center; margin-bottom: 22px; }
+  .marca h1 { font-size: 1.7rem; margin: 0; letter-spacing: 0.06em; text-transform: uppercase; }
+  .marca h1 .grupo { color: #8a8a8a; font-weight: 400; }
+  .marca h1 .tauro { color: #d92027; font-weight: 800; }
+  .marca p { margin: 6px 0 0; color: #6b6b6b; font-size: 0.95rem; }
+
+  .card { background: #fff; border-radius: 4px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.10); margin-bottom: 14px; }
   .buscador { display: flex; gap: 8px; }
-  input[type=text] { flex: 1; padding: 13px 14px; font-size: 1.05rem; border-radius: 10px; border: 1.5px solid #cbd5e1; color: #0f172a; }
-  input[type=text]:focus { outline: none; border-color: #2563eb; }
-  button { padding: 13px 22px; font-size: 1rem; font-weight: 700; border-radius: 10px; border: none; background: #1d4ed8; color: #fff; cursor: pointer; }
-  button:hover { background: #1e40af; }
-  button:disabled { background: #93c5fd; cursor: wait; }
+  input[type=text] { flex: 1; padding: 13px 14px; font-size: 1.05rem; border-radius: 4px; border: 1.5px solid #cfcfcf; color: #1a1a1a; }
+  input[type=text]:focus { outline: none; border-color: #d92027; }
+  button { padding: 13px 24px; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 4px; border: none; background: #d92027; color: #fff; cursor: pointer; }
+  button:hover { background: #b31a20; }
+  button:disabled { background: #e58a8d; cursor: wait; }
 
-  #resultado { display: none; }
-  .estatus-grande { font-size: 1.15rem; font-weight: 700; margin: 0 0 4px; }
-  .e-transito { color: #b45309; }
-  .e-bodega { color: #15803d; }
-  .mensaje { margin: 0; color: #475569; }
-  .actualizado { margin: 10px 0 0; font-size: 0.8rem; color: #94a3b8; }
+  #resultado { display: none; border-top: 4px solid #d92027; }
+  .estatus-grande { font-size: 1.2rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 4px; }
+  .e-transito { color: #d92027; }
+  .e-bodega { color: #1e7d32; }
+  .mensaje { margin: 0; color: #4b4b4b; }
+  .actualizado { margin: 10px 0 0; font-size: 0.8rem; color: #9a9a9a; }
 
-  .error { display: none; background: #fef2f2; border: 1.5px solid #fca5a5; color: #b91c1c; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+  .error { display: none; background: #fdecec; border: 1.5px solid #d92027; color: #a31419; border-radius: 4px; padding: 14px 16px; margin-bottom: 14px; }
 
-  h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; margin: 0 0 12px; }
+  h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; color: #8a8a8a; margin: 0 0 12px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
   .timeline { list-style: none; margin: 0; padding: 0; }
-  .timeline li { position: relative; padding: 0 0 18px 26px; border-left: 2px solid #e2e8f0; margin-left: 8px; }
+  .timeline li { position: relative; padding: 0 0 18px 26px; border-left: 2px solid #e5e5e5; margin-left: 8px; }
   .timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
-  .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #cbd5e1; }
-  .timeline li.e-salida::before { background: #f59e0b; }
-  .timeline li.e-llegada::before { background: #22c55e; }
-  .timeline .desc { font-size: 0.95rem; }
-  .timeline .fecha { font-size: 0.78rem; color: #94a3b8; margin-top: 2px; }
+  .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #cfcfcf; }
+  .timeline li.e-salida::before { background: #d92027; }
+  .timeline li.e-llegada::before { background: #1e7d32; }
+  .timeline .desc { font-size: 0.95rem; color: #1a1a1a; }
+  .timeline .fecha { font-size: 0.78rem; color: #9a9a9a; margin-top: 2px; }
 
-  .pie { text-align: center; font-size: 0.8rem; color: #94a3b8; margin-top: 20px; }
+  .pie { text-align: center; font-size: 0.8rem; color: #9a9a9a; margin-top: 20px; }
 </style>
 </head>
 <body>
+<div class="banda"></div>
 <div class="wrap">
 
   <div class="marca">
-    <h1>Fletes Tauro</h1>
-    <p>Rastrea tu envio Monterrey &harr; Ciudad de Mexico</p>
+    <h1><span class="grupo">Grupo</span><span class="tauro">Tauro</span></h1>
+    <p>Rastrea tu envío Monterrey &harr; Ciudad de México</p>
   </div>
 
   <div class="card">
     <div class="buscador">
-      <input type="text" id="guia" placeholder="Escribe tu numero de guia" autocomplete="off" autofocus />
+      <input type="text" id="guia" placeholder="Escribe tu número de guía" autocomplete="off" autofocus />
       <button id="btnBuscar" onclick="rastrear()">Rastrear</button>
     </div>
   </div>
@@ -66,22 +71,51 @@
   </div>
 
   <div class="card" id="cardHistorial" style="display:none">
-    <h2>Historial del envio</h2>
+    <h2>Historial del envío</h2>
     <ul class="timeline" id="historial"></ul>
   </div>
 
-  <p class="pie">Si tienes dudas sobre tu envio, contactanos por WhatsApp.</p>
+  <p class="pie">Si tienes dudas sobre tu envío, contáctanos por WhatsApp.</p>
 </div>
 
 <script>
   const $ = (id) => document.getElementById(id);
 
   const ETIQUETAS = {
-    EN_TRANSITO_A_CDMX: 'En camino a Ciudad de Mexico',
-    EN_TRANSITO_A_MTY: 'En camino a Monterrey',
-    EN_BODEGA_CDMX: 'En bodega de Ciudad de Mexico',
-    EN_BODEGA_MTY: 'En bodega de Monterrey',
+    EN_TRANSITO_A_CDMX: 'En tránsito a CDMX',
+    EN_TRANSITO_A_MTY: 'En tránsito a MTY',
+    EN_BODEGA_CDMX: 'En bodega CDMX',
+    EN_BODEGA_MTY: 'En bodega MTY',
   };
+
+  const DETALLES = {
+    EN_TRANSITO_A_CDMX: 'Tu envío salió de bodega MTY y está en tránsito hacia CDMX.',
+    EN_TRANSITO_A_MTY: 'Tu envío salió de bodega CDMX y está en tránsito hacia MTY.',
+    EN_BODEGA_CDMX: 'Tu envío llegó a bodega CDMX y está listo.',
+    EN_BODEGA_MTY: 'Tu envío llegó a bodega MTY y está listo.',
+  };
+
+  const EVENTOS = [
+    [/^Salio de bodega (\w+) con destino a (\w+)/, (m) => `Salió de bodega ${m[1]} con destino a ${m[2]}`],
+    [/^Llego a bodega (\w+) \(sin registro/, (m) => `Llegó a bodega ${m[1]}`],
+    [/^Llego a bodega (\w+)/, (m) => `Llegó a bodega ${m[1]}`],
+    // Textos de versiones anteriores del sistema
+    [/salio de Monterrey|hacia Ciudad de Mexico$/, () => 'Salió de bodega MTY con destino a CDMX'],
+    [/salio de Ciudad de Mexico|hacia Monterrey$/, () => 'Salió de bodega CDMX con destino a MTY'],
+    [/Llego a bodega de Ciudad de Mexico/, () => 'Llegó a bodega CDMX'],
+    [/Llego a bodega de Monterrey/, () => 'Llegó a bodega MTY'],
+  ];
+
+  function textoEvento(desc, accion) {
+    if (desc) {
+      for (const [re, fn] of EVENTOS) {
+        const m = desc.match(re);
+        if (m) return fn(m);
+      }
+      return desc;
+    }
+    return accion === 'SALIDA' ? 'Salió de bodega' : 'Llegó a bodega';
+  }
 
   function fmtFecha(f) {
     return new Date(f).toLocaleString('es-MX', {
@@ -104,18 +138,18 @@
     try {
       const res = await fetch('/api/publico/guias/' + encodeURIComponent(numeroGuia));
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'No pudimos consultar tu guia, intenta mas tarde.');
+      if (!res.ok) throw new Error(data.error || 'No pudimos consultar tu guía, intenta más tarde.');
 
       const enBodega = data.estatus.startsWith('EN_BODEGA');
-      $('resEstatus').textContent = ETIQUETAS[data.estatus] || data.estatus;
+      $('resEstatus').textContent = (ETIQUETAS[data.estatus] || data.estatus) + ' - ' + data.numeroGuia;
       $('resEstatus').className = 'estatus-grande ' + (enBodega ? 'e-bodega' : 'e-transito');
-      $('resMensaje').textContent = data.mensaje;
-      $('resActualizado').textContent = 'Ultima actualizacion: ' + fmtFecha(data.actualizado_en);
+      $('resMensaje').textContent = DETALLES[data.estatus] || data.mensaje;
+      $('resActualizado').textContent = 'Última actualización: ' + fmtFecha(data.actualizado_en);
       $('resultado').style.display = 'block';
 
       $('historial').innerHTML = data.historial
         .map((ev) => `<li class="${ev.accion === 'SALIDA' ? 'e-salida' : 'e-llegada'}">
-            <div class="desc">${ev.descripcion || ev.accion}</div>
+            <div class="desc">${textoEvento(ev.descripcion, ev.accion)}</div>
             <div class="fecha">${fmtFecha(ev.creado_en)}</div>
           </li>`)
         .join('');

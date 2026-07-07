@@ -24,10 +24,10 @@ function enBodega(plaza) {
 }
 
 const MENSAJES = {
-  EN_TRANSITO_A_CDMX: (g) => `Tu guia ${g} salio de Monterrey y va en camino a Ciudad de Mexico.`,
-  EN_TRANSITO_A_MTY: (g) => `Tu guia ${g} salio de Ciudad de Mexico y va en camino a Monterrey.`,
-  EN_BODEGA_CDMX: (g) => `Tu guia ${g} ya esta en nuestra bodega de Ciudad de Mexico, lista.`,
-  EN_BODEGA_MTY: (g) => `Tu guia ${g} ya esta en nuestra bodega de Monterrey, lista.`,
+  EN_TRANSITO_A_CDMX: (g) => `Tu envio ${g} salio de bodega MTY y esta en transito hacia CDMX.`,
+  EN_TRANSITO_A_MTY: (g) => `Tu envio ${g} salio de bodega CDMX y esta en transito hacia MTY.`,
+  EN_BODEGA_CDMX: (g) => `Tu envio ${g} llego a bodega CDMX y esta listo.`,
+  EN_BODEGA_MTY: (g) => `Tu envio ${g} llego a bodega MTY y esta listo.`,
 };
 
 function mensajeEstatus(numeroGuia, estatus) {

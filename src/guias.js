@@ -1,5 +1,5 @@
 const { pool } = require('./db');
-const { PLAZAS, NOMBRES_PLAZA, ACCIONES, otraPlaza, enTransitoA, enBodega } = require('./estatus');
+const { PLAZAS, ACCIONES, otraPlaza, enTransitoA, enBodega } = require('./estatus');
 
 function now() {
   return new Date();
@@ -54,7 +54,7 @@ async function escanearGuia(numeroGuia, plaza) {
        VALUES ($1, $2, $3, $4, $5, $5)`,
       [numeroGuia, plaza, destino, estatus, now()]
     );
-    const descripcion = `Guia registrada: salio de ${NOMBRES_PLAZA[plaza]} hacia ${NOMBRES_PLAZA[destino]}`;
+    const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
     await registrarEvento(numeroGuia, ACCIONES.SALIDA, estatus, plaza, descripcion);
     return { guia: await obtenerGuia(numeroGuia), tipo: 'salida', mensaje: descripcion };
   }
@@ -62,7 +62,7 @@ async function escanearGuia(numeroGuia, plaza) {
   if (guia.estatus === enTransitoA(plaza)) {
     const estatus = enBodega(plaza);
     await actualizarEstatus(numeroGuia, estatus);
-    const descripcion = `Llego a bodega de ${NOMBRES_PLAZA[plaza]}, lista`;
+    const descripcion = `Llego a bodega ${plaza}`;
     await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion);
     return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
   }
@@ -73,13 +73,13 @@ async function escanearGuia(numeroGuia, plaza) {
       'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
       [plaza, destino, estatus, now(), numeroGuia]
     );
-    const descripcion = `Salio de ${NOMBRES_PLAZA[plaza]} hacia ${NOMBRES_PLAZA[destino]}`;
+    const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
     await registrarEvento(numeroGuia, ACCIONES.SALIDA, estatus, plaza, descripcion);
     return { guia: await obtenerGuia(numeroGuia), tipo: 'salida', mensaje: descripcion };
   }
 
   if (guia.estatus === enTransitoA(destino)) {
-    const descripcion = `Escaneo repetido en ${NOMBRES_PLAZA[plaza]}: la guia ya salio hacia ${NOMBRES_PLAZA[destino]}`;
+    const descripcion = `Escaneo repetido en bodega ${plaza}: el envio ya salio con destino a ${destino}`;
     await registrarEvento(numeroGuia, ACCIONES.ESCANEO_REPETIDO, guia.estatus, plaza, descripcion);
     return { guia, tipo: 'repetido', mensaje: descripcion };
   }
@@ -90,7 +90,7 @@ async function escanearGuia(numeroGuia, plaza) {
     'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
     [destino, plaza, estatus, now(), numeroGuia]
   );
-  const descripcion = `Llego a bodega de ${NOMBRES_PLAZA[plaza]} (no se escaneo su salida de ${NOMBRES_PLAZA[destino]})`;
+  const descripcion = `Llego a bodega ${plaza} (sin registro de salida de bodega ${destino})`;
   await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion);
   return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
 }
