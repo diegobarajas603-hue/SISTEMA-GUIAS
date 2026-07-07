@@ -64,7 +64,40 @@ El servidor corre en `http://localhost:3000`. Abre esa URL en una
 computadora/tablet conectada a la pistola escaner (la pistola funciona
 como teclado: escanea y manda "Enter" automaticamente).
 
-## API REST
+## Pagina publica de rastreo para clientes
+
+En `https://tu-dominio.com/rastreo.html` hay una pagina publica (sin token)
+donde el cliente escribe su numero de guia y ve el estatus y el historial de
+su envio. Formas de conectarla a tu pagina web:
+
+**1. Un boton o liga que lleve a la pagina de rastreo:**
+
+```html
+<a href="https://tu-dominio.com/rastreo.html">Rastrea tu envio</a>
+```
+
+Tambien acepta el numero de guia en la URL para ligas directas:
+`https://tu-dominio.com/rastreo.html?guia=TAU-1001`
+
+**2. Incrustada dentro de tu sitio con un iframe:**
+
+```html
+<iframe src="https://tu-dominio.com/rastreo.html"
+        style="width:100%; height:640px; border:none;"></iframe>
+```
+
+**3. Integracion directa con la API publica** (para que tu desarrollador web
+la consuma desde tu propio diseño; tiene CORS abierto):
+
+```
+GET https://tu-dominio.com/api/publico/guias/:numeroGuia
+```
+
+Respuesta: `{ numeroGuia, estatus, mensaje, actualizado_en, historial }`.
+Esta API solo permite consultar guias por numero exacto; no expone la lista
+de guias ni permite modificar nada.
+
+## API REST (interna)
 
 Todas las rutas requieren el header `X-App-Token: <APP_TOKEN>` (definido en
 `.env`) si `APP_TOKEN` esta configurado.

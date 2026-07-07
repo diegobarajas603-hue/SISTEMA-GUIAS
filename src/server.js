@@ -54,6 +54,31 @@ app.get('/api/guias', requireAppToken, async (req, res) => {
   res.json(await guias.listarGuias({ buscar, estatus }));
 });
 
+// ---------- API publica de rastreo (sin token, para clientes) ----------
+
+// Solo permite consultar una guia por su numero exacto; nunca expone la lista
+// completa ni las operaciones de escaneo. CORS abierto para poder llamarla
+// desde la pagina web de la empresa.
+app.get('/api/publico/guias/:numeroGuia', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
+  if (!/^[A-Z0-9-]{3,40}$/.test(numeroGuia)) {
+    return res.status(400).json({ error: 'Numero de guia invalido' });
+  }
+  const guia = await guias.obtenerGuia(numeroGuia);
+  if (!guia) return res.status(404).json({ error: 'No encontramos esa guia. Verifica el numero e intenta de nuevo.' });
+  const historial = (await guias.obtenerHistorial(numeroGuia))
+    .filter((ev) => ev.accion !== 'ESCANEO_REPETIDO')
+    .map(({ accion, descripcion, creado_en }) => ({ accion, descripcion, creado_en }));
+  res.json({
+    numeroGuia: guia.numero_guia,
+    estatus: guia.estatus,
+    mensaje: mensajeEstatus(guia.numero_guia, guia.estatus),
+    actualizado_en: guia.actualizado_en,
+    historial,
+  });
+});
+
 // ---------- Webhook de WhatsApp Business Cloud API (Meta) ----------
 
 // Verificacion del webhook (Meta hace un GET al configurar la URL)

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rastrea tu envio - Fletes Tauro</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; background: #f1f5f9; color: #0f172a; margin: 0; padding: 24px 16px; }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  .marca { text-align: center; margin-bottom: 18px; }
+  .marca h1 { font-size: 1.5rem; margin: 0; color: #1d4ed8; }
+  .marca p { margin: 4px 0 0; color: #64748b; font-size: 0.95rem; }
+
+  .card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 4px rgba(15,23,42,0.08); margin-bottom: 14px; }
+  .buscador { display: flex; gap: 8px; }
+  input[type=text] { flex: 1; padding: 13px 14px; font-size: 1.05rem; border-radius: 10px; border: 1.5px solid #cbd5e1; color: #0f172a; }
+  input[type=text]:focus { outline: none; border-color: #2563eb; }
+  button { padding: 13px 22px; font-size: 1rem; font-weight: 700; border-radius: 10px; border: none; background: #1d4ed8; color: #fff; cursor: pointer; }
+  button:hover { background: #1e40af; }
+  button:disabled { background: #93c5fd; cursor: wait; }
+
+  #resultado { display: none; }
+  .estatus-grande { font-size: 1.15rem; font-weight: 700; margin: 0 0 4px; }
+  .e-transito { color: #b45309; }
+  .e-bodega { color: #15803d; }
+  .mensaje { margin: 0; color: #475569; }
+  .actualizado { margin: 10px 0 0; font-size: 0.8rem; color: #94a3b8; }
+
+  .error { display: none; background: #fef2f2; border: 1.5px solid #fca5a5; color: #b91c1c; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+
+  h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; margin: 0 0 12px; }
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .timeline li { position: relative; padding: 0 0 18px 26px; border-left: 2px solid #e2e8f0; margin-left: 8px; }
+  .timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #cbd5e1; }
+  .timeline li.e-salida::before { background: #f59e0b; }
+  .timeline li.e-llegada::before { background: #22c55e; }
+  .timeline .desc { font-size: 0.95rem; }
+  .timeline .fecha { font-size: 0.78rem; color: #94a3b8; margin-top: 2px; }
+
+  .pie { text-align: center; font-size: 0.8rem; color: #94a3b8; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="marca">
+    <h1>Fletes Tauro</h1>
+    <p>Rastrea tu envio Monterrey &harr; Ciudad de Mexico</p>
+  </div>
+
+  <div class="card">
+    <div class="buscador">
+      <input type="text" id="guia" placeholder="Escribe tu numero de guia" autocomplete="off" autofocus />
+      <button id="btnBuscar" onclick="rastrear()">Rastrear</button>
+    </div>
+  </div>
+
+  <div class="error" id="error"></div>
+
+  <div class="card" id="resultado">
+    <p class="estatus-grande" id="resEstatus"></p>
+    <p class="mensaje" id="resMensaje"></p>
+    <p class="actualizado" id="resActualizado"></p>
+  </div>
+
+  <div class="card" id="cardHistorial" style="display:none">
+    <h2>Historial del envio</h2>
+    <ul class="timeline" id="historial"></ul>
+  </div>
+
+  <p class="pie">Si tienes dudas sobre tu envio, contactanos por WhatsApp.</p>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  const ETIQUETAS = {
+    EN_TRANSITO_A_CDMX: 'En camino a Ciudad de Mexico',
+    EN_TRANSITO_A_MTY: 'En camino a Monterrey',
+    EN_BODEGA_CDMX: 'En bodega de Ciudad de Mexico',
+    EN_BODEGA_MTY: 'En bodega de Monterrey',
+  };
+
+  function fmtFecha(f) {
+    return new Date(f).toLocaleString('es-MX', {
+      day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  function mostrarError(texto) {
+    $('resultado').style.display = 'none';
+    $('cardHistorial').style.display = 'none';
+    $('error').textContent = texto;
+    $('error').style.display = 'block';
+  }
+
+  async function rastrear() {
+    const numeroGuia = $('guia').value.trim().toUpperCase();
+    if (!numeroGuia) return;
+    $('error').style.display = 'none';
+    $('btnBuscar').disabled = true;
+    try {
+      const res = await fetch('/api/publico/guias/' + encodeURIComponent(numeroGuia));
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No pudimos consultar tu guia, intenta mas tarde.');
+
+      const enBodega = data.estatus.startsWith('EN_BODEGA');
+      $('resEstatus').textContent = ETIQUETAS[data.estatus] || data.estatus;
+      $('resEstatus').className = 'estatus-grande ' + (enBodega ? 'e-bodega' : 'e-transito');
+      $('resMensaje').textContent = data.mensaje;
+      $('resActualizado').textContent = 'Ultima actualizacion: ' + fmtFecha(data.actualizado_en);
+      $('resultado').style.display = 'block';
+
+      $('historial').innerHTML = data.historial
+        .map((ev) => `<li class="${ev.accion === 'SALIDA' ? 'e-salida' : 'e-llegada'}">
+            <div class="desc">${ev.descripcion || ev.accion}</div>
+            <div class="fecha">${fmtFecha(ev.creado_en)}</div>
+          </li>`)
+        .join('');
+      $('cardHistorial').style.display = data.historial.length ? 'block' : 'none';
+    } catch (e) {
+      mostrarError(e.message);
+    } finally {
+      $('btnBuscar').disabled = false;
+    }
+  }
+
+  $('guia').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') rastrear();
+  });
+
+  // Permite enlaces directos: /rastreo.html?guia=TAU-1001
+  const param = new URLSearchParams(location.search).get('guia');
+  if (param) {
+    $('guia').value = param;
+    rastrear();
+  }
+</script>
+</body>
+</html>
