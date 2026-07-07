@@ -5,107 +5,307 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sistema de Guias MTY &lt;-&gt; CDMX</title>
 <style>
-  body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; }
-  .card { background: #1e293b; border-radius: 12px; padding: 20px; max-width: 520px; margin: 0 auto 16px; }
-  h1 { font-size: 1.3rem; margin-top: 0; }
-  label { display: block; margin: 10px 0 4px; font-size: 0.9rem; color: #94a3b8; }
-  select, input[type=text] { width: 100%; padding: 10px; font-size: 1.1rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; box-sizing: border-box; }
-  .btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-  button { flex: 1; padding: 12px; font-size: 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
-  .b-ingreso { background: #2563eb; color: #fff; }
-  .b-salida { background: #d97706; color: #fff; }
-  .b-llegada { background: #16a34a; color: #fff; }
-  #log { max-width: 520px; margin: 0 auto; }
-  .row { background: #1e293b; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 0.9rem; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 16px; }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .card { background: #1e293b; border-radius: 12px; padding: 18px; margin-bottom: 14px; }
+  h1 { font-size: 1.2rem; margin: 0 0 12px; }
+  label { display: block; margin: 10px 0 4px; font-size: 0.85rem; color: #94a3b8; }
+  input[type=text], select { width: 100%; padding: 11px; font-size: 1.05rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; }
+
+  /* Selector de plaza */
+  .plazas { display: flex; gap: 10px; margin-bottom: 4px; }
+  .plaza-btn { flex: 1; padding: 16px; font-size: 1.25rem; font-weight: 700; border-radius: 10px; border: 2px solid #334155; background: #0f172a; color: #94a3b8; cursor: pointer; }
+  .plaza-btn.activa { border-color: #2563eb; background: #1d4ed8; color: #fff; }
+  .plaza-hint { font-size: 0.8rem; color: #64748b; margin: 6px 0 0; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab { flex: 1; padding: 12px; font-size: 1rem; font-weight: 600; border-radius: 10px; border: none; background: #1e293b; color: #94a3b8; cursor: pointer; }
+  .tab.activa { background: #2563eb; color: #fff; }
+
+  /* Resultado de escaneo */
+  .resultado { border-radius: 12px; padding: 18px; margin-bottom: 14px; display: none; }
+  .resultado h2 { margin: 0 0 6px; font-size: 1.35rem; }
+  .resultado p { margin: 0; font-size: 1rem; }
+  .r-salida { display: block; background: #78350f; border: 2px solid #d97706; }
+  .r-llegada { display: block; background: #14532d; border: 2px solid #16a34a; }
+  .r-repetido { display: block; background: #334155; border: 2px solid #94a3b8; }
+  .r-error { display: block; background: #7f1d1d; border: 2px solid #dc2626; }
+
+  .row { background: #1e293b; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 0.9rem; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .row .hora { color: #64748b; font-size: 0.8rem; }
   .ok { border-left: 4px solid #16a34a; }
+  .warn { border-left: 4px solid #d97706; }
   .err { border-left: 4px solid #dc2626; }
+
+  /* Estatus badges */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+  .s-transito { background: #78350f; color: #fbbf24; }
+  .s-bodega { background: #14532d; color: #4ade80; }
+
+  /* Resumen */
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .chip { background: #1e293b; border-radius: 10px; padding: 10px 14px; font-size: 0.82rem; color: #94a3b8; }
+  .chip b { display: block; font-size: 1.3rem; color: #e2e8f0; }
+
+  /* Tabla de guias */
+  .filtros { display: flex; gap: 8px; margin-bottom: 12px; }
+  .filtros input { flex: 2; }
+  .filtros select { flex: 1; width: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th { text-align: left; color: #64748b; font-size: 0.75rem; text-transform: uppercase; padding: 8px 10px; }
+  td { padding: 10px; border-top: 1px solid #334155; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: #263449; }
+  .vacio { color: #64748b; padding: 16px 10px; }
+
+  /* Detalle / historial */
+  .detalle { display: none; }
+  .volver { background: none; border: none; color: #60a5fa; font-size: 0.95rem; cursor: pointer; padding: 0; margin-bottom: 12px; }
+  .timeline { list-style: none; margin: 14px 0 0; padding: 0; }
+  .timeline li { position: relative; padding: 0 0 18px 26px; border-left: 2px solid #334155; margin-left: 8px; }
+  .timeline li:last-child { border-left-color: transparent; }
+  .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #334155; }
+  .timeline li.e-salida::before { background: #d97706; }
+  .timeline li.e-llegada::before { background: #16a34a; }
+  .timeline .desc { font-size: 0.95rem; }
+  .timeline .meta { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
 </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Escaneo de guias - MTY &lt;-&gt; CDMX</h1>
+<div class="wrap">
 
+  <div class="card">
+    <h1>Sistema de guias MTY &lt;-&gt; CDMX</h1>
+    <label>Estoy en la plaza:</label>
+    <div class="plazas">
+      <button class="plaza-btn" id="btnMTY" onclick="setPlaza('MTY')">MTY</button>
+      <button class="plaza-btn" id="btnCDMX" onclick="setPlaza('CDMX')">CDMX</button>
+    </div>
+    <p class="plaza-hint">El sistema detecta solo si el escaneo es una salida o una llegada.</p>
     <label for="token">Token de acceso</label>
     <input type="text" id="token" placeholder="APP_TOKEN" />
-
-    <label for="accion">Accion</label>
-    <select id="accion">
-      <option value="ingreso">Ingreso a bodega</option>
-      <option value="salida">Salida (en camino)</option>
-      <option value="llegada">Llegada a destino</option>
-    </select>
-
-    <div id="origenWrap">
-      <label for="origen">Plaza de origen (solo para Ingreso)</label>
-      <select id="origen">
-        <option value="MTY">MTY</option>
-        <option value="CDMX">CDMX</option>
-      </select>
-    </div>
-
-    <label for="guia">Numero de guia (escanea aqui)</label>
-    <input type="text" id="guia" autofocus placeholder="Escanea o escribe el numero de guia" />
   </div>
 
-  <div id="log"></div>
+  <div class="tabs">
+    <button class="tab activa" id="tabEscanear" onclick="setTab('escanear')">Escanear</button>
+    <button class="tab" id="tabGuias" onclick="setTab('guias')">Guias e historial</button>
+  </div>
+
+  <!-- ============ Vista: Escanear ============ -->
+  <div id="vistaEscanear">
+    <div class="card">
+      <label for="guia">Numero de guia (escanea aqui)</label>
+      <input type="text" id="guia" autofocus autocomplete="off" placeholder="Escanea o escribe el numero de guia" />
+    </div>
+    <div class="resultado" id="resultado">
+      <h2 id="resTitulo"></h2>
+      <p id="resDetalle"></p>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <!-- ============ Vista: Guias ============ -->
+  <div id="vistaGuias" style="display:none">
+    <div id="listaGuias">
+      <div class="chips" id="chips"></div>
+      <div class="filtros">
+        <input type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" />
+        <select id="filtroEstatus">
+          <option value="">Todos</option>
+          <option value="EN_TRANSITO_A_CDMX">En transito a CDMX</option>
+          <option value="EN_TRANSITO_A_MTY">En transito a MTY</option>
+          <option value="EN_BODEGA_CDMX">En bodega CDMX</option>
+          <option value="EN_BODEGA_MTY">En bodega MTY</option>
+        </select>
+      </div>
+      <div class="card" style="padding: 6px 4px;">
+        <table>
+          <thead><tr><th>Guia</th><th>Ruta</th><th>Estatus</th><th>Actualizada</th></tr></thead>
+          <tbody id="tbodyGuias"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="detalle" id="detalleGuia">
+      <button class="volver" onclick="cerrarDetalle()">&larr; Volver a la lista</button>
+      <div class="card">
+        <h1 id="detNumero"></h1>
+        <p id="detEstatus" style="margin: 4px 0 2px;"></p>
+        <p id="detMensaje" style="margin: 4px 0 0; color: #94a3b8; font-size: 0.9rem;"></p>
+        <ul class="timeline" id="detHistorial"></ul>
+      </div>
+    </div>
+  </div>
+
+</div>
 
 <script>
   const $ = (id) => document.getElementById(id);
-  const guiaInput = $('guia');
-  const accionSel = $('accion');
-  const origenWrap = $('origenWrap');
 
-  accionSel.addEventListener('change', () => {
-    origenWrap.style.display = accionSel.value === 'ingreso' ? '' : 'none';
-  });
+  const ETIQUETAS = {
+    EN_TRANSITO_A_CDMX: 'En transito a CDMX',
+    EN_TRANSITO_A_MTY: 'En transito a MTY',
+    EN_BODEGA_CDMX: 'En bodega CDMX',
+    EN_BODEGA_MTY: 'En bodega MTY',
+  };
 
-  localStorage.getItem('token') && ($('token').value = localStorage.getItem('token'));
+  function badge(estatus) {
+    const clase = estatus.startsWith('EN_BODEGA') ? 's-bodega' : 's-transito';
+    return `<span class="badge ${clase}">${ETIQUETAS[estatus] || estatus}</span>`;
+  }
+
+  function fmtFecha(f) {
+    return new Date(f).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ---------- Plaza y token persistidos ----------
+  let plaza = localStorage.getItem('plaza') || 'MTY';
+  function setPlaza(p) {
+    plaza = p;
+    localStorage.setItem('plaza', p);
+    $('btnMTY').classList.toggle('activa', p === 'MTY');
+    $('btnCDMX').classList.toggle('activa', p === 'CDMX');
+    $('guia').focus();
+  }
+  setPlaza(plaza);
+
+  if (localStorage.getItem('token')) $('token').value = localStorage.getItem('token');
   $('token').addEventListener('change', () => localStorage.setItem('token', $('token').value));
 
-  function logRow(text, ok) {
+  function headers() {
+    return { 'Content-Type': 'application/json', 'X-App-Token': $('token').value };
+  }
+
+  // ---------- Tabs ----------
+  function setTab(t) {
+    $('tabEscanear').classList.toggle('activa', t === 'escanear');
+    $('tabGuias').classList.toggle('activa', t === 'guias');
+    $('vistaEscanear').style.display = t === 'escanear' ? '' : 'none';
+    $('vistaGuias').style.display = t === 'guias' ? '' : 'none';
+    if (t === 'guias') { cerrarDetalle(); cargarGuias(); cargarResumen(); }
+    else $('guia').focus();
+  }
+
+  // ---------- Escaneo ----------
+  function mostrarResultado(tipo, titulo, detalle) {
+    const r = $('resultado');
+    r.className = 'resultado r-' + tipo;
+    $('resTitulo').textContent = titulo;
+    $('resDetalle').textContent = detalle;
+  }
+
+  function logRow(texto, clase) {
     const div = document.createElement('div');
-    div.className = 'row ' + (ok ? 'ok' : 'err');
-    div.textContent = text;
+    div.className = 'row ' + clase;
+    div.innerHTML = `<span></span><span class="hora">${new Date().toLocaleTimeString('es-MX')}</span>`;
+    div.firstChild.textContent = texto;
     $('log').prepend(div);
   }
 
-  async function procesar(numeroGuia) {
-    const accion = accionSel.value;
-    const token = $('token').value;
-    let url, body;
-    if (accion === 'ingreso') {
-      url = '/api/guias/ingreso';
-      body = { numeroGuia, origen: $('origen').value };
-    } else if (accion === 'salida') {
-      url = '/api/guias/salida';
-      body = { numeroGuia };
-    } else {
-      url = '/api/guias/llegada';
-      body = { numeroGuia };
-    }
-
+  async function escanear(numeroGuia) {
     try {
-      const res = await fetch(url, {
+      const res = await fetch('/api/guias/escanear', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-App-Token': token },
-        body: JSON.stringify(body),
+        headers: headers(),
+        body: JSON.stringify({ numeroGuia, plaza }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error');
-      logRow(`${numeroGuia} -> ${data.estatus}`, true);
+
+      const titulos = { salida: 'SALIDA registrada', llegada: 'LLEGADA registrada', repetido: 'Escaneo repetido' };
+      const clases = { salida: 'warn', llegada: 'ok', repetido: 'warn' };
+      mostrarResultado(data.tipo, `${numeroGuia} - ${titulos[data.tipo] || data.tipo}`, data.mensaje);
+      logRow(`${numeroGuia}: ${data.mensaje}`, clases[data.tipo] || 'ok');
     } catch (e) {
-      logRow(`${numeroGuia}: ${e.message}`, false);
+      mostrarResultado('error', `${numeroGuia} - Error`, e.message);
+      logRow(`${numeroGuia}: ${e.message}`, 'err');
     }
   }
 
   // La pistola escaner envia el texto y luego un "Enter"
-  guiaInput.addEventListener('keydown', (e) => {
+  $('guia').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      const numeroGuia = guiaInput.value.trim();
-      if (numeroGuia) procesar(numeroGuia);
-      guiaInput.value = '';
+      const numeroGuia = $('guia').value.trim();
+      if (numeroGuia) escanear(numeroGuia);
+      $('guia').value = '';
     }
   });
+
+  // ---------- Lista de guias ----------
+  async function cargarResumen() {
+    try {
+      const res = await fetch('/api/guias/resumen', { headers: headers() });
+      const data = await res.json();
+      if (!res.ok) return;
+      $('chips').innerHTML = Object.keys(ETIQUETAS)
+        .map((e) => `<div class="chip">${ETIQUETAS[e]}<b>${data[e] || 0}</b></div>`)
+        .join('');
+    } catch {}
+  }
+
+  async function cargarGuias() {
+    const params = new URLSearchParams();
+    if ($('buscar').value.trim()) params.set('buscar', $('buscar').value.trim());
+    if ($('filtroEstatus').value) params.set('estatus', $('filtroEstatus').value);
+    try {
+      const res = await fetch('/api/guias?' + params, { headers: headers() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error');
+      const tbody = $('tbodyGuias');
+      tbody.innerHTML = '';
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="vacio">Sin guias</td></tr>';
+        return;
+      }
+      for (const g of data) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${g.numero_guia}</td><td>${g.origen} &rarr; ${g.destino}</td><td>${badge(g.estatus)}</td><td>${fmtFecha(g.actualizado_en)}</td>`;
+        tr.addEventListener('click', () => verDetalle(g.numero_guia));
+        tbody.appendChild(tr);
+      }
+    } catch (e) {
+      $('tbodyGuias').innerHTML = `<tr><td colspan="4" class="vacio">${e.message}</td></tr>`;
+    }
+  }
+
+  let timerBuscar;
+  $('buscar').addEventListener('input', () => {
+    clearTimeout(timerBuscar);
+    timerBuscar = setTimeout(cargarGuias, 250);
+  });
+  $('filtroEstatus').addEventListener('change', cargarGuias);
+
+  // ---------- Detalle e historial ----------
+  async function verDetalle(numeroGuia) {
+    try {
+      const res = await fetch('/api/guias/' + encodeURIComponent(numeroGuia), { headers: headers() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error');
+      $('detNumero').textContent = data.numero_guia;
+      $('detEstatus').innerHTML = badge(data.estatus) + ` &nbsp; ${data.origen} &rarr; ${data.destino}`;
+      $('detMensaje').textContent = data.mensaje;
+      $('detHistorial').innerHTML = data.historial
+        .map((ev) => {
+          const clase = ev.accion === 'SALIDA' ? 'e-salida' : ev.accion === 'LLEGADA' ? 'e-llegada' : '';
+          return `<li class="${clase}">
+            <div class="desc">${ev.descripcion || ev.accion}</div>
+            <div class="meta">${ev.plaza ? 'Plaza ' + ev.plaza + ' - ' : ''}${fmtFecha(ev.creado_en)}</div>
+          </li>`;
+        })
+        .join('');
+      $('listaGuias').style.display = 'none';
+      $('detalleGuia').style.display = 'block';
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function cerrarDetalle() {
+    $('detalleGuia').style.display = 'none';
+    $('listaGuias').style.display = '';
+  }
 </script>
 </body>
 </html>

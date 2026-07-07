@@ -24,37 +24,21 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // ---------- API de escaneo (usada por la pistola / panel web) ----------
 
-app.post('/api/guias/ingreso', requireAppToken, async (req, res) => {
-  const { numeroGuia, origen } = req.body;
-  if (!numeroGuia || !origen) return res.status(400).json({ error: 'numeroGuia y origen son requeridos' });
+// Escaneo inteligente: solo se indica en que plaza estas (MTY o CDMX) y el
+// sistema decide si el escaneo es una salida o una llegada.
+app.post('/api/guias/escanear', requireAppToken, async (req, res) => {
+  const { numeroGuia, plaza } = req.body;
+  if (!numeroGuia || !plaza) return res.status(400).json({ error: 'numeroGuia y plaza son requeridos' });
   try {
-    const guia = await guias.ingresarGuia(numeroGuia.trim().toUpperCase(), origen.toUpperCase());
-    res.json(guia);
+    const resultado = await guias.escanearGuia(numeroGuia.trim().toUpperCase(), plaza.trim().toUpperCase());
+    res.json(resultado);
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
-app.post('/api/guias/salida', requireAppToken, async (req, res) => {
-  const { numeroGuia } = req.body;
-  if (!numeroGuia) return res.status(400).json({ error: 'numeroGuia es requerido' });
-  try {
-    const guia = await guias.marcarSalida(numeroGuia.trim().toUpperCase());
-    res.json(guia);
-  } catch (e) {
-    res.status(400).json({ error: e.message });
-  }
-});
-
-app.post('/api/guias/llegada', requireAppToken, async (req, res) => {
-  const { numeroGuia } = req.body;
-  if (!numeroGuia) return res.status(400).json({ error: 'numeroGuia es requerido' });
-  try {
-    const guia = await guias.marcarLlegada(numeroGuia.trim().toUpperCase());
-    res.json(guia);
-  } catch (e) {
-    res.status(400).json({ error: e.message });
-  }
+app.get('/api/guias/resumen', requireAppToken, async (req, res) => {
+  res.json(await guias.resumen());
 });
 
 app.get('/api/guias/:numeroGuia', requireAppToken, async (req, res) => {
@@ -66,7 +50,8 @@ app.get('/api/guias/:numeroGuia', requireAppToken, async (req, res) => {
 });
 
 app.get('/api/guias', requireAppToken, async (req, res) => {
-  res.json(await guias.listarGuias());
+  const { buscar, estatus } = req.query;
+  res.json(await guias.listarGuias({ buscar, estatus }));
 });
 
 // ---------- Webhook de WhatsApp Business Cloud API (Meta) ----------

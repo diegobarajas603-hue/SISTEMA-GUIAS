@@ -1,15 +1,47 @@
 # Sistema de Guias MTY <-> CDMX
 
 Sistema para rastrear guias en la ruta unica Monterrey <-> Ciudad de Mexico,
-usando una pistola lectora de codigos para dar entradas/salidas, y un
+usando una pistola lectora de codigos con **escaneo inteligente**, y un
 webhook compatible con WhatsApp Business Cloud API (Meta) para que tus
 clientes consulten el estatus de su guia escribiendo el numero por WhatsApp.
 
+## Como funciona el escaneo inteligente
+
+En el panel web solo eliges **en que plaza estas** (MTY o CDMX) una sola vez;
+la eleccion queda guardada en el navegador. A partir de ahi solo escaneas y el
+sistema decide automaticamente que significa cada escaneo:
+
+Estando en la plaza P (la otra plaza es Q):
+
+| Estado actual de la guia | Que hace el escaneo en P |
+| --- | --- |
+| No existe en el sistema | La registra: **salio de P hacia Q** (`EN_TRANSITO_A_Q`) |
+| `EN_TRANSITO_A_P` (venia hacia aqui) | **Llego**: queda en bodega de P, lista (`EN_BODEGA_P`) |
+| `EN_BODEGA_P` (estaba aqui) | **Vuelve a salir** de P hacia Q (`EN_TRANSITO_A_Q`) |
+| `EN_TRANSITO_A_Q` (ya salio de aqui) | Escaneo repetido: no cambia nada, solo se registra en el historial |
+| `EN_BODEGA_Q` (figuraba en la otra plaza) | Llego a P aunque no se escaneo su salida en Q (`EN_BODEGA_P`) |
+
+Ejemplo: estas en MTY y escaneas una guia nueva -> el sistema registra que
+salio hacia CDMX. Cuando esa guia llega a CDMX y la escanean alla -> el
+sistema detecta que ya esta en bodega de CDMX, lista.
+
 ## Estatus posibles
 
-- `EN_BODEGA_MTY` / `EN_BODEGA_CDMX`: la guia fue ingresada y esta en bodega.
-- `EN_CAMINO_CDMX` / `EN_CAMINO_MTY`: el camion ya salio hacia esa plaza.
-- `LLEGO_CDMX` / `LLEGO_MTY`: el camion ya llego a esa plaza.
+- `EN_TRANSITO_A_CDMX` / `EN_TRANSITO_A_MTY`: la guia va en camino a esa plaza.
+- `EN_BODEGA_CDMX` / `EN_BODEGA_MTY`: la guia llego y esta en esa bodega, lista.
+
+(Los estatus del modelo anterior `EN_CAMINO_X` y `LLEGO_X` se migran
+automaticamente al arrancar el servidor.)
+
+## Historial
+
+Cada escaneo queda registrado en la tabla `eventos` con la accion (SALIDA,
+LLEGADA o ESCANEO_REPETIDO), la plaza donde se escaneo, una descripcion y la
+fecha/hora. En el panel web, pestaña **"Guias e historial"**, puedes:
+
+- Ver el resumen de cuantas guias hay en cada estatus.
+- Buscar por numero de guia y filtrar por estatus.
+- Dar clic en cualquier guia para ver su linea de tiempo completa.
 
 ## Instalacion
 
@@ -32,26 +64,19 @@ El servidor corre en `http://localhost:3000`. Abre esa URL en una
 computadora/tablet conectada a la pistola escaner (la pistola funciona
 como teclado: escanea y manda "Enter" automaticamente).
 
-## Flujo de escaneo
-
-1. **Ingreso**: cuando la guia llega a la bodega de origen (MTY o CDMX),
-   selecciona "Ingreso a bodega", la plaza de origen, y escanea.
-2. **Salida**: cuando el camion sale hacia la otra plaza, selecciona
-   "Salida (en camino)" y escanea las guias que se van.
-3. **Llegada**: cuando el camion llega a destino, selecciona "Llegada a
-   destino" y escanea.
-
 ## API REST
 
 Todas las rutas requieren el header `X-App-Token: <APP_TOKEN>` (definido en
 `.env`) si `APP_TOKEN` esta configurado.
 
-- `POST /api/guias/ingreso` `{ numeroGuia, origen: "MTY"|"CDMX" }`
-- `POST /api/guias/salida` `{ numeroGuia }`
-- `POST /api/guias/llegada` `{ numeroGuia }`
+- `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX" }` ->
+  aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje }`, donde
+  `tipo` es `salida`, `llegada` o `repetido`.
+- `GET /api/guias?buscar=<texto>&estatus=<estatus>` -> lista de guias
+  recientes, con busqueda por numero y filtro por estatus (ambos opcionales).
+- `GET /api/guias/resumen` -> conteo de guias por estatus.
 - `GET /api/guias/:numeroGuia` -> estatus actual, mensaje en lenguaje
-  natural e historial de eventos.
-- `GET /api/guias` -> lista de guias recientes.
+  natural e historial completo de eventos.
 
 ## Conectar con WhatsApp Business (Meta Cloud API) - desde cero
 
@@ -135,8 +160,6 @@ si planeas enviar mensajes fuera de la ventana de 24 horas de respuesta.
 
 ## Notas
 
-- La base de datos es SQLite (`data/guias.db`), no requiere servidor de
-  base de datos aparte.
 - El campo `numeroGuia` se normaliza a mayusculas.
-- Una guia se "reinicia" automaticamente si se vuelve a escanear como
-  "Ingreso" desde otra plaza (es decir, el ciclo de retorno MTY->CDMX->MTY).
+- El ciclo de ida y vuelta esta soportado: una guia en bodega puede volver a
+  salir hacia la otra plaza y todo queda en el mismo historial.
