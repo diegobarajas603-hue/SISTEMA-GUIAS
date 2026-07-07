@@ -96,14 +96,13 @@
   };
 
   const EVENTOS = [
-    [/^Salio de bodega (\w+) con destino a (\w+)/, (m) => `Salió de bodega ${m[1]} con destino a ${m[2]}`],
-    [/^Llego a bodega (\w+) \(sin registro/, (m) => `Llegó a bodega ${m[1]}`],
-    [/^Llego a bodega (\w+)/, (m) => `Llegó a bodega ${m[1]}`],
+    [/^Salio de bodega (MTY|CDMX) con destino a (MTY|CDMX)/, (m) => `Salió de bodega ${m[1]} con destino a ${m[2]}`],
+    [/^Llego a bodega (MTY|CDMX)/, (m) => `Llegó a bodega ${m[1]}`],
     // Textos de versiones anteriores del sistema
-    [/salio de Monterrey|hacia Ciudad de Mexico$/, () => 'Salió de bodega MTY con destino a CDMX'],
-    [/salio de Ciudad de Mexico|hacia Monterrey$/, () => 'Salió de bodega CDMX con destino a MTY'],
     [/Llego a bodega de Ciudad de Mexico/, () => 'Llegó a bodega CDMX'],
     [/Llego a bodega de Monterrey/, () => 'Llegó a bodega MTY'],
+    [/salio de Monterrey|hacia Ciudad de Mexico$/, () => 'Salió de bodega MTY con destino a CDMX'],
+    [/salio de Ciudad de Mexico|hacia Monterrey$/, () => 'Salió de bodega CDMX con destino a MTY'],
   ];
 
   function textoEvento(desc, accion) {
