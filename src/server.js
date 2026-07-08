@@ -60,8 +60,8 @@ app.get('/api/guias/:numeroGuia', requireAppToken, async (req, res) => {
 });
 
 app.get('/api/guias', requireAppToken, async (req, res) => {
-  const { buscar, estatus } = req.query;
-  res.json(await guias.listarGuias({ buscar, estatus }));
+  const { buscar, estatus, plaza } = req.query;
+  res.json(await guias.listarGuias({ buscar, estatus, plaza: plaza && plaza.toUpperCase() }));
 });
 
 // ---------- API publica de rastreo (sin token, para clientes) ----------

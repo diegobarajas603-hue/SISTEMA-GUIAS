@@ -128,6 +128,15 @@
 
   .grid-2 { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
 
+  /* Pestañas de plaza en Guias */
+  .ptabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .ptabs button { flex: 1; max-width: 200px; padding: 13px 10px; border: 2px solid #d4d4d8; border-radius: 10px; background: #fff; color: #52525b; font-weight: 800; font-size: 1.05rem; letter-spacing: 0.03em; cursor: pointer; }
+  .ptabs button.activa { border-color: #d92027; background: #d92027; color: #fff; }
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chipf { background: #fff; border: 2px solid transparent; border-radius: 10px; padding: 10px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); cursor: pointer; font-size: 0.8rem; color: #71717a; text-align: left; }
+  .chipf b { display: block; font-size: 1.35rem; color: #1a1a1a; }
+  .chipf.activo { border-color: #d92027; }
+
   /* Eventos agrupados por guia */
   .grupo { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); margin-bottom: 10px; overflow: hidden; }
   .grupo-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 14px 16px; border: none; background: none; cursor: pointer; text-align: left; font-size: 0.92rem; color: #1a1a1a; }
@@ -225,19 +234,15 @@
 
       <!-- ============ Guias ============ -->
       <section id="v-guias" style="display:none">
+        <div class="ptabs">
+          <button data-ptab="MTY">MTY</button>
+          <button data-ptab="CDMX">CDMX</button>
+          <button data-ptab="">Todas</button>
+        </div>
+        <div class="chips" id="chipsPlaza"></div>
         <div class="card" style="display:flex; gap:10px; flex-wrap:wrap;">
           <input type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" style="flex:2; min-width:180px;" />
-          <select id="filtroEstatus" style="flex:1; min-width:170px;">
-            <option value="">Todos los estatus</option>
-            <option value="EN_TRANSITO_A_CDMX">En transito a CDMX</option>
-            <option value="EN_TRANSITO_A_MTY">En transito a MTY</option>
-            <option value="EN_BODEGA_CDMX">En bodega CDMX</option>
-            <option value="EN_BODEGA_MTY">En bodega MTY</option>
-            <option value="EN_RUTA_ENTREGA_CDMX">En ruta de entrega CDMX</option>
-            <option value="EN_RUTA_ENTREGA_MTY">En ruta de entrega MTY</option>
-            <option value="ENTREGADO_CDMX">Entregado CDMX</option>
-            <option value="ENTREGADO_MTY">Entregado MTY</option>
-          </select>
+          <select id="filtroEstatus" style="flex:1; min-width:170px;"></select>
         </div>
         <div class="card tabla-scroll">
           <table>
@@ -399,7 +404,7 @@
     $('tituloVista').textContent = TITULOS[vista];
 
     if (vista === 'dashboard') cargarDashboard();
-    if (vista === 'guias') cargarGuias();
+    if (vista === 'guias') setPlazaTab(plazaTab);
     if (vista === 'eventos') cargarEventos();
     if (vista === 'detalle') cargarDetalle(arg);
     if (vista === 'escanear') setTimeout(() => $('guia').focus(), 50);
@@ -493,10 +498,69 @@
   });
 
   // ---------- Guias ----------
+  // Pestaña de plaza: por defecto la plaza donde estas (elegida en Escanear)
+  let plazaTab = localStorage.getItem('plazaTab');
+  if (plazaTab === null) plazaTab = plaza;
+
+  const NOMBRE_PASO_PLAZA = [
+    ['EN_TRANSITO_A_', 'Por llegar'],
+    ['EN_BODEGA_', 'En bodega'],
+    ['EN_RUTA_ENTREGA_', 'En reparto'],
+    ['ENTREGADO_', 'Entregadas'],
+  ];
+
+  function pintarFiltroEstatus() {
+    const sel = $('filtroEstatus');
+    let opciones = '<option value="">Todos los estatus</option>';
+    if (plazaTab) {
+      opciones += NOMBRE_PASO_PLAZA.map(([pre, nom]) => `<option value="${pre}${plazaTab}">${nom}</option>`).join('');
+    } else {
+      opciones += Object.keys(ETIQUETAS).map((e) => `<option value="${e}">${ETIQUETAS[e]}</option>`).join('');
+    }
+    sel.innerHTML = opciones;
+  }
+
+  function setPlazaTab(p) {
+    plazaTab = p;
+    localStorage.setItem('plazaTab', p);
+    document.querySelectorAll('.ptabs button').forEach((b) => b.classList.toggle('activa', b.dataset.ptab === p));
+    pintarFiltroEstatus();
+    cargarChipsPlaza();
+    cargarGuias();
+  }
+  document.querySelectorAll('.ptabs button').forEach((b) => b.addEventListener('click', () => setPlazaTab(b.dataset.ptab)));
+
+  async function cargarChipsPlaza() {
+    if (!plazaTab) { $('chipsPlaza').innerHTML = ''; return; }
+    try {
+      const r = await api('/api/guias/resumen');
+      const p = r.porEstatus || {};
+      $('chipsPlaza').innerHTML = NOMBRE_PASO_PLAZA.map(([pre, nom]) => {
+        const est = pre + plazaTab;
+        const activo = $('filtroEstatus').value === est ? 'activo' : '';
+        return `<button class="chipf ${activo}" data-est="${est}">${nom} ${plazaTab}<b>${p[est] || 0}</b></button>`;
+      }).join('');
+      document.querySelectorAll('#chipsPlaza .chipf').forEach((c) =>
+        c.addEventListener('click', () => {
+          $('filtroEstatus').value = $('filtroEstatus').value === c.dataset.est ? '' : c.dataset.est;
+          document.querySelectorAll('#chipsPlaza .chipf').forEach((x) => x.classList.toggle('activo', x.dataset.est === $('filtroEstatus').value));
+          cargarGuias();
+        })
+      );
+    } catch { $('chipsPlaza').innerHTML = ''; }
+  }
+
   async function cargarGuias() {
     const params = new URLSearchParams();
-    if ($('buscar').value.trim()) params.set('buscar', $('buscar').value.trim());
-    if ($('filtroEstatus').value) params.set('estatus', $('filtroEstatus').value);
+    const buscar = $('buscar').value.trim();
+    if (buscar) {
+      // La busqueda por numero revisa todas las guias, sin importar la pestaña
+      params.set('buscar', buscar);
+    } else if ($('filtroEstatus').value) {
+      params.set('estatus', $('filtroEstatus').value);
+    } else if (plazaTab) {
+      params.set('plaza', plazaTab);
+    }
     try {
       const data = await api('/api/guias?' + params);
       $('tbodyGuias').innerHTML = data.length
@@ -514,7 +578,10 @@
   }
   let timerBuscar;
   $('buscar').addEventListener('input', () => { clearTimeout(timerBuscar); timerBuscar = setTimeout(cargarGuias, 250); });
-  $('filtroEstatus').addEventListener('change', cargarGuias);
+  $('filtroEstatus').addEventListener('change', () => {
+    document.querySelectorAll('#chipsPlaza .chipf').forEach((x) => x.classList.toggle('activo', x.dataset.est === $('filtroEstatus').value));
+    cargarGuias();
+  });
 
   // ---------- Detalle ----------
   const PASOS = [

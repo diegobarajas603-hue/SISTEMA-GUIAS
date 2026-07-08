@@ -177,7 +177,7 @@ async function escanearEntrega(numeroGuia, plaza, modo) {
   throw new Error(`La guia no esta disponible para entrega en ${plaza} (estatus actual: ${guia.estatus})`);
 }
 
-async function listarGuias({ buscar, estatus, limit = 200 } = {}) {
+async function listarGuias({ buscar, estatus, plaza, limit = 200 } = {}) {
   const condiciones = [];
   const params = [];
   if (buscar) {
@@ -187,6 +187,11 @@ async function listarGuias({ buscar, estatus, limit = 200 } = {}) {
   if (estatus) {
     params.push(estatus);
     condiciones.push(`estatus = $${params.length}`);
+  }
+  if (plaza && PLAZAS.includes(plaza)) {
+    // Guias "de" una plaza: por llegar, en bodega, en reparto o entregadas ahi
+    params.push([enTransitoA(plaza), enBodega(plaza), enRutaEntrega(plaza), entregado(plaza)]);
+    condiciones.push(`estatus = ANY($${params.length})`);
   }
   params.push(limit);
   const where = condiciones.length ? `WHERE ${condiciones.join(' AND ')}` : '';
