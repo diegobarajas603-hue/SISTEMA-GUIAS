@@ -3,165 +3,300 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sistema de Guias MTY &lt;-&gt; CDMX</title>
+<title>Fletes Tauro - Sistema de Guias</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 16px; }
-  .wrap { max-width: 720px; margin: 0 auto; }
-  .card { background: #1e293b; border-radius: 12px; padding: 18px; margin-bottom: 14px; }
-  h1 { font-size: 1.2rem; margin: 0 0 12px; }
-  label { display: block; margin: 10px 0 4px; font-size: 0.85rem; color: #94a3b8; }
-  input[type=text], select { width: 100%; padding: 11px; font-size: 1.05rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; }
+  body { font-family: system-ui, sans-serif; margin: 0; background: #f4f4f5; color: #1a1a1a; }
 
-  /* Selector de plaza */
-  .plazas { display: flex; gap: 10px; margin-bottom: 4px; }
-  .plaza-btn { flex: 1; padding: 16px; font-size: 1.25rem; font-weight: 700; border-radius: 10px; border: 2px solid #334155; background: #0f172a; color: #94a3b8; cursor: pointer; }
-  .plaza-btn.activa { border-color: #d92027; background: #b31a20; color: #fff; }
-  .plaza-hint { font-size: 0.8rem; color: #64748b; margin: 6px 0 0; }
+  .layout { display: flex; min-height: 100vh; }
 
-  /* Tabs */
-  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-  .tab { flex: 1; padding: 12px; font-size: 1rem; font-weight: 600; border-radius: 10px; border: none; background: #1e293b; color: #94a3b8; cursor: pointer; }
-  .tab.activa { background: #d92027; color: #fff; }
+  /* ---------- Sidebar ---------- */
+  aside { width: 232px; background: #161616; color: #a3a3a3; display: flex; flex-direction: column; flex-shrink: 0; }
+  .logo { padding: 20px 18px 16px; border-bottom: 1px solid #2a2a2a; }
+  .logo .nombre { font-size: 1.15rem; font-weight: 400; letter-spacing: 0.05em; color: #8a8a8a; text-transform: uppercase; }
+  .logo .nombre b { color: #d92027; font-weight: 800; }
+  .logo small { display: block; color: #6b6b6b; font-size: 0.72rem; margin-top: 3px; }
+  nav { flex: 1; padding: 12px 10px; }
+  .sec { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: #6b6b6b; margin: 14px 8px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; margin-bottom: 2px; border: none; border-radius: 8px; background: none; color: #b9b9b9; font-size: 0.92rem; cursor: pointer; text-align: left; }
+  .nav-item:hover { background: #222; color: #fff; }
+  .nav-item.activa { background: #d92027; color: #fff; font-weight: 600; }
+  .nav-item .ico { width: 20px; text-align: center; }
+  .plaza-pie { padding: 14px 18px; border-top: 1px solid #2a2a2a; font-size: 0.8rem; color: #8a8a8a; }
+  .plaza-pie b { color: #fff; }
 
-  /* Modo de operacion */
-  .modos { display: flex; gap: 8px; }
-  .modo-btn { flex: 1; padding: 10px 6px; font-size: 0.88rem; font-weight: 600; border-radius: 8px; border: 2px solid #334155; background: #0f172a; color: #94a3b8; cursor: pointer; }
-  .modo-btn.activa { border-color: #d92027; background: #b31a20; color: #fff; }
+  /* ---------- Contenido ---------- */
+  main { flex: 1; min-width: 0; padding: 0 0 40px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: #fff; padding: 14px 24px; border-bottom: 1px solid #e4e4e7; flex-wrap: wrap; }
+  .topbar h1 { font-size: 1.15rem; margin: 0; }
+  .topbar input { width: 300px; max-width: 100%; padding: 9px 12px; border: 1.5px solid #d4d4d8; border-radius: 8px; font-size: 0.9rem; }
+  .topbar input:focus { outline: none; border-color: #d92027; }
+  .contenido { padding: 22px 24px; max-width: 1180px; }
+
+  .card { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); margin-bottom: 16px; }
+  h2.titulo-card { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.07em; color: #8a8a8a; margin: 0 0 14px; }
+
+  /* KPIs */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: #fff; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border-top: 3px solid #d4d4d8; }
+  .kpi.rojo { border-top-color: #d92027; }
+  .kpi.ambar { border-top-color: #f59e0b; }
+  .kpi.verde { border-top-color: #16a34a; }
+  .kpi.azul { border-top-color: #3b82f6; }
+  .kpi .valor { font-size: 1.7rem; font-weight: 800; }
+  .kpi .etiqueta { font-size: 0.78rem; color: #71717a; margin-top: 2px; }
+
+  /* Botones y campos */
+  button.primario { padding: 11px 18px; border: none; border-radius: 8px; background: #d92027; color: #fff; font-weight: 700; font-size: 0.92rem; cursor: pointer; }
+  button.primario:hover { background: #b31a20; }
+  input[type=text], select { padding: 10px 12px; border: 1.5px solid #d4d4d8; border-radius: 8px; font-size: 0.95rem; background: #fff; color: #1a1a1a; }
+  input[type=text]:focus, select:focus { outline: none; border-color: #d92027; }
+  label { display: block; font-size: 0.8rem; color: #71717a; margin: 12px 0 5px; }
+
+  /* Toggles de plaza / modo */
+  .toggle { display: flex; gap: 8px; flex-wrap: wrap; }
+  .toggle button { flex: 1; min-width: 110px; padding: 12px 8px; border: 2px solid #d4d4d8; border-radius: 8px; background: #fff; color: #52525b; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+  .toggle button.activa { border-color: #d92027; background: #d92027; color: #fff; }
 
   /* Resultado de escaneo */
-  .resultado { border-radius: 12px; padding: 18px; margin-bottom: 14px; display: none; }
-  .resultado h2 { margin: 0 0 6px; font-size: 1.35rem; }
-  .resultado p { margin: 0; font-size: 1rem; }
-  .r-salida { display: block; background: #78350f; border: 2px solid #d97706; }
-  .r-llegada { display: block; background: #14532d; border: 2px solid #16a34a; }
-  .r-ruta { display: block; background: #1e3a8a; border: 2px solid #3b82f6; }
-  .r-entregado { display: block; background: #14532d; border: 2px solid #22c55e; }
-  .r-repetido { display: block; background: #334155; border: 2px solid #94a3b8; }
-  .r-error { display: block; background: #7f1d1d; border: 2px solid #dc2626; }
+  .resultado { border-radius: 10px; padding: 18px; margin: 16px 0; display: none; border: 2px solid; }
+  .resultado h3 { margin: 0 0 4px; font-size: 1.25rem; text-transform: uppercase; }
+  .resultado p { margin: 0; }
+  .r-salida { display: block; background: #fff7ed; border-color: #f59e0b; color: #7c2d12; }
+  .r-llegada { display: block; background: #f0fdf4; border-color: #16a34a; color: #14532d; }
+  .r-ruta { display: block; background: #eff6ff; border-color: #3b82f6; color: #1e3a8a; }
+  .r-entregado { display: block; background: #f0fdf4; border-color: #22c55e; color: #14532d; }
+  .r-repetido { display: block; background: #fafafa; border-color: #a1a1aa; color: #3f3f46; }
+  .r-error { display: block; background: #fef2f2; border-color: #dc2626; color: #7f1d1d; }
 
-  .row { background: #1e293b; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 0.9rem; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-  .row .hora { color: #64748b; font-size: 0.8rem; }
-  .ok { border-left: 4px solid #16a34a; }
-  .warn { border-left: 4px solid #d97706; }
-  .err { border-left: 4px solid #dc2626; }
+  .log-row { background: #fff; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 0.88rem; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 4px solid #a1a1aa; }
+  .log-row.ok { border-left-color: #16a34a; }
+  .log-row.warn { border-left-color: #f59e0b; }
+  .log-row.err { border-left-color: #dc2626; }
+  .log-row .hora { color: #a1a1aa; font-size: 0.78rem; }
 
-  /* Estatus badges */
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
-  .s-transito { background: #78350f; color: #fbbf24; }
-  .s-bodega { background: #14532d; color: #4ade80; }
-  .s-ruta { background: #1e3a8a; color: #93c5fd; }
-  .s-entregado { background: #052e16; color: #86efac; }
-
-  /* Resumen */
-  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-  .chip { background: #1e293b; border-radius: 10px; padding: 10px 14px; font-size: 0.82rem; color: #94a3b8; }
-  .chip b { display: block; font-size: 1.3rem; color: #e2e8f0; }
-
-  /* Tabla de guias */
-  .filtros { display: flex; gap: 8px; margin-bottom: 12px; }
-  .filtros input { flex: 2; }
-  .filtros select { flex: 1; width: auto; }
+  /* Tablas */
   table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-  th { text-align: left; color: #64748b; font-size: 0.75rem; text-transform: uppercase; padding: 8px 10px; }
-  td { padding: 10px; border-top: 1px solid #334155; }
-  tbody tr { cursor: pointer; }
-  tbody tr:hover { background: #263449; }
-  .vacio { color: #64748b; padding: 16px 10px; }
+  th { text-align: left; color: #8a8a8a; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px; border-bottom: 2px solid #f0f0f0; }
+  td { padding: 11px 10px; border-bottom: 1px solid #f0f0f0; }
+  tbody tr.clic { cursor: pointer; }
+  tbody tr.clic:hover { background: #fafafa; }
+  .vacio { color: #a1a1aa; padding: 18px 10px; }
+  .tabla-scroll { overflow-x: auto; }
 
-  /* Detalle / historial */
-  .detalle { display: none; }
-  .volver { background: none; border: none; color: #60a5fa; font-size: 0.95rem; cursor: pointer; padding: 0; margin-bottom: 12px; }
-  .timeline { list-style: none; margin: 14px 0 0; padding: 0; }
-  .timeline li { position: relative; padding: 0 0 18px 26px; border-left: 2px solid #334155; margin-left: 8px; }
-  .timeline li:last-child { border-left-color: transparent; }
-  .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #334155; }
-  .timeline li.e-salida::before { background: #d97706; }
+  /* Badges de estatus */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.76rem; font-weight: 700; white-space: nowrap; }
+  .s-transito { background: #fef3c7; color: #92400e; }
+  .s-bodega { background: #dcfce7; color: #166534; }
+  .s-ruta { background: #dbeafe; color: #1e40af; }
+  .s-entregado { background: #166534; color: #fff; }
+
+  /* Detalle de guia */
+  .det-header { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+  .det-header h2 { margin: 0 0 6px; font-size: 1.4rem; }
+  .det-ruta { color: #52525b; font-size: 0.95rem; }
+  .det-meta { display: flex; gap: 26px; flex-wrap: wrap; margin-top: 14px; }
+  .det-meta div { font-size: 0.86rem; }
+  .det-meta .k { color: #8a8a8a; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; display: block; }
+  #barcodeWrap { text-align: center; }
+  #barcodeWrap svg { max-width: 240px; }
+  .volver { background: none; border: none; color: #d92027; font-size: 0.92rem; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 14px; }
+
+  /* Stepper */
+  .stepper { display: flex; margin: 4px 0 2px; overflow-x: auto; }
+  .paso { flex: 1; min-width: 105px; text-align: center; position: relative; padding-top: 4px; }
+  .paso::before { content: ''; position: absolute; top: 21px; left: -50%; width: 100%; height: 3px; background: #e4e4e7; z-index: 0; }
+  .paso:first-child::before { display: none; }
+  .paso.hecho::before { background: #16a34a; }
+  .paso .circulo { position: relative; z-index: 1; width: 36px; height: 36px; margin: 0 auto 8px; border-radius: 50%; background: #e4e4e7; color: #71717a; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; }
+  .paso.hecho .circulo { background: #16a34a; color: #fff; }
+  .paso.actual .circulo { background: #d92027; color: #fff; box-shadow: 0 0 0 4px #fbd5d6; }
+  .paso .nombre { font-size: 0.8rem; font-weight: 600; }
+  .paso .fecha { font-size: 0.72rem; color: #a1a1aa; margin-top: 2px; }
+
+  /* Timeline */
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .timeline li { position: relative; padding: 0 0 18px 26px; border-left: 2px solid #e4e4e7; margin-left: 8px; }
+  .timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #d4d4d8; }
+  .timeline li.e-salida::before { background: #f59e0b; }
   .timeline li.e-llegada::before { background: #16a34a; }
   .timeline li.e-ruta::before { background: #3b82f6; }
-  .timeline li.e-entrega::before { background: #22c55e; }
-  .timeline .desc { font-size: 0.95rem; }
-  .timeline .meta { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+  .timeline li.e-entrega::before { background: #166534; }
+  .timeline .desc { font-size: 0.92rem; }
+  .timeline .meta { font-size: 0.76rem; color: #a1a1aa; margin-top: 2px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
+
+  .nota { font-size: 0.85rem; color: #71717a; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 860px) {
+    .layout { flex-direction: column; }
+    aside { width: 100%; }
+    nav { display: flex; overflow-x: auto; padding: 8px; }
+    .sec { display: none; }
+    .nav-item { width: auto; white-space: nowrap; }
+    .plaza-pie { display: none; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .topbar input { width: 100%; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="layout">
 
-  <div class="card">
-    <h1>Fletes Tauro - Guias MTY &lt;-&gt; CDMX</h1>
-    <label>Estoy en la plaza:</label>
-    <div class="plazas">
-      <button class="plaza-btn" id="btnMTY" onclick="setPlaza('MTY')">MTY</button>
-      <button class="plaza-btn" id="btnCDMX" onclick="setPlaza('CDMX')">CDMX</button>
+  <aside>
+    <div class="logo">
+      <div class="nombre">Fletes<b>Tauro</b></div>
+      <small>Sistema de guias MTY &harr; CDMX</small>
     </div>
-    <p class="plaza-hint">El sistema detecta solo si el escaneo es una salida o una llegada.</p>
-    <label for="token">Token de acceso</label>
-    <input type="text" id="token" placeholder="APP_TOKEN" />
-  </div>
+    <nav>
+      <span class="sec">Operaciones</span>
+      <button class="nav-item" data-ruta="dashboard"><span class="ico">&#8962;</span> Dashboard</button>
+      <button class="nav-item" data-ruta="escanear"><span class="ico">&#9635;</span> Escanear guia</button>
+      <button class="nav-item" data-ruta="guias"><span class="ico">&#9776;</span> Guias</button>
+      <button class="nav-item" data-ruta="eventos"><span class="ico">&#8635;</span> Eventos</button>
+      <span class="sec">Sistema</span>
+      <button class="nav-item" data-ruta="config"><span class="ico">&#9881;</span> Configuracion</button>
+    </nav>
+    <div class="plaza-pie">Plaza actual: <b id="plazaPie">-</b></div>
+  </aside>
 
-  <div class="tabs">
-    <button class="tab activa" id="tabEscanear" onclick="setTab('escanear')">Escanear</button>
-    <button class="tab" id="tabGuias" onclick="setTab('guias')">Guias e historial</button>
-  </div>
-
-  <!-- ============ Vista: Escanear ============ -->
-  <div id="vistaEscanear">
-    <div class="card">
-      <label>Tipo de operacion</label>
-      <div class="modos">
-        <button class="modo-btn" data-modo="bodega">Bodega<br />MTY &harr; CDMX</button>
-        <button class="modo-btn" data-modo="domicilio">Entrega a<br />domicilio</button>
-        <button class="modo-btn" data-modo="ocurre">Ocurre<br />(recoge en bodega)</button>
-      </div>
-      <label for="guia">Numero de guia (escanea aqui)</label>
-      <input type="text" id="guia" autofocus autocomplete="off" placeholder="Escanea o escribe el numero de guia" />
+  <main>
+    <div class="topbar">
+      <h1 id="tituloVista">Dashboard</h1>
+      <input type="text" id="buscarRapido" placeholder="Buscar guia y ver detalle (Enter)" autocomplete="off" />
     </div>
-    <div class="resultado" id="resultado">
-      <h2 id="resTitulo"></h2>
-      <p id="resDetalle"></p>
-    </div>
-    <div id="log"></div>
-  </div>
+    <div class="contenido">
 
-  <!-- ============ Vista: Guias ============ -->
-  <div id="vistaGuias" style="display:none">
-    <div id="listaGuias">
-      <div class="chips" id="chips"></div>
-      <div class="filtros">
-        <input type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" />
-        <select id="filtroEstatus">
-          <option value="">Todos</option>
-          <option value="EN_TRANSITO_A_CDMX">En transito a CDMX</option>
-          <option value="EN_TRANSITO_A_MTY">En transito a MTY</option>
-          <option value="EN_BODEGA_CDMX">En bodega CDMX</option>
-          <option value="EN_BODEGA_MTY">En bodega MTY</option>
-          <option value="EN_RUTA_ENTREGA_CDMX">En ruta de entrega CDMX</option>
-          <option value="EN_RUTA_ENTREGA_MTY">En ruta de entrega MTY</option>
-          <option value="ENTREGADO_CDMX">Entregado CDMX</option>
-          <option value="ENTREGADO_MTY">Entregado MTY</option>
-        </select>
-      </div>
-      <div class="card" style="padding: 6px 4px;">
-        <table>
-          <thead><tr><th>Guia</th><th>Ruta</th><th>Estatus</th><th>Actualizada</th></tr></thead>
-          <tbody id="tbodyGuias"></tbody>
-        </table>
-      </div>
-    </div>
+      <!-- ============ Dashboard ============ -->
+      <section id="v-dashboard" style="display:none">
+        <div class="kpis" id="kpis"></div>
+        <div class="card">
+          <h2 class="titulo-card">Actividad reciente</h2>
+          <div class="tabla-scroll">
+            <table>
+              <thead><tr><th>Fecha y hora</th><th>Guia</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
+              <tbody id="tbodyActividad"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
-    <div class="detalle" id="detalleGuia">
-      <button class="volver" onclick="cerrarDetalle()">&larr; Volver a la lista</button>
-      <div class="card">
-        <h1 id="detNumero"></h1>
-        <p id="detEstatus" style="margin: 4px 0 2px;"></p>
-        <p id="detMensaje" style="margin: 4px 0 0; color: #94a3b8; font-size: 0.9rem;"></p>
-        <ul class="timeline" id="detHistorial"></ul>
-      </div>
-    </div>
-  </div>
+      <!-- ============ Escanear ============ -->
+      <section id="v-escanear" style="display:none">
+        <div class="card">
+          <label>Estoy en la plaza</label>
+          <div class="toggle" id="togglePlaza">
+            <button data-plaza="MTY">MTY - Monterrey</button>
+            <button data-plaza="CDMX">CDMX - Ciudad de Mexico</button>
+          </div>
+          <label>Tipo de operacion</label>
+          <div class="toggle" id="toggleModo">
+            <button data-modo="bodega">Bodega MTY &harr; CDMX</button>
+            <button data-modo="domicilio">Entrega a domicilio</button>
+            <button data-modo="ocurre">Ocurre (recoge en bodega)</button>
+          </div>
+          <label for="guia">Numero de guia (escanea aqui)</label>
+          <input type="text" id="guia" autocomplete="off" placeholder="Escanea o escribe el numero de guia" style="width:100%; font-size:1.1rem; padding:13px;" />
+          <p class="nota" style="margin:8px 0 0">El sistema detecta solo si el escaneo es salida, llegada, ruta de entrega o entrega, segun el estado de la guia.</p>
+        </div>
+        <div class="resultado" id="resultado">
+          <h3 id="resTitulo"></h3>
+          <p id="resDetalle"></p>
+        </div>
+        <div id="log"></div>
+      </section>
 
+      <!-- ============ Guias ============ -->
+      <section id="v-guias" style="display:none">
+        <div class="card" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <input type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" style="flex:2; min-width:180px;" />
+          <select id="filtroEstatus" style="flex:1; min-width:170px;">
+            <option value="">Todos los estatus</option>
+            <option value="EN_TRANSITO_A_CDMX">En transito a CDMX</option>
+            <option value="EN_TRANSITO_A_MTY">En transito a MTY</option>
+            <option value="EN_BODEGA_CDMX">En bodega CDMX</option>
+            <option value="EN_BODEGA_MTY">En bodega MTY</option>
+            <option value="EN_RUTA_ENTREGA_CDMX">En ruta de entrega CDMX</option>
+            <option value="EN_RUTA_ENTREGA_MTY">En ruta de entrega MTY</option>
+            <option value="ENTREGADO_CDMX">Entregado CDMX</option>
+            <option value="ENTREGADO_MTY">Entregado MTY</option>
+          </select>
+        </div>
+        <div class="card tabla-scroll">
+          <table>
+            <thead><tr><th>Guia</th><th>Ruta</th><th>Estatus</th><th>Creada</th><th>Actualizada</th></tr></thead>
+            <tbody id="tbodyGuias"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ Detalle de guia ============ -->
+      <section id="v-detalle" style="display:none">
+        <button class="volver" onclick="history.back()">&larr; Volver</button>
+        <div class="card det-header">
+          <div>
+            <h2 id="detNumero"></h2>
+            <div class="det-ruta" id="detRuta"></div>
+            <div class="det-meta">
+              <div><span class="k">Estatus</span><span id="detBadge"></span></div>
+              <div><span class="k">Registrada</span><span id="detCreada"></span></div>
+              <div><span class="k">Ultima actualizacion</span><span id="detActualizada"></span></div>
+              <div><span class="k">Escaneos</span><span id="detEscaneos"></span></div>
+            </div>
+          </div>
+          <div id="barcodeWrap"><svg id="barcode"></svg></div>
+        </div>
+        <div class="card">
+          <h2 class="titulo-card">Progreso del envio</h2>
+          <div class="stepper" id="stepper"></div>
+        </div>
+        <div class="grid-2">
+          <div class="card tabla-scroll">
+            <h2 class="titulo-card">Eventos de la guia</h2>
+            <table>
+              <thead><tr><th>Fecha y hora</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
+              <tbody id="tbodyDetEventos"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h2 class="titulo-card">Linea de tiempo</h2>
+            <ul class="timeline" id="detTimeline"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Eventos ============ -->
+      <section id="v-eventos" style="display:none">
+        <div class="card tabla-scroll">
+          <table>
+            <thead><tr><th>Fecha y hora</th><th>Guia</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
+            <tbody id="tbodyEventos"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ Configuracion ============ -->
+      <section id="v-config" style="display:none">
+        <div class="card" style="max-width:520px;">
+          <h2 class="titulo-card">Acceso</h2>
+          <label for="token">Token de acceso (APP_TOKEN)</label>
+          <input type="text" id="token" placeholder="Escribe el token" style="width:100%;" />
+          <p class="nota">El token se guarda en este navegador. La plaza y el tipo de operacion se eligen en la pantalla de escaneo y tambien quedan guardados.</p>
+        </div>
+        <div class="card" style="max-width:520px;">
+          <h2 class="titulo-card">Pagina publica de rastreo</h2>
+          <p class="nota">Tus clientes pueden consultar su guia (sin token) en:<br /><a href="/rastreo.html" target="_blank" rel="noopener">/rastreo.html</a></p>
+        </div>
+      </section>
+
+    </div>
+  </main>
 </div>
 
+<script src="/jsbarcode.min.js" onerror="window.JsBarcode=null"></script>
 <script>
   const $ = (id) => document.getElementById(id);
 
@@ -176,6 +311,15 @@
     ENTREGADO_MTY: 'Entregado MTY',
   };
 
+  const ACCION_TXT = {
+    SALIDA: 'Salida',
+    LLEGADA: 'Llegada',
+    RUTA_ENTREGA: 'En ruta de entrega',
+    ENTREGA: 'Entregado',
+    ESCANEO_REPETIDO: 'Escaneo repetido',
+    INGRESO: 'Ingreso',
+  };
+
   function badge(estatus) {
     let clase = 's-transito';
     if (estatus.startsWith('EN_BODEGA')) clase = 's-bodega';
@@ -188,46 +332,117 @@
     return new Date(f).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   }
 
-  // ---------- Modo de operacion persistido ----------
-  let modo = localStorage.getItem('modo') || 'bodega';
-  function setModo(m) {
-    modo = m;
-    localStorage.setItem('modo', m);
-    document.querySelectorAll('.modo-btn').forEach((b) => b.classList.toggle('activa', b.dataset.modo === m));
-    $('guia').focus();
+  function esc(t) {
+    const d = document.createElement('div');
+    d.textContent = t == null ? '' : String(t);
+    return d.innerHTML;
   }
-  document.querySelectorAll('.modo-btn').forEach((b) => b.addEventListener('click', () => setModo(b.dataset.modo)));
-  setModo(modo);
 
-  // ---------- Plaza y token persistidos ----------
+  // ---------- Estado persistido ----------
   let plaza = localStorage.getItem('plaza') || 'MTY';
-  function setPlaza(p) {
-    plaza = p;
-    localStorage.setItem('plaza', p);
-    $('btnMTY').classList.toggle('activa', p === 'MTY');
-    $('btnCDMX').classList.toggle('activa', p === 'CDMX');
-    $('guia').focus();
-  }
-  setPlaza(plaza);
-
+  let modo = localStorage.getItem('modo') || 'bodega';
   if (localStorage.getItem('token')) $('token').value = localStorage.getItem('token');
-  $('token').addEventListener('change', () => localStorage.setItem('token', $('token').value));
+  $('token').addEventListener('change', () => localStorage.setItem('token', $('token').value.trim()));
 
-  function headers() {
-    return { 'Content-Type': 'application/json', 'X-App-Token': $('token').value };
+  function pintarToggles() {
+    document.querySelectorAll('#togglePlaza button').forEach((b) => b.classList.toggle('activa', b.dataset.plaza === plaza));
+    document.querySelectorAll('#toggleModo button').forEach((b) => b.classList.toggle('activa', b.dataset.modo === modo));
+    $('plazaPie').textContent = plaza;
+  }
+  document.querySelectorAll('#togglePlaza button').forEach((b) =>
+    b.addEventListener('click', () => { plaza = b.dataset.plaza; localStorage.setItem('plaza', plaza); pintarToggles(); $('guia').focus(); })
+  );
+  document.querySelectorAll('#toggleModo button').forEach((b) =>
+    b.addEventListener('click', () => { modo = b.dataset.modo; localStorage.setItem('modo', modo); pintarToggles(); $('guia').focus(); })
+  );
+  pintarToggles();
+
+  // ---------- API ----------
+  async function api(ruta, opciones = {}) {
+    const res = await fetch(ruta, {
+      ...opciones,
+      headers: { 'Content-Type': 'application/json', 'X-App-Token': localStorage.getItem('token') || '', ...(opciones.headers || {}) },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Error de conexion');
+    return data;
   }
 
-  // ---------- Tabs ----------
-  function setTab(t) {
-    $('tabEscanear').classList.toggle('activa', t === 'escanear');
-    $('tabGuias').classList.toggle('activa', t === 'guias');
-    $('vistaEscanear').style.display = t === 'escanear' ? '' : 'none';
-    $('vistaGuias').style.display = t === 'guias' ? '' : 'none';
-    if (t === 'guias') { cerrarDetalle(); cargarGuias(); cargarResumen(); }
-    else $('guia').focus();
+  // ---------- Router ----------
+  const TITULOS = { dashboard: 'Dashboard', escanear: 'Escanear guia', guias: 'Guias', eventos: 'Eventos', config: 'Configuracion', detalle: 'Detalle de guia' };
+  const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'config'];
+
+  function render() {
+    let ruta = location.hash.replace(/^#\/?/, '') || 'dashboard';
+    let vista = ruta;
+    let arg = null;
+    if (ruta.startsWith('guia/')) { vista = 'detalle'; arg = decodeURIComponent(ruta.slice(5)); }
+    if (!VISTAS.includes(vista)) { vista = 'dashboard'; }
+
+    VISTAS.forEach((v) => ($('v-' + v).style.display = v === vista ? '' : 'none'));
+    document.querySelectorAll('.nav-item').forEach((b) =>
+      b.classList.toggle('activa', b.dataset.ruta === (vista === 'detalle' ? 'guias' : vista))
+    );
+    $('tituloVista').textContent = TITULOS[vista];
+
+    if (vista === 'dashboard') cargarDashboard();
+    if (vista === 'guias') cargarGuias();
+    if (vista === 'eventos') cargarEventos();
+    if (vista === 'detalle') cargarDetalle(arg);
+    if (vista === 'escanear') setTimeout(() => $('guia').focus(), 50);
+  }
+  window.addEventListener('hashchange', render);
+  document.querySelectorAll('.nav-item').forEach((b) => b.addEventListener('click', () => (location.hash = '#/' + b.dataset.ruta)));
+
+  $('buscarRapido').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && $('buscarRapido').value.trim()) {
+      location.hash = '#/guia/' + encodeURIComponent($('buscarRapido').value.trim().toUpperCase());
+      $('buscarRapido').value = '';
+    }
+  });
+
+  // ---------- Dashboard ----------
+  async function cargarDashboard() {
+    try {
+      const r = await api('/api/guias/resumen');
+      const p = r.porEstatus || {};
+      const transito = (p.EN_TRANSITO_A_CDMX || 0) + (p.EN_TRANSITO_A_MTY || 0);
+      const ruta = (p.EN_RUTA_ENTREGA_CDMX || 0) + (p.EN_RUTA_ENTREGA_MTY || 0);
+      const entregadas = (p.ENTREGADO_CDMX || 0) + (p.ENTREGADO_MTY || 0);
+      $('kpis').innerHTML = `
+        <div class="kpi verde"><div class="valor">${p.EN_BODEGA_MTY || 0}</div><div class="etiqueta">En bodega MTY</div></div>
+        <div class="kpi verde"><div class="valor">${p.EN_BODEGA_CDMX || 0}</div><div class="etiqueta">En bodega CDMX</div></div>
+        <div class="kpi ambar"><div class="valor">${transito}</div><div class="etiqueta">En transito</div></div>
+        <div class="kpi azul"><div class="valor">${ruta}</div><div class="etiqueta">En ruta de entrega</div></div>
+        <div class="kpi rojo"><div class="valor">${entregadas}</div><div class="etiqueta">Entregadas (total)</div></div>
+        <div class="kpi rojo"><div class="valor">${r.eventos24h || 0}</div><div class="etiqueta">Escaneos ultimas 24 h</div></div>`;
+      const eventos = await api('/api/eventos?limit=10');
+      $('tbodyActividad').innerHTML = eventos.length
+        ? eventos.map(filaEvento).join('')
+        : '<tr><td colspan="5" class="vacio">Sin actividad todavia</td></tr>';
+      activarFilasGuia('#tbodyActividad');
+    } catch (e) {
+      $('kpis').innerHTML = `<div class="card vacio">${esc(e.message)} - revisa el token en Configuracion</div>`;
+      $('tbodyActividad').innerHTML = '';
+    }
   }
 
-  // ---------- Escaneo ----------
+  function filaEvento(ev) {
+    return `<tr class="clic" data-guia="${esc(ev.numero_guia)}">
+      <td>${fmtFecha(ev.creado_en)}</td>
+      <td><b>${esc(ev.numero_guia)}</b></td>
+      <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}</td>
+      <td>${esc(ev.plaza || '-')}</td>
+      <td>${esc(ev.descripcion || '')}</td></tr>`;
+  }
+
+  function activarFilasGuia(selector) {
+    document.querySelectorAll(selector + ' tr.clic').forEach((tr) =>
+      tr.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(tr.dataset.guia)))
+    );
+  }
+
+  // ---------- Escanear ----------
   function mostrarResultado(tipo, titulo, detalle) {
     const r = $('resultado');
     r.className = 'resultado r-' + tipo;
@@ -237,7 +452,7 @@
 
   function logRow(texto, clase) {
     const div = document.createElement('div');
-    div.className = 'row ' + clase;
+    div.className = 'log-row ' + clase;
     div.innerHTML = `<span></span><span class="hora">${new Date().toLocaleTimeString('es-MX')}</span>`;
     div.firstChild.textContent = texto;
     $('log').prepend(div);
@@ -245,21 +460,8 @@
 
   async function escanear(numeroGuia) {
     try {
-      const res = await fetch('/api/guias/escanear', {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify({ numeroGuia, plaza, modo }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error');
-
-      const titulos = {
-        salida: 'SALIDA registrada',
-        llegada: 'LLEGADA registrada',
-        ruta: 'EN RUTA DE ENTREGA',
-        entregado: 'ENTREGADO',
-        repetido: 'Escaneo repetido',
-      };
+      const data = await api('/api/guias/escanear', { method: 'POST', body: JSON.stringify({ numeroGuia, plaza, modo }) });
+      const titulos = { salida: 'Salida registrada', llegada: 'Llegada registrada', ruta: 'En ruta de entrega', entregado: 'Entregado', repetido: 'Escaneo repetido' };
       const clases = { salida: 'warn', llegada: 'ok', ruta: 'warn', entregado: 'ok', repetido: 'warn' };
       mostrarResultado(data.tipo, `${numeroGuia} - ${titulos[data.tipo] || data.tipo}`, data.mensaje);
       logRow(`${numeroGuia}: ${data.mensaje}`, clases[data.tipo] || 'ok');
@@ -269,89 +471,125 @@
     }
   }
 
-  // La pistola escaner envia el texto y luego un "Enter"
   $('guia').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       const numeroGuia = $('guia').value.trim();
-      if (numeroGuia) escanear(numeroGuia);
+      if (numeroGuia) escanear(numeroGuia.toUpperCase());
       $('guia').value = '';
     }
   });
 
-  // ---------- Lista de guias ----------
-  async function cargarResumen() {
-    try {
-      const res = await fetch('/api/guias/resumen', { headers: headers() });
-      const data = await res.json();
-      if (!res.ok) return;
-      $('chips').innerHTML = Object.keys(ETIQUETAS)
-        .map((e) => `<div class="chip">${ETIQUETAS[e]}<b>${data[e] || 0}</b></div>`)
-        .join('');
-    } catch {}
-  }
-
+  // ---------- Guias ----------
   async function cargarGuias() {
     const params = new URLSearchParams();
     if ($('buscar').value.trim()) params.set('buscar', $('buscar').value.trim());
     if ($('filtroEstatus').value) params.set('estatus', $('filtroEstatus').value);
     try {
-      const res = await fetch('/api/guias?' + params, { headers: headers() });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error');
-      const tbody = $('tbodyGuias');
-      tbody.innerHTML = '';
-      if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="4" class="vacio">Sin guias</td></tr>';
-        return;
-      }
-      for (const g of data) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${g.numero_guia}</td><td>${g.origen} &rarr; ${g.destino}</td><td>${badge(g.estatus)}</td><td>${fmtFecha(g.actualizado_en)}</td>`;
-        tr.addEventListener('click', () => verDetalle(g.numero_guia));
-        tbody.appendChild(tr);
-      }
+      const data = await api('/api/guias?' + params);
+      $('tbodyGuias').innerHTML = data.length
+        ? data.map((g) => `<tr class="clic" data-guia="${esc(g.numero_guia)}">
+            <td><b>${esc(g.numero_guia)}</b></td>
+            <td>${esc(g.origen)} &rarr; ${esc(g.destino)}</td>
+            <td>${badge(g.estatus)}</td>
+            <td>${fmtFecha(g.creado_en)}</td>
+            <td>${fmtFecha(g.actualizado_en)}</td></tr>`).join('')
+        : '<tr><td colspan="5" class="vacio">Sin guias</td></tr>';
+      activarFilasGuia('#tbodyGuias');
     } catch (e) {
-      $('tbodyGuias').innerHTML = `<tr><td colspan="4" class="vacio">${e.message}</td></tr>`;
+      $('tbodyGuias').innerHTML = `<tr><td colspan="5" class="vacio">${esc(e.message)}</td></tr>`;
     }
   }
-
   let timerBuscar;
-  $('buscar').addEventListener('input', () => {
-    clearTimeout(timerBuscar);
-    timerBuscar = setTimeout(cargarGuias, 250);
-  });
+  $('buscar').addEventListener('input', () => { clearTimeout(timerBuscar); timerBuscar = setTimeout(cargarGuias, 250); });
   $('filtroEstatus').addEventListener('change', cargarGuias);
 
-  // ---------- Detalle e historial ----------
-  async function verDetalle(numeroGuia) {
+  // ---------- Detalle ----------
+  const PASOS = [
+    { nombre: 'Registrada', accion: null },
+    { nombre: 'En transito', accion: 'SALIDA' },
+    { nombre: 'En bodega destino', accion: 'LLEGADA' },
+    { nombre: 'En ruta de entrega', accion: 'RUTA_ENTREGA' },
+    { nombre: 'Entregado', accion: 'ENTREGA' },
+  ];
+
+  function pasoActual(estatus) {
+    if (estatus.startsWith('ENTREGADO')) return 5; // todos los pasos completados
+    if (estatus.startsWith('EN_RUTA_ENTREGA')) return 3;
+    if (estatus.startsWith('EN_BODEGA')) return 2;
+    return 1; // EN_TRANSITO
+  }
+
+  async function cargarDetalle(numeroGuia) {
     try {
-      const res = await fetch('/api/guias/' + encodeURIComponent(numeroGuia), { headers: headers() });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error');
-      $('detNumero').textContent = data.numero_guia;
-      $('detEstatus').innerHTML = badge(data.estatus) + ` &nbsp; ${data.origen} &rarr; ${data.destino}`;
-      $('detMensaje').textContent = data.mensaje;
-      $('detHistorial').innerHTML = data.historial
-        .map((ev) => {
-          const clase =
-            { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega' }[ev.accion] || '';
-          return `<li class="${clase}">
-            <div class="desc">${ev.descripcion || ev.accion}</div>
-            <div class="meta">${ev.plaza ? 'Plaza ' + ev.plaza + ' - ' : ''}${fmtFecha(ev.creado_en)}</div>
-          </li>`;
-        })
-        .join('');
-      $('listaGuias').style.display = 'none';
-      $('detalleGuia').style.display = 'block';
+      const d = await api('/api/guias/' + encodeURIComponent(numeroGuia));
+      $('detNumero').textContent = d.numero_guia;
+      $('detRuta').innerHTML = `${esc(d.origen)} &#8644; ${esc(d.destino)}`;
+      $('detBadge').innerHTML = badge(d.estatus);
+      $('detCreada').textContent = fmtFecha(d.creado_en);
+      $('detActualizada').textContent = fmtFecha(d.actualizado_en);
+      $('detEscaneos').textContent = d.historial.length;
+
+      // Codigo de barras (si la libreria cargo)
+      try {
+        if (window.JsBarcode) JsBarcode('#barcode', d.numero_guia, { format: 'CODE128', height: 52, fontSize: 13, margin: 0 });
+        else $('barcodeWrap').style.display = 'none';
+      } catch { $('barcodeWrap').style.display = 'none'; }
+
+      // Stepper
+      const actual = pasoActual(d.estatus);
+      const fechas = {};
+      for (const ev of [...d.historial].reverse()) if (ev.accion && !fechas[ev.accion]) fechas[ev.accion] = ev.creado_en;
+      $('stepper').innerHTML = PASOS.map((p, i) => {
+        const fecha = i === 0 ? d.creado_en : fechas[p.accion];
+        const clase = i < actual ? 'hecho' : i === actual ? 'actual' : '';
+        const marca = i < actual ? '&#10003;' : i + 1;
+        return `<div class="paso ${clase}">
+          <div class="circulo">${marca}</div>
+          <div class="nombre">${p.nombre}</div>
+          <div class="fecha">${fecha ? fmtFecha(fecha) : 'Pendiente'}</div></div>`;
+      }).join('');
+
+      // Tabla de eventos + timeline
+      $('tbodyDetEventos').innerHTML = d.historial.length
+        ? d.historial.map((ev) => `<tr>
+            <td>${fmtFecha(ev.creado_en)}</td>
+            <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}</td>
+            <td>${esc(ev.plaza || '-')}</td>
+            <td>${esc(ev.descripcion || '')}</td></tr>`).join('')
+        : '<tr><td colspan="4" class="vacio">Sin eventos</td></tr>';
+
+      $('detTimeline').innerHTML = d.historial.map((ev) => {
+        const clase = { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega' }[ev.accion] || '';
+        return `<li class="${clase}">
+          <div class="desc">${esc(ev.descripcion || ev.accion)}</div>
+          <div class="meta">${ev.plaza ? 'Plaza ' + esc(ev.plaza) + ' - ' : ''}${fmtFecha(ev.creado_en)}</div></li>`;
+      }).join('');
     } catch (e) {
-      alert(e.message);
+      $('detNumero').textContent = numeroGuia;
+      $('detRuta').textContent = e.message;
+      $('detBadge').innerHTML = '';
+      $('detCreada').textContent = $('detActualizada').textContent = $('detEscaneos').textContent = '-';
+      $('stepper').innerHTML = '';
+      $('barcodeWrap').style.display = 'none';
+      $('tbodyDetEventos').innerHTML = `<tr><td colspan="4" class="vacio">${esc(e.message)}</td></tr>`;
+      $('detTimeline').innerHTML = '';
     }
   }
 
-  function cerrarDetalle() {
-    $('detalleGuia').style.display = 'none';
-    $('listaGuias').style.display = '';
+  // ---------- Eventos ----------
+  async function cargarEventos() {
+    try {
+      const eventos = await api('/api/eventos?limit=100');
+      $('tbodyEventos').innerHTML = eventos.length
+        ? eventos.map(filaEvento).join('')
+        : '<tr><td colspan="5" class="vacio">Sin eventos todavia</td></tr>';
+      activarFilasGuia('#tbodyEventos');
+    } catch (e) {
+      $('tbodyEventos').innerHTML = `<tr><td colspan="5" class="vacio">${esc(e.message)}</td></tr>`;
+    }
   }
+
+  render();
 </script>
 </body>
 </html>

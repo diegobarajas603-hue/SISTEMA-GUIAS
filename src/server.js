@@ -46,6 +46,11 @@ app.get('/api/guias/resumen', requireAppToken, async (req, res) => {
   res.json(await guias.resumen());
 });
 
+app.get('/api/eventos', requireAppToken, async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 500);
+  res.json(await guias.listarEventos({ limit }));
+});
+
 app.get('/api/guias/:numeroGuia', requireAppToken, async (req, res) => {
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
   const guia = await guias.obtenerGuia(numeroGuia);

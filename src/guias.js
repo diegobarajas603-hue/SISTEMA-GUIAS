@@ -197,11 +197,27 @@ async function listarGuias({ buscar, estatus, limit = 200 } = {}) {
   return rows;
 }
 
+async function listarEventos({ limit = 50 } = {}) {
+  const { rows } = await pool.query(
+    'SELECT numero_guia, accion, estatus, plaza, descripcion, creado_en FROM eventos ORDER BY id DESC LIMIT $1',
+    [limit]
+  );
+  return rows;
+}
+
 async function resumen() {
   const { rows } = await pool.query('SELECT estatus, COUNT(*)::int AS total FROM guias GROUP BY estatus');
-  const conteos = {};
-  for (const r of rows) conteos[r.estatus] = r.total;
-  return conteos;
+  const porEstatus = {};
+  let totalGuias = 0;
+  for (const r of rows) {
+    porEstatus[r.estatus] = r.total;
+    totalGuias += r.total;
+  }
+  const { rows: ev } = await pool.query(
+    `SELECT COUNT(*)::int AS eventos, COUNT(*) FILTER (WHERE accion = 'ENTREGA')::int AS entregas
+     FROM eventos WHERE creado_en >= now() - interval '24 hours'`
+  );
+  return { porEstatus, totalGuias, eventos24h: ev[0].eventos, entregas24h: ev[0].entregas };
 }
 
 module.exports = {
@@ -209,5 +225,6 @@ module.exports = {
   obtenerGuia,
   obtenerHistorial,
   listarGuias,
+  listarEventos,
   resumen,
 };
