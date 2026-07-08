@@ -6,39 +6,41 @@
 <title>Fletes Tauro - Sistema de Guias</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: system-ui, sans-serif; margin: 0; background: #f4f4f5; color: #1a1a1a; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; margin: 0; background: #f1f2f4; color: #1a1a1a; }
 
   .layout { display: flex; min-height: 100vh; }
 
   /* ---------- Sidebar ---------- */
-  aside { width: 232px; background: #161616; color: #a3a3a3; display: flex; flex-direction: column; flex-shrink: 0; }
-  .logo { padding: 20px 18px 16px; border-bottom: 1px solid #2a2a2a; }
-  .logo .nombre { font-size: 1.15rem; font-weight: 400; letter-spacing: 0.05em; color: #8a8a8a; text-transform: uppercase; }
-  .logo .nombre b { color: #d92027; font-weight: 800; }
-  .logo small { display: block; color: #6b6b6b; font-size: 0.72rem; margin-top: 3px; }
+  aside { width: 240px; background: #141414; color: #a3a3a3; display: flex; flex-direction: column; flex-shrink: 0; }
+  .logo { padding: 16px 14px 14px; border-bottom: 1px solid #262626; }
+  .logo-card { background: #fff; border-radius: 10px; padding: 9px 12px 7px; }
+  .logo-card img { width: 100%; display: block; }
+  .logo small { display: block; color: #7a7a7a; font-size: 0.72rem; margin-top: 8px; text-align: center; letter-spacing: 0.04em; }
   nav { flex: 1; padding: 12px 10px; }
-  .sec { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: #6b6b6b; margin: 14px 8px 6px; }
-  .nav-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; margin-bottom: 2px; border: none; border-radius: 8px; background: none; color: #b9b9b9; font-size: 0.92rem; cursor: pointer; text-align: left; }
-  .nav-item:hover { background: #222; color: #fff; }
+  .sec { display: block; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: #6b6b6b; margin: 16px 10px 7px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 13px; margin-bottom: 3px; border: none; border-radius: 10px; background: none; color: #b9b9b9; font-size: 0.93rem; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
+  .nav-item:hover { background: #232323; color: #fff; }
   .nav-item.activa { background: #d92027; color: #fff; font-weight: 600; }
-  .nav-item .ico { width: 20px; text-align: center; }
-  .plaza-pie { padding: 14px 18px; border-top: 1px solid #2a2a2a; font-size: 0.8rem; color: #8a8a8a; }
+  .nav-item .ico { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; }
+  .nav-item .ico svg { width: 19px; height: 19px; }
+  .plaza-pie { padding: 14px 18px; border-top: 1px solid #262626; font-size: 0.8rem; color: #8a8a8a; }
   .plaza-pie b { color: #fff; }
 
   /* ---------- Contenido ---------- */
   main { flex: 1; min-width: 0; padding: 0 0 40px; }
-  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: #fff; padding: 14px 24px; border-bottom: 1px solid #e4e4e7; flex-wrap: wrap; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); padding: 14px 24px; border-bottom: 1px solid #e6e6e9; flex-wrap: wrap; position: sticky; top: 0; z-index: 20; }
   .topbar h1 { font-size: 1.15rem; margin: 0; }
-  .topbar input { width: 300px; max-width: 100%; padding: 9px 12px; border: 1.5px solid #d4d4d8; border-radius: 8px; font-size: 0.9rem; }
-  .topbar input:focus { outline: none; border-color: #d92027; }
+  .topbar input { width: 300px; max-width: 100%; padding: 9px 12px; border: 1.5px solid #d4d4d8; border-radius: 10px; font-size: 0.9rem; transition: border-color 0.12s, box-shadow 0.12s; }
+  .topbar input:focus { outline: none; border-color: #d92027; box-shadow: 0 0 0 3px rgba(217,32,39,0.12); }
   .contenido { padding: 22px 24px; max-width: 1180px; }
 
-  .card { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); margin-bottom: 16px; }
+  .card { background: #fff; border-radius: 14px; padding: 18px; border: 1px solid #ececee; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.04); margin-bottom: 16px; }
   h2.titulo-card { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.07em; color: #8a8a8a; margin: 0 0 14px; }
 
   /* KPIs */
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .kpi { background: #fff; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border-top: 3px solid #d4d4d8; }
+  .kpi { background: #fff; border-radius: 14px; padding: 14px 16px; border: 1px solid #ececee; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.04); border-top: 3px solid #d4d4d8; cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; }
+  .kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.06), 0 10px 24px rgba(0,0,0,0.08); }
   .kpi.rojo { border-top-color: #d92027; }
   .kpi.ambar { border-top-color: #f59e0b; }
   .kpi.verde { border-top-color: #16a34a; }
@@ -176,18 +178,18 @@
 
   <aside>
     <div class="logo">
-      <div class="nombre">Fletes<b>Tauro</b></div>
+      <div class="logo-card"><img src="/logo.svg" alt="Fletes Tauro" /></div>
       <small>Sistema de guias MTY &harr; CDMX</small>
     </div>
     <nav>
       <span class="sec">Operaciones</span>
-      <button class="nav-item" data-ruta="dashboard"><span class="ico">&#8962;</span> Dashboard</button>
-      <button class="nav-item" data-ruta="escanear-mty"><span class="ico">&#9635;</span> Escanear en MTY</button>
-      <button class="nav-item" data-ruta="escanear-cdmx"><span class="ico">&#9635;</span> Escanear en CDMX</button>
-      <button class="nav-item" data-ruta="guias"><span class="ico">&#9776;</span> Guias</button>
-      <button class="nav-item" data-ruta="eventos"><span class="ico">&#8635;</span> Eventos</button>
+      <button class="nav-item" data-ruta="dashboard"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span> Dashboard</button>
+      <button class="nav-item" data-ruta="escanear-mty"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span> Escanear en MTY</button>
+      <button class="nav-item" data-ruta="escanear-cdmx"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span> Escanear en CDMX</button>
+      <button class="nav-item" data-ruta="guias"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span> Guias</button>
+      <button class="nav-item" data-ruta="eventos"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span> Eventos</button>
       <span class="sec">Sistema</span>
-      <button class="nav-item" data-ruta="config"><span class="ico">&#9881;</span> Configuracion</button>
+      <button class="nav-item" data-ruta="config"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.5"/><circle cx="8" cy="16" r="2.5"/></svg></span> Configuracion</button>
     </nav>
     <div class="plaza-pie">Plaza actual: <b id="plazaPie">-</b></div>
   </aside>
@@ -355,6 +357,33 @@
     return new Date(f).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   }
 
+  // Tiempo relativo para actividad reciente ("hace 5 min")
+  function fmtRelativo(f) {
+    const seg = (Date.now() - new Date(f).getTime()) / 1000;
+    if (seg < 60) return 'hace un momento';
+    if (seg < 3600) return `hace ${Math.floor(seg / 60)} min`;
+    if (seg < 86400) return `hace ${Math.floor(seg / 3600)} h`;
+    return fmtFecha(f);
+  }
+
+  // Sonido corto al escanear (exito agudo, repetido medio, error grave)
+  let audioCtx;
+  function beep(tipo) {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      gain.gain.value = 0.1;
+      if (tipo === 'ok') { osc.frequency.value = 950; }
+      else if (tipo === 'warn') { osc.frequency.value = 520; }
+      else { osc.type = 'square'; osc.frequency.value = 170; gain.gain.value = 0.08; }
+      osc.start();
+      osc.stop(audioCtx.currentTime + (tipo === 'err' ? 0.3 : 0.13));
+    } catch {}
+  }
+
   function esc(t) {
     const d = document.createElement('div');
     d.textContent = t == null ? '' : String(t);
@@ -440,12 +469,18 @@
       const ruta = (p.EN_RUTA_ENTREGA_CDMX || 0) + (p.EN_RUTA_ENTREGA_MTY || 0);
       const entregadas = (p.ENTREGADO_CDMX || 0) + (p.ENTREGADO_MTY || 0);
       $('kpis').innerHTML = `
-        <div class="kpi verde"><div class="valor">${p.EN_BODEGA_MTY || 0}</div><div class="etiqueta">En bodega MTY</div></div>
-        <div class="kpi verde"><div class="valor">${p.EN_BODEGA_CDMX || 0}</div><div class="etiqueta">En bodega CDMX</div></div>
-        <div class="kpi ambar"><div class="valor">${transito}</div><div class="etiqueta">En transito</div></div>
-        <div class="kpi azul"><div class="valor">${ruta}</div><div class="etiqueta">En ruta de entrega</div></div>
-        <div class="kpi rojo"><div class="valor">${entregadas}</div><div class="etiqueta">Entregadas (total)</div></div>
-        <div class="kpi rojo"><div class="valor">${r.eventos24h || 0}</div><div class="etiqueta">Escaneos ultimas 24 h</div></div>`;
+        <div class="kpi verde" data-tab="MTY" data-est="EN_BODEGA_MTY"><div class="valor">${p.EN_BODEGA_MTY || 0}</div><div class="etiqueta">En bodega MTY</div></div>
+        <div class="kpi verde" data-tab="CDMX" data-est="EN_BODEGA_CDMX"><div class="valor">${p.EN_BODEGA_CDMX || 0}</div><div class="etiqueta">En bodega CDMX</div></div>
+        <div class="kpi ambar" data-tab="" data-est=""><div class="valor">${transito}</div><div class="etiqueta">En transito</div></div>
+        <div class="kpi azul" data-tab="" data-est=""><div class="valor">${ruta}</div><div class="etiqueta">En ruta de entrega</div></div>
+        <div class="kpi rojo" data-tab="" data-est=""><div class="valor">${entregadas}</div><div class="etiqueta">Entregadas (total)</div></div>
+        <div class="kpi rojo" data-eventos="1"><div class="valor">${r.eventos24h || 0}</div><div class="etiqueta">Escaneos ultimas 24 h</div></div>`;
+      document.querySelectorAll('#kpis .kpi').forEach((k) =>
+        k.addEventListener('click', () => {
+          if (k.dataset.eventos) { location.hash = '#/eventos'; return; }
+          irAGuias(k.dataset.tab, k.dataset.est);
+        })
+      );
       const eventos = await api('/api/eventos?limit=10');
       $('tbodyActividad').innerHTML = eventos.length
         ? eventos.map(filaEvento).join('')
@@ -459,7 +494,7 @@
 
   function filaEvento(ev) {
     return `<tr class="clic" data-guia="${esc(ev.numero_guia)}">
-      <td>${fmtFecha(ev.creado_en)}</td>
+      <td title="${fmtFecha(ev.creado_en)}">${fmtRelativo(ev.creado_en)}</td>
       <td><b>${esc(ev.numero_guia)}</b></td>
       <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}</td>
       <td>${esc(ev.plaza || '-')}</td>
@@ -495,9 +530,11 @@
       const clases = { salida: 'warn', llegada: 'ok', ruta: 'warn', entregado: 'ok', repetido: 'warn' };
       mostrarResultado(data.tipo, `${numeroGuia} - ${titulos[data.tipo] || data.tipo}`, data.mensaje);
       logRow(`${numeroGuia}: ${data.mensaje}`, clases[data.tipo] || 'ok');
+      beep(data.tipo === 'repetido' ? 'warn' : 'ok');
     } catch (e) {
       mostrarResultado('error', `${numeroGuia} - Error`, e.message);
       logRow(`${numeroGuia}: ${e.message}`, 'err');
+      beep('err');
     }
   }
 
@@ -532,13 +569,27 @@
     sel.innerHTML = opciones;
   }
 
+  let estatusPendiente = null; // filtro que viene de un clic en el dashboard
+
   function setPlazaTab(p) {
     plazaTab = p;
     localStorage.setItem('plazaTab', p);
     document.querySelectorAll('.ptabs button').forEach((b) => b.classList.toggle('activa', b.dataset.ptab === p));
     pintarFiltroEstatus();
+    if (estatusPendiente !== null) {
+      $('filtroEstatus').value = estatusPendiente;
+      estatusPendiente = null;
+    }
     cargarChipsPlaza();
     cargarGuias();
+  }
+
+  function irAGuias(tab, estatus) {
+    plazaTab = tab;
+    localStorage.setItem('plazaTab', tab);
+    estatusPendiente = estatus || '';
+    if (location.hash === '#/guias') setPlazaTab(tab);
+    else location.hash = '#/guias';
   }
   document.querySelectorAll('.ptabs button').forEach((b) => b.addEventListener('click', () => setPlazaTab(b.dataset.ptab)));
 
@@ -702,7 +753,7 @@
         <button class="grupo-head">
           <div>
             <span class="num">${esc(num)}</span>${badge(evs[0].estatus)}
-            <span class="ultimo">Ultimo movimiento: ${esc(evs[0].descripcion || evs[0].accion)} - ${fmtFecha(evs[0].creado_en)}</span>
+            <span class="ultimo">Ultimo movimiento: ${esc(evs[0].descripcion || evs[0].accion)} - ${fmtRelativo(evs[0].creado_en)}</span>
           </div>
           <div class="der"><span class="conteo">${evs.length} evento${evs.length === 1 ? '' : 's'}</span><span class="chev">&#9662;</span></div>
         </button>

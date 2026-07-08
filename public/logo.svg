@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 478 96" role="img" aria-label="Fletes Tauro">
+  <defs>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a4a4a"/>
+      <stop offset="0.45" stop-color="#111111"/>
+      <stop offset="0.55" stop-color="#333333"/>
+      <stop offset="1" stop-color="#0a0a0a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- FLETES -->
+  <text x="0" y="66" font-family="Arial Black, Arial, sans-serif" font-size="46" font-style="italic" font-weight="900" fill="url(#metal)" letter-spacing="1">FLETES</text>
+
+  <!-- TAURO -->
+  <text x="303" y="66" font-family="Arial Black, Arial, sans-serif" font-size="46" font-style="italic" font-weight="900" fill="url(#metal)" letter-spacing="1">TAURO</text>
+
+  <!-- Pincelada roja -->
+  <path d="M206 76 C220 70 258 70 272 74 C260 80 226 82 206 76 Z" fill="#d92027"/>
+  <path d="M214 82 C228 78 252 78 264 80 C252 85 226 86 214 82 Z" fill="#d92027" opacity="0.8"/>
+
+  <!-- Toro embistiendo (cabeza baja, cuernos al frente) -->
+  <g fill="#111111">
+    <!-- cuerpo con joroba -->
+    <path d="M214 48
+             C212 38 220 28 234 26
+             C248 24 262 27 270 33
+             C276 38 279 44 278 50
+             C270 55 258 57 244 56
+             C230 55 218 53 214 48 Z"/>
+    <!-- cabeza agachada -->
+    <path d="M268 38 C276 36 284 40 286 47 C287 53 283 58 277 58 C271 58 267 53 266 47 Z"/>
+    <!-- cuerno delantero -->
+    <path d="M282 40 C285 30 294 25 301 28 C294 29 288 34 287 42 Z"/>
+    <!-- cuerno trasero -->
+    <path d="M272 38 C270 29 262 25 255 28 C262 29 267 33 268 40 Z"/>
+    <!-- patas delanteras -->
+    <path d="M262 54 L269 55 L266 68 L260 68 Z"/>
+    <path d="M250 55 L257 56 L253 68 L247 68 Z"/>
+    <!-- patas traseras -->
+    <path d="M228 53 L235 54 L232 68 L226 68 Z"/>
+    <path d="M216 49 L223 51 L217 68 L211 68 Z"/>
+    <!-- cola levantada -->
+    <path d="M216 40 C208 36 205 28 210 21 C210 28 214 33 220 35 Z"/>
+    <path d="M210 21 C207 18 207 14 210 12 C213 14 213 18 212 21 Z"/>
+  </g>
+</svg>
