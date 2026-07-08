@@ -128,6 +128,20 @@
 
   .grid-2 { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
 
+  /* Eventos agrupados por guia */
+  .grupo { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); margin-bottom: 10px; overflow: hidden; }
+  .grupo-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 14px 16px; border: none; background: none; cursor: pointer; text-align: left; font-size: 0.92rem; color: #1a1a1a; }
+  .grupo-head:hover { background: #fafafa; }
+  .grupo-head .num { font-weight: 800; font-size: 1rem; margin-right: 10px; }
+  .grupo-head .ultimo { color: #71717a; font-size: 0.84rem; display: block; margin-top: 3px; }
+  .grupo-head .der { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .grupo-head .conteo { background: #f4f4f5; color: #52525b; border-radius: 999px; padding: 3px 10px; font-size: 0.76rem; font-weight: 700; }
+  .grupo-head .chev { color: #a1a1aa; transition: transform 0.15s; }
+  .grupo.abierto .chev { transform: rotate(180deg); }
+  .grupo-body { display: none; border-top: 1px solid #f0f0f0; padding: 4px 16px 14px; }
+  .grupo.abierto .grupo-body { display: block; }
+  .grupo-body .ver-detalle { margin-top: 10px; background: none; border: none; color: #d92027; font-weight: 700; font-size: 0.86rem; cursor: pointer; padding: 0; }
+
   .nota { font-size: 0.85rem; color: #71717a; }
 
   /* ---------- Responsive ---------- */
@@ -270,12 +284,11 @@
 
       <!-- ============ Eventos ============ -->
       <section id="v-eventos" style="display:none">
-        <div class="card tabla-scroll">
-          <table>
-            <thead><tr><th>Fecha y hora</th><th>Guia</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
-            <tbody id="tbodyEventos"></tbody>
-          </table>
+        <div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <input type="text" id="buscarEvento" placeholder="Filtrar por numero de guia..." autocomplete="off" style="flex:1; min-width:180px;" />
+          <span class="nota" id="resumenEventos"></span>
         </div>
+        <div id="gruposEventos"></div>
       </section>
 
       <!-- ============ Configuracion ============ -->
@@ -576,18 +589,69 @@
     }
   }
 
-  // ---------- Eventos ----------
+  // ---------- Eventos (agrupados por guia) ----------
+  let eventosCache = [];
+
   async function cargarEventos() {
     try {
-      const eventos = await api('/api/eventos?limit=100');
-      $('tbodyEventos').innerHTML = eventos.length
-        ? eventos.map(filaEvento).join('')
-        : '<tr><td colspan="5" class="vacio">Sin eventos todavia</td></tr>';
-      activarFilasGuia('#tbodyEventos');
+      eventosCache = await api('/api/eventos?limit=300');
+      pintarGruposEventos();
     } catch (e) {
-      $('tbodyEventos').innerHTML = `<tr><td colspan="5" class="vacio">${esc(e.message)}</td></tr>`;
+      $('gruposEventos').innerHTML = `<div class="card vacio">${esc(e.message)}</div>`;
+      $('resumenEventos').textContent = '';
     }
   }
+
+  function pintarGruposEventos() {
+    const filtro = $('buscarEvento').value.trim().toUpperCase();
+    // Agrupa por numero de guia; los eventos vienen del mas reciente al mas
+    // antiguo, asi que las guias quedan ordenadas por su ultimo movimiento.
+    const grupos = new Map();
+    for (const ev of eventosCache) {
+      if (filtro && !ev.numero_guia.includes(filtro)) continue;
+      if (!grupos.has(ev.numero_guia)) grupos.set(ev.numero_guia, []);
+      grupos.get(ev.numero_guia).push(ev);
+    }
+    if (!grupos.size) {
+      $('gruposEventos').innerHTML = '<div class="card vacio">Sin eventos</div>';
+      $('resumenEventos').textContent = '';
+      return;
+    }
+    $('resumenEventos').textContent = `${grupos.size} guias con movimientos recientes`;
+    $('gruposEventos').innerHTML = [...grupos.entries()].map(([num, evs]) => `
+      <div class="grupo" data-guia="${esc(num)}">
+        <button class="grupo-head">
+          <div>
+            <span class="num">${esc(num)}</span>${badge(evs[0].estatus)}
+            <span class="ultimo">Ultimo movimiento: ${esc(evs[0].descripcion || evs[0].accion)} - ${fmtFecha(evs[0].creado_en)}</span>
+          </div>
+          <div class="der"><span class="conteo">${evs.length} evento${evs.length === 1 ? '' : 's'}</span><span class="chev">&#9662;</span></div>
+        </button>
+        <div class="grupo-body">
+          <div class="tabla-scroll">
+            <table>
+              <thead><tr><th>Fecha y hora</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
+              <tbody>${evs.map((ev) => `<tr>
+                <td>${fmtFecha(ev.creado_en)}</td>
+                <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}</td>
+                <td>${esc(ev.plaza || '-')}</td>
+                <td>${esc(ev.descripcion || '')}</td></tr>`).join('')}</tbody>
+            </table>
+          </div>
+          <button class="ver-detalle">Ver detalle completo de la guia &rarr;</button>
+        </div>
+      </div>`).join('');
+
+    document.querySelectorAll('#gruposEventos .grupo-head').forEach((b) =>
+      b.addEventListener('click', () => b.closest('.grupo').classList.toggle('abierto'))
+    );
+    document.querySelectorAll('#gruposEventos .ver-detalle').forEach((b) =>
+      b.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(b.closest('.grupo').dataset.guia)))
+    );
+  }
+
+  let timerEventos;
+  $('buscarEvento').addEventListener('input', () => { clearTimeout(timerEventos); timerEventos = setTimeout(pintarGruposEventos, 200); });
 
   render();
 </script>
