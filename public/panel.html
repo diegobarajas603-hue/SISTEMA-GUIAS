@@ -719,11 +719,15 @@
   }
 
   // ---------- Escanear ----------
+  let timerResultado;
   function mostrarResultado(tipo, titulo, detalle) {
     const r = $('resultado');
     r.className = 'resultado r-' + tipo;
     $('resTitulo').textContent = titulo;
     $('resDetalle').textContent = detalle;
+    // El estatus del ultimo escaneo se borra solo a los 30 segundos
+    clearTimeout(timerResultado);
+    timerResultado = setTimeout(() => { r.className = 'resultado'; }, 30000);
   }
 
   function logRow(texto, clase) {
