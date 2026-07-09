@@ -130,6 +130,7 @@
   .timeline li.e-llegada::before { background: #16a34a; }
   .timeline li.e-ruta::before { background: #3b82f6; }
   .timeline li.e-entrega::before { background: #166534; }
+  .timeline li.e-correccion::before { background: #d92027; }
   .timeline .desc { font-size: 0.92rem; }
   .timeline .meta { font-size: 0.76rem; color: #a1a1aa; margin-top: 2px; }
 
@@ -322,6 +323,7 @@
               <div><span class="k">Ultima actualizacion</span><span id="detActualizada"></span></div>
               <div><span class="k">Escaneos</span><span id="detEscaneos"></span></div>
             </div>
+            <button class="btn-peligro" id="btnRevertir" style="display:none; margin-top:14px;">Revertir ultimo escaneo</button>
           </div>
           <div id="barcodeWrap"><svg id="barcode"></svg></div>
         </div>
@@ -444,6 +446,7 @@
     RUTA_ENTREGA: 'En ruta de entrega',
     ENTREGA: 'Entregado',
     ESCANEO_REPETIDO: 'Escaneo repetido',
+    CORRECCION: 'Correccion',
     INGRESO: 'Ingreso',
   };
 
@@ -832,9 +835,28 @@
     return 1; // EN_TRANSITO
   }
 
+  let guiaDetalleActual = null;
+
+  $('btnRevertir').addEventListener('click', async () => {
+    if (!guiaDetalleActual) return;
+    if (!confirm(`¿Revertir el ultimo escaneo de ${guiaDetalleActual}?\nLa guia regresara a su estatus anterior y quedara registrada la correccion.`)) return;
+    $('btnRevertir').disabled = true;
+    try {
+      await api('/api/guias/' + encodeURIComponent(guiaDetalleActual) + '/revertir', { method: 'POST' });
+      cargarDetalle(guiaDetalleActual);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      $('btnRevertir').disabled = false;
+    }
+  });
+
   async function cargarDetalle(numeroGuia) {
     try {
       const d = await api('/api/guias/' + encodeURIComponent(numeroGuia));
+      guiaDetalleActual = d.numero_guia;
+      $('btnRevertir').style.display =
+        usuarioActual && usuarioActual.rol === 'admin' && d.historial.length ? '' : 'none';
       $('detNumero').textContent = d.numero_guia;
       $('detRuta').innerHTML = `${esc(d.origen)} &#8644; ${esc(d.destino)}`;
       $('detBadge').innerHTML = badge(d.estatus);
@@ -872,12 +894,14 @@
         : '<tr><td colspan="4" class="vacio">Sin eventos</td></tr>';
 
       $('detTimeline').innerHTML = d.historial.map((ev) => {
-        const clase = { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega' }[ev.accion] || '';
+        const clase = { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega', CORRECCION: 'e-correccion' }[ev.accion] || '';
         return `<li class="${clase}">
           <div class="desc">${esc(ev.descripcion || ev.accion)}</div>
           <div class="meta">${ev.plaza ? 'Plaza ' + esc(ev.plaza) + ' - ' : ''}${fmtFecha(ev.creado_en)}</div></li>`;
       }).join('');
     } catch (e) {
+      guiaDetalleActual = null;
+      $('btnRevertir').style.display = 'none';
       $('detNumero').textContent = numeroGuia;
       $('detRuta').textContent = e.message;
       $('detBadge').innerHTML = '';

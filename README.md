@@ -97,7 +97,9 @@ Hay dos roles:
 
 - **Administrador**: todo lo del operador, y ademas puede crear y eliminar
   usuarios y restablecer sus contraseñas desde **Configuracion → Usuarios del
-  sistema**, y cambiar su propia contraseña.
+  sistema**, cambiar su propia contraseña, y revertir escaneos equivocados
+  desde el detalle de la guia (boton **Revertir ultimo escaneo**; la guia
+  regresa a su estatus anterior y la correccion queda en el historial).
 - **Operador**: puede escanear y consultar guias y eventos. No puede cambiar
   su contraseña; si la necesita cambiar, un administrador se la restablece.
 
@@ -153,6 +155,9 @@ integraciones fijas como la pistola de escaneo).
   (solo rol `admin`).
 - `GET /api/usuarios` / `POST /api/usuarios` / `DELETE /api/usuarios/:id` /
   `PUT /api/usuarios/:id/password` -> gestion de usuarios (solo rol `admin`).
+- `POST /api/guias/:numeroGuia/revertir` -> revierte el ultimo escaneo de la
+  guia y la regresa a su estatus anterior (solo rol `admin`); agrega un
+  evento `CORRECCION` al historial.
 - `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX", modo?: "bodega"|"domicilio"|"ocurre" }`
   -> aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje }`, donde
   `tipo` es `salida`, `llegada`, `ruta`, `entregado` o `repetido`.

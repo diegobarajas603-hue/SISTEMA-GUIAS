@@ -177,6 +177,47 @@ async function escanearEntrega(numeroGuia, plaza, modo) {
   throw new Error(`La guia no esta disponible para entrega en ${plaza} (estatus actual: ${guia.estatus})`);
 }
 
+// Revierte el ultimo escaneo que cambio el estatus de la guia, regresandola
+// al estatus que tenia antes (accion de administrador). El escaneo revertido
+// no se borra del historial: se agrega un evento CORRECCION que documenta
+// quien lo revirtio y que quedo deshecho.
+async function revertirUltimoEscaneo(numeroGuia, usuario) {
+  const guia = await obtenerGuia(numeroGuia);
+  if (!guia) throw new Error('Guia no encontrada');
+
+  const { rows: eventos } = await pool.query(
+    'SELECT accion, estatus, plaza, descripcion FROM eventos WHERE numero_guia = $1 ORDER BY id ASC',
+    [numeroGuia]
+  );
+
+  // Reconstruye la pila de escaneos vigentes: cada escaneo agrega un estado y
+  // cada correccion previa ya deshizo el ultimo, de modo que revertir varias
+  // veces sigue caminando hacia atras en el historial (no rebota).
+  const pila = [];
+  for (const ev of eventos) {
+    if (ev.accion === ACCIONES.ESCANEO_REPETIDO) continue;
+    if (ev.accion === ACCIONES.CORRECCION) pila.pop();
+    else pila.push(ev);
+  }
+  if (pila.length < 2) {
+    throw new Error('No hay un estatus anterior: ese fue el escaneo con el que se registro la guia');
+  }
+  const ultimo = pila[pila.length - 1];
+
+  // El estatus indica en/hacia que plaza esta la guia; de ahi se reconstruye
+  // la ruta (en este flujo MTY <-> CDMX el destino siempre es esa plaza)
+  const estatus = pila[pila.length - 2].estatus;
+  const plazaDelEstatus = estatus.endsWith('_MTY') ? 'MTY' : 'CDMX';
+  await pool.query(
+    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
+    [otraPlaza(plazaDelEstatus), plazaDelEstatus, estatus, now(), numeroGuia]
+  );
+
+  const descripcion = `Correccion de ${usuario}: se revirtio "${ultimo.descripcion || ultimo.accion}" y la guia regreso a su estatus anterior`;
+  await registrarEvento(numeroGuia, ACCIONES.CORRECCION, estatus, ultimo.plaza, descripcion);
+  return { guia: await obtenerGuia(numeroGuia), tipo: 'correccion', mensaje: descripcion };
+}
+
 async function listarGuias({ buscar, estatus, plaza, limit = 200 } = {}) {
   const condiciones = [];
   const params = [];
@@ -227,6 +268,7 @@ async function resumen() {
 
 module.exports = {
   escanearGuia,
+  revertirUltimoEscaneo,
   obtenerGuia,
   obtenerHistorial,
   listarGuias,

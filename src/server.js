@@ -105,6 +105,19 @@ app.post('/api/guias/escanear', requireAuth, async (req, res) => {
   }
 });
 
+// Revertir el ultimo escaneo de una guia (solo administradores)
+app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const resultado = await guias.revertirUltimoEscaneo(
+      req.params.numeroGuia.trim().toUpperCase(),
+      req.usuario.usuario
+    );
+    res.json(resultado);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 app.get('/api/guias/resumen', requireAuth, async (req, res) => {
   res.json(await guias.resumen());
 });
@@ -140,8 +153,9 @@ app.get('/api/publico/guias/:numeroGuia', async (req, res) => {
   }
   const guia = await guias.obtenerGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'No encontramos esa guia. Verifica el numero e intenta de nuevo.' });
+  // Los escaneos repetidos y las correcciones internas no se muestran al cliente
   const historial = (await guias.obtenerHistorial(numeroGuia))
-    .filter((ev) => ev.accion !== 'ESCANEO_REPETIDO')
+    .filter((ev) => ev.accion !== 'ESCANEO_REPETIDO' && ev.accion !== 'CORRECCION')
     .map(({ accion, descripcion, creado_en }) => ({ accion, descripcion, creado_en }));
   res.json({
     numeroGuia: guia.numero_guia,

@@ -11,6 +11,7 @@ const ACCIONES = {
   RUTA_ENTREGA: 'RUTA_ENTREGA', // el paquete salio a ruta de entrega a domicilio
   ENTREGA: 'ENTREGA', // el paquete fue entregado (a domicilio o en ocurre)
   ESCANEO_REPETIDO: 'ESCANEO_REPETIDO', // se escaneo de nuevo sin cambio de estatus
+  CORRECCION: 'CORRECCION', // un administrador revirtio un escaneo equivocado
 };
 
 function otraPlaza(plaza) {
