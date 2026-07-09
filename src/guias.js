@@ -186,19 +186,16 @@ async function revertirUltimoEscaneo(numeroGuia, usuario) {
   if (!guia) throw new Error('Guia no encontrada');
 
   const { rows: eventos } = await pool.query(
-    'SELECT id, accion, estatus, plaza, descripcion FROM eventos WHERE numero_guia = $1 ORDER BY id ASC',
+    'SELECT id, accion, estatus, plaza, descripcion FROM eventos WHERE numero_guia = $1 AND NOT revertido ORDER BY id ASC',
     [numeroGuia]
   );
 
-  // Reconstruye la pila de escaneos vigentes: cada escaneo agrega un estado y
-  // cada correccion previa ya deshizo el ultimo, de modo que revertir varias
-  // veces sigue caminando hacia atras en el historial (no rebota).
-  const pila = [];
-  for (const ev of eventos) {
-    if (ev.accion === ACCIONES.ESCANEO_REPETIDO) continue;
-    if (ev.accion === ACCIONES.CORRECCION) pila.pop();
-    else pila.push(ev);
-  }
+  // Pila de escaneos vigentes: los ya revertidos (marcados al corregir o por
+  // las migraciones) quedan fuera, de modo que revertir varias veces sigue
+  // caminando hacia atras en el historial (no rebota).
+  const pila = eventos.filter(
+    (ev) => ev.accion !== ACCIONES.ESCANEO_REPETIDO && ev.accion !== ACCIONES.CORRECCION
+  );
   if (pila.length < 2) {
     throw new Error('No hay un estatus anterior: ese fue el escaneo con el que se registro la guia');
   }
@@ -247,6 +244,53 @@ async function marcarRevertidosHistoricos() {
     if (deshechos.length) {
       await pool.query('UPDATE eventos SET revertido = TRUE WHERE id = ANY($1)', [deshechos]);
     }
+  }
+}
+
+// Migracion idempotente al arrancar: oculta duplicados historicos causados
+// por escaneos dobles casi simultaneos (el mismo evento registrado dos veces
+// por una condicion de carrera que ahora previene el candado por guia).
+async function marcarDuplicadosHistoricos() {
+  const { rows } = await pool.query(
+    `SELECT id, numero_guia, accion, estatus, plaza, creado_en, revertido FROM eventos
+      WHERE accion NOT IN ($1, $2) ORDER BY numero_guia, id ASC`,
+    [ACCIONES.ESCANEO_REPETIDO, ACCIONES.CORRECCION]
+  );
+  const duplicados = [];
+  let prev = null;
+  for (const ev of rows) {
+    const esDuplicado =
+      prev &&
+      !prev.revertido &&
+      prev.numero_guia === ev.numero_guia &&
+      prev.accion === ev.accion &&
+      prev.estatus === ev.estatus &&
+      prev.plaza === ev.plaza &&
+      new Date(ev.creado_en) - new Date(prev.creado_en) < 2 * 60 * 1000;
+    if (esDuplicado) {
+      if (!ev.revertido) duplicados.push(ev.id);
+      continue; // conserva prev para marcar tambien triples
+    }
+    prev = ev;
+  }
+  if (duplicados.length) {
+    await pool.query('UPDATE eventos SET revertido = TRUE WHERE id = ANY($1)', [duplicados]);
+    console.log(`[guias] ${duplicados.length} escaneo(s) duplicado(s) historicos ocultados del rastreo`);
+  }
+}
+
+// Serializa las operaciones sobre una misma guia: si la pistola dispara dos
+// veces casi al mismo tiempo, el segundo escaneo espera a que termine el
+// primero y entonces se detecta como repetido en lugar de registrarse doble.
+const candados = new Map(); // numero_guia -> promesa de la operacion en curso
+async function conCandado(numeroGuia, fn) {
+  const previa = candados.get(numeroGuia) || Promise.resolve();
+  const actual = previa.catch(() => {}).then(fn);
+  candados.set(numeroGuia, actual);
+  try {
+    return await actual;
+  } finally {
+    if (candados.get(numeroGuia) === actual) candados.delete(numeroGuia);
   }
 }
 
@@ -299,9 +343,11 @@ async function resumen() {
 }
 
 module.exports = {
-  escanearGuia,
-  revertirUltimoEscaneo,
+  escanearGuia: (numeroGuia, plaza, modo) => conCandado(numeroGuia, () => escanearGuia(numeroGuia, plaza, modo)),
+  revertirUltimoEscaneo: (numeroGuia, usuario) =>
+    conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario)),
   marcarRevertidosHistoricos,
+  marcarDuplicadosHistoricos,
   obtenerGuia,
   obtenerHistorial,
   listarGuias,

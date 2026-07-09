@@ -215,6 +215,7 @@ const PORT = process.env.PORT || 3000;
 init()
   .then(() => auth.initAuth())
   .then(() => guias.marcarRevertidosHistoricos())
+  .then(() => guias.marcarDuplicadosHistoricos())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Sistema de guias escuchando en http://localhost:${PORT}`);
