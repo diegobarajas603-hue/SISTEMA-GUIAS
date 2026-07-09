@@ -51,8 +51,8 @@
   /* Botones y campos */
   button.primario { padding: 11px 18px; border: none; border-radius: 8px; background: #d92027; color: #fff; font-weight: 700; font-size: 0.92rem; cursor: pointer; }
   button.primario:hover { background: #b31a20; }
-  input[type=text], select { padding: 10px 12px; border: 1.5px solid #d4d4d8; border-radius: 8px; font-size: 0.95rem; background: #fff; color: #1a1a1a; }
-  input[type=text]:focus, select:focus { outline: none; border-color: #d92027; }
+  input[type=text], input[type=password], select { padding: 10px 12px; border: 1.5px solid #d4d4d8; border-radius: 8px; font-size: 0.95rem; background: #fff; color: #1a1a1a; }
+  input[type=text]:focus, input[type=password]:focus, select:focus { outline: none; border-color: #d92027; }
   label { display: block; font-size: 0.8rem; color: #71717a; margin: 12px 0 5px; }
 
   /* Banner de plaza en Escanear */
@@ -160,6 +160,32 @@
 
   .nota { font-size: 0.85rem; color: #71717a; }
 
+  /* ---------- Login ---------- */
+  #loginOverlay { position: fixed; inset: 0; background: #141414; display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .login-card { background: #fff; border-radius: 16px; padding: 28px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
+  .login-card .logo-login { background: #fff; border: 1px solid #ececee; border-radius: 10px; padding: 10px 14px; margin-bottom: 18px; }
+  .login-card .logo-login img { width: 100%; display: block; }
+  .login-card h2 { margin: 0 0 4px; font-size: 1.25rem; }
+  .login-card .sub { margin: 0 0 8px; font-size: 0.85rem; color: #71717a; }
+  .login-card input { width: 100%; }
+  .login-error { display: none; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-top: 14px; }
+  .login-error.visible { display: block; }
+  .login-card button.primario { width: 100%; margin-top: 16px; padding: 13px; font-size: 1rem; }
+
+  /* Usuario en la barra lateral */
+  .usuario-pie { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .usuario-pie .quien { color: #fff; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .usuario-pie .quien small { display: block; color: #8a8a8a; font-size: 0.7rem; text-transform: capitalize; }
+  .btn-salir { background: #262626; border: none; color: #d4d4d8; border-radius: 8px; padding: 7px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+  .btn-salir:hover { background: #d92027; color: #fff; }
+
+  /* Mensajes en formularios de Configuracion */
+  .msg-form { display: none; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-top: 12px; }
+  .msg-form.ok { display: block; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  .msg-form.err { display: block; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .btn-peligro { background: none; border: 1px solid #fecaca; color: #dc2626; border-radius: 8px; padding: 6px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+  .btn-peligro:hover { background: #fef2f2; }
+
   /* ---------- Responsive ---------- */
   @media (max-width: 860px) {
     .layout { flex-direction: column; }
@@ -174,6 +200,22 @@
 </style>
 </head>
 <body>
+
+<!-- ============ Login ============ -->
+<div id="loginOverlay">
+  <form class="login-card" id="formLogin" autocomplete="on">
+    <div class="logo-login"><img src="/logo-tauro.png" alt="Fletes Tauro" onerror="this.onerror=null;this.src='/logo.svg'" /></div>
+    <h2>Iniciar sesion</h2>
+    <p class="sub">Sistema de guias MTY &harr; CDMX</p>
+    <label for="loginUsuario">Usuario</label>
+    <input type="text" id="loginUsuario" autocomplete="username" autocapitalize="none" required />
+    <label for="loginPassword">Contraseña</label>
+    <input type="password" id="loginPassword" autocomplete="current-password" required />
+    <div class="login-error" id="loginError"></div>
+    <button class="primario" type="submit" id="btnLogin">Entrar</button>
+  </form>
+</div>
+
 <div class="layout">
 
   <aside>
@@ -191,7 +233,13 @@
       <span class="sec">Sistema</span>
       <button class="nav-item" data-ruta="config"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.5"/><circle cx="8" cy="16" r="2.5"/></svg></span> Configuracion</button>
     </nav>
-    <div class="plaza-pie">Plaza actual: <b id="plazaPie">-</b></div>
+    <div class="plaza-pie">
+      Plaza actual: <b id="plazaPie">-</b>
+      <div class="usuario-pie">
+        <span class="quien" id="usuarioPie"></span>
+        <button class="btn-salir" id="btnLogout" type="button">Salir</button>
+      </div>
+    </div>
   </aside>
 
   <main>
@@ -306,14 +354,65 @@
       <!-- ============ Configuracion ============ -->
       <section id="v-config" style="display:none">
         <div class="card" style="max-width:520px;">
-          <h2 class="titulo-card">Acceso</h2>
-          <label for="token">Token de acceso (APP_TOKEN)</label>
-          <input type="text" id="token" placeholder="Escribe el token" style="width:100%;" />
-          <p class="nota">El token se guarda en este navegador. La plaza y el tipo de operacion se eligen en la pantalla de escaneo y tambien quedan guardados.</p>
+          <h2 class="titulo-card">Mi cuenta</h2>
+          <p style="margin:0 0 4px;"><b id="cfgUsuario"></b></p>
+          <p class="nota" id="cfgRol" style="margin:0;"></p>
+          <p class="nota" style="margin-top:10px;">La plaza y el tipo de operacion se eligen en la pantalla de escaneo y quedan guardados en este navegador.</p>
         </div>
+
+        <div class="card" style="max-width:520px;">
+          <h2 class="titulo-card">Cambiar mi contraseña</h2>
+          <form id="formPassword">
+            <label for="pwActual">Contraseña actual</label>
+            <input type="password" id="pwActual" autocomplete="current-password" required style="width:100%;" />
+            <label for="pwNueva">Nueva contraseña (minimo 6 caracteres)</label>
+            <input type="password" id="pwNueva" autocomplete="new-password" required minlength="6" style="width:100%;" />
+            <label for="pwConfirmar">Confirmar nueva contraseña</label>
+            <input type="password" id="pwConfirmar" autocomplete="new-password" required style="width:100%;" />
+            <div class="msg-form" id="msgPassword"></div>
+            <button class="primario" type="submit" style="margin-top:14px;">Guardar contraseña</button>
+          </form>
+        </div>
+
+        <div class="card" id="cardUsuarios" style="max-width:640px; display:none;">
+          <h2 class="titulo-card">Usuarios del sistema</h2>
+          <div class="tabla-scroll">
+            <table>
+              <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th></th></tr></thead>
+              <tbody id="tbodyUsuarios"></tbody>
+            </table>
+          </div>
+          <h2 class="titulo-card" style="margin-top:20px;">Agregar usuario</h2>
+          <form id="formNuevoUsuario">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 12px;">
+              <div>
+                <label for="nuUsuario">Usuario</label>
+                <input type="text" id="nuUsuario" autocomplete="off" autocapitalize="none" required style="width:100%;" />
+              </div>
+              <div>
+                <label for="nuNombre">Nombre</label>
+                <input type="text" id="nuNombre" autocomplete="off" style="width:100%;" />
+              </div>
+              <div>
+                <label for="nuPassword">Contraseña (minimo 6 caracteres)</label>
+                <input type="password" id="nuPassword" autocomplete="new-password" required minlength="6" style="width:100%;" />
+              </div>
+              <div>
+                <label for="nuRol">Rol</label>
+                <select id="nuRol" style="width:100%;">
+                  <option value="operador">Operador</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+            </div>
+            <div class="msg-form" id="msgUsuarios"></div>
+            <button class="primario" type="submit" style="margin-top:14px;">Crear usuario</button>
+          </form>
+        </div>
+
         <div class="card" style="max-width:520px;">
           <h2 class="titulo-card">Pagina publica de rastreo</h2>
-          <p class="nota">Tus clientes pueden consultar su guia (sin token) en:<br /><a href="/rastreo.html" target="_blank" rel="noopener">/rastreo.html</a></p>
+          <p class="nota">Tus clientes pueden consultar su guia (sin iniciar sesion) en:<br /><a href="/rastreo.html" target="_blank" rel="noopener">/rastreo.html</a></p>
         </div>
       </section>
 
@@ -393,8 +492,6 @@
   // ---------- Estado persistido ----------
   let plaza = localStorage.getItem('plaza') || 'MTY';
   let modo = localStorage.getItem('modo') || 'bodega';
-  if (localStorage.getItem('token')) $('token').value = localStorage.getItem('token');
-  $('token').addEventListener('change', () => localStorage.setItem('token', $('token').value.trim()));
 
   function setPlaza(p) {
     plaza = p;
@@ -412,12 +509,78 @@
   setPlaza(plaza);
   pintarToggles();
 
+  // ---------- Sesion ----------
+  let sesionToken = localStorage.getItem('sesionToken') || '';
+  let usuarioActual = null;
+
+  function pintarUsuario() {
+    if (usuarioActual) {
+      $('usuarioPie').innerHTML = `${esc(usuarioActual.nombre)}<small>${esc(usuarioActual.rol)}</small>`;
+      $('cfgUsuario').textContent = `${usuarioActual.nombre} (${usuarioActual.usuario})`;
+      $('cfgRol').textContent = usuarioActual.rol === 'admin' ? 'Rol: administrador' : 'Rol: operador';
+      $('cardUsuarios').style.display = usuarioActual.rol === 'admin' ? '' : 'none';
+    }
+  }
+
+  function mostrarLogin(mensaje) {
+    sesionToken = '';
+    usuarioActual = null;
+    localStorage.removeItem('sesionToken');
+    $('loginOverlay').style.display = 'flex';
+    const err = $('loginError');
+    err.textContent = mensaje || '';
+    err.classList.toggle('visible', !!mensaje);
+    setTimeout(() => $('loginUsuario').focus(), 50);
+  }
+
+  function ocultarLogin() {
+    $('loginOverlay').style.display = 'none';
+    $('formLogin').reset();
+    $('loginError').classList.remove('visible');
+  }
+
+  $('formLogin').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('btnLogin').disabled = true;
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario: $('loginUsuario').value.trim(), password: $('loginPassword').value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Error de conexion');
+      sesionToken = data.token;
+      usuarioActual = data.usuario;
+      localStorage.setItem('sesionToken', sesionToken);
+      pintarUsuario();
+      ocultarLogin();
+      render();
+    } catch (err2) {
+      $('loginError').textContent = err2.message;
+      $('loginError').classList.add('visible');
+      $('loginPassword').value = '';
+      $('loginPassword').focus();
+    } finally {
+      $('btnLogin').disabled = false;
+    }
+  });
+
+  $('btnLogout').addEventListener('click', async () => {
+    try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
+    mostrarLogin();
+  });
+
   // ---------- API ----------
   async function api(ruta, opciones = {}) {
     const res = await fetch(ruta, {
       ...opciones,
-      headers: { 'Content-Type': 'application/json', 'X-App-Token': localStorage.getItem('token') || '', ...(opciones.headers || {}) },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sesionToken, ...(opciones.headers || {}) },
     });
+    if (res.status === 401) {
+      mostrarLogin('Tu sesion expiro. Inicia sesion de nuevo.');
+      throw new Error('Sesion expirada');
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Error de conexion');
     return data;
@@ -449,6 +612,7 @@
     if (vista === 'eventos') cargarEventos();
     if (vista === 'detalle') cargarDetalle(arg);
     if (vista === 'escanear') setTimeout(() => $('guia').focus(), 50);
+    if (vista === 'config') cargarConfig();
   }
   window.addEventListener('hashchange', render);
   document.querySelectorAll('.nav-item').forEach((b) => b.addEventListener('click', () => (location.hash = '#/' + b.dataset.ruta)));
@@ -487,7 +651,7 @@
         : '<tr><td colspan="5" class="vacio">Sin actividad todavia</td></tr>';
       activarFilasGuia('#tbodyActividad');
     } catch (e) {
-      $('kpis').innerHTML = `<div class="card vacio">${esc(e.message)} - revisa el token en Configuracion</div>`;
+      $('kpis').innerHTML = `<div class="card vacio">${esc(e.message)}</div>`;
       $('tbodyActividad').innerHTML = '';
     }
   }
@@ -783,7 +947,93 @@
   let timerEventos;
   $('buscarEvento').addEventListener('input', () => { clearTimeout(timerEventos); timerEventos = setTimeout(pintarGruposEventos, 200); });
 
-  render();
+  // ---------- Configuracion ----------
+  function msgForm(id, texto, tipo) {
+    const el = $(id);
+    el.textContent = texto;
+    el.className = 'msg-form ' + tipo;
+    if (tipo === 'ok') setTimeout(() => { el.className = 'msg-form'; }, 4000);
+  }
+
+  function cargarConfig() {
+    pintarUsuario();
+    if (usuarioActual && usuarioActual.rol === 'admin') cargarUsuarios();
+  }
+
+  $('formPassword').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if ($('pwNueva').value !== $('pwConfirmar').value) {
+      return msgForm('msgPassword', 'La confirmacion no coincide con la nueva contraseña', 'err');
+    }
+    try {
+      await api('/api/auth/password', {
+        method: 'POST',
+        body: JSON.stringify({ actual: $('pwActual').value, nueva: $('pwNueva').value }),
+      });
+      $('formPassword').reset();
+      msgForm('msgPassword', 'Contraseña actualizada correctamente', 'ok');
+    } catch (err2) {
+      msgForm('msgPassword', err2.message, 'err');
+    }
+  });
+
+  async function cargarUsuarios() {
+    try {
+      const usuarios = await api('/api/usuarios');
+      $('tbodyUsuarios').innerHTML = usuarios.map((u) => `<tr>
+        <td><b>${esc(u.usuario)}</b></td>
+        <td>${esc(u.nombre)}</td>
+        <td>${u.rol === 'admin' ? 'Administrador' : 'Operador'}</td>
+        <td style="text-align:right;">${u.id === usuarioActual.id ? '<span class="nota">(tu)</span>' : `<button class="btn-peligro" data-id="${u.id}" data-usuario="${esc(u.usuario)}">Eliminar</button>`}</td></tr>`).join('');
+      document.querySelectorAll('#tbodyUsuarios .btn-peligro').forEach((b) =>
+        b.addEventListener('click', async () => {
+          if (!confirm(`¿Eliminar al usuario "${b.dataset.usuario}"? Esta accion no se puede deshacer.`)) return;
+          try {
+            await api('/api/usuarios/' + b.dataset.id, { method: 'DELETE' });
+            msgForm('msgUsuarios', `Usuario "${b.dataset.usuario}" eliminado`, 'ok');
+            cargarUsuarios();
+          } catch (err2) { msgForm('msgUsuarios', err2.message, 'err'); }
+        })
+      );
+    } catch (e) {
+      $('tbodyUsuarios').innerHTML = `<tr><td colspan="4" class="vacio">${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  $('formNuevoUsuario').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api('/api/usuarios', {
+        method: 'POST',
+        body: JSON.stringify({
+          usuario: $('nuUsuario').value.trim(),
+          nombre: $('nuNombre').value.trim(),
+          password: $('nuPassword').value,
+          rol: $('nuRol').value,
+        }),
+      });
+      $('formNuevoUsuario').reset();
+      msgForm('msgUsuarios', 'Usuario creado correctamente', 'ok');
+      cargarUsuarios();
+    } catch (err2) {
+      msgForm('msgUsuarios', err2.message, 'err');
+    }
+  });
+
+  // ---------- Arranque: valida la sesion guardada antes de mostrar el panel ----------
+  (async function iniciar() {
+    if (!sesionToken) return mostrarLogin();
+    try {
+      const me = await api('/api/auth/me');
+      usuarioActual = me.usuario;
+      pintarUsuario();
+      ocultarLogin();
+      render();
+    } catch (e2) {
+      // Si la sesion expiro, api() ya mostro el login; si fue error de red, tambien lo pedimos
+      if (e2.message !== 'Sesion expirada') mostrarLogin('No se pudo validar la sesion. Revisa tu conexion e intenta de nuevo.');
+    }
+  })();
 </script>
 </body>
 </html>

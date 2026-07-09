@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const { init } = require('./db');
 const guias = require('./guias');
+const auth = require('./auth');
 const { mensajeEstatus } = require('./estatus');
 const { extraerNumeroGuia, enviarMensaje } = require('./whatsapp');
 
@@ -10,24 +11,75 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-const APP_TOKEN = process.env.APP_TOKEN || '';
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || '';
-
-function requireAppToken(req, res, next) {
-  if (!APP_TOKEN) return next();
-  const header = req.headers['x-app-token'] || req.query.token;
-  if (header !== APP_TOKEN) return res.status(401).json({ error: 'No autorizado' });
-  next();
-}
+const { requireAuth, requireAdmin } = auth;
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+// ---------- Autenticacion (login del panel) ----------
+
+app.post('/api/auth/login', async (req, res) => {
+  const { usuario, password } = req.body || {};
+  if (!usuario || !password) return res.status(400).json({ error: 'usuario y password son requeridos' });
+  try {
+    const sesion = await auth.login(String(usuario).trim(), String(password), req.ip);
+    res.json(sesion);
+  } catch (e) {
+    res.status(401).json({ error: e.message });
+  }
+});
+
+app.post('/api/auth/logout', requireAuth, async (req, res) => {
+  const token = auth.extraerToken(req);
+  if (token) await auth.logout(token);
+  res.json({ ok: true });
+});
+
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  res.json({ usuario: req.usuario });
+});
+
+app.post('/api/auth/password', requireAuth, async (req, res) => {
+  const { actual, nueva } = req.body || {};
+  try {
+    if (!req.usuario.id) throw new Error('No disponible para el token de integracion');
+    await auth.cambiarPassword(req.usuario.id, String(actual || ''), String(nueva || ''), auth.extraerToken(req));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// ---------- Gestion de usuarios (solo administradores) ----------
+
+app.get('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
+  res.json(await auth.listarUsuarios());
+});
+
+app.post('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
+  const { usuario, nombre, password, rol } = req.body || {};
+  try {
+    res.status(201).json(await auth.crearUsuario({ usuario, nombre, password, rol: rol || 'operador' }));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.delete('/api/usuarios/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await auth.eliminarUsuario(Number(req.params.id), req.usuario);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
 
 // ---------- API de escaneo (usada por la pistola / panel web) ----------
 
 // Escaneo inteligente: se indica en que plaza estas (MTY o CDMX) y el modo de
 // operacion (bodega, domicilio u ocurre); el sistema decide que significa el
 // escaneo segun el estado actual de la guia.
-app.post('/api/guias/escanear', requireAppToken, async (req, res) => {
+app.post('/api/guias/escanear', requireAuth, async (req, res) => {
   const { numeroGuia, plaza, modo } = req.body;
   if (!numeroGuia || !plaza) return res.status(400).json({ error: 'numeroGuia y plaza son requeridos' });
   try {
@@ -42,16 +94,16 @@ app.post('/api/guias/escanear', requireAppToken, async (req, res) => {
   }
 });
 
-app.get('/api/guias/resumen', requireAppToken, async (req, res) => {
+app.get('/api/guias/resumen', requireAuth, async (req, res) => {
   res.json(await guias.resumen());
 });
 
-app.get('/api/eventos', requireAppToken, async (req, res) => {
+app.get('/api/eventos', requireAuth, async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
   res.json(await guias.listarEventos({ limit }));
 });
 
-app.get('/api/guias/:numeroGuia', requireAppToken, async (req, res) => {
+app.get('/api/guias/:numeroGuia', requireAuth, async (req, res) => {
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
   const guia = await guias.obtenerGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'Guia no encontrada' });
@@ -59,7 +111,7 @@ app.get('/api/guias/:numeroGuia', requireAppToken, async (req, res) => {
   res.json({ ...guia, mensaje: mensajeEstatus(numeroGuia, guia.estatus), historial });
 });
 
-app.get('/api/guias', requireAppToken, async (req, res) => {
+app.get('/api/guias', requireAuth, async (req, res) => {
   const { buscar, estatus, plaza } = req.query;
   res.json(await guias.listarGuias({ buscar, estatus, plaza: plaza && plaza.toUpperCase() }));
 });
@@ -135,6 +187,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 init()
+  .then(() => auth.initAuth())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Sistema de guias escuchando en http://localhost:${PORT}`);

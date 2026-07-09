@@ -77,11 +77,32 @@ createdb sistema_guias
 npm start
 ```
 
-El servidor crea automaticamente las tablas (`guias`, `eventos`) al arrancar.
+El servidor crea automaticamente las tablas (`guias`, `eventos`, `usuarios`,
+`sesiones`) al arrancar.
 
 El servidor corre en `http://localhost:3000`. Abre esa URL en una
 computadora/tablet conectada a la pistola escaner (la pistola funciona
 como teclado: escanea y manda "Enter" automaticamente).
+
+## Login del panel
+
+El panel pide iniciar sesion con usuario y contraseña. La primera vez que
+arranca (sin usuarios en la base de datos) se crea un administrador inicial:
+
+- Usuario: el valor de `ADMIN_USER` en `.env` (por defecto `admin`).
+- Contraseña: el valor de `ADMIN_PASSWORD` en `.env` (si no lo defines, sera
+  `admin123`; **cambiala de inmediato** desde Configuracion).
+
+Hay dos roles:
+
+- **Administrador**: todo lo del operador, y ademas puede crear y eliminar
+  usuarios desde **Configuracion → Usuarios del sistema**.
+- **Operador**: puede escanear y consultar guias y eventos.
+
+Cada quien puede cambiar su propia contraseña en **Configuracion → Cambiar mi
+contraseña**. Las sesiones duran `SESSION_HOURS` horas (12 por defecto); al
+expirar, el panel vuelve a pedir login. Las contraseñas se guardan cifradas
+(scrypt) y el login se bloquea 15 minutos despues de 10 intentos fallidos.
 
 ## Pagina publica de rastreo para clientes
 
@@ -118,9 +139,18 @@ de guias ni permite modificar nada.
 
 ## API REST (interna)
 
-Todas las rutas requieren el header `X-App-Token: <APP_TOKEN>` (definido en
-`.env`) si `APP_TOKEN` esta configurado.
+Todas las rutas requieren autenticacion: el header
+`Authorization: Bearer <token>` con el token que regresa
+`POST /api/auth/login`. Por compatibilidad tambien se acepta el header
+`X-App-Token: <APP_TOKEN>` si `APP_TOKEN` esta definido en `.env` (util para
+integraciones fijas como la pistola de escaneo).
 
+- `POST /api/auth/login` `{ usuario, password }` -> `{ token, expiraEn, usuario }`.
+- `POST /api/auth/logout` -> cierra la sesion actual.
+- `GET /api/auth/me` -> datos del usuario de la sesion.
+- `POST /api/auth/password` `{ actual, nueva }` -> cambia tu contraseña.
+- `GET /api/usuarios` / `POST /api/usuarios` / `DELETE /api/usuarios/:id`
+  -> gestion de usuarios (solo rol `admin`).
 - `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX", modo?: "bodega"|"domicilio"|"ocurre" }`
   -> aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje }`, donde
   `tipo` es `salida`, `llegada`, `ruta`, `entregado` o `repetido`.
