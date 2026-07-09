@@ -69,11 +69,13 @@ async function marcarSalida(numeroGuia, plaza, destino) {
 // Modo "domicilio" (entrega a domicilio), estando en la plaza P:
 //  - EN_BODEGA_P                -> paquete en ruta de entrega (EN_RUTA_ENTREGA_P)
 //  - EN_RUTA_ENTREGA_P          -> entregado a domicilio (ENTREGADO_P)
-//  - EN_TRANSITO_A_P            -> registra la llegada y lo pone en ruta en un solo paso
+//  - EN_TRANSITO_A_P            -> error: primero debe registrarse la llegada
+//                                  escaneando en modo bodega
 //
 // Modo "ocurre" (el cliente recoge en bodega), estando en la plaza P:
 //  - EN_BODEGA_P                -> entregado en ocurre (ENTREGADO_P)
-//  - EN_TRANSITO_A_P            -> registra la llegada y lo entrega en un solo paso
+//  - EN_TRANSITO_A_P            -> error: primero debe registrarse la llegada
+//                                  escaneando en modo bodega
 async function escanearGuia(numeroGuia, plaza, modo = 'bodega') {
   if (!PLAZAS.includes(plaza)) throw new Error('Plaza invalida, usa MTY o CDMX');
   if (!MODOS.includes(modo)) throw new Error('Modo invalido, usa bodega, domicilio u ocurre');
@@ -133,15 +135,15 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega') {
 
 // Escaneos de entrega (a domicilio o en ocurre) en la plaza donde esta el paquete
 async function escanearEntrega(numeroGuia, plaza, modo) {
-  let guia = await obtenerGuia(numeroGuia);
+  const guia = await obtenerGuia(numeroGuia);
   if (!guia) throw new Error('Guia no registrada; escaneala primero en modo bodega');
 
-  // Venia en transito hacia esta plaza: registra la llegada y continua
+  // La entrega exige que la llegada ya este registrada: si viene en transito,
+  // primero hay que escanearla en modo bodega para darle llegada.
   if (guia.estatus === enTransitoA(plaza)) {
-    const estatus = enBodega(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
-    await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, `Llego a bodega ${plaza}`);
-    guia = await obtenerGuia(numeroGuia);
+    throw new Error(
+      `La guia viene en transito a ${plaza} y aun no se registra su llegada. Escaneala primero en modo bodega para darle llegada a ${plaza}.`
+    );
   }
 
   if (guia.estatus === entregado(plaza) || guia.estatus === entregado(otraPlaza(plaza))) {
