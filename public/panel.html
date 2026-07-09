@@ -56,9 +56,8 @@
   label { display: block; font-size: 0.8rem; color: #71717a; margin: 12px 0 5px; }
 
   /* Banner de plaza en Escanear */
-  .plaza-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #d92027; color: #fff; border-radius: 10px; padding: 14px 20px; margin-bottom: 14px; font-size: 1rem; }
+  .plaza-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #1a1a1a; color: #fff; border-radius: 10px; padding: 14px 20px; margin-bottom: 14px; font-size: 1rem; }
   .plaza-banner b { font-size: 1.6rem; letter-spacing: 0.08em; }
-  .plaza-banner.cdmx { background: #1a1a1a; }
 
   /* Toggles de plaza / modo */
   .toggle { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -521,7 +520,7 @@
     plaza = p;
     localStorage.setItem('plaza', p);
     $('plazaBanner').classList.toggle('cdmx', p === 'CDMX');
-    $('plazaBannerNombre').textContent = p === 'MTY' ? 'MTY - Monterrey' : 'CDMX - Ciudad de Mexico';
+    $('plazaBannerNombre').textContent = p === 'MTY' ? 'Monterrey' : 'Ciudad de Mexico';
     $('plazaPie').textContent = p;
   }
   function pintarToggles() {
