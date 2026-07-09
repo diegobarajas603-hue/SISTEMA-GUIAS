@@ -11,6 +11,13 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+// La raiz del sitio es la pagina publica de rastreo para clientes; el panel
+// interno (protegido con login) vive en /panel.
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'rastreo.html')));
+app.get('/panel', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'panel.html')));
+// Compatibilidad con la ruta anterior del panel
+app.get('/index.html', (req, res) => res.redirect('/panel'));
+
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || '';
 const { requireAuth, requireAdmin } = auth;
 

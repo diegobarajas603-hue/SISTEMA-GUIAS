@@ -39,8 +39,9 @@ Ademas de la plaza, en el panel se elige el tipo de operacion:
 - **Ocurre (el cliente recoge en bodega)**: `EN_BODEGA_P` -> `ENTREGADO_P`
   directamente.
 
-En los modos de entrega, si el paquete venia `EN_TRANSITO_A_P`, el mismo
-escaneo registra primero la llegada a bodega y continua con la entrega.
+En los modos de entrega el paquete debe estar ya en la bodega de la plaza:
+si venia `EN_TRANSITO_A_P`, el escaneo se rechaza e indica darle llegada
+primero en modo bodega.
 
 ## Estatus posibles
 
@@ -109,23 +110,24 @@ login se bloquea 15 minutos despues de 10 intentos fallidos.
 
 ## Pagina publica de rastreo para clientes
 
-En `https://tu-dominio.com/rastreo.html` hay una pagina publica (sin token)
+La pagina principal del sitio (`https://tu-dominio.com/`) es la pagina
+publica de rastreo (tambien disponible en `/rastreo.html`), sin login,
 donde el cliente escribe su numero de guia y ve el estatus y el historial de
 su envio. Formas de conectarla a tu pagina web:
 
 **1. Un boton o liga que lleve a la pagina de rastreo:**
 
 ```html
-<a href="https://tu-dominio.com/rastreo.html">Rastrea tu envio</a>
+<a href="https://tu-dominio.com/">Rastrea tu envio</a>
 ```
 
 Tambien acepta el numero de guia en la URL para ligas directas:
-`https://tu-dominio.com/rastreo.html?guia=TAU-1001`
+`https://tu-dominio.com/?guia=TAU-1001`
 
 **2. Incrustada dentro de tu sitio con un iframe:**
 
 ```html
-<iframe src="https://tu-dominio.com/rastreo.html"
+<iframe src="https://tu-dominio.com/"
         style="width:100%; height:640px; border:none;"></iframe>
 ```
 
