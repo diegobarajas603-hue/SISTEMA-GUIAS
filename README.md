@@ -96,13 +96,14 @@ arranca (sin usuarios en la base de datos) se crea un administrador inicial:
 Hay dos roles:
 
 - **Administrador**: todo lo del operador, y ademas puede crear y eliminar
-  usuarios desde **Configuracion → Usuarios del sistema**.
-- **Operador**: puede escanear y consultar guias y eventos.
+  usuarios y restablecer sus contraseñas desde **Configuracion → Usuarios del
+  sistema**, y cambiar su propia contraseña.
+- **Operador**: puede escanear y consultar guias y eventos. No puede cambiar
+  su contraseña; si la necesita cambiar, un administrador se la restablece.
 
-Cada quien puede cambiar su propia contraseña en **Configuracion → Cambiar mi
-contraseña**. Las sesiones duran `SESSION_HOURS` horas (12 por defecto); al
-expirar, el panel vuelve a pedir login. Las contraseñas se guardan cifradas
-(scrypt) y el login se bloquea 15 minutos despues de 10 intentos fallidos.
+Las sesiones duran `SESSION_HOURS` horas (12 por defecto); al expirar, el
+panel vuelve a pedir login. Las contraseñas se guardan cifradas (scrypt) y el
+login se bloquea 15 minutos despues de 10 intentos fallidos.
 
 ## Pagina publica de rastreo para clientes
 
@@ -148,9 +149,10 @@ integraciones fijas como la pistola de escaneo).
 - `POST /api/auth/login` `{ usuario, password }` -> `{ token, expiraEn, usuario }`.
 - `POST /api/auth/logout` -> cierra la sesion actual.
 - `GET /api/auth/me` -> datos del usuario de la sesion.
-- `POST /api/auth/password` `{ actual, nueva }` -> cambia tu contraseña.
-- `GET /api/usuarios` / `POST /api/usuarios` / `DELETE /api/usuarios/:id`
-  -> gestion de usuarios (solo rol `admin`).
+- `POST /api/auth/password` `{ actual, nueva }` -> cambia tu contraseña
+  (solo rol `admin`).
+- `GET /api/usuarios` / `POST /api/usuarios` / `DELETE /api/usuarios/:id` /
+  `PUT /api/usuarios/:id/password` -> gestion de usuarios (solo rol `admin`).
 - `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX", modo?: "bodega"|"domicilio"|"ocurre" }`
   -> aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje }`, donde
   `tipo` es `salida`, `llegada`, `ruta`, `entregado` o `repetido`.

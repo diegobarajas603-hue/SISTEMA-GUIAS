@@ -39,7 +39,9 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ usuario: req.usuario });
 });
 
-app.post('/api/auth/password', requireAuth, async (req, res) => {
+// Solo los administradores pueden cambiar su propia contraseña; las de los
+// operadores las restablece un administrador desde la gestion de usuarios.
+app.post('/api/auth/password', requireAuth, requireAdmin, async (req, res) => {
   const { actual, nueva } = req.body || {};
   try {
     if (!req.usuario.id) throw new Error('No disponible para el token de integracion');
@@ -68,6 +70,15 @@ app.post('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
 app.delete('/api/usuarios/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     await auth.eliminarUsuario(Number(req.params.id), req.usuario);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.put('/api/usuarios/:id/password', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await auth.resetPassword(Number(req.params.id), String(req.body?.nueva || ''));
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });

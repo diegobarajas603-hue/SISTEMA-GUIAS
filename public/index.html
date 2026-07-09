@@ -185,6 +185,8 @@
   .msg-form.err { display: block; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
   .btn-peligro { background: none; border: 1px solid #fecaca; color: #dc2626; border-radius: 8px; padding: 6px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
   .btn-peligro:hover { background: #fef2f2; }
+  .btn-sec { background: none; border: 1px solid #d4d4d8; color: #52525b; border-radius: 8px; padding: 6px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+  .btn-sec:hover { background: #f4f4f5; }
 
   /* ---------- Responsive ---------- */
   @media (max-width: 860px) {
@@ -357,10 +359,11 @@
           <h2 class="titulo-card">Mi cuenta</h2>
           <p style="margin:0 0 4px;"><b id="cfgUsuario"></b></p>
           <p class="nota" id="cfgRol" style="margin:0;"></p>
+          <p class="nota" id="cfgNotaOperador" style="margin-top:10px; display:none;">Si necesitas cambiar tu contraseña, pidesela a un administrador.</p>
           <p class="nota" style="margin-top:10px;">La plaza y el tipo de operacion se eligen en la pantalla de escaneo y quedan guardados en este navegador.</p>
         </div>
 
-        <div class="card" style="max-width:520px;">
+        <div class="card" id="cardPassword" style="max-width:520px; display:none;">
           <h2 class="titulo-card">Cambiar mi contraseña</h2>
           <form id="formPassword">
             <label for="pwActual">Contraseña actual</label>
@@ -515,10 +518,13 @@
 
   function pintarUsuario() {
     if (usuarioActual) {
+      const esAdmin = usuarioActual.rol === 'admin';
       $('usuarioPie').innerHTML = `${esc(usuarioActual.nombre)}<small>${esc(usuarioActual.rol)}</small>`;
       $('cfgUsuario').textContent = `${usuarioActual.nombre} (${usuarioActual.usuario})`;
-      $('cfgRol').textContent = usuarioActual.rol === 'admin' ? 'Rol: administrador' : 'Rol: operador';
-      $('cardUsuarios').style.display = usuarioActual.rol === 'admin' ? '' : 'none';
+      $('cfgRol').textContent = esAdmin ? 'Rol: administrador' : 'Rol: operador';
+      $('cardUsuarios').style.display = esAdmin ? '' : 'none';
+      $('cardPassword').style.display = esAdmin ? '' : 'none';
+      $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
     }
   }
 
@@ -984,7 +990,10 @@
         <td><b>${esc(u.usuario)}</b></td>
         <td>${esc(u.nombre)}</td>
         <td>${u.rol === 'admin' ? 'Administrador' : 'Operador'}</td>
-        <td style="text-align:right;">${u.id === usuarioActual.id ? '<span class="nota">(tu)</span>' : `<button class="btn-peligro" data-id="${u.id}" data-usuario="${esc(u.usuario)}">Eliminar</button>`}</td></tr>`).join('');
+        <td style="text-align:right; white-space:nowrap;">${u.id === usuarioActual.id
+          ? '<span class="nota">(tu)</span>'
+          : `<button class="btn-sec" data-reset="${u.id}" data-usuario="${esc(u.usuario)}">Contraseña</button>
+             <button class="btn-peligro" data-id="${u.id}" data-usuario="${esc(u.usuario)}">Eliminar</button>`}</td></tr>`).join('');
       document.querySelectorAll('#tbodyUsuarios .btn-peligro').forEach((b) =>
         b.addEventListener('click', async () => {
           if (!confirm(`¿Eliminar al usuario "${b.dataset.usuario}"? Esta accion no se puede deshacer.`)) return;
@@ -992,6 +1001,16 @@
             await api('/api/usuarios/' + b.dataset.id, { method: 'DELETE' });
             msgForm('msgUsuarios', `Usuario "${b.dataset.usuario}" eliminado`, 'ok');
             cargarUsuarios();
+          } catch (err2) { msgForm('msgUsuarios', err2.message, 'err'); }
+        })
+      );
+      document.querySelectorAll('#tbodyUsuarios .btn-sec').forEach((b) =>
+        b.addEventListener('click', async () => {
+          const nueva = prompt(`Nueva contraseña para "${b.dataset.usuario}" (minimo 6 caracteres):`);
+          if (nueva === null) return;
+          try {
+            await api('/api/usuarios/' + b.dataset.reset + '/password', { method: 'PUT', body: JSON.stringify({ nueva }) });
+            msgForm('msgUsuarios', `Contraseña de "${b.dataset.usuario}" restablecida. Sus sesiones abiertas se cerraron.`, 'ok');
           } catch (err2) { msgForm('msgUsuarios', err2.message, 'err'); }
         })
       );

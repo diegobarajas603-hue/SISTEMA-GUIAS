@@ -199,6 +199,18 @@ async function cambiarPassword(usuarioId, actual, nueva, tokenActual) {
   await pool.query('DELETE FROM sesiones WHERE usuario_id = $1 AND token <> $2', [usuarioId, tokenActual || '']);
 }
 
+// Restablece la contraseña de cualquier usuario (accion de administrador,
+// no requiere la contraseña actual) y cierra todas sus sesiones.
+async function resetPassword(usuarioId, nueva) {
+  if (!nueva || nueva.length < 6) throw new Error('La nueva contraseña debe tener al menos 6 caracteres');
+  const { rowCount } = await pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [
+    await hashPassword(nueva),
+    usuarioId,
+  ]);
+  if (!rowCount) throw new Error('Usuario no encontrado');
+  await pool.query('DELETE FROM sesiones WHERE usuario_id = $1', [usuarioId]);
+}
+
 module.exports = {
   initAuth,
   login,
@@ -210,4 +222,5 @@ module.exports = {
   crearUsuario,
   eliminarUsuario,
   cambiarPassword,
+  resetPassword,
 };
