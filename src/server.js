@@ -112,6 +112,21 @@ app.post('/api/guias/escanear', requireAuth, async (req, res) => {
   }
 });
 
+// Borrar TODAS las guias para dejar el sistema como nuevo (solo administradores).
+// Requiere enviar { confirmar: "BORRAR" } para evitar borrados accidentales.
+app.post('/api/guias/borrar-todas', requireAuth, requireAdmin, async (req, res) => {
+  if ((req.body || {}).confirmar !== 'BORRAR') {
+    return res.status(400).json({ error: 'Confirmacion invalida' });
+  }
+  try {
+    const eliminadas = await guias.borrarTodas();
+    console.log(`[guias] ${req.usuario.usuario} borro todas las guias (${eliminadas})`);
+    res.json({ ok: true, eliminadas });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 // Revertir el ultimo escaneo de una guia (solo administradores)
 app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
   try {

@@ -30,6 +30,18 @@
   .mensaje { margin: 0; color: #4b4b4b; }
   .actualizado { margin: 10px 0 0; font-size: 0.8rem; color: #9a9a9a; }
 
+  /* Barra de progreso del envio */
+  .stepper { display: flex; margin: 20px 0 6px; }
+  .paso { flex: 1; text-align: center; position: relative; }
+  .paso::before { content: ''; position: absolute; top: 17px; left: -50%; width: 100%; height: 4px; background: #e4e4e7; z-index: 0; }
+  .paso:first-child::before { display: none; }
+  .paso.hecho::before { background: #1e7d32; }
+  .paso .circulo { position: relative; z-index: 1; width: 36px; height: 36px; margin: 0 auto 7px; border-radius: 50%; background: #e4e4e7; color: #a1a1aa; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; transition: background 0.2s; }
+  .paso.hecho .circulo { background: #1e7d32; color: #fff; }
+  .paso.actual .circulo { background: #d92027; color: #fff; box-shadow: 0 0 0 4px #fbd5d6; }
+  .paso .nombre { font-size: 0.76rem; font-weight: 600; color: #52525b; line-height: 1.2; }
+  .paso.hecho .nombre, .paso.actual .nombre { color: #1a1a1a; }
+
   .error { display: none; background: #fdecec; border: 1.5px solid #d92027; color: #a31419; border-radius: 4px; padding: 14px 16px; margin-bottom: 14px; }
 
   h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; color: #8a8a8a; margin: 0 0 12px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
@@ -71,6 +83,7 @@
   <div class="card" id="resultado">
     <p class="estatus-grande" id="resEstatus"></p>
     <p class="mensaje" id="resMensaje"></p>
+    <div class="stepper" id="stepper"></div>
     <p class="actualizado" id="resActualizado"></p>
   </div>
 
@@ -132,6 +145,29 @@
     return 'e-transito';
   }
 
+  // Barra de progreso: 4 etapas del envio. El indice "actual" indica cuantas
+  // ya se completaron (las anteriores llevan check, esa es la etapa en curso).
+  const PASOS = ['En camino', 'En bodega', 'En reparto', 'Entregado'];
+
+  function pasoActual(estatus) {
+    if (estatus.startsWith('ENTREGADO')) return 4; // todas completas
+    if (estatus.startsWith('EN_RUTA_ENTREGA')) return 2;
+    if (estatus.startsWith('EN_BODEGA')) return 1;
+    return 0; // EN_TRANSITO
+  }
+
+  function pintarStepper(estatus) {
+    const actual = pasoActual(estatus);
+    $('stepper').innerHTML = PASOS.map((nombre, i) => {
+      const clase = i < actual ? 'hecho' : i === actual ? 'actual' : '';
+      const marca = i < actual ? '✓' : i + 1;
+      return `<div class="paso ${clase}">
+        <div class="circulo">${marca}</div>
+        <div class="nombre">${nombre}</div>
+      </div>`;
+    }).join('');
+  }
+
   const EVENTOS = [
     [/^Salio de bodega (MTY|CDMX) con destino a (MTY|CDMX)/, (m) => `Salió de bodega ${m[1]} con destino a ${m[2]}`],
     [/^Llego a bodega (MTY|CDMX)/, (m) => `Llegó a bodega ${m[1]}`],
@@ -182,6 +218,7 @@
       $('resEstatus').textContent = (ETIQUETAS[data.estatus] || data.estatus) + ' - ' + data.numeroGuia;
       $('resEstatus').className = 'estatus-grande ' + claseEstatus(data.estatus);
       $('resMensaje').textContent = DETALLES[data.estatus] || data.mensaje;
+      pintarStepper(data.estatus);
       $('resActualizado').textContent = 'Última actualización: ' + fmtFecha(data.actualizado_en);
       $('resultado').style.display = 'block';
 

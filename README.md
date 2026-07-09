@@ -160,6 +160,9 @@ integraciones fijas como la pistola de escaneo).
 - `POST /api/guias/:numeroGuia/revertir` -> revierte el ultimo escaneo de la
   guia y la regresa a su estatus anterior (solo rol `admin`); agrega un
   evento `CORRECCION` al historial.
+- `POST /api/guias/borrar-todas` `{ confirmar: "BORRAR" }` -> borra todas las
+  guias y su historial para dejar el sistema como nuevo (solo rol `admin`; no
+  toca usuarios ni sesiones).
 - `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX", modo?: "bodega"|"domicilio"|"ocurre" }`
   -> aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje }`, donde
   `tipo` es `salida`, `llegada`, `ruta`, `entregado` o `repetido`.

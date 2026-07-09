@@ -332,6 +332,15 @@ async function listarEventos({ limit = 50 } = {}) {
   return rows;
 }
 
+// Borra TODAS las guias y sus eventos para dejar el sistema como nuevo.
+// No toca usuarios ni sesiones. Devuelve cuantas guias se eliminaron.
+async function borrarTodas() {
+  const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM guias');
+  await pool.query('DELETE FROM eventos');
+  await pool.query('DELETE FROM guias');
+  return rows[0].n;
+}
+
 async function resumen() {
   const { rows } = await pool.query('SELECT estatus, COUNT(*)::int AS total FROM guias GROUP BY estatus');
   const porEstatus = {};
@@ -353,6 +362,7 @@ module.exports = {
     conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario)),
   marcarRevertidosHistoricos,
   marcarDuplicadosHistoricos,
+  borrarTodas,
   obtenerGuia,
   obtenerHistorial,
   listarGuias,

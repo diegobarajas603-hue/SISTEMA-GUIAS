@@ -422,6 +422,13 @@
           <p class="nota">Tus clientes pueden consultar su guia (sin iniciar sesion) en la pagina principal del sitio:<br /><a href="/" target="_blank" rel="noopener">Abrir pagina de rastreo</a></p>
           <p class="nota">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
         </div>
+
+        <div class="card" id="cardBorrar" style="max-width:520px; display:none; border:1px solid #fecaca;">
+          <h2 class="titulo-card" style="color:#dc2626;">Zona de peligro</h2>
+          <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
+          <div class="msg-form" id="msgBorrar"></div>
+          <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:12px;">Borrar todas las guias</button>
+        </div>
       </section>
 
     </div>
@@ -530,6 +537,7 @@
       $('cfgRol').textContent = esAdmin ? 'Rol: administrador' : 'Rol: operador';
       $('cardUsuarios').style.display = esAdmin ? '' : 'none';
       $('cardPassword').style.display = esAdmin ? '' : 'none';
+      $('cardBorrar').style.display = esAdmin ? '' : 'none';
       $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
     }
   }
@@ -1071,6 +1079,24 @@
       cargarUsuarios();
     } catch (err2) {
       msgForm('msgUsuarios', err2.message, 'err');
+    }
+  });
+
+  $('btnBorrarTodas').addEventListener('click', async () => {
+    if (!confirm('¿Seguro que quieres BORRAR TODAS las guias y su historial?\nEsta accion no se puede deshacer.')) return;
+    const texto = prompt('Para confirmar, escribe: BORRAR');
+    if (texto === null) return;
+    if (texto.trim().toUpperCase() !== 'BORRAR') {
+      return msgForm('msgBorrar', 'Confirmacion incorrecta. No se borro nada.', 'err');
+    }
+    $('btnBorrarTodas').disabled = true;
+    try {
+      const r = await api('/api/guias/borrar-todas', { method: 'POST', body: JSON.stringify({ confirmar: 'BORRAR' }) });
+      msgForm('msgBorrar', `Listo: se borraron ${r.eliminadas} guia(s). El sistema quedo como nuevo.`, 'ok');
+    } catch (err2) {
+      msgForm('msgBorrar', err2.message, 'err');
+    } finally {
+      $('btnBorrarTodas').disabled = false;
     }
   });
 
