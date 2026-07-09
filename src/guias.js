@@ -308,9 +308,11 @@ async function listarGuias({ buscar, estatus, plaza, limit = 200 } = {}) {
     condiciones.push(`estatus = $${params.length}`);
   }
   if (plaza && PLAZAS.includes(plaza)) {
-    // Guias "de" una plaza: las que salieron de ahi (en transito hacia la
-    // otra), mas las que estan en su bodega, en reparto o entregadas ahi
-    params.push([enTransitoA(otraPlaza(plaza)), enBodega(plaza), enRutaEntrega(plaza), entregado(plaza)]);
+    // Guias "de" una plaza: todas las que se enviaron desde ahi, en cualquier
+    // punto de su recorrido (en transito a la otra plaza, en su bodega, en
+    // reparto o ya entregadas alla)
+    const destino = otraPlaza(plaza);
+    params.push([enTransitoA(destino), enBodega(destino), enRutaEntrega(destino), entregado(destino)]);
     condiciones.push(`estatus = ANY($${params.length})`);
   }
   params.push(limit);

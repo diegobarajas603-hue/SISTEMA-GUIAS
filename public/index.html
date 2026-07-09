@@ -644,8 +644,8 @@
       const ruta = (p.EN_RUTA_ENTREGA_CDMX || 0) + (p.EN_RUTA_ENTREGA_MTY || 0);
       const entregadas = (p.ENTREGADO_CDMX || 0) + (p.ENTREGADO_MTY || 0);
       $('kpis').innerHTML = `
-        <div class="kpi verde" data-tab="MTY" data-est="EN_BODEGA_MTY"><div class="valor">${p.EN_BODEGA_MTY || 0}</div><div class="etiqueta">En bodega MTY</div></div>
-        <div class="kpi verde" data-tab="CDMX" data-est="EN_BODEGA_CDMX"><div class="valor">${p.EN_BODEGA_CDMX || 0}</div><div class="etiqueta">En bodega CDMX</div></div>
+        <div class="kpi verde" data-tab="CDMX" data-est="EN_BODEGA_MTY"><div class="valor">${p.EN_BODEGA_MTY || 0}</div><div class="etiqueta">En bodega MTY</div></div>
+        <div class="kpi verde" data-tab="MTY" data-est="EN_BODEGA_CDMX"><div class="valor">${p.EN_BODEGA_CDMX || 0}</div><div class="etiqueta">En bodega CDMX</div></div>
         <div class="kpi ambar" data-tab="" data-est=""><div class="valor">${transito}</div><div class="etiqueta">En transito</div></div>
         <div class="kpi azul" data-tab="" data-est=""><div class="valor">${ruta}</div><div class="etiqueta">En ruta de entrega</div></div>
         <div class="kpi rojo" data-tab="" data-est=""><div class="valor">${entregadas}</div><div class="etiqueta">Entregadas (total)</div></div>
@@ -729,16 +729,16 @@
   let plazaTab = localStorage.getItem('plazaTab');
   if (plazaTab === null) plazaTab = plaza;
 
-  // Estatus que pertenecen a la pestaña de una plaza: lo que salio de ahi
-  // (en transito hacia la otra plaza) mas lo que esta en su bodega, en
-  // reparto o ya entregado ahi.
+  // Estatus que pertenecen a la pestaña de una plaza: todo lo que se envio
+  // desde ahi, en cualquier punto del recorrido (en transito a la otra plaza,
+  // en la bodega destino, en reparto o ya entregado alla).
   function pasosPlaza(p) {
     const otra = p === 'MTY' ? 'CDMX' : 'MTY';
     return [
       ['EN_TRANSITO_A_' + otra, 'En transito a ' + otra],
-      ['EN_BODEGA_' + p, 'En bodega'],
-      ['EN_RUTA_ENTREGA_' + p, 'En reparto'],
-      ['ENTREGADO_' + p, 'Entregadas'],
+      ['EN_BODEGA_' + otra, 'En bodega ' + otra],
+      ['EN_RUTA_ENTREGA_' + otra, 'En reparto ' + otra],
+      ['ENTREGADO_' + otra, 'Entregadas en ' + otra],
     ];
   }
 
@@ -784,8 +784,7 @@
       const p = r.porEstatus || {};
       $('chipsPlaza').innerHTML = pasosPlaza(plazaTab).map(([est, nom]) => {
         const activo = $('filtroEstatus').value === est ? 'activo' : '';
-        const etiqueta = est.startsWith('EN_TRANSITO') ? nom : `${nom} ${plazaTab}`;
-        return `<button class="chipf ${activo}" data-est="${est}">${etiqueta}<b>${p[est] || 0}</b></button>`;
+        return `<button class="chipf ${activo}" data-est="${est}">${nom}<b>${p[est] || 0}</b></button>`;
       }).join('');
       document.querySelectorAll('#chipsPlaza .chipf').forEach((c) =>
         c.addEventListener('click', () => {
