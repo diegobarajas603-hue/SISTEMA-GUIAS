@@ -708,6 +708,8 @@
     div.innerHTML = `<span></span><span class="hora">${new Date().toLocaleTimeString('es-MX')}</span>`;
     div.firstChild.textContent = texto;
     $('log').prepend(div);
+    // Solo se conservan los ultimos 4 movimientos en pantalla
+    while ($('log').children.length > 4) $('log').lastChild.remove();
   }
 
   async function escanear(numeroGuia) {
