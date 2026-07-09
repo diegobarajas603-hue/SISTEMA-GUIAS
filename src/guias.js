@@ -29,7 +29,7 @@ async function obtenerGuia(numeroGuia) {
 
 async function obtenerHistorial(numeroGuia) {
   const { rows } = await pool.query(
-    'SELECT accion, estatus, plaza, descripcion, creado_en FROM eventos WHERE numero_guia = $1 ORDER BY id DESC',
+    'SELECT accion, estatus, plaza, descripcion, revertido, creado_en FROM eventos WHERE numero_guia = $1 ORDER BY id DESC',
     [numeroGuia]
   );
   return rows;
@@ -186,7 +186,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario) {
   if (!guia) throw new Error('Guia no encontrada');
 
   const { rows: eventos } = await pool.query(
-    'SELECT accion, estatus, plaza, descripcion FROM eventos WHERE numero_guia = $1 ORDER BY id ASC',
+    'SELECT id, accion, estatus, plaza, descripcion FROM eventos WHERE numero_guia = $1 ORDER BY id ASC',
     [numeroGuia]
   );
 
@@ -204,6 +204,9 @@ async function revertirUltimoEscaneo(numeroGuia, usuario) {
   }
   const ultimo = pila[pila.length - 1];
 
+  // Marca el escaneo deshecho para que deje de mostrarse al cliente
+  await pool.query('UPDATE eventos SET revertido = TRUE WHERE id = $1', [ultimo.id]);
+
   // El estatus indica en/hacia que plaza esta la guia; de ahi se reconstruye
   // la ruta (en este flujo MTY <-> CDMX el destino siempre es esa plaza)
   const estatus = pila[pila.length - 2].estatus;
@@ -216,6 +219,35 @@ async function revertirUltimoEscaneo(numeroGuia, usuario) {
   const descripcion = `Correccion de ${usuario}: se revirtio "${ultimo.descripcion || ultimo.accion}" y la guia regreso a su estatus anterior`;
   await registrarEvento(numeroGuia, ACCIONES.CORRECCION, estatus, ultimo.plaza, descripcion);
   return { guia: await obtenerGuia(numeroGuia), tipo: 'correccion', mensaje: descripcion };
+}
+
+// Migracion idempotente al arrancar: marca como revertidos los escaneos que
+// fueron deshechos por correcciones hechas antes de existir la columna
+// "revertido", para que tampoco se muestren al cliente.
+async function marcarRevertidosHistoricos() {
+  const { rows } = await pool.query('SELECT DISTINCT numero_guia FROM eventos WHERE accion = $1', [
+    ACCIONES.CORRECCION,
+  ]);
+  for (const { numero_guia } of rows) {
+    const { rows: eventos } = await pool.query(
+      'SELECT id, accion, revertido FROM eventos WHERE numero_guia = $1 ORDER BY id ASC',
+      [numero_guia]
+    );
+    const pila = [];
+    const deshechos = [];
+    for (const ev of eventos) {
+      if (ev.accion === ACCIONES.ESCANEO_REPETIDO) continue;
+      if (ev.accion === ACCIONES.CORRECCION) {
+        const p = pila.pop();
+        if (p && !p.revertido) deshechos.push(p.id);
+      } else {
+        pila.push(ev);
+      }
+    }
+    if (deshechos.length) {
+      await pool.query('UPDATE eventos SET revertido = TRUE WHERE id = ANY($1)', [deshechos]);
+    }
+  }
 }
 
 async function listarGuias({ buscar, estatus, plaza, limit = 200 } = {}) {
@@ -245,7 +277,7 @@ async function listarGuias({ buscar, estatus, plaza, limit = 200 } = {}) {
 
 async function listarEventos({ limit = 50 } = {}) {
   const { rows } = await pool.query(
-    'SELECT numero_guia, accion, estatus, plaza, descripcion, creado_en FROM eventos ORDER BY id DESC LIMIT $1',
+    'SELECT numero_guia, accion, estatus, plaza, descripcion, revertido, creado_en FROM eventos ORDER BY id DESC LIMIT $1',
     [limit]
   );
   return rows;
@@ -269,6 +301,7 @@ async function resumen() {
 module.exports = {
   escanearGuia,
   revertirUltimoEscaneo,
+  marcarRevertidosHistoricos,
   obtenerGuia,
   obtenerHistorial,
   listarGuias,

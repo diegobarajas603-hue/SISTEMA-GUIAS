@@ -153,9 +153,10 @@ app.get('/api/publico/guias/:numeroGuia', async (req, res) => {
   }
   const guia = await guias.obtenerGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'No encontramos esa guia. Verifica el numero e intenta de nuevo.' });
-  // Los escaneos repetidos y las correcciones internas no se muestran al cliente
+  // Los escaneos repetidos, las correcciones internas y los escaneos que
+  // fueron revertidos no se muestran al cliente
   const historial = (await guias.obtenerHistorial(numeroGuia))
-    .filter((ev) => ev.accion !== 'ESCANEO_REPETIDO' && ev.accion !== 'CORRECCION')
+    .filter((ev) => ev.accion !== 'ESCANEO_REPETIDO' && ev.accion !== 'CORRECCION' && !ev.revertido)
     .map(({ accion, descripcion, creado_en }) => ({ accion, descripcion, creado_en }));
   res.json({
     numeroGuia: guia.numero_guia,
@@ -213,6 +214,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 init()
   .then(() => auth.initAuth())
+  .then(() => guias.marcarRevertidosHistoricos())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Sistema de guias escuchando en http://localhost:${PORT}`);

@@ -25,6 +25,7 @@ async function init() {
 
     ALTER TABLE eventos ADD COLUMN IF NOT EXISTS plaza TEXT;
     ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion TEXT;
+    ALTER TABLE eventos ADD COLUMN IF NOT EXISTS revertido BOOLEAN NOT NULL DEFAULT FALSE;
 
     CREATE INDEX IF NOT EXISTS idx_eventos_numero_guia ON eventos (numero_guia);
     CREATE INDEX IF NOT EXISTS idx_guias_actualizado_en ON guias (actualizado_en DESC);

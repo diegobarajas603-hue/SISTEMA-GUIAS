@@ -131,6 +131,8 @@
   .timeline li.e-ruta::before { background: #3b82f6; }
   .timeline li.e-entrega::before { background: #166534; }
   .timeline li.e-correccion::before { background: #d92027; }
+  .ev-revertido { opacity: 0.55; }
+  .ev-revertido .desc { text-decoration: line-through; }
   .timeline .desc { font-size: 0.92rem; }
   .timeline .meta { font-size: 0.76rem; color: #a1a1aa; margin-top: 2px; }
 
@@ -665,11 +667,14 @@
     }
   }
 
+  // Etiqueta para escaneos que un administrador revirtio
+  const tagRevertido = (ev) => (ev.revertido ? ' <span class="nota">(revertido)</span>' : '');
+
   function filaEvento(ev) {
-    return `<tr class="clic" data-guia="${esc(ev.numero_guia)}">
+    return `<tr class="clic ${ev.revertido ? 'ev-revertido' : ''}" data-guia="${esc(ev.numero_guia)}">
       <td title="${fmtFecha(ev.creado_en)}">${fmtRelativo(ev.creado_en)}</td>
       <td><b>${esc(ev.numero_guia)}</b></td>
-      <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}</td>
+      <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}${tagRevertido(ev)}</td>
       <td>${esc(ev.plaza || '-')}</td>
       <td>${esc(ev.descripcion || '')}</td></tr>`;
   }
@@ -870,10 +875,10 @@
         else $('barcodeWrap').style.display = 'none';
       } catch { $('barcodeWrap').style.display = 'none'; }
 
-      // Stepper
+      // Stepper (ignora escaneos revertidos para no marcar pasos deshechos)
       const actual = pasoActual(d.estatus);
       const fechas = {};
-      for (const ev of [...d.historial].reverse()) if (ev.accion && !fechas[ev.accion]) fechas[ev.accion] = ev.creado_en;
+      for (const ev of [...d.historial].reverse()) if (ev.accion && !ev.revertido && !fechas[ev.accion]) fechas[ev.accion] = ev.creado_en;
       $('stepper').innerHTML = PASOS.map((p, i) => {
         const fecha = i === 0 ? d.creado_en : fechas[p.accion];
         const clase = i < actual ? 'hecho' : i === actual ? 'actual' : '';
@@ -886,18 +891,18 @@
 
       // Tabla de eventos + timeline
       $('tbodyDetEventos').innerHTML = d.historial.length
-        ? d.historial.map((ev) => `<tr>
+        ? d.historial.map((ev) => `<tr class="${ev.revertido ? 'ev-revertido' : ''}">
             <td>${fmtFecha(ev.creado_en)}</td>
-            <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}</td>
+            <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}${tagRevertido(ev)}</td>
             <td>${esc(ev.plaza || '-')}</td>
             <td>${esc(ev.descripcion || '')}</td></tr>`).join('')
         : '<tr><td colspan="4" class="vacio">Sin eventos</td></tr>';
 
       $('detTimeline').innerHTML = d.historial.map((ev) => {
         const clase = { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega', CORRECCION: 'e-correccion' }[ev.accion] || '';
-        return `<li class="${clase}">
+        return `<li class="${clase} ${ev.revertido ? 'ev-revertido' : ''}">
           <div class="desc">${esc(ev.descripcion || ev.accion)}</div>
-          <div class="meta">${ev.plaza ? 'Plaza ' + esc(ev.plaza) + ' - ' : ''}${fmtFecha(ev.creado_en)}</div></li>`;
+          <div class="meta">${ev.plaza ? 'Plaza ' + esc(ev.plaza) + ' - ' : ''}${fmtFecha(ev.creado_en)}${ev.revertido ? ' - revertido' : ''}</div></li>`;
       }).join('');
     } catch (e) {
       guiaDetalleActual = null;
@@ -955,9 +960,9 @@
           <div class="tabla-scroll">
             <table>
               <thead><tr><th>Fecha y hora</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
-              <tbody>${evs.map((ev) => `<tr>
+              <tbody>${evs.map((ev) => `<tr class="${ev.revertido ? 'ev-revertido' : ''}">
                 <td>${fmtFecha(ev.creado_en)}</td>
-                <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}</td>
+                <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}${tagRevertido(ev)}</td>
                 <td>${esc(ev.plaza || '-')}</td>
                 <td>${esc(ev.descripcion || '')}</td></tr>`).join('')}</tbody>
             </table>
