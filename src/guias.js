@@ -96,6 +96,8 @@ async function marcarSalida(numeroGuia, plaza, destino) {
 //  - EN_BODEGA_P                -> entregado en ocurre (ENTREGADO_P)
 //  - EN_TRANSITO_A_P            -> error: primero debe registrarse la llegada
 //                                  escaneando en modo bodega
+//  - EN_RUTA_ENTREGA_P          -> error: el paquete anda en reparto; primero
+//                                  debe registrarse su regreso a bodega
 async function escanearGuia(numeroGuia, plaza, modo = 'bodega') {
   if (!PLAZAS.includes(plaza)) throw new Error('Plaza invalida, usa MTY o CDMX');
   if (!MODOS.includes(modo)) throw new Error('Modo invalido, usa bodega, domicilio u ocurre');
@@ -191,7 +193,16 @@ async function escanearEntrega(numeroGuia, plaza, modo) {
     return { guia: await obtenerGuia(numeroGuia), tipo: 'entregado', mensaje: descripcion };
   }
 
-  if (modo === 'ocurre' && (guia.estatus === enBodega(plaza) || guia.estatus === enRutaEntrega(plaza))) {
+  // Ocurre solo aplica a paquetes que estan fisicamente en la bodega: si el
+  // paquete anda en ruta de entrega a domicilio, primero debe registrarse su
+  // regreso a bodega (escaneo en modo bodega) y despues entregarse en ocurre.
+  if (modo === 'ocurre' && guia.estatus === enRutaEntrega(plaza)) {
+    throw new Error(
+      `La guia esta en ruta de entrega a domicilio en ${plaza}. Si el paquete regreso a bodega, escaneala primero en modo bodega para registrar el regreso y despues entregala en ocurre.`
+    );
+  }
+
+  if (modo === 'ocurre' && guia.estatus === enBodega(plaza)) {
     const estatus = entregado(plaza);
     await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Entregado en ocurre (bodega ${plaza})`;
