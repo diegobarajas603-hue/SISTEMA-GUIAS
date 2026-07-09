@@ -725,9 +725,13 @@
     r.className = 'resultado r-' + tipo;
     $('resTitulo').textContent = titulo;
     $('resDetalle').textContent = detalle;
-    // El estatus del ultimo escaneo se borra solo a los 30 segundos
+    // El estatus y la lista de movimientos se borran solos a los 30 segundos
+    // (cada escaneo nuevo reinicia el contador)
     clearTimeout(timerResultado);
-    timerResultado = setTimeout(() => { r.className = 'resultado'; }, 30000);
+    timerResultado = setTimeout(() => {
+      r.className = 'resultado';
+      $('log').innerHTML = '';
+    }, 30000);
   }
 
   function logRow(texto, clase) {
