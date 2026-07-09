@@ -25,6 +25,11 @@ Ejemplo: estas en MTY y escaneas una guia nueva -> el sistema registra que
 salio hacia CDMX. Cuando esa guia llega a CDMX y la escanean alla -> el
 sistema detecta que ya esta en bodega de CDMX, lista.
 
+**Prefijos por plaza de salida**: las guias que salen de MTY empiezan con
+`AN` y las que salen de CDMX con `BN`. El sistema rechaza registrar una
+salida con el prefijo equivocado (una BN no puede salir de MTY ni viceversa);
+las llegadas y entregas en la plaza destino si se escanean normalmente.
+
 ## Modos de operacion
 
 Ademas de la plaza, en el panel se elige el tipo de operacion:

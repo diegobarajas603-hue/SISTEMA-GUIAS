@@ -43,7 +43,27 @@ async function actualizarEstatus(numeroGuia, estatus) {
   ]);
 }
 
+// Prefijo del numero de guia segun la plaza de la que sale:
+// AN = salidas de MTY, BN = salidas de CDMX.
+const PREFIJO_PLAZA = { MTY: 'AN', CDMX: 'BN' };
+
+// Valida que una guia pueda REGISTRAR SU SALIDA desde la plaza indicada.
+// (Las llegadas y entregas no pasan por aqui: una AN si se escanea en CDMX
+// para darle llegada o entregarla, porque ahi termina su recorrido.)
+function validarPrefijoSalida(numeroGuia, plaza) {
+  const propio = PREFIJO_PLAZA[plaza];
+  const otro = PREFIJO_PLAZA[otraPlaza(plaza)];
+  if (numeroGuia.startsWith(propio)) return;
+  if (numeroGuia.startsWith(otro)) {
+    throw new Error(
+      `La guia ${numeroGuia} es una salida de ${otraPlaza(plaza)} (prefijo ${otro}); no se puede registrar como salida de ${plaza}`
+    );
+  }
+  throw new Error(`Numero de guia invalido: las salidas de ${plaza} empiezan con ${propio}`);
+}
+
 async function marcarSalida(numeroGuia, plaza, destino) {
+  validarPrefijoSalida(numeroGuia, plaza);
   const estatus = enTransitoA(destino);
   await pool.query(
     'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
@@ -85,6 +105,9 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega') {
   const guia = await obtenerGuia(numeroGuia);
 
   if (!guia) {
+    // Registrar una guia nueva es registrar su salida: el prefijo debe
+    // corresponder a la plaza (AN sale de MTY, BN sale de CDMX)
+    validarPrefijoSalida(numeroGuia, plaza);
     const estatus = enTransitoA(destino);
     await pool.query(
       `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en)
