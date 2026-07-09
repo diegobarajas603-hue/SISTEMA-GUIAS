@@ -729,18 +729,24 @@
   let plazaTab = localStorage.getItem('plazaTab');
   if (plazaTab === null) plazaTab = plaza;
 
-  const NOMBRE_PASO_PLAZA = [
-    ['EN_TRANSITO_A_', 'Por llegar'],
-    ['EN_BODEGA_', 'En bodega'],
-    ['EN_RUTA_ENTREGA_', 'En reparto'],
-    ['ENTREGADO_', 'Entregadas'],
-  ];
+  // Estatus que pertenecen a la pestaña de una plaza: lo que salio de ahi
+  // (en transito hacia la otra plaza) mas lo que esta en su bodega, en
+  // reparto o ya entregado ahi.
+  function pasosPlaza(p) {
+    const otra = p === 'MTY' ? 'CDMX' : 'MTY';
+    return [
+      ['EN_TRANSITO_A_' + otra, 'En transito a ' + otra],
+      ['EN_BODEGA_' + p, 'En bodega'],
+      ['EN_RUTA_ENTREGA_' + p, 'En reparto'],
+      ['ENTREGADO_' + p, 'Entregadas'],
+    ];
+  }
 
   function pintarFiltroEstatus() {
     const sel = $('filtroEstatus');
     let opciones = '<option value="">Todos los estatus</option>';
     if (plazaTab) {
-      opciones += NOMBRE_PASO_PLAZA.map(([pre, nom]) => `<option value="${pre}${plazaTab}">${nom}</option>`).join('');
+      opciones += pasosPlaza(plazaTab).map(([est, nom]) => `<option value="${est}">${nom}</option>`).join('');
     } else {
       opciones += Object.keys(ETIQUETAS).map((e) => `<option value="${e}">${ETIQUETAS[e]}</option>`).join('');
     }
@@ -776,10 +782,10 @@
     try {
       const r = await api('/api/guias/resumen');
       const p = r.porEstatus || {};
-      $('chipsPlaza').innerHTML = NOMBRE_PASO_PLAZA.map(([pre, nom]) => {
-        const est = pre + plazaTab;
+      $('chipsPlaza').innerHTML = pasosPlaza(plazaTab).map(([est, nom]) => {
         const activo = $('filtroEstatus').value === est ? 'activo' : '';
-        return `<button class="chipf ${activo}" data-est="${est}">${nom} ${plazaTab}<b>${p[est] || 0}</b></button>`;
+        const etiqueta = est.startsWith('EN_TRANSITO') ? nom : `${nom} ${plazaTab}`;
+        return `<button class="chipf ${activo}" data-est="${est}">${etiqueta}<b>${p[est] || 0}</b></button>`;
       }).join('');
       document.querySelectorAll('#chipsPlaza .chipf').forEach((c) =>
         c.addEventListener('click', () => {
