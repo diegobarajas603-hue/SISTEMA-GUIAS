@@ -104,6 +104,11 @@ Hay dos roles:
 - **Operador**: puede escanear y consultar guias y eventos. No puede cambiar
   su contraseña; si la necesita cambiar, un administrador se la restablece.
 
+Ademas, a cada usuario se le puede asignar una **plaza** (MTY o CDMX, o
+"ambas") al crearlo o desde la tabla de usuarios. Un usuario con plaza
+asignada solo ve el boton de escanear de su plaza y el servidor rechaza
+cualquier escaneo suyo en la otra plaza.
+
 Las sesiones duran `SESSION_HOURS` horas (12 por defecto); al expirar, el
 panel vuelve a pedir login. Las contraseñas se guardan cifradas (scrypt) y el
 login se bloquea 15 minutos despues de 10 intentos fallidos.

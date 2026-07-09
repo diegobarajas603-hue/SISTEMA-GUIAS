@@ -36,6 +36,9 @@ async function initAuth() {
       creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
+    -- Plaza del usuario (MTY o CDMX); NULL = puede operar en ambas
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plaza TEXT;
+
     CREATE TABLE IF NOT EXISTS sesiones (
       token TEXT PRIMARY KEY,
       usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -102,7 +105,7 @@ async function login(usuario, password, ip) {
   // Limpia sesiones vencidas de vez en cuando
   pool.query('DELETE FROM sesiones WHERE expira_en < now()').catch(() => {});
 
-  return { token, expiraEn, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol } };
+  return { token, expiraEn, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, plaza: u.plaza } };
 }
 
 async function logout(token) {
@@ -112,7 +115,7 @@ async function logout(token) {
 async function validarSesion(token) {
   if (!token) return null;
   const { rows } = await pool.query(
-    `SELECT u.id, u.usuario, u.nombre, u.rol
+    `SELECT u.id, u.usuario, u.nombre, u.rol, u.plaza
        FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id
       WHERE s.token = $1 AND s.expira_en > now()`,
     [token]
@@ -155,11 +158,18 @@ function requireAdmin(req, res, next) {
 // ---------- Gestion de usuarios ----------
 
 async function listarUsuarios() {
-  const { rows } = await pool.query('SELECT id, usuario, nombre, rol, creado_en FROM usuarios ORDER BY usuario');
+  const { rows } = await pool.query('SELECT id, usuario, nombre, rol, plaza, creado_en FROM usuarios ORDER BY usuario');
   return rows;
 }
 
-async function crearUsuario({ usuario, nombre, password, rol }) {
+function normalizarPlaza(plaza) {
+  const p = String(plaza || '').trim().toUpperCase();
+  if (!p) return null; // sin plaza = puede operar en ambas
+  if (!['MTY', 'CDMX'].includes(p)) throw new Error('Plaza invalida (MTY, CDMX o vacia para ambas)');
+  return p;
+}
+
+async function crearUsuario({ usuario, nombre, password, rol, plaza }) {
   if (!usuario || !/^[a-zA-Z0-9._-]{3,30}$/.test(usuario)) {
     throw new Error('El usuario debe tener de 3 a 30 caracteres (letras, numeros, punto, guion)');
   }
@@ -167,14 +177,22 @@ async function crearUsuario({ usuario, nombre, password, rol }) {
   if (!['admin', 'operador'].includes(rol)) throw new Error('Rol invalido (admin u operador)');
   try {
     const { rows } = await pool.query(
-      'INSERT INTO usuarios (usuario, nombre, password_hash, rol) VALUES ($1, $2, $3, $4) RETURNING id, usuario, nombre, rol, creado_en',
-      [usuario.trim(), (nombre || usuario).trim(), await hashPassword(password), rol]
+      'INSERT INTO usuarios (usuario, nombre, password_hash, rol, plaza) VALUES ($1, $2, $3, $4, $5) RETURNING id, usuario, nombre, rol, plaza, creado_en',
+      [usuario.trim(), (nombre || usuario).trim(), await hashPassword(password), rol, normalizarPlaza(plaza)]
     );
     return rows[0];
   } catch (e) {
     if (e.code === '23505') throw new Error('Ese usuario ya existe');
     throw e;
   }
+}
+
+async function actualizarPlaza(id, plaza) {
+  const { rowCount } = await pool.query('UPDATE usuarios SET plaza = $1 WHERE id = $2', [
+    normalizarPlaza(plaza),
+    id,
+  ]);
+  if (!rowCount) throw new Error('Usuario no encontrado');
 }
 
 async function eliminarUsuario(id, solicitante) {
@@ -220,6 +238,7 @@ module.exports = {
   requireAdmin,
   listarUsuarios,
   crearUsuario,
+  actualizarPlaza,
   eliminarUsuario,
   cambiarPassword,
   resetPassword,

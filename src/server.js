@@ -66,9 +66,18 @@ app.get('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
 });
 
 app.post('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
-  const { usuario, nombre, password, rol } = req.body || {};
+  const { usuario, nombre, password, rol, plaza } = req.body || {};
   try {
-    res.status(201).json(await auth.crearUsuario({ usuario, nombre, password, rol: rol || 'operador' }));
+    res.status(201).json(await auth.crearUsuario({ usuario, nombre, password, rol: rol || 'operador', plaza }));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.put('/api/usuarios/:id/plaza', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await auth.actualizarPlaza(Number(req.params.id), (req.body || {}).plaza);
+    res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
@@ -100,6 +109,10 @@ app.put('/api/usuarios/:id/password', requireAuth, requireAdmin, async (req, res
 app.post('/api/guias/escanear', requireAuth, async (req, res) => {
   const { numeroGuia, plaza, modo } = req.body;
   if (!numeroGuia || !plaza) return res.status(400).json({ error: 'numeroGuia y plaza son requeridos' });
+  // Si el usuario tiene plaza asignada, solo puede escanear en esa plaza
+  if (req.usuario.plaza && plaza.trim().toUpperCase() !== req.usuario.plaza) {
+    return res.status(403).json({ error: `Tu usuario solo puede escanear en ${req.usuario.plaza}` });
+  }
   try {
     const resultado = await guias.escanearGuia(
       numeroGuia.trim().toUpperCase(),

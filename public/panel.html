@@ -385,7 +385,7 @@
           <h2 class="titulo-card">Usuarios del sistema</h2>
           <div class="tabla-scroll">
             <table>
-              <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th></th></tr></thead>
+              <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Plaza</th><th></th></tr></thead>
               <tbody id="tbodyUsuarios"></tbody>
             </table>
           </div>
@@ -409,6 +409,14 @@
                 <select id="nuRol" style="width:100%;">
                   <option value="operador">Operador</option>
                   <option value="admin">Administrador</option>
+                </select>
+              </div>
+              <div>
+                <label for="nuPlaza">Plaza (donde trabaja)</label>
+                <select id="nuPlaza" style="width:100%;">
+                  <option value="MTY">Monterrey (solo escanea en MTY)</option>
+                  <option value="CDMX">Ciudad de Mexico (solo escanea en CDMX)</option>
+                  <option value="">Ambas plazas</option>
                 </select>
               </div>
             </div>
@@ -532,13 +540,23 @@
   function pintarUsuario() {
     if (usuarioActual) {
       const esAdmin = usuarioActual.rol === 'admin';
-      $('usuarioPie').innerHTML = `${esc(usuarioActual.nombre)}<small>${esc(usuarioActual.rol)}</small>`;
+      const plazaUsuario = usuarioActual.plaza || '';
+      $('usuarioPie').innerHTML = `${esc(usuarioActual.nombre)}<small>${esc(usuarioActual.rol)}${plazaUsuario ? ' - ' + esc(plazaUsuario) : ''}</small>`;
       $('cfgUsuario').textContent = `${usuarioActual.nombre} (${usuarioActual.usuario})`;
-      $('cfgRol').textContent = esAdmin ? 'Rol: administrador' : 'Rol: operador';
+      $('cfgRol').textContent =
+        (esAdmin ? 'Rol: administrador' : 'Rol: operador') +
+        (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
       $('cardUsuarios').style.display = esAdmin ? '' : 'none';
       $('cardPassword').style.display = esAdmin ? '' : 'none';
       $('cardBorrar').style.display = esAdmin ? '' : 'none';
       $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
+      // Si el usuario tiene plaza asignada, solo ve el boton de escanear de
+      // su plaza y esa queda como la plaza activa
+      document.querySelector('[data-ruta="escanear-mty"]').style.display =
+        !plazaUsuario || plazaUsuario === 'MTY' ? '' : 'none';
+      document.querySelector('[data-ruta="escanear-cdmx"]').style.display =
+        !plazaUsuario || plazaUsuario === 'CDMX' ? '' : 'none';
+      if (plazaUsuario) setPlaza(plazaUsuario);
     }
   }
 
@@ -617,8 +635,15 @@
     if (ruta.startsWith('guia/')) { vista = 'detalle'; arg = decodeURIComponent(ruta.slice(5)); }
     if (ruta === 'escanear') { location.hash = '#/escanear-' + plaza.toLowerCase(); return; }
     if (ruta === 'escanear-mty' || ruta === 'escanear-cdmx') {
+      const pedida = ruta === 'escanear-mty' ? 'MTY' : 'CDMX';
+      // Un usuario con plaza asignada solo puede escanear en su plaza
+      const plazaUsuario = usuarioActual && usuarioActual.plaza;
+      if (plazaUsuario && plazaUsuario !== pedida) {
+        location.hash = '#/escanear-' + plazaUsuario.toLowerCase();
+        return;
+      }
       vista = 'escanear';
-      setPlaza(ruta === 'escanear-mty' ? 'MTY' : 'CDMX');
+      setPlaza(pedida);
     }
     if (!VISTAS.includes(vista)) { vista = 'dashboard'; }
 
@@ -1031,14 +1056,30 @@
   async function cargarUsuarios() {
     try {
       const usuarios = await api('/api/usuarios');
+      const opcionesPlaza = (sel) =>
+        [['MTY', 'MTY'], ['CDMX', 'CDMX'], ['', 'Ambas']]
+          .map(([v, t]) => `<option value="${v}" ${v === (sel || '') ? 'selected' : ''}>${t}</option>`).join('');
       $('tbodyUsuarios').innerHTML = usuarios.map((u) => `<tr>
         <td><b>${esc(u.usuario)}</b></td>
         <td>${esc(u.nombre)}</td>
         <td>${u.rol === 'admin' ? 'Administrador' : 'Operador'}</td>
+        <td><select class="sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}" style="padding:6px 8px; font-size:0.82rem;">${opcionesPlaza(u.plaza)}</select></td>
         <td style="text-align:right; white-space:nowrap;">${u.id === usuarioActual.id
           ? '<span class="nota">(tu)</span>'
           : `<button class="btn-sec" data-reset="${u.id}" data-usuario="${esc(u.usuario)}">Contraseña</button>
              <button class="btn-peligro" data-id="${u.id}" data-usuario="${esc(u.usuario)}">Eliminar</button>`}</td></tr>`).join('');
+      document.querySelectorAll('#tbodyUsuarios .sel-plaza').forEach((s) =>
+        s.addEventListener('change', async () => {
+          try {
+            await api('/api/usuarios/' + s.dataset.id + '/plaza', { method: 'PUT', body: JSON.stringify({ plaza: s.value }) });
+            msgForm('msgUsuarios', `Plaza de "${s.dataset.usuario}" actualizada a ${s.value || 'ambas plazas'}. Aplica en cuanto vuelva a entrar o recargue.`, 'ok');
+            if (Number(s.dataset.id) === usuarioActual.id) { usuarioActual.plaza = s.value || null; pintarUsuario(); }
+          } catch (err2) {
+            msgForm('msgUsuarios', err2.message, 'err');
+            cargarUsuarios();
+          }
+        })
+      );
       document.querySelectorAll('#tbodyUsuarios .btn-peligro').forEach((b) =>
         b.addEventListener('click', async () => {
           if (!confirm(`¿Eliminar al usuario "${b.dataset.usuario}"? Esta accion no se puede deshacer.`)) return;
@@ -1060,7 +1101,7 @@
         })
       );
     } catch (e) {
-      $('tbodyUsuarios').innerHTML = `<tr><td colspan="4" class="vacio">${esc(e.message)}</td></tr>`;
+      $('tbodyUsuarios').innerHTML = `<tr><td colspan="5" class="vacio">${esc(e.message)}</td></tr>`;
     }
   }
 
@@ -1074,6 +1115,7 @@
           nombre: $('nuNombre').value.trim(),
           password: $('nuPassword').value,
           rol: $('nuRol').value,
+          plaza: $('nuPlaza').value,
         }),
       });
       $('formNuevoUsuario').reset();
