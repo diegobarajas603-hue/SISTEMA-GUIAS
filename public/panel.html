@@ -197,7 +197,10 @@
     nav { display: flex; overflow-x: auto; padding: 8px; }
     .sec { display: none; }
     .nav-item { width: auto; white-space: nowrap; }
-    .plaza-pie { display: none; }
+    /* En moviles el pie se vuelve una barra compacta: la plaza a la izquierda
+       y el usuario con su boton Salir a la derecha */
+    .plaza-pie { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+    .usuario-pie { margin-top: 0; }
     .grid-2 { grid-template-columns: 1fr; }
     .topbar input { width: 100%; }
   }
@@ -533,7 +536,12 @@
   pintarToggles();
 
   // ---------- Sesion ----------
-  let sesionToken = localStorage.getItem('sesionToken') || '';
+  // El token vive en sessionStorage: al cerrar la pestaña o el navegador se
+  // pierde y el panel vuelve a pedir login (un refresh en la misma pestaña
+  // si conserva la sesion). Se limpia el token que versiones anteriores
+  // guardaban en localStorage para que no quede una sesion "eterna".
+  localStorage.removeItem('sesionToken');
+  let sesionToken = sessionStorage.getItem('sesionToken') || '';
   let usuarioActual = null;
 
   function pintarUsuario() {
@@ -562,7 +570,7 @@
   function mostrarLogin(mensaje) {
     sesionToken = '';
     usuarioActual = null;
-    localStorage.removeItem('sesionToken');
+    sessionStorage.removeItem('sesionToken');
     $('loginOverlay').style.display = 'flex';
     const err = $('loginError');
     err.textContent = mensaje || '';
@@ -589,7 +597,7 @@
       if (!res.ok) throw new Error(data.error || 'Error de conexion');
       sesionToken = data.token;
       usuarioActual = data.usuario;
-      localStorage.setItem('sesionToken', sesionToken);
+      sessionStorage.setItem('sesionToken', sesionToken);
       pintarUsuario();
       ocultarLogin();
       render();
