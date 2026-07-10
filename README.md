@@ -106,6 +106,16 @@ Hay dos roles:
   sistema**, cambiar su propia contraseña, y revertir escaneos equivocados
   desde el detalle de la guia (boton **Revertir ultimo escaneo**; la guia
   regresa a su estatus anterior y la correccion queda en el historial).
+  Al revertir, el panel pregunta que paso con la guia:
+  - **Solo corregir un escaneo equivocado**: la guia regresa a su estatus
+    anterior y conserva su numero.
+  - **La guia se cancelo y se hizo una nueva** (p. ej. el cliente no pago):
+    se captura el numero de la guia nueva y la guia toma ese numero
+    conservando todo su historial; el numero anterior queda registrado
+    (evento `CAMBIO_NUMERO` y campo "Numero anterior") y deja de rastrear.
+  - **Se hizo un complemento**: se captura el numero del complemento y la
+    guia conserva sus dos numeros (evento `COMPLEMENTO`); cualquiera de los
+    dos sirve para rastrear por web/WhatsApp y para escanear con la pistola.
 - **Operador**: puede escanear y consultar guias y eventos. No puede cambiar
   su contraseña; si la necesita cambiar, un administrador se la restablece.
 
@@ -169,7 +179,11 @@ integraciones fijas como la pistola de escaneo).
   `PUT /api/usuarios/:id/password` -> gestion de usuarios (solo rol `admin`).
 - `POST /api/guias/:numeroGuia/revertir` -> revierte el ultimo escaneo de la
   guia y la regresa a su estatus anterior (solo rol `admin`); agrega un
-  evento `CORRECCION` al historial.
+  evento `CORRECCION` al historial. Acepta una resolucion opcional en el
+  cuerpo: `{ resolucion: "cancelada", numero: "<guia nueva>" }` (la guia toma
+  el numero nuevo y conserva el historial) o
+  `{ resolucion: "complemento", numero: "<complemento>" }` (la guia conserva
+  ambos numeros).
 - `POST /api/guias/borrar-todas` `{ confirmar: "BORRAR" }` -> borra todas las
   guias y su historial para dejar el sistema como nuevo (solo rol `admin`; no
   toca usuarios ni sesiones).

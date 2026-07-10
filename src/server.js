@@ -140,12 +140,25 @@ app.post('/api/guias/borrar-todas', requireAuth, requireAdmin, async (req, res) 
   }
 });
 
-// Revertir el ultimo escaneo de una guia (solo administradores)
+// Revertir el ultimo escaneo de una guia (solo administradores). Acepta una
+// resolucion opcional de que paso con la guia (p. ej. entrega no pagada):
+//  { resolucion: 'cancelada', numero: 'AN...' }  -> la guia se cancelo y toma
+//    el numero de la nueva guia, conservando todo su historial.
+//  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento;
+//    la guia conserva ambos numeros y los dos sirven para rastrear.
 app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
+  const { resolucion, numero } = req.body || {};
+  let r = null;
+  if (resolucion === 'cancelada' || resolucion === 'complemento') {
+    r = { tipo: resolucion, numero };
+  } else if (resolucion) {
+    return res.status(400).json({ error: 'Resolucion invalida: usa "cancelada" o "complemento"' });
+  }
   try {
     const resultado = await guias.revertirUltimoEscaneo(
       req.params.numeroGuia.trim().toUpperCase(),
-      req.usuario.usuario
+      req.usuario.usuario,
+      r
     );
     res.json(resultado);
   } catch (e) {
@@ -164,10 +177,11 @@ app.get('/api/eventos', requireAuth, async (req, res) => {
 
 app.get('/api/guias/:numeroGuia', requireAuth, async (req, res) => {
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
-  const guia = await guias.obtenerGuia(numeroGuia);
+  // Busca tambien por el numero de complemento
+  const guia = await guias.buscarGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'Guia no encontrada' });
-  const historial = await guias.obtenerHistorial(numeroGuia);
-  res.json({ ...guia, mensaje: mensajeEstatus(numeroGuia, guia.estatus), historial });
+  const historial = await guias.obtenerHistorial(guia.numero_guia);
+  res.json({ ...guia, mensaje: mensajeEstatus(guia.numero_guia, guia.estatus), historial });
 });
 
 app.get('/api/guias', requireAuth, async (req, res) => {
@@ -180,21 +194,25 @@ app.get('/api/guias', requireAuth, async (req, res) => {
 // Solo permite consultar una guia por su numero exacto; nunca expone la lista
 // completa ni las operaciones de escaneo. CORS abierto para poder llamarla
 // desde la pagina web de la empresa.
+const ACCIONES_INTERNAS = ['ESCANEO_REPETIDO', 'CORRECCION', 'CAMBIO_NUMERO', 'COMPLEMENTO'];
+
 app.get('/api/publico/guias/:numeroGuia', async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
   if (!/^[A-Z0-9-]{3,40}$/.test(numeroGuia)) {
     return res.status(400).json({ error: 'Numero de guia invalido' });
   }
-  const guia = await guias.obtenerGuia(numeroGuia);
+  // Busca tambien por el numero de complemento: ambos numeros rastrean la guia
+  const guia = await guias.buscarGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'No encontramos esa guia. Verifica el numero e intenta de nuevo.' });
-  // Los escaneos repetidos, las correcciones internas y los escaneos que
-  // fueron revertidos no se muestran al cliente
-  const historial = (await guias.obtenerHistorial(numeroGuia))
-    .filter((ev) => ev.accion !== 'ESCANEO_REPETIDO' && ev.accion !== 'CORRECCION' && !ev.revertido)
+  // Los escaneos repetidos, las anotaciones internas (correcciones, cambios de
+  // numero, complementos) y los escaneos revertidos no se muestran al cliente
+  const historial = (await guias.obtenerHistorial(guia.numero_guia))
+    .filter((ev) => !ACCIONES_INTERNAS.includes(ev.accion) && !ev.revertido)
     .map(({ accion, descripcion, creado_en }) => ({ accion, descripcion, creado_en }));
   res.json({
     numeroGuia: guia.numero_guia,
+    complemento: guia.complemento || null,
     estatus: guia.estatus,
     mensaje: mensajeEstatus(guia.numero_guia, guia.estatus),
     actualizado_en: guia.actualizado_en,
@@ -234,13 +252,14 @@ app.post('/webhook/whatsapp', async (req, res) => {
       return;
     }
 
-    const guia = await guias.obtenerGuia(numeroGuia);
+    // Busca tambien por el numero de complemento
+    const guia = await guias.buscarGuia(numeroGuia);
     if (!guia) {
       await enviarMensaje(de, `No encontramos la guia ${numeroGuia}. Verifica el numero e intenta de nuevo.`);
       return;
     }
 
-    await enviarMensaje(de, mensajeEstatus(numeroGuia, guia.estatus));
+    await enviarMensaje(de, mensajeEstatus(guia.numero_guia, guia.estatus));
   } catch (e) {
     console.error('Error procesando webhook de WhatsApp:', e);
   }

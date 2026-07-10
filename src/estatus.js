@@ -12,6 +12,8 @@ const ACCIONES = {
   ENTREGA: 'ENTREGA', // el paquete fue entregado (a domicilio o en ocurre)
   ESCANEO_REPETIDO: 'ESCANEO_REPETIDO', // se escaneo de nuevo sin cambio de estatus
   CORRECCION: 'CORRECCION', // un administrador revirtio un escaneo equivocado
+  CAMBIO_NUMERO: 'CAMBIO_NUMERO', // la guia se cancelo y se reemplazo su numero por uno nuevo
+  COMPLEMENTO: 'COMPLEMENTO', // se registro un numero de complemento; la guia conserva ambos
 };
 
 function otraPlaza(plaza) {

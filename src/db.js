@@ -27,6 +27,11 @@ async function init() {
     ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion TEXT;
     ALTER TABLE eventos ADD COLUMN IF NOT EXISTS revertido BOOLEAN NOT NULL DEFAULT FALSE;
 
+    -- Numero que tenia la guia antes de cancelarse y reemplazarse por uno nuevo
+    ALTER TABLE guias ADD COLUMN IF NOT EXISTS numero_anterior TEXT;
+    -- Numero del complemento (cobro adicional); la guia conserva ambos numeros
+    ALTER TABLE guias ADD COLUMN IF NOT EXISTS complemento TEXT;
+
     CREATE INDEX IF NOT EXISTS idx_eventos_numero_guia ON eventos (numero_guia);
     CREATE INDEX IF NOT EXISTS idx_guias_actualizado_en ON guias (actualizado_en DESC);
   `);
