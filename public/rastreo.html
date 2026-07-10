@@ -42,8 +42,8 @@
   @keyframes fluir { 0% { background-position: 100% 0; } 100% { background-position: 0% 0; } }
   .paso .circulo { position: relative; z-index: 1; width: 38px; height: 38px; margin: 0 auto 8px; border-radius: 50%; background: #e4e4e7; color: #a1a1aa; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; transition: background 0.3s; }
   .paso.hecho .circulo { background: linear-gradient(135deg, #27963e, #1e7d32); color: #fff; box-shadow: 0 2px 6px rgba(30,125,50,0.35); }
-  .paso.actual .circulo { background: linear-gradient(135deg, #e6333b, #c11d24); color: #fff; animation: pulso 1.8s ease-in-out infinite; }
-  @keyframes pulso { 0%, 100% { box-shadow: 0 0 0 4px rgba(217,32,39,0.22); } 50% { box-shadow: 0 0 0 10px rgba(217,32,39,0.07); } }
+  .paso.actual .circulo { background: linear-gradient(135deg, #27963e, #1e7d32); color: #fff; animation: pulso 1.8s ease-in-out infinite; }
+  @keyframes pulso { 0%, 100% { box-shadow: 0 0 0 4px rgba(30,125,50,0.25); } 50% { box-shadow: 0 0 0 10px rgba(30,125,50,0.08); } }
   .paso .nombre { font-size: 0.76rem; font-weight: 600; color: #52525b; line-height: 1.2; }
   .paso.hecho .nombre, .paso.actual .nombre { color: #1a1a1a; }
 
@@ -54,9 +54,7 @@
   .timeline li { position: relative; padding: 0 0 18px 26px; border-left: 2px solid #e5e5e5; margin-left: 8px; }
   .timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
   .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #cfcfcf; }
-  .timeline li.e-salida::before { background: #d92027; }
-  .timeline li.e-llegada::before { background: #1e7d32; }
-  .timeline li.e-ruta::before { background: #b45309; }
+  .timeline li.e-salida::before, .timeline li.e-llegada::before, .timeline li.e-ruta::before { background: #1e7d32; }
   .timeline .desc { font-size: 0.95rem; color: #1a1a1a; }
   .timeline .fecha { font-size: 0.78rem; color: #9a9a9a; margin-top: 2px; }
 
