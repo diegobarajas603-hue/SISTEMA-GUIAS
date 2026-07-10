@@ -28,14 +28,22 @@
   .actualizado { margin: 10px 0 0; font-size: 0.8rem; color: #9a9a9a; }
 
   /* Barra de progreso del envio */
-  .stepper { display: flex; margin: 20px 0 6px; }
+  .stepper { display: flex; margin: 22px 0 8px; }
   .paso { flex: 1; text-align: center; position: relative; }
-  .paso::before { content: ''; position: absolute; top: 17px; left: -50%; width: 100%; height: 4px; background: #e4e4e7; z-index: 0; }
+  .paso::before { content: ''; position: absolute; top: 17px; left: -50%; width: 100%; height: 5px; border-radius: 99px; background: #e4e4e7; z-index: 0; }
   .paso:first-child::before { display: none; }
-  .paso.hecho::before { background: #1e7d32; }
-  .paso .circulo { position: relative; z-index: 1; width: 36px; height: 36px; margin: 0 auto 7px; border-radius: 50%; background: #e4e4e7; color: #a1a1aa; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; transition: background 0.2s; }
-  .paso.hecho .circulo { background: #1e7d32; color: #fff; }
-  .paso.actual .circulo { background: #d92027; color: #fff; box-shadow: 0 0 0 4px #fbd5d6; }
+  .paso.hecho::before, .paso.actual::before { background: linear-gradient(90deg, #1e7d32, #2e9e45); }
+  /* Tramo hacia el siguiente proceso: se ve avanzando (cargando) */
+  .paso.cargando::before {
+    background: linear-gradient(90deg, #2e9e45 0%, #7ed492 32%, #e4e4e7 55%, #e4e4e7 100%);
+    background-size: 220% 100%;
+    animation: fluir 2.2s ease-in-out infinite;
+  }
+  @keyframes fluir { 0% { background-position: 100% 0; } 100% { background-position: 0% 0; } }
+  .paso .circulo { position: relative; z-index: 1; width: 38px; height: 38px; margin: 0 auto 8px; border-radius: 50%; background: #e4e4e7; color: #a1a1aa; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; transition: background 0.3s; }
+  .paso.hecho .circulo { background: linear-gradient(135deg, #27963e, #1e7d32); color: #fff; box-shadow: 0 2px 6px rgba(30,125,50,0.35); }
+  .paso.actual .circulo { background: linear-gradient(135deg, #e6333b, #c11d24); color: #fff; animation: pulso 1.8s ease-in-out infinite; }
+  @keyframes pulso { 0%, 100% { box-shadow: 0 0 0 4px rgba(217,32,39,0.22); } 50% { box-shadow: 0 0 0 10px rgba(217,32,39,0.07); } }
   .paso .nombre { font-size: 0.76rem; font-weight: 600; color: #52525b; line-height: 1.2; }
   .paso.hecho .nombre, .paso.actual .nombre { color: #1a1a1a; }
 
@@ -156,7 +164,9 @@
   function pintarStepper(estatus) {
     const actual = pasoActual(estatus);
     $('stepper').innerHTML = PASOS.map((nombre, i) => {
-      const clase = i < actual ? 'hecho' : i === actual ? 'actual' : '';
+      // El tramo que llega al paso siguiente al actual se anima como si
+      // estuviera cargando: el envio va avanzando hacia ese proceso
+      const clase = i < actual ? 'hecho' : i === actual ? 'actual' : i === actual + 1 ? 'cargando' : '';
       const marca = i < actual ? '✓' : i + 1;
       return `<div class="paso ${clase}">
         <div class="circulo">${marca}</div>
