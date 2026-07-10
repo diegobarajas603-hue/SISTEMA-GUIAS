@@ -339,7 +339,13 @@
             </div>
             <button class="btn-peligro" id="btnRevertir" style="display:none; margin-top:14px;">Revertir ultimo escaneo</button>
           </div>
-          <div id="barcodeWrap"><svg id="barcode"></svg></div>
+          <div id="barcodeWrap">
+            <svg id="barcode"></svg>
+            <div id="barcodeCompWrap" style="display:none">
+              <div class="nota" style="margin:10px 0 2px;">Complemento</div>
+              <svg id="barcodeComp"></svg>
+            </div>
+          </div>
         </div>
         <div class="card">
           <h2 class="titulo-card">Progreso del envio</h2>
@@ -1010,10 +1016,18 @@
       $('detAnteriorWrap').style.display = d.numero_anterior ? '' : 'none';
       $('detAnterior').textContent = d.numero_anterior || '';
 
-      // Codigo de barras (si la libreria cargo)
+      // Codigos de barras: el de la guia y, si tiene, el del complemento
       try {
-        if (window.JsBarcode) JsBarcode('#barcode', d.numero_guia, { format: 'CODE128', height: 52, fontSize: 13, margin: 0 });
-        else $('barcodeWrap').style.display = 'none';
+        if (window.JsBarcode) {
+          $('barcodeWrap').style.display = '';
+          JsBarcode('#barcode', d.numero_guia, { format: 'CODE128', height: 52, fontSize: 13, margin: 0 });
+          if (d.complemento) {
+            $('barcodeCompWrap').style.display = '';
+            JsBarcode('#barcodeComp', d.complemento, { format: 'CODE128', height: 52, fontSize: 13, margin: 0 });
+          } else {
+            $('barcodeCompWrap').style.display = 'none';
+          }
+        } else $('barcodeWrap').style.display = 'none';
       } catch { $('barcodeWrap').style.display = 'none'; }
 
       // Stepper (ignora escaneos revertidos para no marcar pasos deshechos)
