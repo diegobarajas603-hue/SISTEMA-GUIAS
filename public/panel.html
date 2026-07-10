@@ -181,6 +181,14 @@
   .btn-salir { background: #262626; border: none; color: #d4d4d8; border-radius: 8px; padding: 7px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; flex-shrink: 0; }
   .btn-salir:hover { background: #d92027; color: #fff; }
 
+  /* Modal para revertir el ultimo escaneo (con cancelacion o complemento) */
+  #modalRevertir { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 95; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #modalRevertir.abierto { display: flex; }
+  .rev-opciones { display: flex; flex-direction: column; gap: 8px; }
+  .rev-opciones button { text-align: left; padding: 12px 14px; border: 2px solid #d4d4d8; border-radius: 8px; background: #fff; color: #1a1a1a; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+  .rev-opciones button.activa { border-color: #d92027; background: #fef2f2; }
+  .rev-opciones button small { display: block; font-weight: 400; color: #71717a; margin-top: 2px; }
+
   /* Mensajes en formularios de Configuracion */
   .msg-form { display: none; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-top: 12px; }
   .msg-form.ok { display: block; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
@@ -326,6 +334,8 @@
               <div><span class="k">Registrada</span><span id="detCreada"></span></div>
               <div><span class="k">Ultima actualizacion</span><span id="detActualizada"></span></div>
               <div><span class="k">Escaneos</span><span id="detEscaneos"></span></div>
+              <div id="detCompWrap" style="display:none"><span class="k">Complemento</span><span id="detComplemento"></span></div>
+              <div id="detAnteriorWrap" style="display:none"><span class="k">Numero anterior</span><span id="detAnterior"></span></div>
             </div>
             <button class="btn-peligro" id="btnRevertir" style="display:none; margin-top:14px;">Revertir ultimo escaneo</button>
           </div>
@@ -445,6 +455,29 @@
   </main>
 </div>
 
+<!-- ============ Modal: revertir ultimo escaneo ============ -->
+<div id="modalRevertir">
+  <div class="card" style="max-width:480px; width:100%; margin:0;">
+    <h2 class="titulo-card">Revertir ultimo escaneo</h2>
+    <p class="nota" id="revIntro"></p>
+    <label>¿Que paso con la guia?</label>
+    <div class="rev-opciones" id="revOpciones">
+      <button type="button" data-rev="solo" class="activa">Solo corregir un escaneo equivocado<small>La guia regresa a su estatus anterior y conserva su numero.</small></button>
+      <button type="button" data-rev="cancelada">La guia se cancelo y se hizo una nueva<small>La guia toma el numero de la nueva; el numero anterior queda registrado en el historial.</small></button>
+      <button type="button" data-rev="complemento">Se hizo un complemento<small>La guia conserva sus dos numeros (el original y el del complemento) y ambos sirven para rastrear.</small></button>
+    </div>
+    <div id="revNumeroWrap" style="display:none;">
+      <label id="revNumeroLabel" for="revNumero">Numero de la guia nueva</label>
+      <input type="text" id="revNumero" autocomplete="off" style="width:100%;" />
+    </div>
+    <div class="msg-form" id="msgRevertir"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+      <button class="btn-sec" id="revCerrar" type="button">Cancelar</button>
+      <button class="primario" id="revConfirmar" type="button">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <script src="/jsbarcode.min.js" onerror="window.JsBarcode=null"></script>
 <script>
   const $ = (id) => document.getElementById(id);
@@ -467,6 +500,8 @@
     ENTREGA: 'Entregado',
     ESCANEO_REPETIDO: 'Escaneo repetido',
     CORRECCION: 'Correccion',
+    CAMBIO_NUMERO: 'Cambio de numero',
+    COMPLEMENTO: 'Complemento',
     INGRESO: 'Ingreso',
   };
 
@@ -862,7 +897,7 @@
       const data = await api('/api/guias?' + params);
       $('tbodyGuias').innerHTML = data.length
         ? data.map((g) => `<tr class="clic" data-guia="${esc(g.numero_guia)}">
-            <td><b>${esc(g.numero_guia)}</b></td>
+            <td><b>${esc(g.numero_guia)}</b>${g.complemento ? ` <span class="nota">+ ${esc(g.complemento)}</span>` : ''}</td>
             <td>${esc(g.origen)} &rarr; ${esc(g.destino)}</td>
             <td>${badge(g.estatus)}</td>
             <td>${fmtFecha(g.creado_en)}</td>
@@ -898,17 +933,63 @@
 
   let guiaDetalleActual = null;
 
-  $('btnRevertir').addEventListener('click', async () => {
+  // Al revertir se pregunta que paso con la guia: solo corregir, se cancelo
+  // (toma el numero de la guia nueva) o se hizo complemento (conserva ambos
+  // numeros). Todo queda registrado en el historial.
+  let revTipo = 'solo';
+
+  function pintarOpcionRevertir() {
+    document.querySelectorAll('#revOpciones button').forEach((b) => b.classList.toggle('activa', b.dataset.rev === revTipo));
+    $('revNumeroWrap').style.display = revTipo === 'solo' ? 'none' : '';
+    $('revNumeroLabel').textContent = revTipo === 'cancelada' ? 'Numero de la guia nueva' : 'Numero del complemento';
+  }
+
+  $('btnRevertir').addEventListener('click', () => {
     if (!guiaDetalleActual) return;
-    if (!confirm(`¿Revertir el ultimo escaneo de ${guiaDetalleActual}?\nLa guia regresara a su estatus anterior y quedara registrada la correccion.`)) return;
-    $('btnRevertir').disabled = true;
+    revTipo = 'solo';
+    pintarOpcionRevertir();
+    $('revNumero').value = '';
+    $('msgRevertir').className = 'msg-form';
+    $('revIntro').textContent = `Se deshara el ultimo escaneo de ${guiaDetalleActual} y la guia regresara a su estatus anterior. Todo queda registrado en el historial.`;
+    $('modalRevertir').classList.add('abierto');
+  });
+
+  document.querySelectorAll('#revOpciones button').forEach((b) =>
+    b.addEventListener('click', () => {
+      revTipo = b.dataset.rev;
+      pintarOpcionRevertir();
+      if (revTipo !== 'solo') setTimeout(() => $('revNumero').focus(), 30);
+    })
+  );
+
+  $('revCerrar').addEventListener('click', () => $('modalRevertir').classList.remove('abierto'));
+
+  $('revConfirmar').addEventListener('click', async () => {
+    if (!guiaDetalleActual) return;
+    const cuerpo = {};
+    if (revTipo !== 'solo') {
+      const numero = $('revNumero').value.trim().toUpperCase();
+      if (!numero) {
+        return msgForm('msgRevertir', revTipo === 'cancelada' ? 'Escribe el numero de la guia nueva' : 'Escribe el numero del complemento', 'err');
+      }
+      cuerpo.resolucion = revTipo;
+      cuerpo.numero = numero;
+    }
+    $('revConfirmar').disabled = true;
     try {
-      await api('/api/guias/' + encodeURIComponent(guiaDetalleActual) + '/revertir', { method: 'POST' });
-      cargarDetalle(guiaDetalleActual);
+      const r = await api('/api/guias/' + encodeURIComponent(guiaDetalleActual) + '/revertir', {
+        method: 'POST',
+        body: JSON.stringify(cuerpo),
+      });
+      $('modalRevertir').classList.remove('abierto');
+      const numeroFinal = r.guia && r.guia.numero_guia;
+      // Si la guia se cancelo, ahora vive bajo el numero nuevo
+      if (numeroFinal && numeroFinal !== guiaDetalleActual) location.hash = '#/guia/' + encodeURIComponent(numeroFinal);
+      else cargarDetalle(guiaDetalleActual);
     } catch (e) {
-      alert(e.message);
+      msgForm('msgRevertir', e.message, 'err');
     } finally {
-      $('btnRevertir').disabled = false;
+      $('revConfirmar').disabled = false;
     }
   });
 
@@ -924,6 +1005,10 @@
       $('detCreada').textContent = fmtFecha(d.creado_en);
       $('detActualizada').textContent = fmtFecha(d.actualizado_en);
       $('detEscaneos').textContent = d.historial.length;
+      $('detCompWrap').style.display = d.complemento ? '' : 'none';
+      $('detComplemento').textContent = d.complemento || '';
+      $('detAnteriorWrap').style.display = d.numero_anterior ? '' : 'none';
+      $('detAnterior').textContent = d.numero_anterior || '';
 
       // Codigo de barras (si la libreria cargo)
       try {
@@ -955,7 +1040,7 @@
         : '<tr><td colspan="4" class="vacio">Sin eventos</td></tr>';
 
       $('detTimeline').innerHTML = d.historial.map((ev) => {
-        const clase = { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega', CORRECCION: 'e-correccion' }[ev.accion] || '';
+        const clase = { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega', CORRECCION: 'e-correccion', CAMBIO_NUMERO: 'e-correccion', COMPLEMENTO: 'e-ruta' }[ev.accion] || '';
         return `<li class="${clase} ${ev.revertido ? 'ev-revertido' : ''}">
           <div class="desc">${esc(ev.descripcion || ev.accion)}</div>
           <div class="meta">${ev.plaza ? 'Plaza ' + esc(ev.plaza) + ' - ' : ''}${fmtFecha(ev.creado_en)}${ev.revertido ? ' - revertido' : ''}</div></li>`;
@@ -967,6 +1052,7 @@
       $('detRuta').textContent = e.message;
       $('detBadge').innerHTML = '';
       $('detCreada').textContent = $('detActualizada').textContent = $('detEscaneos').textContent = '-';
+      $('detCompWrap').style.display = $('detAnteriorWrap').style.display = 'none';
       $('stepper').innerHTML = '';
       $('barcodeWrap').style.display = 'none';
       $('tbodyDetEventos').innerHTML = `<tr><td colspan="4" class="vacio">${esc(e.message)}</td></tr>`;

@@ -15,16 +15,50 @@ function now() {
   return new Date();
 }
 
-async function registrarEvento(numeroGuia, accion, estatus, plaza, descripcion) {
-  await pool.query(
+// Acciones que no representan un escaneo con estatus propio: se ignoran al
+// reconstruir la pila de escaneos vigentes para revertir.
+const ACCIONES_ADMINISTRATIVAS = [
+  ACCIONES.ESCANEO_REPETIDO,
+  ACCIONES.CORRECCION,
+  ACCIONES.CAMBIO_NUMERO,
+  ACCIONES.COMPLEMENTO,
+];
+
+async function registrarEvento(numeroGuia, accion, estatus, plaza, descripcion, db = pool) {
+  await db.query(
     'INSERT INTO eventos (numero_guia, accion, estatus, plaza, descripcion, creado_en) VALUES ($1, $2, $3, $4, $5, $6)',
     [numeroGuia, accion, estatus, plaza, descripcion, now()]
   );
 }
 
-async function obtenerGuia(numeroGuia) {
-  const { rows } = await pool.query('SELECT * FROM guias WHERE numero_guia = $1', [numeroGuia]);
+async function obtenerGuia(numeroGuia, db = pool) {
+  const { rows } = await db.query('SELECT * FROM guias WHERE numero_guia = $1', [numeroGuia]);
   return rows[0];
+}
+
+// Busca una guia por su numero principal o por su numero de complemento, de
+// modo que cualquiera de los dos numeros sirva para rastrear y escanear.
+async function buscarGuia(numero, db = pool) {
+  const { rows } = await db.query('SELECT * FROM guias WHERE numero_guia = $1 OR complemento = $1', [numero]);
+  return rows[0];
+}
+
+const FORMATO_NUMERO = /^[A-Z0-9-]{3,40}$/;
+
+function normalizarNumero(numero, etiqueta) {
+  const n = String(numero || '').trim().toUpperCase();
+  if (!FORMATO_NUMERO.test(n)) {
+    throw new Error(`${etiqueta} invalido: usa de 3 a 40 letras, numeros o guiones`);
+  }
+  return n;
+}
+
+// Rechaza un numero que ya este ocupado como numero principal o complemento
+async function verificarNumeroDisponible(numero, db) {
+  const { rows } = await db.query('SELECT numero_guia FROM guias WHERE numero_guia = $1 OR complemento = $1', [
+    numero,
+  ]);
+  if (rows.length) throw new Error(`El numero ${numero} ya esta en uso por la guia ${rows[0].numero_guia}`);
 }
 
 async function obtenerHistorial(numeroGuia) {
@@ -104,7 +138,9 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega') {
   if (modo !== 'bodega') return escanearEntrega(numeroGuia, plaza, modo);
 
   const destino = otraPlaza(plaza);
-  const guia = await obtenerGuia(numeroGuia);
+  // Si se escanea el numero de complemento, se opera sobre la guia principal
+  const guia = await buscarGuia(numeroGuia);
+  if (guia) numeroGuia = guia.numero_guia;
 
   if (!guia) {
     // Registrar una guia nueva es registrar su salida: el prefijo debe
@@ -160,8 +196,10 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega') {
 
 // Escaneos de entrega (a domicilio o en ocurre) en la plaza donde esta el paquete
 async function escanearEntrega(numeroGuia, plaza, modo) {
-  const guia = await obtenerGuia(numeroGuia);
+  // Si se escanea el numero de complemento, se opera sobre la guia principal
+  const guia = await buscarGuia(numeroGuia);
   if (!guia) throw new Error('Guia no registrada; escaneala primero en modo bodega');
+  numeroGuia = guia.numero_guia;
 
   // La entrega exige que la llegada ya este registrada: si viene en transito,
   // primero hay que escanearla en modo bodega para darle llegada.
@@ -217,41 +255,111 @@ async function escanearEntrega(numeroGuia, plaza, modo) {
 // al estatus que tenia antes (accion de administrador). El escaneo revertido
 // no se borra del historial: se agrega un evento CORRECCION que documenta
 // quien lo revirtio y que quedo deshecho.
-async function revertirUltimoEscaneo(numeroGuia, usuario) {
-  const guia = await obtenerGuia(numeroGuia);
-  if (!guia) throw new Error('Guia no encontrada');
+//
+// Ademas acepta una resolucion opcional que documenta que paso con la guia
+// (caso tipico: el cliente no pago y la entrega no se completo):
+//  - { tipo: 'cancelada', numero }   la guia se cancelo y se emitio una nueva:
+//    la guia toma el numero nuevo conservando todo su historial, y el numero
+//    anterior queda registrado (columna numero_anterior + evento CAMBIO_NUMERO).
+//  - { tipo: 'complemento', numero } se emitio un complemento: la guia conserva
+//    su numero y ademas el del complemento (columna complemento + evento
+//    COMPLEMENTO); ambos numeros sirven para rastrear y escanear.
+// Todo ocurre en una sola transaccion: si algo falla, no se revierte nada.
+async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  const { rows: eventos } = await pool.query(
-    'SELECT id, accion, estatus, plaza, descripcion FROM eventos WHERE numero_guia = $1 AND NOT revertido ORDER BY id ASC',
-    [numeroGuia]
-  );
+    const guia = await obtenerGuia(numeroGuia, client);
+    if (!guia) throw new Error('Guia no encontrada');
 
-  // Pila de escaneos vigentes: los ya revertidos (marcados al corregir o por
-  // las migraciones) quedan fuera, de modo que revertir varias veces sigue
-  // caminando hacia atras en el historial (no rebota).
-  const pila = eventos.filter(
-    (ev) => ev.accion !== ACCIONES.ESCANEO_REPETIDO && ev.accion !== ACCIONES.CORRECCION
-  );
-  if (pila.length < 2) {
-    throw new Error('No hay un estatus anterior: ese fue el escaneo con el que se registro la guia');
+    const { rows: eventos } = await client.query(
+      'SELECT id, accion, estatus, plaza, descripcion FROM eventos WHERE numero_guia = $1 AND NOT revertido ORDER BY id ASC',
+      [numeroGuia]
+    );
+
+    // Pila de escaneos vigentes: los ya revertidos (marcados al corregir o por
+    // las migraciones) quedan fuera, de modo que revertir varias veces sigue
+    // caminando hacia atras en el historial (no rebota).
+    const pila = eventos.filter((ev) => !ACCIONES_ADMINISTRATIVAS.includes(ev.accion));
+    if (!resolucion && pila.length < 2) {
+      throw new Error('No hay un estatus anterior: ese fue el escaneo con el que se registro la guia');
+    }
+
+    let estatusFinal = guia.estatus;
+    let plazaEvento = guia.destino;
+    let mensaje = '';
+
+    // Con resolucion, si no hay escaneo que revertir (solo queda el registro
+    // inicial) se aplica de todos modos la cancelacion o el complemento.
+    if (pila.length >= 2) {
+      const ultimo = pila[pila.length - 1];
+
+      // Marca el escaneo deshecho para que deje de mostrarse al cliente
+      await client.query('UPDATE eventos SET revertido = TRUE WHERE id = $1', [ultimo.id]);
+
+      // El estatus indica en/hacia que plaza esta la guia; de ahi se reconstruye
+      // la ruta (en este flujo MTY <-> CDMX el destino siempre es esa plaza)
+      const estatus = pila[pila.length - 2].estatus;
+      const plazaDelEstatus = estatus.endsWith('_MTY') ? 'MTY' : 'CDMX';
+      await client.query(
+        'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
+        [otraPlaza(plazaDelEstatus), plazaDelEstatus, estatus, now(), numeroGuia]
+      );
+
+      mensaje = `Correccion de ${usuario}: se revirtio "${ultimo.descripcion || ultimo.accion}" y la guia regreso a su estatus anterior`;
+      await registrarEvento(numeroGuia, ACCIONES.CORRECCION, estatus, ultimo.plaza, mensaje, client);
+      estatusFinal = estatus;
+      plazaEvento = ultimo.plaza;
+    }
+
+    let numeroFinal = numeroGuia;
+
+    if (resolucion && resolucion.tipo === 'cancelada') {
+      const nuevo = normalizarNumero(resolucion.numero, 'El nuevo numero de guia');
+      if (nuevo === numeroGuia) throw new Error('El nuevo numero debe ser diferente al numero actual');
+      await verificarNumeroDisponible(nuevo, client);
+
+      // Renumera conservando todo el historial: copia la fila con el numero
+      // nuevo, traslada los eventos y elimina la fila anterior (la llave
+      // foranea de eventos impide cambiar el numero con un UPDATE directo).
+      await client.query(
+        `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, numero_anterior, complemento)
+         SELECT $1, origen, destino, estatus, creado_en, $3, numero_guia, complemento FROM guias WHERE numero_guia = $2`,
+        [nuevo, numeroGuia, now()]
+      );
+      await client.query('UPDATE eventos SET numero_guia = $1 WHERE numero_guia = $2', [nuevo, numeroGuia]);
+      await client.query('DELETE FROM guias WHERE numero_guia = $1', [numeroGuia]);
+
+      mensaje = `${usuario} cancelo la guia ${numeroGuia} y la reemplazo por la nueva guia ${nuevo}; el historial se conserva`;
+      await registrarEvento(nuevo, ACCIONES.CAMBIO_NUMERO, estatusFinal, plazaEvento, mensaje, client);
+      numeroFinal = nuevo;
+    }
+
+    if (resolucion && resolucion.tipo === 'complemento') {
+      const comp = normalizarNumero(resolucion.numero, 'El numero del complemento');
+      if (comp === numeroGuia) throw new Error('El complemento debe ser diferente al numero de la guia');
+      await verificarNumeroDisponible(comp, client);
+
+      await client.query('UPDATE guias SET complemento = $1, actualizado_en = $2 WHERE numero_guia = $3', [
+        comp,
+        now(),
+        numeroGuia,
+      ]);
+      mensaje = guia.complemento
+        ? `${usuario} cambio el complemento ${guia.complemento} por ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`
+        : `${usuario} registro el complemento ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`;
+      await registrarEvento(numeroGuia, ACCIONES.COMPLEMENTO, estatusFinal, plazaEvento, mensaje, client);
+    }
+
+    await client.query('COMMIT');
+    return { guia: await obtenerGuia(numeroFinal), tipo: 'correccion', mensaje };
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
   }
-  const ultimo = pila[pila.length - 1];
-
-  // Marca el escaneo deshecho para que deje de mostrarse al cliente
-  await pool.query('UPDATE eventos SET revertido = TRUE WHERE id = $1', [ultimo.id]);
-
-  // El estatus indica en/hacia que plaza esta la guia; de ahi se reconstruye
-  // la ruta (en este flujo MTY <-> CDMX el destino siempre es esa plaza)
-  const estatus = pila[pila.length - 2].estatus;
-  const plazaDelEstatus = estatus.endsWith('_MTY') ? 'MTY' : 'CDMX';
-  await pool.query(
-    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
-    [otraPlaza(plazaDelEstatus), plazaDelEstatus, estatus, now(), numeroGuia]
-  );
-
-  const descripcion = `Correccion de ${usuario}: se revirtio "${ultimo.descripcion || ultimo.accion}" y la guia regreso a su estatus anterior`;
-  await registrarEvento(numeroGuia, ACCIONES.CORRECCION, estatus, ultimo.plaza, descripcion);
-  return { guia: await obtenerGuia(numeroGuia), tipo: 'correccion', mensaje: descripcion };
 }
 
 // Migracion idempotente al arrancar: marca como revertidos los escaneos que
@@ -269,7 +377,7 @@ async function marcarRevertidosHistoricos() {
     const pila = [];
     const deshechos = [];
     for (const ev of eventos) {
-      if (ev.accion === ACCIONES.ESCANEO_REPETIDO) continue;
+      if (ev.accion === ACCIONES.ESCANEO_REPETIDO || ev.accion === ACCIONES.CAMBIO_NUMERO || ev.accion === ACCIONES.COMPLEMENTO) continue;
       if (ev.accion === ACCIONES.CORRECCION) {
         const p = pila.pop();
         if (p && !p.revertido) deshechos.push(p.id);
@@ -289,8 +397,8 @@ async function marcarRevertidosHistoricos() {
 async function marcarDuplicadosHistoricos() {
   const { rows } = await pool.query(
     `SELECT id, numero_guia, accion, estatus, plaza, creado_en, revertido FROM eventos
-      WHERE accion NOT IN ($1, $2) ORDER BY numero_guia, id ASC`,
-    [ACCIONES.ESCANEO_REPETIDO, ACCIONES.CORRECCION]
+      WHERE accion NOT IN ($1, $2, $3, $4) ORDER BY numero_guia, id ASC`,
+    ACCIONES_ADMINISTRATIVAS
   );
   const duplicados = [];
   let prev = null;
@@ -335,7 +443,11 @@ async function listarGuias({ buscar, estatus, plaza, limit = 200 } = {}) {
   const params = [];
   if (buscar) {
     params.push(`%${buscar}%`);
-    condiciones.push(`numero_guia ILIKE $${params.length}`);
+    // Busca tambien por el numero de complemento y por el numero anterior
+    // de guias canceladas y renumeradas
+    condiciones.push(
+      `(numero_guia ILIKE $${params.length} OR complemento ILIKE $${params.length} OR numero_anterior ILIKE $${params.length})`
+    );
   }
   if (estatus) {
     params.push(estatus);
@@ -392,12 +504,13 @@ async function resumen() {
 
 module.exports = {
   escanearGuia: (numeroGuia, plaza, modo) => conCandado(numeroGuia, () => escanearGuia(numeroGuia, plaza, modo)),
-  revertirUltimoEscaneo: (numeroGuia, usuario) =>
-    conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario)),
+  revertirUltimoEscaneo: (numeroGuia, usuario, resolucion) =>
+    conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion)),
   marcarRevertidosHistoricos,
   marcarDuplicadosHistoricos,
   borrarTodas,
   obtenerGuia,
+  buscarGuia,
   obtenerHistorial,
   listarGuias,
   listarEventos,
