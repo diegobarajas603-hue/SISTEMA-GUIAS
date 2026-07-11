@@ -170,6 +170,11 @@ app.get('/api/guias/resumen', requireAuth, async (req, res) => {
   res.json(await guias.resumen());
 });
 
+// Actividad por dia (guias enviadas y entregas) para las graficas del dashboard
+app.get('/api/guias/estadisticas', requireAuth, async (req, res) => {
+  res.json(await guias.estadisticas(req.query.dias));
+});
+
 app.get('/api/eventos', requireAuth, async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
   res.json(await guias.listarEventos({ limit }));
