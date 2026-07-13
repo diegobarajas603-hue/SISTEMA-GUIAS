@@ -705,9 +705,9 @@
       sessionStorage.setItem('sesionToken', sesionToken);
       pintarUsuario();
       ocultarLogin();
-      // Al iniciar sesion siempre se entra al Dashboard, aunque la URL
-      // traiga otra vista de una visita anterior
-      if (location.hash && location.hash !== '#/dashboard') location.hash = '#/dashboard'; // dispara render()
+      // Al iniciar sesion siempre se entra a la pantalla de Escanear, en la
+      // plaza del usuario (o la ultima elegida en este navegador)
+      if (location.hash !== '#/escanear') location.hash = '#/escanear'; // dispara render()
       else render();
     } catch (err2) {
       $('loginError').textContent = err2.message;
