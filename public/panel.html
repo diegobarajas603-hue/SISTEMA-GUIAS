@@ -221,6 +221,13 @@
   .rev-opciones button.activa { border-color: #d92027; background: #fef2f2; }
   .rev-opciones button small { display: block; font-weight: 400; color: #71717a; margin-top: 2px; }
 
+  /* Boton para ver/ocultar la contraseña */
+  .campo-pass { position: relative; display: block; }
+  .campo-pass input { width: 100%; padding-right: 42px; }
+  .ver-pass { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); border: none; background: none; cursor: pointer; color: #8a8a8a; padding: 6px; display: flex; border-radius: 6px; }
+  .ver-pass:hover { color: #1a1a1a; background: #f4f4f5; }
+  .ver-pass svg { width: 18px; height: 18px; }
+
   /* Mensajes en formularios de Configuracion */
   .msg-form { display: none; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-top: 12px; }
   .msg-form.ok { display: block; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
@@ -620,6 +627,38 @@
     return d.innerHTML;
   }
 
+  // ---------- Ver/ocultar contraseñas ----------
+  // Agrega el boton del "ojo" a todos los campos de contraseña para poder
+  // verificar lo que se escribio antes de enviarlo.
+  const OJO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const OJO_TACHADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg>';
+
+  document.querySelectorAll('input[type=password]').forEach((inp) => {
+    const wrap = document.createElement('span');
+    wrap.className = 'campo-pass';
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(inp);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ver-pass';
+    btn.tabIndex = -1;
+    const setVer = (ver) => {
+      inp.type = ver ? 'text' : 'password';
+      btn.innerHTML = ver ? OJO_TACHADO : OJO;
+      btn.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña');
+      btn.title = ver ? 'Ocultar contraseña' : 'Mostrar contraseña';
+    };
+    setVer(false);
+    btn.addEventListener('click', () => { setVer(inp.type === 'password'); inp.focus(); });
+    inp.ocultarPass = () => setVer(false);
+    wrap.appendChild(btn);
+  });
+
+  // Regresa los campos a modo oculto (p. ej. al volver a mostrar el login)
+  function ocultarPasswords() {
+    document.querySelectorAll('.campo-pass input').forEach((i) => i.ocultarPass && i.ocultarPass());
+  }
+
   // ---------- Estado persistido ----------
   let plaza = localStorage.getItem('plaza') || 'MTY';
   let modo = localStorage.getItem('modo') || 'bodega';
@@ -676,6 +715,7 @@
     sesionToken = '';
     usuarioActual = null;
     sessionStorage.removeItem('sesionToken');
+    ocultarPasswords();
     $('loginOverlay').style.display = 'flex';
     const err = $('loginError');
     err.textContent = mensaje || '';
@@ -1471,6 +1511,7 @@
         body: JSON.stringify({ actual: $('pwActual').value, nueva: $('pwNueva').value }),
       });
       $('formPassword').reset();
+      ocultarPasswords();
       msgForm('msgPassword', 'Contraseña actualizada correctamente', 'ok');
     } catch (err2) {
       msgForm('msgPassword', err2.message, 'err');
@@ -1543,6 +1584,7 @@
         }),
       });
       $('formNuevoUsuario').reset();
+      ocultarPasswords();
       msgForm('msgUsuarios', 'Usuario creado correctamente', 'ok');
       cargarUsuarios();
     } catch (err2) {
