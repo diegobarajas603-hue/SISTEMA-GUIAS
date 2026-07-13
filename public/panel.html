@@ -787,7 +787,6 @@
     camion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h11v9H2zM13 10h4l3 3v3h-7z"/><circle cx="6.5" cy="17.5" r="1.7"/><circle cx="16.5" cy="17.5" r="1.7"/></svg>',
     pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
-    scan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg>',
   };
 
   async function cargarDashboard() {
@@ -809,13 +808,9 @@
         kpi(p.EN_BODEGA_CDMX || 0, 'En bodega CDMX', '#16a34a', 'caja', 'data-tab="MTY" data-est="EN_BODEGA_CDMX"') +
         kpi(transito, 'En transito', '#b45309', 'camion', 'data-tab="" data-est=""') +
         kpi(ruta, 'En ruta de entrega', '#2a78d6', 'pin', 'data-tab="" data-est=""') +
-        kpi(entregadas, 'Entregadas (total)', '#166534', 'check', 'data-tab="" data-est=""') +
-        kpi(r.eventos24h || 0, 'Escaneos ultimas 24 h', '#d92027', 'scan', 'data-eventos="1"');
+        kpi(entregadas, 'Entregadas (total)', '#166534', 'check', 'data-tab="" data-est=""');
       document.querySelectorAll('#kpis .kpi').forEach((k) =>
-        k.addEventListener('click', () => {
-          if (k.dataset.eventos) { location.hash = '#/eventos'; return; }
-          irAGuias(k.dataset.tab, k.dataset.est);
-        })
+        k.addEventListener('click', () => irAGuias(k.dataset.tab, k.dataset.est))
       );
       $('tbodyActividad').innerHTML = eventos.length
         ? eventos.map(filaEvento).join('')
