@@ -1,0 +1,44 @@
+CREATE DATABASE control_herramientas;
+
+USE control_herramientas;
+
+CREATE TABLE departamentos (
+    id_departamento INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100)
+);
+
+CREATE TABLE empleados (
+    id_empleado INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100),
+    departamento_id INT
+);
+
+CREATE TABLE herramientas (
+    id_herramienta INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100),
+    descripcion TEXT
+);
+
+CREATE TABLE asignaciones (
+    id_asignacion INT AUTO_INCREMENT PRIMARY KEY,
+    empleado_id INT,
+    herramienta_id INT,
+    fecha_asignacion DATETIME,
+    comentarios TEXT
+);
+
+
+
+
+
+ALTER TABLE herramientas ADD stock INT DEFAULT 0;
+ALTER TABLE asignaciones ADD cantidad INT DEFAULT 1;
+
+
+CREATE TABLE categorias (
+ id_categoria INT AUTO_INCREMENT PRIMARY KEY,
+ nombre VARCHAR(100)
+);
+
+
+ALTER TABLE herramientas ADD categoria_id INT;

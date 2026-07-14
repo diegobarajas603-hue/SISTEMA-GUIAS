@@ -1,0 +1,63 @@
+SISTEMA DE CONTROL DE HERRAMIENTAS — VERSIÓN CORREGIDA (14/07/2026)
+====================================================================
+
+CÓMO ACTUALIZAR TU SISTEMA
+--------------------------
+Solo reemplaza estos archivos en tu carpeta actual (htdocs/HERRAMIENTA):
+  - Herramienta.php
+  - ajax_herramientas.php
+  - ajax_buscar_tool.php
+  - filtro_departamento.php
+  - filtro_persona.php
+  - retirar.php
+
+NO necesitas tocar la base de datos: la columna "cantidad" ya existe.
+(El archivo control_herramientas.sql también se actualizó, pero solo
+sirve para instalaciones nuevas: ahora ya incluye la tabla
+salidas_almacen que antes faltaba.)
+
+FUNCIONES NUEVAS
+----------------
+1. BUSCADOR EN "ASIGNAR": arriba de las tarjetas hay un buscador que
+   filtra las herramientas al escribir (funciona también al cambiar
+   de empleado o categoría).
+
+2. CANTIDAD AL ASIGNAR: al seleccionar una herramienta aparece un
+   campo "Cant." para asignar 2 o más piezas de la misma herramienta
+   de una sola vez. La cantidad se ve en Asignaciones, en el detalle
+   del empleado y en la responsiva (ej. "Martillo (x3)").
+
+3. RESPONSIVA CON DOS OPCIONES: en Empleados ahora hay dos botones:
+   - "📑 Todas": responsiva con todo lo que tiene asignado.
+   - "🆕 Últimas": responsiva SOLO de la última asignación que se le
+     hizo (incluye la fecha de esa asignación en el PDF).
+
+ERRORES CORREGIDOS
+------------------
+- El sistema tronaba con error fatal si un nombre u observación
+  llevaba apóstrofe o comilla (ej. "llave 3/4''"). Ya no.
+- Los acentos y la ñ podían guardarse corruptos según el servidor
+  (Almacén → Almac�n). Se fijó la codificación utf8mb4 en todas las
+  conexiones y se agregó <meta charset="UTF-8">.
+- Al repetir un folio de salida de almacén no avisaba nada y la
+  salida simplemente no se guardaba. Ahora muestra "❌ Ese folio ya
+  existe" en la misma pantalla.
+- Crear herramienta no redirigía: si recargabas la página (F5) se
+  duplicaba la herramienta. Ahora redirige y muestra confirmación.
+- La fecha de las salidas de almacén se guardaba vacía (NULL) en la
+  base. Ahora se guarda la fecha del día.
+- El buscador de herramientas asignadas (ajax_buscar_tool.php)
+  tronaba con error fatal por consultar una tabla inexistente
+  ("prestamos"). Corregido.
+- Las observaciones se guardaban con etiquetas HTML (<br />) en la
+  base. Ahora se guardan como texto limpio.
+- El PDF de responsiva podía salir corrupto en servidores sin búfer
+  de salida. Corregido.
+- Los filtros por persona/departamento mostraban también herramientas
+  ya devueltas; ahora solo las activas. Y sus enlaces "Volver"
+  apuntaban a herramienta.php (minúscula), que falla en servidores
+  Linux.
+- Seguridad: se escaparon todas las entradas de usuario en las
+  consultas SQL (inyección) y las salidas en HTML, se validan los
+  IDs numéricos, el nombre del PDF se genera solo con caracteres
+  seguros y las imágenes subidas se limitan a formatos de imagen.

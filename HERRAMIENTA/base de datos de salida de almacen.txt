@@ -1,0 +1,13 @@
+ejecutar la siguiente tabla en base de datos:
+
+CREATE TABLE salidas_almacen(
+ id_salida INT AUTO_INCREMENT PRIMARY KEY,
+ folio VARCHAR(50),
+ nombre VARCHAR(255),
+ proveedor VARCHAR(255),
+ observaciones LONGTEXT,
+ fecha DATE,
+ hora TIME,
+ pdf VARCHAR(255),
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
