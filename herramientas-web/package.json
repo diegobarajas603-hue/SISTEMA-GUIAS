@@ -1,0 +1,24 @@
+{
+  "name": "control-herramientas-web",
+  "version": "1.0.0",
+  "description": "Sistema de control de herramientas - Fletes Tauro",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "build": "cd client && npm install && npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.11.0",
+    "pdfkit": "^0.15.0",
+    "unzipper": "^0.12.3"
+  }
+}
