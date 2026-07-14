@@ -1,0 +1,74 @@
+KIT DE RESPALDO — SISTEMA DE CONTROL DE HERRAMIENTAS
+=====================================================
+
+PRIMERO, PARA QUE ESTÉS TRANQUILO
+---------------------------------
+Tus datos NO viven en los archivos .php. Viven en 3 lugares:
+
+  1. La base de datos de MySQL  → empleados, departamentos,
+     herramientas, asignaciones y salidas de almacén.
+  2. La carpeta "uploads"       → las fotos de las herramientas.
+  3. La carpeta "salidas_pdf"   → los PDFs de salidas de almacén.
+
+Por eso, cuando actualices o reemplaces archivos .php (como hicimos
+con la corrección), TUS DATOS NO SE TOCAN. Puedes modificar el
+sistema las veces que quieras sin miedo.
+
+Lo único que SÍ puede borrar datos:
+  ✗ Borrar o vaciar tablas desde phpMyAdmin.
+  ✗ Importar "control_herramientas.sql" encima de tu sistema en uso
+    (ese archivo es SOLO para instalar en una computadora nueva).
+  ✗ Que se dañe el disco duro o se desinstale XAMPP.
+
+Contra todo eso, la protección es este kit de respaldos.
+
+INSTALACIÓN (una sola vez)
+--------------------------
+1. Copia estos 3 archivos DENTRO de tu carpeta del sistema
+   (C:\xampp\htdocs\HERRAMIENTA, junto a Herramienta.php):
+     - respaldo.bat
+     - restaurar.bat
+     - activar_respaldo_automatico.bat
+
+2. Doble clic a "respaldo.bat" → se crea tu primer respaldo en
+   C:\RESPALDOS_HERRAMIENTA\ (con fecha y hora en el nombre).
+
+3. Doble clic a "activar_respaldo_automatico.bat" (una sola vez).
+   Desde entonces, TODOS LOS DÍAS a las 2:00 PM se respalda solo,
+   sin que hagas nada (la computadora debe estar encendida).
+
+USO DIARIO
+----------
+- No tienes que hacer nada: el respaldo automático trabaja solo.
+- Si vas a hacer un cambio delicado (borrar cosas, importar algo,
+  actualizar el sistema), dale doble clic a respaldo.bat ANTES,
+  y listo: tienes un punto de retorno de ese momento exacto.
+
+SI ALGO SALE MAL (recuperar todo)
+---------------------------------
+1. Doble clic a "restaurar.bat".
+2. Te muestra la lista de respaldos (el primero es el más reciente).
+3. Presiona ENTER para usar el más reciente, o escribe el nombre
+   de otro día.
+4. Escribe SI para confirmar.
+5. El sistema queda EXACTAMENTE como estaba ese día: base de datos,
+   fotos y PDFs.
+
+RECOMENDACIONES
+---------------
+- Una vez al mes, copia la carpeta C:\RESPALDOS_HERRAMIENTA a una
+  USB o a otra computadora. Un respaldo en el mismo disco no te
+  salva si el disco se muere.
+- Los respaldos de más de 30 días se borran solos para no llenar
+  el disco (puedes cambiar el número editando respaldo.bat, línea
+  "DIAS_A_CONSERVAR").
+- Para pasar el sistema a otra computadora: instala XAMPP, copia la
+  carpeta HERRAMIENTA completa a htdocs, copia también
+  C:\RESPALDOS_HERRAMIENTA, y corre restaurar.bat.
+
+DATO TÉCNICO (por si otro técnico lo lee)
+-----------------------------------------
+El respaldo usa mysqldump con --databases --add-drop-table
+--single-transaction --default-character-set=utf8mb4, por lo que el
+archivo base_de_datos.sql se restaura completo con solo:
+  C:\xampp\mysql\bin\mysql.exe -u root < base_de_datos.sql
