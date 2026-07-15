@@ -10,7 +10,7 @@ export default function Salidas() {
   const [guardando, setGuardando] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [errorFolio, setErrorFolio] = useState('');
-  const [form, setForm] = useState({ folio: '', nombre: '', proveedor: '', departamento: '', observaciones: '' });
+  const [form, setForm] = useState({ folio: '', nombre: '', departamento: '', trabajo: '', observaciones: '' });
 
   const cargar = async () => {
     setCargando(true);
@@ -22,7 +22,7 @@ export default function Salidas() {
 
   const visibles = useMemo(() => {
     const q = normalizar(busqueda);
-    return salidas.filter(s => !q || normalizar(`${s.folio} ${s.nombre} ${s.proveedor} ${s.observaciones} ${s.departamento || ''}`).includes(q));
+    return salidas.filter(s => !q || normalizar(`${s.folio} ${s.nombre} ${s.observaciones} ${s.departamento || ''} ${s.trabajo || ''}`).includes(q));
   }, [salidas, busqueda]);
 
   const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); if (k === 'folio') setErrorFolio(''); };
@@ -34,7 +34,7 @@ export default function Salidas() {
     try {
       const r = await api.post('/api/salidas', form);
       avisar(`Salida ${form.folio} registrada`);
-      setForm({ folio: '', nombre: '', proveedor: '', departamento: '', observaciones: '' });
+      setForm({ folio: '', nombre: '', departamento: '', trabajo: '', observaciones: '' });
       cargar();
       window.open(`/api/salidas/${r.id}/pdf`, '_blank');
     } catch (err) {
@@ -65,11 +65,13 @@ export default function Salidas() {
             value={form.folio} onChange={e => set('folio', e.target.value)} /></div>
         <div className="field"><label>Nombre (quien recibe)</label>
           <input className="input" required value={form.nombre} onChange={e => set('nombre', e.target.value)} /></div>
-        <div className="field"><label>Proveedor</label>
-          <input className="input" required value={form.proveedor} onChange={e => set('proveedor', e.target.value)} /></div>
         <div className="field"><label>¿Para qué departamento será usada la herramienta?</label>
           <input className="input" required placeholder="Ej: Taller mecánico, Lavado, Oficina..."
             value={form.departamento} onChange={e => set('departamento', e.target.value)} /></div>
+        <div className="field"><label>¿Para qué trabajo específico se usará?</label>
+          <textarea className="textarea" required placeholder="Ej: Reparación de frenos de la unidad 45..."
+            style={{ minHeight: 60 }}
+            value={form.trabajo} onChange={e => set('trabajo', e.target.value)} /></div>
         <div className="field"><label>Observaciones</label>
           <textarea className="textarea" required placeholder="Describe el material que sale..."
             value={form.observaciones} onChange={e => set('observaciones', e.target.value)} /></div>
@@ -82,7 +84,7 @@ export default function Salidas() {
       <div className="card">
         <div className="card-title">🚚 Salidas registradas</div>
         <Buscador valor={busqueda} onCambio={setBusqueda}
-          placeholder="Buscar por folio, nombre, proveedor u observaciones..." total={visibles.length} />
+          placeholder="Buscar por folio, nombre, departamento o trabajo..." total={visibles.length} />
 
         {cargando ? <Cargando />
           : visibles.length === 0
@@ -91,7 +93,7 @@ export default function Salidas() {
             <div style={{ overflowX: 'auto' }}>
               <table className="table">
                 <thead>
-                  <tr><th>Folio</th><th>Nombre</th><th>Departamento</th><th>Fecha</th><th style={{ width: 170 }}></th></tr>
+                  <tr><th>Folio</th><th>Nombre</th><th>Departamento</th><th>Trabajo</th><th>Fecha</th><th style={{ width: 170 }}></th></tr>
                 </thead>
                 <tbody>
                   {visibles.map(s => (
@@ -99,6 +101,7 @@ export default function Salidas() {
                       <td style={{ fontWeight: 700 }}>{s.folio}</td>
                       <td>{s.nombre}</td>
                       <td style={{ fontSize: 13, color: 'var(--muted)' }}>{s.departamento || '—'}</td>
+                      <td style={{ fontSize: 13, color: 'var(--muted)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.trabajo || ''}>{s.trabajo || '—'}</td>
                       <td style={{ color: 'var(--muted)', fontSize: 13 }}>{fechaBonita(s.created_at)}</td>
                       <td style={{ textAlign: 'right' }}>
                         <a className="btn ghost sm" href={`/api/salidas/${s.id_salida}/pdf`} target="_blank" rel="noreferrer">📄 PDF</a>{' '}

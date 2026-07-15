@@ -148,17 +148,16 @@ function responsiva(res, emp, tools, subtitulo) {
   }
   cerrarTabla(y);
 
-  /* ----- franja de firmas ----- */
+  /* ----- firma del colaborador (centrada) ----- */
   if (y + 110 > 730) { doc.addPage(); y = 62; }
   const yFirmas = y + 28, hFirmas = 74;
-  const firma = (x, w, titulo, sub) => {
-    doc.rect(x, yFirmas, w, hFirmas).lineWidth(0.8).strokeColor(BORDE).stroke();
-    doc.moveTo(x + 24, yFirmas + 44).lineTo(x + w - 24, yFirmas + 44).lineWidth(0.8).strokeColor('#111').stroke();
-    doc.font('Helvetica-Bold').fontSize(8).fillColor('#000').text(titulo, x, yFirmas + 50, { width: w, align: 'center', characterSpacing: 0.5 });
-    doc.font('Helvetica').fontSize(7.2).fillColor(GRIS).text(sub || '', x + 6, yFirmas + 61, { width: w - 12, align: 'center', height: 9, ellipsis: true });
-  };
-  firma(34, 272, 'ENTREGÓ', 'Almacén · Fletes Tauro');
-  firma(306, 272, 'RECIBÍ DE CONFORMIDAD', emp.nombre || 'Nombre y firma del colaborador');
+  const xF = 156, wF = 300;
+  doc.rect(xF, yFirmas, wF, hFirmas).lineWidth(0.8).strokeColor(BORDE).stroke();
+  doc.moveTo(xF + 30, yFirmas + 44).lineTo(xF + wF - 30, yFirmas + 44).lineWidth(0.8).strokeColor('#111').stroke();
+  doc.font('Helvetica-Bold').fontSize(8).fillColor('#000')
+    .text('RECIBÍ DE CONFORMIDAD', xF, yFirmas + 50, { width: wF, align: 'center', characterSpacing: 0.5 });
+  doc.font('Helvetica').fontSize(7.2).fillColor(GRIS)
+    .text(emp.nombre || 'Nombre y firma del colaborador', xF + 6, yFirmas + 61, { width: wF - 12, align: 'center', height: 9, ellipsis: true });
 
   /* ----- pie de página con numeración ----- */
   const rango = doc.bufferedPageRange();
@@ -214,41 +213,46 @@ function salidaAlmacen(res, s) {
   celda(34, 118, 128, 38, 'FECHA DE SALIDA', fecha);
   celda(162, 118, 88, 38, 'HORA', hora);
   celda(250, 118, 328, 38, 'RECIBE (NOMBRE)', s.nombre);
-  celda(34, 156, 244, 38, 'PROVEEDOR', s.proveedor);
-  celda(278, 156, 300, 38, 'DEPARTAMENTO QUE USARÁ LA HERRAMIENTA', s.departamento);
+  celda(34, 156, 544, 38, 'DEPARTAMENTO QUE USARÁ LA HERRAMIENTA', s.departamento);
 
-  /* ----- descripción del material (área con renglones) ----- */
-  doc.rect(34, 206, 544, 22).fillAndStroke('#e2e8f0', BORDE);
-  doc.font('Helvetica-Bold').fontSize(9.5).fillColor(NAVY)
-    .text('DESCRIPCIÓN DEL MATERIAL / HERRAMIENTA QUE SALE', 34, 212, { width: 544, align: 'center', characterSpacing: 1 });
+  // sección con renglones, como formato impreso
+  const seccion = (yBanda, titulo, renglones, texto) => {
+    doc.rect(34, yBanda, 544, 22).fillAndStroke('#e2e8f0', BORDE);
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(NAVY)
+      .text(titulo, 34, yBanda + 6, { width: 544, align: 'center', characterSpacing: 1 });
+    const yCuerpo = yBanda + 22;
+    const alto = renglones * 24 + 10;
+    doc.rect(34, yCuerpo, 544, alto).lineWidth(0.8).strokeColor(BORDE).stroke();
+    for (let i = 0; i < renglones; i++) {
+      const ry = yCuerpo + 23 + i * 24;
+      doc.moveTo(46, ry).lineTo(566, ry).lineWidth(0.5).strokeColor(RENGLON).stroke();
+    }
+    doc.font('Helvetica').fontSize(11).fillColor('#000')
+      .text(String(texto || ''), 46, yCuerpo + 12, { width: 520, height: renglones * 24 - 12, lineGap: 11.4, ellipsis: true });
+    return yCuerpo + alto;
+  };
 
-  const yCuerpo = 228;
-  const renglones = 14;         // renglones de 24pt, como formato impreso
-  const altoCuerpo = renglones * 24 + 10;
-  doc.rect(34, yCuerpo, 544, altoCuerpo).lineWidth(0.8).strokeColor(BORDE).stroke();
-  for (let i = 0; i < renglones; i++) {
-    const ry = yCuerpo + 23 + i * 24;
-    doc.moveTo(46, ry).lineTo(566, ry).lineWidth(0.5).strokeColor(RENGLON).stroke();
-  }
-  doc.font('Helvetica').fontSize(11).fillColor('#000')
-    .text(String(s.observaciones || ''), 46, yCuerpo + 12, { width: 520, height: renglones * 24 - 12, lineGap: 11.4, ellipsis: true });
+  /* ----- trabajo específico en el que se usará ----- */
+  const finTrabajo = seccion(204, 'TRABAJO ESPECÍFICO EN EL QUE SE UTILIZARÁ', 3, s.trabajo);
+
+  /* ----- descripción del material ----- */
+  const finDesc = seccion(finTrabajo + 12, 'DESCRIPCIÓN DEL MATERIAL / HERRAMIENTA QUE SALE', 9, s.observaciones);
 
   /* ----- nota ----- */
-  const yNota = yCuerpo + altoCuerpo + 10;
   doc.font('Helvetica-Oblique').fontSize(7.5).fillColor(GRIS)
-    .text('Este documento ampara la salida del material arriba descrito. Consérvese para cualquier aclaración.', 34, yNota, { width: 544, align: 'center' });
+    .text('Este documento ampara la salida del material arriba descrito para el trabajo indicado. Consérvese para cualquier aclaración.',
+      34, finDesc + 10, { width: 544, align: 'center' });
 
   /* ----- franja de firmas ----- */
-  const yFirmas = 632, hFirmas = 74;
+  const yFirmas = 640, hFirmas = 74;
   const firma = (x, w, titulo, sub) => {
     doc.rect(x, yFirmas, w, hFirmas).lineWidth(0.8).strokeColor(BORDE).stroke();
-    doc.moveTo(x + 18, yFirmas + 44).lineTo(x + w - 18, yFirmas + 44).lineWidth(0.8).strokeColor('#111').stroke();
+    doc.moveTo(x + 24, yFirmas + 44).lineTo(x + w - 24, yFirmas + 44).lineWidth(0.8).strokeColor('#111').stroke();
     doc.font('Helvetica-Bold').fontSize(8).fillColor('#000').text(titulo, x, yFirmas + 50, { width: w, align: 'center', characterSpacing: 0.5 });
     doc.font('Helvetica').fontSize(7.2).fillColor(GRIS).text(sub || '', x + 6, yFirmas + 61, { width: w - 12, align: 'center', height: 9, ellipsis: true });
   };
-  firma(34, 181, 'ENTREGÓ', 'Almacén');
-  firma(215, 181, 'AUTORIZÓ', 'Jefe de área');
-  firma(396, 182, 'RECIBIÓ', s.nombre || 'Nombre y firma');
+  firma(34, 272, 'ENTREGÓ', 'Almacén · Fletes Tauro');
+  firma(306, 272, 'RECIBIÓ', s.nombre || 'Nombre y firma');
 
   /* ----- pie de página ----- */
   doc.page.margins.bottom = 0; // evitar salto de página al escribir el pie

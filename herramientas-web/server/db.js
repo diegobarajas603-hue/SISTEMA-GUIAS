@@ -69,6 +69,7 @@ const SCHEMA = [
     hora TIME DEFAULT NULL,
     pdf VARCHAR(255) DEFAULT NULL,
     departamento VARCHAR(255) DEFAULT NULL,
+    trabajo TEXT DEFAULT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
   `CREATE TABLE IF NOT EXISTS usuarios (
@@ -92,6 +93,10 @@ async function asegurarColumnas() {
   if (!(await hay('departamento'))) {
     await pool.query('ALTER TABLE salidas_almacen ADD COLUMN departamento VARCHAR(255) DEFAULT NULL');
     console.log('[init] Columna departamento agregada a salidas_almacen');
+  }
+  if (!(await hay('trabajo'))) {
+    await pool.query('ALTER TABLE salidas_almacen ADD COLUMN trabajo TEXT DEFAULT NULL');
+    console.log('[init] Columna trabajo agregada a salidas_almacen');
   }
   // una versión anterior guardaba el departamento con un selector (departamento_id):
   // pasar ese dato al texto libre para no perder lo ya capturado
