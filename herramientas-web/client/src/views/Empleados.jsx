@@ -100,6 +100,7 @@ export default function Empleados({ onAsignar }) {
   const [detalle, setDetalle] = useState(null); // id
   const [expandidos, setExpandidos] = useState({});
   const [cargando, setCargando] = useState(true);
+  const [borrar, setBorrar] = useState(null);   // empleado a eliminar
 
   const cargar = async () => {
     setCargando(true);
@@ -149,8 +150,6 @@ export default function Empleados({ onAsignar }) {
     setExpandidos(prev => ({ ...prev, [depto]: !prev[depto] }));
   };
 
-  const [borrar, setBorrar] = useState(null);
-
   return (
     <>
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -163,13 +162,15 @@ export default function Empleados({ onAsignar }) {
       {cargando && <div className="card"><Cargando /></div>}
       {!cargando && grupos.length === 0 && <div className="card"><Vacio icono="👥" texto="No se encontraron empleados" /></div>}
 
-      {grupos.map(([depto, lista]) => (
+      {grupos.map(([depto, lista]) => {
+        const abierto = busqueda.trim() !== '' || !!expandidos[depto]; // al buscar se expande todo
+        return (
         <div key={depto}>
           <div className="grupo-titulo" onClick={() => toggleGrupo(depto)} style={{ cursor: 'pointer', userSelect: 'none' }}>
-            <span style={{ marginRight: 8, display: 'inline-block', transition: 'transform 0.2s' }}>{expandidos[depto] ? '▼' : '▶'}</span>
+            <span style={{ marginRight: 8, display: 'inline-block', transition: 'transform 0.2s' }}>{abierto ? '▼' : '▶'}</span>
             📁 {depto} <span className="grupo-linea" /> <span style={{ color: 'var(--muted)', fontWeight: 500 }}>{lista.length}</span>
           </div>
-          {expandidos[depto] && (
+          {abierto && (
             <div className="emp-grid">
               {lista.map(e => (
                 <div key={e.id_empleado} className={`emp-card ${e.activo ? '' : 'inactivo'}`}>
@@ -194,7 +195,8 @@ export default function Empleados({ onAsignar }) {
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
 
       {form && (
         <FormEmpleado inicial={form.id_empleado ? form : null} departamentos={departamentos}

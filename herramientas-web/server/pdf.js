@@ -119,11 +119,22 @@ function salidaAlmacen(res, s) {
   };
   caja(34, 222, 262, 62, 'NOMBRE', s.nombre);
   caja(316, 222, 262, 62, 'PROVEEDOR', s.proveedor);
+  caja(34, 294, 544, 50, 'DEPARTAMENTO QUE LO USARÁ', s.departamento_nombre || '—');
 
-  doc.font('Helvetica-Bold').fontSize(14).fillColor(AZUL).text('OBSERVACIONES', 34, 314);
-  doc.roundedRect(34, 338, 544, 220, 6).lineWidth(1).strokeColor('#d1d5db').stroke();
+  let y = 364;
+  if (s.descripcion) {
+    doc.font('Helvetica-Bold').fontSize(14).fillColor(AZUL).text('DESCRIPCIÓN', 34, y);
+    doc.roundedRect(34, y + 24, 544, 88, 6).lineWidth(1).strokeColor('#d1d5db').stroke();
+    doc.font('Helvetica').fontSize(11.5).fillColor('#000')
+      .text(String(s.descripcion), 52, y + 40, { width: 508, height: 62, align: 'left' });
+    y += 130;
+  }
+
+  doc.font('Helvetica-Bold').fontSize(14).fillColor(AZUL).text('OBSERVACIONES', 34, y);
+  const obsAlto = s.descripcion ? 104 : 214;
+  doc.roundedRect(34, y + 24, 544, obsAlto, 6).lineWidth(1).strokeColor('#d1d5db').stroke();
   doc.font('Helvetica').fontSize(11.5).fillColor('#000')
-    .text(String(s.observaciones || ''), 52, 356, { width: 508, height: 190, align: 'left' });
+    .text(String(s.observaciones || ''), 52, y + 40, { width: 508, height: obsAlto - 30, align: 'left' });
 
   doc.font('Helvetica').fontSize(11).fillColor('#000');
   doc.text('_____________________________________', 34, 640, { width: 544, align: 'center' });

@@ -129,12 +129,12 @@ export default function Admin({ user }) {
       <div className="card">
         <div className="card-title">🚚 Migración desde tu sistema anterior (XAMPP)</div>
         <div className="aviso info">
-          <span>💡 En tu computadora corre <b>respaldo.bat</b> (crea la carpeta con <b>base_de_datos.sql</b> y la carpeta <b>uploads</b>).
-          Sube aquí ese archivo .sql, y las fotos comprimidas en un .zip. Puedes repetirlo las veces que necesites.</span>
+          <span>💡 Sube el respaldo de tu base de datos (el <b>base_de_datos.sql</b> de <b>respaldo.bat</b> o un export de <b>phpMyAdmin</b>)
+          y las fotos de tu carpeta <b>uploads</b> comprimidas en un .zip. Puedes repetirlo las veces que necesites.</span>
         </div>
         <div className="grid-2">
           <Subida titulo="1 · Base de datos" acepta=".sql"
-            descripcion="Archivo base_de_datos.sql de tu respaldo. REEMPLAZA los datos actuales del sistema en línea."
+            descripcion="Archivo .sql de tu respaldo (respaldo.bat o phpMyAdmin). REEMPLAZA los datos actuales del sistema en línea."
             url="/api/migracion/sql"
             onResultado={r => { avisar('Base de datos importada'); cargar(); }} />
           <Subida titulo="2 · Fotos (ZIP)" acepta=".zip"

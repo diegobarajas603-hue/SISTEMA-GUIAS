@@ -7,7 +7,7 @@ const os = require('os');
 const mysql = require('mysql2/promise');
 const unzipper = require('unzipper');
 
-const { pool, UPLOADS_DIR } = require('./db');
+const { pool, asegurarColumnas, UPLOADS_DIR } = require('./db');
 const { firmar, setCookie, clearCookie, requireAuth, requireAdmin } = require('./auth');
 const { responsiva, salidaAlmacen } = require('./pdf');
 
@@ -192,6 +192,15 @@ r.post('/empleados/:id/toggle', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+r.delete('/empleados/:id', wrap(async (req, res) => {
+  const id = +req.params.id;
+  const [act] = await pool.query('SELECT 1 FROM asignaciones WHERE empleado_id=? AND activa=1 LIMIT 1', [id]);
+  if (act.length) return res.status(409).json({ error: 'Tiene herramientas asignadas; primero devuélvelas en "Ver herramientas"' });
+  await pool.query('DELETE FROM asignaciones WHERE empleado_id=?', [id]);
+  await pool.query('DELETE FROM empleados WHERE id_empleado=?', [id]);
+  res.json({ ok: true });
+}));
+
 r.get('/empleados/:id', wrap(async (req, res) => {
   const id = +req.params.id;
   const [emp] = await pool.query(`
@@ -330,7 +339,7 @@ r.get('/responsiva/:empleadoId', wrap(async (req, res) => {
 
 r.get('/salidas', wrap(async (req, res) => {
   const [rows] = await pool.query(`
-    SELECT s.*, d.nombre as departamento_nombre
+    SELECT s.*, d.nombre AS departamento_nombre
     FROM salidas_almacen s
     LEFT JOIN departamentos d ON s.departamento_id = d.id_departamento
     ORDER BY s.id_salida DESC
@@ -366,7 +375,12 @@ r.delete('/salidas/:id', wrap(async (req, res) => {
 }));
 
 r.get('/salidas/:id/pdf', wrap(async (req, res) => {
-  const [rows] = await pool.query('SELECT * FROM salidas_almacen WHERE id_salida=?', [+req.params.id]);
+  const [rows] = await pool.query(`
+    SELECT s.*, d.nombre AS departamento_nombre
+    FROM salidas_almacen s
+    LEFT JOIN departamentos d ON s.departamento_id = d.id_departamento
+    WHERE s.id_salida=?
+  `, [+req.params.id]);
   if (!rows.length) return res.status(404).json({ error: 'Salida no encontrada' });
   salidaAlmacen(res, rows[0]);
 }));
@@ -431,6 +445,13 @@ r.post('/migracion/sql', requireAdmin, sqlUpload.single('archivo'), wrap(async (
     return res.status(400).json({ error: 'Ese archivo no parece un respaldo de la base de datos' });
   }
 
+  // los exports de phpMyAdmin no traen DROP TABLE: agregarlo para poder
+  // reimportar sobre las tablas ya existentes (la de usuarios nunca se toca)
+  sql = sql.replace(/^CREATE TABLE (?:IF NOT EXISTS )?`?([A-Za-z0-9_]+)`?/gim, (m, tabla) =>
+    tabla.toLowerCase() === 'usuarios'
+      ? m
+      : 'DROP TABLE IF EXISTS `' + tabla + '`;\nCREATE TABLE `' + tabla + '`');
+
   const cfg = pool.pool.config.connectionConfig;
   const conn = await mysql.createConnection({
     host: cfg.host, port: cfg.port, user: cfg.user, password: cfg.password,
@@ -441,6 +462,9 @@ r.post('/migracion/sql', requireAdmin, sqlUpload.single('archivo'), wrap(async (
   } finally {
     await conn.end();
   }
+
+  // el respaldo recrea salidas_almacen con el esquema viejo: reponer columnas nuevas
+  await asegurarColumnas();
 
   const conteo = {};
   for (const t of ['departamentos', 'empleados', 'categorias', 'herramientas', 'asignaciones', 'salidas_almacen']) {
