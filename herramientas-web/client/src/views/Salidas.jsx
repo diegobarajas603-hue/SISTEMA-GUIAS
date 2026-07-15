@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { Confirmar, Buscador, Vacio, useToast, fechaBonita, normalizar } from '../ui.jsx';
+import { Confirmar, Buscador, Vacio, Cargando, useToast, fechaBonita, normalizar } from '../ui.jsx';
 
 export default function Salidas() {
   const avisar = useToast();
@@ -9,12 +9,21 @@ export default function Salidas() {
   const [busqueda, setBusqueda] = useState('');
   const [borrar, setBorrar] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [cargando, setCargando] = useState(true);
   const [errorFolio, setErrorFolio] = useState('');
   const [form, setForm] = useState({ folio: '', nombre: '', proveedor: '', observaciones: '', departamento_id: '', descripcion: '' });
 
-  const cargar = () => {
-    api.get('/api/salidas').then(setSalidas).catch(() => {});
-    api.get('/api/departamentos').then(setDepartamentos).catch(() => {});
+  const cargar = async () => {
+    setCargando(true);
+    try {
+      const [sals, depts] = await Promise.all([
+        api.get('/api/salidas'),
+        api.get('/api/departamentos')
+      ]);
+      setSalidas(sals);
+      setDepartamentos(depts);
+    } catch (e) {}
+    finally { setCargando(false); }
   };
   useEffect(() => { cargar(); }, []);
 
@@ -87,7 +96,8 @@ export default function Salidas() {
         <Buscador valor={busqueda} onCambio={setBusqueda}
           placeholder="Buscar por folio, nombre, proveedor u observaciones..." total={visibles.length} />
 
-        {visibles.length === 0
+        {cargando ? <Cargando />
+          : visibles.length === 0
           ? <Vacio icono="🚚" texto="No hay salidas que coincidan" />
           : (
             <div style={{ overflowX: 'auto' }}>

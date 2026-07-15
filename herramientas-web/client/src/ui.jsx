@@ -91,6 +91,16 @@ export function Vacio({ icono = '📭', texto = 'No hay nada aquí todavía' }) 
   );
 }
 
+/* ---------- Loading ---------- */
+export function Cargando() {
+  return (
+    <div className="empty">
+      <div className="spinner"></div>
+      <div>Cargando...</div>
+    </div>
+  );
+}
+
 /* ---------- utilidades ---------- */
 export function iniciales(nombre = '') {
   return nombre.trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toUpperCase() || '?';

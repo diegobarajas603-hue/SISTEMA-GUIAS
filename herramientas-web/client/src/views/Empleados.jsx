@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { Modal, Confirmar, Buscador, Foto, Vacio, useToast, iniciales, fechaBonita, normalizar } from '../ui.jsx';
+import { Modal, Confirmar, Buscador, Foto, Vacio, Cargando, useToast, iniciales, fechaBonita, normalizar } from '../ui.jsx';
 
 function FormEmpleado({ inicial, departamentos, onCerrar, onListo }) {
   const avisar = useToast();
@@ -99,10 +99,19 @@ export default function Empleados({ onAsignar }) {
   const [form, setForm] = useState(null);       // null | {} | empleado
   const [detalle, setDetalle] = useState(null); // id
   const [expandidos, setExpandidos] = useState({});
+  const [cargando, setCargando] = useState(true);
 
-  const cargar = () => {
-    api.get('/api/empleados').then(setEmpleados).catch(() => {});
-    api.get('/api/departamentos').then(setDepartamentos).catch(() => {});
+  const cargar = async () => {
+    setCargando(true);
+    try {
+      const [emps, depts] = await Promise.all([
+        api.get('/api/empleados'),
+        api.get('/api/departamentos')
+      ]);
+      setEmpleados(emps);
+      setDepartamentos(depts);
+    } catch (e) {}
+    finally { setCargando(false); }
   };
   useEffect(() => { cargar(); }, []);
 
@@ -151,7 +160,8 @@ export default function Empleados({ onAsignar }) {
         <button className="btn" onClick={() => setForm({})}>＋ Nuevo empleado</button>
       </div>
 
-      {grupos.length === 0 && <div className="card"><Vacio icono="👥" texto="No se encontraron empleados" /></div>}
+      {cargando && <div className="card"><Cargando /></div>}
+      {!cargando && grupos.length === 0 && <div className="card"><Vacio icono="👥" texto="No se encontraron empleados" /></div>}
 
       {grupos.map(([depto, lista]) => (
         <div key={depto}>

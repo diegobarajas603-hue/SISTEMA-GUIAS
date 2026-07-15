@@ -327,6 +327,15 @@ img { max-width: 100%; }
 .empty { text-align: center; color: var(--muted); padding: 38px 10px; }
 .empty .ico { font-size: 34px; margin-bottom: 8px; }
 
+.spinner {
+  width: 40px; height: 40px; margin: 0 auto 12px;
+  border: 3px solid var(--line);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 .skeleton { background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 8px; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 

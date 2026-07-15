@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { Modal, Confirmar, Buscador, Foto, Vacio, useToast, normalizar } from '../ui.jsx';
+import { Modal, Confirmar, Buscador, Foto, Vacio, Cargando, useToast, normalizar } from '../ui.jsx';
 
 const ESTADOS = ['Bueno', 'Dañado', 'En reparación'];
 const badgeEstado = e => e === 'Bueno' ? 'ok' : e === 'Dañado' ? 'bad' : 'warn';
@@ -83,10 +83,19 @@ export default function Herramientas() {
   const [form, setForm] = useState(null);
   const [borrar, setBorrar] = useState(null);
   const [fotoModal, setFotoModal] = useState(null);
+  const [cargando, setCargando] = useState(true);
 
-  const cargar = () => {
-    api.get('/api/herramientas').then(setHerramientas).catch(() => {});
-    api.get('/api/categorias').then(setCategorias).catch(() => {});
+  const cargar = async () => {
+    setCargando(true);
+    try {
+      const [herrs, cats] = await Promise.all([
+        api.get('/api/herramientas'),
+        api.get('/api/categorias')
+      ]);
+      setHerramientas(herrs);
+      setCategorias(cats);
+    } catch (e) {}
+    finally { setCargando(false); }
   };
   useEffect(() => { cargar(); }, []);
 
@@ -127,7 +136,9 @@ export default function Herramientas() {
         ))}
       </div>
 
-      {visibles.length === 0
+      {cargando ? (
+        <div className="card"><Cargando /></div>
+      ) : visibles.length === 0
         ? <div className="card"><Vacio icono="🔧" texto="No hay herramientas que coincidan" /></div>
         : (
           <div className="toolgrid">
