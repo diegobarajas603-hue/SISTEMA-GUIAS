@@ -324,15 +324,17 @@ r.get('/responsiva/:empleadoId', wrap(async (req, res) => {
     }
   }
 
+  // agrupar por NOMBRE (no por registro): la misma herramienta puede estar
+  // dada de alta varias veces en el catálogo y saldría desglosada en la lista
   const [tools] = await pool.query(`
-    SELECT h.nombre, c.nombre categoria,
+    SELECT h.nombre, MAX(c.nombre) categoria,
            SUM(COALESCE(a.cantidad,1)) cantidad,
            DATE_FORMAT(MAX(a.fecha_asignacion),'%d/%m/%Y') fecha
     FROM asignaciones a
     JOIN herramientas h ON a.herramienta_id=h.id_herramienta
     LEFT JOIN categorias c ON h.categoria_id=c.id_categoria
     WHERE a.empleado_id=? AND a.activa=1 ${filtro}
-    GROUP BY h.id_herramienta, h.nombre, c.nombre
+    GROUP BY h.nombre
     ORDER BY h.nombre`, params);
 
   responsiva(res, emp[0],
