@@ -98,6 +98,7 @@ export default function Empleados({ onAsignar }) {
   const [busqueda, setBusqueda] = useState('');
   const [form, setForm] = useState(null);       // null | {} | empleado
   const [detalle, setDetalle] = useState(null); // id
+  const [expandidos, setExpandidos] = useState({});
 
   const cargar = () => {
     api.get('/api/empleados').then(setEmpleados).catch(() => {});
@@ -127,6 +128,20 @@ export default function Empleados({ onAsignar }) {
     } catch (err) { avisar(err.message, 'error'); }
   };
 
+  const confirmarBorrar = async (borrar) => {
+    try {
+      await api.del(`/api/empleados/${borrar.id_empleado}`);
+      avisar(`${borrar.nombre} eliminado`);
+      cargar();
+    } catch (err) { avisar(err.message, 'error'); }
+  };
+
+  const toggleGrupo = (depto) => {
+    setExpandidos(prev => ({ ...prev, [depto]: !prev[depto] }));
+  };
+
+  const [borrar, setBorrar] = useState(null);
+
   return (
     <>
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -140,28 +155,34 @@ export default function Empleados({ onAsignar }) {
 
       {grupos.map(([depto, lista]) => (
         <div key={depto}>
-          <div className="grupo-titulo">📁 {depto} <span className="grupo-linea" /> <span style={{ color: 'var(--muted)', fontWeight: 500 }}>{lista.length}</span></div>
-          <div className="emp-grid">
-            {lista.map(e => (
-              <div key={e.id_empleado} className={`emp-card ${e.activo ? '' : 'inactivo'}`}>
-                <div className="emp-top">
-                  <div className="avatar" style={{ width: 38, height: 38, fontSize: 14 }}>{iniciales(e.nombre)}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="emp-nombre">{e.nombre}</div>
-                    <div className="emp-depto">
-                      {+e.herramientas > 0 ? `${e.herramientas} pieza(s) asignada(s)` : 'sin herramientas'}
-                    </div>
-                  </div>
-                  {e.activo ? <span className="badge ok">Activo</span> : <span className="badge neutro">Inactivo</span>}
-                </div>
-                <div className="emp-actions">
-                  <button className="btn sm" onClick={() => setDetalle(e.id_empleado)}>Ver herramientas</button>
-                  <button className="btn ghost sm" onClick={() => setForm(e)}>✏️</button>
-                  <button className="btn ghost sm" onClick={() => toggle(e)}>{e.activo ? '🚫 Baja' : '✅ Alta'}</button>
-                </div>
-              </div>
-            ))}
+          <div className="grupo-titulo" onClick={() => toggleGrupo(depto)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+            <span style={{ marginRight: 8, display: 'inline-block', transition: 'transform 0.2s' }}>{expandidos[depto] ? '▼' : '▶'}</span>
+            📁 {depto} <span className="grupo-linea" /> <span style={{ color: 'var(--muted)', fontWeight: 500 }}>{lista.length}</span>
           </div>
+          {expandidos[depto] && (
+            <div className="emp-grid">
+              {lista.map(e => (
+                <div key={e.id_empleado} className={`emp-card ${e.activo ? '' : 'inactivo'}`}>
+                  <div className="emp-top">
+                    <div className="avatar" style={{ width: 38, height: 38, fontSize: 14 }}>{iniciales(e.nombre)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="emp-nombre">{e.nombre}</div>
+                      <div className="emp-depto">
+                        {+e.herramientas > 0 ? `${e.herramientas} pieza(s) asignada(s)` : 'sin herramientas'}
+                      </div>
+                    </div>
+                    {e.activo ? <span className="badge ok">Activo</span> : <span className="badge neutro">Inactivo</span>}
+                  </div>
+                  <div className="emp-actions">
+                    <button className="btn sm" onClick={() => setDetalle(e.id_empleado)}>Ver herramientas</button>
+                    <button className="btn ghost sm" onClick={() => setForm(e)}>✏️</button>
+                    <button className="btn ghost sm" onClick={() => toggle(e)}>{e.activo ? '🚫 Baja' : '✅ Alta'}</button>
+                    <button className="btn ghost sm" title="Eliminar definitivamente" onClick={() => setBorrar(e)}>🗑</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
 
@@ -173,6 +194,12 @@ export default function Empleados({ onAsignar }) {
       {detalle && (
         <DetalleEmpleado id={detalle} onCerrar={() => setDetalle(null)} onCambio={cargar}
           onAsignar={(id) => { setDetalle(null); onAsignar(id); }} />
+      )}
+      {borrar && (
+        <Confirmar titulo="Eliminar empleado"
+          mensaje={`¿Eliminar a "${borrar.nombre}" DEFINITIVAMENTE? Se borra también todo su historial de herramientas. Si solo dejó de trabajar aquí, usa mejor "🚫 Baja" para conservar el registro.`}
+          textoSi="Sí, eliminar"
+          onSi={() => { confirmarBorrar(borrar); setBorrar(null); }} onNo={() => setBorrar(null)} />
       )}
     </>
   );

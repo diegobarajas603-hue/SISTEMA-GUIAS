@@ -82,6 +82,7 @@ export default function Herramientas() {
   const [categoria, setCategoria] = useState('');
   const [form, setForm] = useState(null);
   const [borrar, setBorrar] = useState(null);
+  const [fotoModal, setFotoModal] = useState(null);
 
   const cargar = () => {
     api.get('/api/herramientas').then(setHerramientas).catch(() => {});
@@ -132,7 +133,9 @@ export default function Herramientas() {
           <div className="toolgrid">
             {visibles.map(h => (
               <div key={h.id_herramienta} className="tool-card" style={{ cursor: 'default' }}>
-                <Foto src={h.imagen} alt={h.nombre} />
+                <div onClick={() => h.imagen && setFotoModal(h)} style={{ cursor: h.imagen ? 'pointer' : 'default' }}>
+                  <Foto src={h.imagen} alt={h.nombre} />
+                </div>
                 <div className="tool-nombre">{h.nombre}</div>
                 <div className="tool-cat">{h.categoria_nombre || 'sin categoría'}</div>
                 <div style={{ margin: '7px 0 9px', display: 'flex', gap: 5, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -157,6 +160,23 @@ export default function Herramientas() {
           mensaje={`¿Eliminar "${borrar.nombre}" definitivamente? También se borra su historial de asignaciones.`}
           textoSi="Sí, eliminar"
           onSi={confirmarBorrar} onNo={() => setBorrar(null)} />
+      )}
+
+      {fotoModal && (
+        <Modal ancha titulo={`🔧 ${fotoModal.nombre}`} onCerrar={() => setFotoModal(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <img src={`/uploads/${fotoModal.imagen}`} style={{ maxWidth: '100%', maxHeight: 500, borderRadius: 12, objectFit: 'contain', background: 'var(--bg)' }} alt={fotoModal.nombre} />
+            <div style={{ textAlign: 'center', width: '100%' }}>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>{fotoModal.nombre}</div>
+              <div style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 12 }}>{fotoModal.categoria_nombre || 'sin categoría'}</div>
+              {fotoModal.descripcion && <div style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic', marginBottom: 8 }}>{fotoModal.descripcion}</div>}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <span className={`badge ${badgeEstado(fotoModal.estado)}`}>{fotoModal.estado || 'Bueno'}</span>
+                {+fotoModal.asignadas > 0 && <span className="badge azul">{fotoModal.asignadas} asignada(s)</span>}
+              </div>
+            </div>
+          </div>
+        </Modal>
       )}
     </>
   );

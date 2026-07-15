@@ -68,6 +68,8 @@ const SCHEMA = [
     fecha DATE DEFAULT NULL,
     hora TIME DEFAULT NULL,
     pdf VARCHAR(255) DEFAULT NULL,
+    departamento_id INT DEFAULT NULL,
+    descripcion LONGTEXT DEFAULT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
   `CREATE TABLE IF NOT EXISTS usuarios (
