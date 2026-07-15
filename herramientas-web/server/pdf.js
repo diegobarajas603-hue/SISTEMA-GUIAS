@@ -158,67 +158,91 @@ function responsiva(res, emp, tools, subtitulo) {
   doc.end();
 }
 
-/* ============ SALIDA DE ALMACÉN ============ */
+/* ============ SALIDA DE ALMACÉN (hoja de salida formal) ============ */
 function salidaAlmacen(res, s) {
   const doc = new PDFDocument({ size: 'LETTER', margins: { top: 34, bottom: 46, left: 34, right: 34 } });
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="${(s.folio || 'salida').replace(/[^A-Za-z0-9_-]/g, '_')}.pdf"`);
   doc.pipe(res);
 
-  /* ----- encabezado ----- */
+  const NAVY = '#1e293b';
+  const ROJO = '#dc2626';
+  const BORDE = '#475569';
+  const RENGLON = '#cbd5e1';
+
+  /* ----- encabezado: logo + recuadro de folio ----- */
   const logo = logoPath();
-  if (logo) doc.image(logo, 34, 26, { width: 180 });
-  doc.font('Helvetica').fontSize(9).fillColor(GRIS).text('GENERADO', 380, 32, { width: 198, align: 'right' });
-  doc.font('Helvetica-Bold').fontSize(13).fillColor('#000').text(fechaMx(), 380, 44, { width: 198, align: 'right' });
+  if (logo) doc.image(logo, 34, 28, { width: 168 });
+  doc.font('Helvetica').fontSize(8).fillColor(GRIS).text('FLETES TAURO S.A. DE C.V.', 34, 66);
 
-  /* ----- banner: título + folio ----- */
-  doc.rect(34, 92, 544, 74).fill(AZUL);
-  doc.font('Helvetica').fontSize(10).fillColor('#bfdbfe')
-    .text('SALIDA DE ALMACÉN  ·  FOLIO', 34, 106, { width: 544, align: 'center' });
-  doc.font('Helvetica-Bold').fontSize(26).fillColor('#fff')
-    .text(s.folio || '', 34, 124, { width: 544, align: 'center' });
+  doc.rect(430, 26, 148, 48).lineWidth(1.2).strokeColor(BORDE).stroke();
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(GRIS)
+    .text('FOLIO No.', 430, 34, { width: 148, align: 'center', characterSpacing: 1 });
+  doc.font('Helvetica-Bold').fontSize(17).fillColor(ROJO)
+    .text(s.folio || '—', 430, 47, { width: 148, align: 'center' });
 
-  /* ----- cajas de información ----- */
-  const caja = (x, y, w, h, titulo, valor) => {
-    doc.roundedRect(x, y, w, h, 6).lineWidth(1).strokeColor(LINEA).stroke();
-    doc.font('Helvetica').fontSize(8.5).fillColor(GRIS).text(titulo, x + 14, y + 10);
-    doc.font('Helvetica-Bold').fontSize(12).fillColor('#000').text(valor || '—', x + 14, y + 25, { width: w - 28, height: h - 30, ellipsis: true });
+  /* ----- banda de título ----- */
+  doc.rect(34, 88, 544, 30).fill(NAVY);
+  doc.font('Helvetica-Bold').fontSize(13).fillColor('#fff')
+    .text('HOJA DE SALIDA DE ALMACÉN', 34, 97, { width: 544, align: 'center', characterSpacing: 2 });
+
+  /* ----- cuadrícula de datos ----- */
+  const celda = (x, y, w, h, titulo, valor) => {
+    doc.rect(x, y, w, h).lineWidth(0.8).strokeColor(BORDE).stroke();
+    doc.font('Helvetica-Bold').fontSize(6.8).fillColor(GRIS).text(titulo, x + 8, y + 6, { characterSpacing: 0.5 });
+    doc.font('Helvetica-Bold').fontSize(11).fillColor('#000')
+      .text(valor || '', x + 8, y + 17, { width: w - 16, height: h - 20, ellipsis: true });
   };
 
   const [yy, mm, dd] = String(s.fecha || '').split('-');
-  const registrada = yy
-    ? `${dd}/${mm}/${yy} ${String(s.hora || '').slice(0, 5)}`.trim()
-    : (s.created_at ? fechaMx(new Date(s.created_at)) : fechaMx());
+  const fecha = yy ? `${dd} / ${mm} / ${yy}` : '';
+  const hora = String(s.hora || '').slice(0, 5);
 
-  doc.font('Helvetica-Bold').fontSize(14).fillColor(AZUL).text('INFORMACIÓN GENERAL', 34, 186);
-  caja(34, 212, 262, 52, 'RECIBE', s.nombre);
-  caja(316, 212, 262, 52, 'PROVEEDOR', s.proveedor);
-  caja(34, 274, 262, 52, 'FECHA Y HORA DE REGISTRO', registrada);
-  caja(316, 274, 262, 52, 'DEPARTAMENTO QUE USARÁ LA HERRAMIENTA', s.departamento);
+  celda(34, 118, 128, 38, 'FECHA DE SALIDA', fecha);
+  celda(162, 118, 88, 38, 'HORA', hora);
+  celda(250, 118, 328, 38, 'RECIBE (NOMBRE)', s.nombre);
+  celda(34, 156, 244, 38, 'PROVEEDOR', s.proveedor);
+  celda(278, 156, 300, 38, 'DEPARTAMENTO QUE USARÁ LA HERRAMIENTA', s.departamento);
 
-  /* ----- observaciones ----- */
-  doc.font('Helvetica-Bold').fontSize(14).fillColor(AZUL).text('OBSERVACIONES / MATERIAL QUE SALE', 34, 356);
-  doc.roundedRect(34, 380, 544, 230, 6).lineWidth(1).strokeColor(LINEA).stroke();
-  doc.font('Helvetica').fontSize(11.5).fillColor('#000')
-    .text(String(s.observaciones || ''), 52, 398, { width: 508, height: 196, align: 'left' });
+  /* ----- descripción del material (área con renglones) ----- */
+  doc.rect(34, 206, 544, 22).fillAndStroke('#e2e8f0', BORDE);
+  doc.font('Helvetica-Bold').fontSize(9.5).fillColor(NAVY)
+    .text('DESCRIPCIÓN DEL MATERIAL / HERRAMIENTA QUE SALE', 34, 212, { width: 544, align: 'center', characterSpacing: 1 });
 
-  /* ----- firmas ----- */
-  const yFirma = 668;
-  doc.moveTo(60, yFirma).lineTo(280, yFirma).lineWidth(1).strokeColor('#111').stroke();
-  doc.moveTo(332, yFirma).lineTo(552, yFirma).strokeColor('#111').stroke();
-  doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#000')
-    .text('ENTREGÓ / AUTORIZÓ', 60, yFirma + 7, { width: 220, align: 'center' });
-  doc.text('RECIBÍ DE CONFORMIDAD', 332, yFirma + 7, { width: 220, align: 'center' });
-  doc.font('Helvetica').fontSize(8.5).fillColor(GRIS)
-    .text('Almacén · Fletes Tauro', 60, yFirma + 20, { width: 220, align: 'center' });
-  doc.text(s.nombre || 'Recibe', 332, yFirma + 20, { width: 220, align: 'center' });
+  const yCuerpo = 228;
+  const renglones = 14;         // renglones de 24pt, como formato impreso
+  const altoCuerpo = renglones * 24 + 10;
+  doc.rect(34, yCuerpo, 544, altoCuerpo).lineWidth(0.8).strokeColor(BORDE).stroke();
+  for (let i = 0; i < renglones; i++) {
+    const ry = yCuerpo + 23 + i * 24;
+    doc.moveTo(46, ry).lineTo(566, ry).lineWidth(0.5).strokeColor(RENGLON).stroke();
+  }
+  doc.font('Helvetica').fontSize(11).fillColor('#000')
+    .text(String(s.observaciones || ''), 46, yCuerpo + 12, { width: 520, height: renglones * 24 - 12, lineGap: 11.4, ellipsis: true });
+
+  /* ----- nota ----- */
+  const yNota = yCuerpo + altoCuerpo + 10;
+  doc.font('Helvetica-Oblique').fontSize(7.5).fillColor(GRIS)
+    .text('Este documento ampara la salida del material arriba descrito. Consérvese para cualquier aclaración.', 34, yNota, { width: 544, align: 'center' });
+
+  /* ----- franja de firmas ----- */
+  const yFirmas = 632, hFirmas = 74;
+  const firma = (x, w, titulo, sub) => {
+    doc.rect(x, yFirmas, w, hFirmas).lineWidth(0.8).strokeColor(BORDE).stroke();
+    doc.moveTo(x + 18, yFirmas + 44).lineTo(x + w - 18, yFirmas + 44).lineWidth(0.8).strokeColor('#111').stroke();
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#000').text(titulo, x, yFirmas + 50, { width: w, align: 'center', characterSpacing: 0.5 });
+    doc.font('Helvetica').fontSize(7.2).fillColor(GRIS).text(sub || '', x + 6, yFirmas + 61, { width: w - 12, align: 'center', height: 9, ellipsis: true });
+  };
+  firma(34, 181, 'ENTREGÓ', 'Almacén');
+  firma(215, 181, 'AUTORIZÓ', 'Jefe de área');
+  firma(396, 182, 'RECIBIÓ', s.nombre || 'Nombre y firma');
 
   /* ----- pie de página ----- */
   doc.page.margins.bottom = 0; // evitar salto de página al escribir el pie
-  doc.moveTo(34, 750).lineTo(578, 750).lineWidth(0.5).strokeColor('#e5e7eb').stroke();
-  doc.font('Helvetica').fontSize(8).fillColor(GRIS);
-  doc.text('FLETES TAURO S.A. DE C.V. · Control de herramientas', 34, 757, { width: 320, lineBreak: false });
-  doc.text(`Salida de almacén · ${s.folio || ''}`, 380, 757, { width: 198, align: 'right', lineBreak: false });
+  doc.moveTo(34, 748).lineTo(578, 748).lineWidth(0.5).strokeColor('#94a3b8').stroke();
+  doc.font('Helvetica').fontSize(7.5).fillColor(GRIS);
+  doc.text('FLETES TAURO S.A. DE C.V. · Control de herramientas y almacén', 34, 755, { width: 340, lineBreak: false });
+  doc.text(`Generado el ${fechaMx()} · Folio ${s.folio || ''}`, 300, 755, { width: 278, align: 'right', lineBreak: false });
 
   doc.end();
 }
