@@ -68,8 +68,7 @@ const SCHEMA = [
     fecha DATE DEFAULT NULL,
     hora TIME DEFAULT NULL,
     pdf VARCHAR(255) DEFAULT NULL,
-    departamento_id INT DEFAULT NULL,
-    descripcion LONGTEXT DEFAULT NULL,
+    departamento VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
   `CREATE TABLE IF NOT EXISTS usuarios (
@@ -86,10 +85,22 @@ const SCHEMA = [
 // columnas agregadas después del lanzamiento: CREATE TABLE IF NOT EXISTS no las
 // agrega a tablas ya existentes, y un import de respaldo recrea la tabla sin ellas
 async function asegurarColumnas() {
-  const [cols] = await pool.query("SHOW COLUMNS FROM salidas_almacen LIKE 'departamento_id'");
-  if (!cols.length) {
-    await pool.query('ALTER TABLE salidas_almacen ADD COLUMN departamento_id INT DEFAULT NULL, ADD COLUMN descripcion LONGTEXT DEFAULT NULL');
-    console.log('[init] Columnas departamento_id y descripcion agregadas a salidas_almacen');
+  const hay = async (col) => {
+    const [c] = await pool.query('SHOW COLUMNS FROM salidas_almacen LIKE ?', [col]);
+    return c.length > 0;
+  };
+  if (!(await hay('departamento'))) {
+    await pool.query('ALTER TABLE salidas_almacen ADD COLUMN departamento VARCHAR(255) DEFAULT NULL');
+    console.log('[init] Columna departamento agregada a salidas_almacen');
+  }
+  // una versión anterior guardaba el departamento con un selector (departamento_id):
+  // pasar ese dato al texto libre para no perder lo ya capturado
+  if (await hay('departamento_id')) {
+    await pool.query(`
+      UPDATE salidas_almacen s
+      JOIN departamentos d ON s.departamento_id = d.id_departamento
+      SET s.departamento = d.nombre
+      WHERE (s.departamento IS NULL OR s.departamento = '')`);
   }
 }
 
