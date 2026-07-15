@@ -36,6 +36,7 @@ function DetalleEmpleado({ id, onCerrar, onCambio, onAsignar }) {
   const avisar = useToast();
   const [emp, setEmp] = useState(null);
   const [retirar, setRetirar] = useState(null);
+  const [busca, setBusca] = useState('');
 
   const cargar = () => api.get(`/api/empleados/${id}`).then(setEmp).catch(e => avisar(e.message, 'error'));
   useEffect(() => { cargar(); }, [id]);
@@ -52,6 +53,8 @@ function DetalleEmpleado({ id, onCerrar, onCambio, onAsignar }) {
 
   if (!emp) return null;
   const totalPiezas = emp.asignaciones.reduce((s, a) => s + (a.cantidad || 1), 0);
+  const q = normalizar(busca);
+  const visibles = emp.asignaciones.filter(a => !q || normalizar(`${a.nombre} ${a.categoria || ''}`).includes(q));
 
   return (
     <Modal ancha titulo={`👤 ${emp.nombre}`} onCerrar={onCerrar}>
@@ -65,8 +68,17 @@ function DetalleEmpleado({ id, onCerrar, onCambio, onAsignar }) {
         <button className="btn ok sm" onClick={() => onAsignar(emp.id_empleado)}>📦 Asignarle más</button>
       </div>
 
+      {emp.asignaciones.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <Buscador valor={busca} onCambio={setBusca}
+            placeholder="Buscar herramienta de este empleado..." total={visibles.length} />
+        </div>
+      )}
+
       {emp.asignaciones.length === 0 && <Vacio icono="📭" texto="No tiene herramientas asignadas" />}
-      {emp.asignaciones.map(a => (
+      {emp.asignaciones.length > 0 && visibles.length === 0 &&
+        <Vacio icono="🔍" texto="No tiene ninguna herramienta que coincida con la búsqueda" />}
+      {visibles.map(a => (
         <div className="list-row" key={a.id_asignacion}>
           <Foto src={a.imagen} mini />
           <div style={{ flex: 1, minWidth: 0 }}>

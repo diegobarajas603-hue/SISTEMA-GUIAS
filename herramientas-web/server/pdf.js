@@ -19,10 +19,13 @@ function fechaMx(d = new Date()) {
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+/* ---------- paleta de los documentos ---------- */
+const NAVY = '#1e293b';
+const ROJO = '#dc2626';
+const BORDE = '#475569';
+const RENGLON = '#cbd5e1';
+
 /* ============ RESPONSIVA DE HERRAMIENTAS ============ */
-const LINEA = '#d1d5db';
-const ZEBRA = '#f8fafc';
-const AZUL_SUAVE = '#eff6ff';
 
 function responsiva(res, emp, tools, subtitulo) {
   const doc = new PDFDocument({
@@ -34,113 +37,128 @@ function responsiva(res, emp, tools, subtitulo) {
   res.setHeader('Content-Disposition', 'inline; filename="responsiva.pdf"');
   doc.pipe(res);
 
-  /* ----- encabezado ----- */
-  const logo = logoPath();
-  if (logo) doc.image(logo, 34, 26, { width: 180 });
-  doc.font('Helvetica').fontSize(9).fillColor(GRIS).text('GENERADO', 380, 32, { width: 198, align: 'right' });
-  doc.font('Helvetica-Bold').fontSize(13).fillColor('#000').text(fechaMx(), 380, 44, { width: 198, align: 'right' });
-
-  /* ----- banner de título ----- */
-  doc.rect(34, 92, 544, 64).fill(AZUL);
-  doc.font('Helvetica-Bold').fontSize(19).fillColor('#fff')
-    .text('RESPONSIVA DE HERRAMIENTAS', 34, 108, { width: 544, align: 'center' });
-  doc.font('Helvetica').fontSize(9.5).fillColor('#bfdbfe')
-    .text(subtitulo || 'Todas las herramientas asignadas al colaborador', 34, 132, { width: 544, align: 'center' });
-
-  /* ----- cajas de información ----- */
-  const caja = (x, y, w, h, titulo, valor) => {
-    doc.roundedRect(x, y, w, h, 6).lineWidth(1).strokeColor(LINEA).stroke();
-    doc.font('Helvetica').fontSize(8.5).fillColor(GRIS).text(titulo, x + 14, y + 10);
-    doc.font('Helvetica-Bold').fontSize(12).fillColor('#000').text(valor || '—', x + 14, y + 25, { width: w - 28, height: h - 30, ellipsis: true });
-  };
   const totalPiezas = tools.reduce((s, t) => s + (t.cantidad || 1), 0);
-  caja(34, 170, 302, 52, 'COLABORADOR', emp.nombre);
-  caja(346, 170, 232, 52, 'DEPARTAMENTO', emp.departamento);
-  caja(34, 232, 302, 46, 'EMPRESA', 'FLETES TAURO S.A. DE C.V.');
-  caja(346, 232, 232, 46, 'TOTAL DE PIEZAS', String(totalPiezas));
+
+  /* ----- encabezado: logo + recuadro de fecha ----- */
+  const logo = logoPath();
+  if (logo) doc.image(logo, 34, 28, { width: 168 });
+  doc.font('Helvetica').fontSize(8).fillColor(GRIS).text('FLETES TAURO S.A. DE C.V.', 34, 66);
+
+  doc.rect(430, 26, 148, 48).lineWidth(1.2).strokeColor(BORDE).stroke();
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(GRIS)
+    .text('FECHA DE EMISIÓN', 430, 34, { width: 148, align: 'center', characterSpacing: 1 });
+  doc.font('Helvetica-Bold').fontSize(13).fillColor('#000')
+    .text(fechaMx(), 430, 49, { width: 148, align: 'center' });
+
+  /* ----- banda de título ----- */
+  doc.rect(34, 88, 544, 30).fill(NAVY);
+  doc.font('Helvetica-Bold').fontSize(13).fillColor('#fff')
+    .text('RESPONSIVA DE HERRAMIENTAS', 34, 97, { width: 544, align: 'center', characterSpacing: 2 });
+  doc.font('Helvetica').fontSize(8.5).fillColor(GRIS)
+    .text(subtitulo || 'Todas las herramientas asignadas al colaborador', 34, 124, { width: 544, align: 'center' });
+
+  /* ----- cuadrícula de datos ----- */
+  const celda = (x, y, w, h, titulo, valor) => {
+    doc.rect(x, y, w, h).lineWidth(0.8).strokeColor(BORDE).stroke();
+    doc.font('Helvetica-Bold').fontSize(6.8).fillColor(GRIS).text(titulo, x + 8, y + 6, { characterSpacing: 0.5 });
+    doc.font('Helvetica-Bold').fontSize(11).fillColor('#000')
+      .text(valor || '', x + 8, y + 17, { width: w - 16, height: h - 20, ellipsis: true });
+  };
+  celda(34, 140, 300, 38, 'COLABORADOR', emp.nombre);
+  celda(334, 140, 156, 38, 'DEPARTAMENTO', emp.departamento);
+  celda(490, 140, 88, 38, 'TOTAL DE PIEZAS', String(totalPiezas));
 
   /* ----- texto legal ----- */
-  doc.font('Helvetica').fontSize(9.5).fillColor('#111').text(
+  doc.font('Helvetica').fontSize(8.8).fillColor('#111').text(
     'Por medio del presente, se hace constar que el colaborador reconoce haber recibido de ' +
     'FLETES TAURO S.A. DE C.V. las herramientas listadas a continuación para el cumplimiento de sus funciones laborales. ' +
     'El colaborador se compromete a hacer un uso adecuado, responsable y exclusivamente laboral de dichas herramientas, ' +
     'a conservarlas en buen estado evitando cualquier deterioro derivado de un manejo inadecuado o negligente, y a ' +
     'devolverlas en las condiciones en que fueron entregadas —considerando el desgaste natural por uso— cuando le sean ' +
     'requeridas o al término de la relación laboral.',
-    34, 292, { align: 'justify', width: 544 }
+    34, 190, { align: 'justify', width: 544 }
   );
 
-  /* ----- tabla de herramientas ----- */
+  /* ----- tabla de herramientas (cuadrícula formal) ----- */
   // columnas: # (30) | herramienta (250) | categoría (116) | cant (48) | fecha (100)
-  const LIMITE = 686; // borde inferior útil para filas
+  const COLX = [34, 64, 314, 430, 478, 578];
+  const LIMITE = 688;
+  let segTop; // inicio del segmento de tabla en la página actual
+
   const encabezadoTabla = (y) => {
-    doc.rect(34, y, 544, 24).fill(AZUL);
-    doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#fff');
+    segTop = y;
+    doc.rect(34, y, 544, 22).fill(NAVY);
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#fff');
     doc.text('No.', 34, y + 7, { width: 30, align: 'center' });
     doc.text('HERRAMIENTA', 72, y + 7, { width: 234 });
     doc.text('CATEGORÍA', 320, y + 7, { width: 104 });
     doc.text('CANT.', 430, y + 7, { width: 48, align: 'center' });
     doc.text('ASIGNADA EL', 478, y + 7, { width: 96, align: 'center' });
-    return y + 24;
+    return y + 22;
+  };
+  const cerrarTabla = (yFin) => {
+    for (let i = 1; i < COLX.length - 1; i++) {
+      doc.moveTo(COLX[i], segTop + 22).lineTo(COLX[i], yFin).lineWidth(0.5).strokeColor(BORDE).stroke();
+    }
+    doc.rect(34, segTop, 544, yFin - segTop).lineWidth(0.8).strokeColor(BORDE).stroke();
   };
 
-  let y = encabezadoTabla(doc.y + 14);
+  let y = encabezadoTabla(doc.y + 12);
 
   if (!tools.length) {
-    doc.rect(34, y, 544, 26).fill(ZEBRA);
     doc.font('Helvetica-Oblique').fontSize(10).fillColor(GRIS)
       .text('— Sin herramientas asignadas —', 34, y + 8, { width: 544, align: 'center' });
     y += 26;
   }
 
   tools.forEach((t, i) => {
-    doc.font('Helvetica-Bold').fontSize(10);
+    doc.font('Helvetica-Bold').fontSize(9.5);
     const hNom = doc.heightOfString(t.nombre || '', { width: 234 });
-    doc.font('Helvetica').fontSize(9.5);
+    doc.font('Helvetica').fontSize(9);
     const hCat = doc.heightOfString(t.categoria || '', { width: 104 });
-    const alto = Math.max(22, Math.max(hNom, hCat) + 9);
+    const alto = Math.max(21, Math.max(hNom, hCat) + 8);
 
-    if (y + alto > LIMITE) {           // nueva página con su encabezado
+    if (y + alto > LIMITE) {            // nueva página con su encabezado
+      cerrarTabla(y);
       doc.addPage();
       y = encabezadoTabla(50);
     }
 
-    if (i % 2 === 0) doc.rect(34, y, 544, alto).fill(ZEBRA);
-    doc.font('Helvetica').fontSize(9.5).fillColor(GRIS)
+    doc.font('Helvetica').fontSize(9).fillColor(GRIS)
       .text(String(i + 1), 34, y + 6, { width: 30, align: 'center' });
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000')
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#000')
       .text(t.nombre || '', 72, y + 6, { width: 234 });
-    doc.font('Helvetica').fontSize(9.5).fillColor('#374151')
+    doc.font('Helvetica').fontSize(9).fillColor('#374151')
       .text(t.categoria || 'sin categoría', 320, y + 6, { width: 104 });
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000')
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#000')
       .text(String(t.cantidad || 1), 430, y + 6, { width: 48, align: 'center' });
-    doc.font('Helvetica').fontSize(9.5).fillColor('#374151')
+    doc.font('Helvetica').fontSize(9).fillColor('#374151')
       .text(t.fecha || '', 478, y + 6, { width: 96, align: 'center' });
     y += alto;
+    doc.moveTo(34, y).lineTo(578, y).lineWidth(0.5).strokeColor(RENGLON).stroke();
   });
 
-  if (tools.length) {                   // fila de total
-    if (y + 24 > LIMITE) { doc.addPage(); y = 50; }
-    doc.rect(34, y, 544, 24).fill(AZUL_SUAVE);
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(AZUL);
-    doc.text('TOTAL DE PIEZAS', 72, y + 7, { width: 340 });
-    doc.text(String(totalPiezas), 430, y + 7, { width: 48, align: 'center' });
-    y += 24;
+  if (tools.length) {                    // fila de total
+    if (y + 22 > LIMITE) { cerrarTabla(y); doc.addPage(); y = encabezadoTabla(50); }
+    doc.rect(34, y, 544, 22).fill('#e2e8f0');
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(NAVY);
+    doc.text('TOTAL DE PIEZAS', 72, y + 6, { width: 340 });
+    doc.text(String(totalPiezas), 430, y + 6, { width: 48, align: 'center' });
+    y += 22;
   }
-  doc.moveTo(34, y).lineTo(578, y).lineWidth(0.8).strokeColor(LINEA).stroke();
+  cerrarTabla(y);
 
-  /* ----- firmas ----- */
-  if (y + 130 > 710) { doc.addPage(); y = 90; }
-  const yFirma = Math.max(y + 76, 0);
-  doc.font('Helvetica').fontSize(10).fillColor('#000');
-  doc.moveTo(60, yFirma).lineTo(280, yFirma).lineWidth(1).strokeColor('#111').stroke();
-  doc.moveTo(332, yFirma).lineTo(552, yFirma).strokeColor('#111').stroke();
-  doc.font('Helvetica-Bold').fontSize(9.5)
-    .text('ENTREGÓ', 60, yFirma + 7, { width: 220, align: 'center' });
-  doc.text('RECIBÍ DE CONFORMIDAD', 332, yFirma + 7, { width: 220, align: 'center' });
-  doc.font('Helvetica').fontSize(8.5).fillColor(GRIS)
-    .text('Almacén · Fletes Tauro', 60, yFirma + 20, { width: 220, align: 'center' });
-  doc.text(emp.nombre || 'Colaborador', 332, yFirma + 20, { width: 220, align: 'center' });
+  /* ----- franja de firmas ----- */
+  if (y + 110 > 730) { doc.addPage(); y = 62; }
+  const yFirmas = y + 28, hFirmas = 74;
+  const firma = (x, w, titulo, sub) => {
+    doc.rect(x, yFirmas, w, hFirmas).lineWidth(0.8).strokeColor(BORDE).stroke();
+    doc.moveTo(x + 24, yFirmas + 44).lineTo(x + w - 24, yFirmas + 44).lineWidth(0.8).strokeColor('#111').stroke();
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#000').text(titulo, x, yFirmas + 50, { width: w, align: 'center', characterSpacing: 0.5 });
+    doc.font('Helvetica').fontSize(7.2).fillColor(GRIS).text(sub || '', x + 6, yFirmas + 61, { width: w - 12, align: 'center', height: 9, ellipsis: true });
+  };
+  firma(34, 272, 'ENTREGÓ', 'Almacén · Fletes Tauro');
+  firma(306, 272, 'RECIBÍ DE CONFORMIDAD', emp.nombre || 'Nombre y firma del colaborador');
 
   /* ----- pie de página con numeración ----- */
   const rango = doc.bufferedPageRange();
@@ -148,10 +166,10 @@ function responsiva(res, emp, tools, subtitulo) {
     doc.switchToPage(i);
     const mb = doc.page.margins.bottom;
     doc.page.margins.bottom = 0;      // evitar salto de página al escribir el pie
-    doc.moveTo(34, 750).lineTo(578, 750).lineWidth(0.5).strokeColor('#e5e7eb').stroke();
-    doc.font('Helvetica').fontSize(8).fillColor(GRIS);
-    doc.text('FLETES TAURO S.A. DE C.V. · Control de herramientas', 34, 757, { width: 320, lineBreak: false });
-    doc.text(`Página ${i - rango.start + 1} de ${rango.count}`, 380, 757, { width: 198, align: 'right', lineBreak: false });
+    doc.moveTo(34, 748).lineTo(578, 748).lineWidth(0.5).strokeColor('#94a3b8').stroke();
+    doc.font('Helvetica').fontSize(7.5).fillColor(GRIS);
+    doc.text('FLETES TAURO S.A. DE C.V. · Control de herramientas y almacén', 34, 755, { width: 340, lineBreak: false });
+    doc.text(`Generado el ${fechaMx()} · Página ${i - rango.start + 1} de ${rango.count}`, 280, 755, { width: 298, align: 'right', lineBreak: false });
     doc.page.margins.bottom = mb;
   }
 
@@ -164,11 +182,6 @@ function salidaAlmacen(res, s) {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="${(s.folio || 'salida').replace(/[^A-Za-z0-9_-]/g, '_')}.pdf"`);
   doc.pipe(res);
-
-  const NAVY = '#1e293b';
-  const ROJO = '#dc2626';
-  const BORDE = '#475569';
-  const RENGLON = '#cbd5e1';
 
   /* ----- encabezado: logo + recuadro de folio ----- */
   const logo = logoPath();
