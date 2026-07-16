@@ -44,8 +44,8 @@ const MENSAJES = {
   EN_BODEGA_MTY: (g) => `Tu envío ${g} fue recibido en nuestra sucursal y está siendo preparado para su siguiente etapa.`,
   EN_RUTA_ENTREGA_CDMX: (g) => `Tu envío ${g} se encuentra en ruta hacia la dirección de entrega.`,
   EN_RUTA_ENTREGA_MTY: (g) => `Tu envío ${g} se encuentra en ruta hacia la dirección de entrega.`,
-  ENTREGADO_CDMX: (g) => `Tu envío ${g} fue entregado correctamente. Gracias por confiar en nosotros.`,
-  ENTREGADO_MTY: (g) => `Tu envío ${g} fue entregado correctamente. Gracias por confiar en nosotros.`,
+  ENTREGADO_CDMX: (g) => `Tu envío ${g} fue entregado correctamente. Gracias por confiar en Fletes Tauro.`,
+  ENTREGADO_MTY: (g) => `Tu envío ${g} fue entregado correctamente. Gracias por confiar en Fletes Tauro.`,
 };
 
 function mensajeEstatus(numeroGuia, estatus) {

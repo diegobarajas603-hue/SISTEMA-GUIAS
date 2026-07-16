@@ -23,7 +23,8 @@
   button:disabled { background: #e58a8d; cursor: wait; }
 
   #resultado { display: none; border-top: 4px solid #d92027; }
-  .estatus-grande { font-size: 1.2rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 4px; color: #1a1a1a; }
+  .estatus-grande { font-size: 1.2rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 2px; color: #1a1a1a; }
+  .guia-num { margin: 0 0 10px; color: #6b6b6b; font-size: 0.92rem; font-weight: 600; }
   .mensaje { margin: 0; color: #4b4b4b; }
   .actualizado { margin: 10px 0 0; font-size: 0.8rem; color: #9a9a9a; }
 
@@ -85,6 +86,7 @@
 
   <div class="card" id="resultado">
     <p class="estatus-grande" id="resEstatus"></p>
+    <p class="guia-num" id="resGuia"></p>
     <p class="mensaje" id="resMensaje"></p>
     <div class="stepper" id="stepper"></div>
     <p class="actualizado" id="resActualizado"></p>
@@ -127,8 +129,8 @@
     EN_BODEGA_MTY: 'Recibido en sucursal',
     EN_RUTA_ENTREGA_CDMX: 'En proceso de entrega',
     EN_RUTA_ENTREGA_MTY: 'En proceso de entrega',
-    ENTREGADO_CDMX: 'Entregado',
-    ENTREGADO_MTY: 'Entregado',
+    ENTREGADO_CDMX: 'Envío entregado',
+    ENTREGADO_MTY: 'Envío entregado',
   };
 
   const DETALLES = {
@@ -138,8 +140,8 @@
     EN_BODEGA_MTY: 'Tu envío fue recibido en nuestra sucursal y está siendo preparado para su siguiente etapa.',
     EN_RUTA_ENTREGA_CDMX: 'Tu envío se encuentra en ruta hacia la dirección de entrega.',
     EN_RUTA_ENTREGA_MTY: 'Tu envío se encuentra en ruta hacia la dirección de entrega.',
-    ENTREGADO_CDMX: 'Tu envío fue entregado correctamente. Gracias por confiar en nosotros.',
-    ENTREGADO_MTY: 'Tu envío fue entregado correctamente. Gracias por confiar en nosotros.',
+    ENTREGADO_CDMX: 'El envío fue entregado correctamente. Gracias por confiar en Fletes Tauro.',
+    ENTREGADO_MTY: 'El envío fue entregado correctamente. Gracias por confiar en Fletes Tauro.',
   };
 
   function claseEstatus(estatus) {
@@ -173,17 +175,21 @@
     }).join('');
   }
 
+  // Nombre de cada plaza como lo ve el cliente
+  const NOMBRE_PLAZA = { MTY: 'Monterrey', CDMX: 'Tlalnepantla, Estado de México' };
+
   const EVENTOS = [
-    [/^Salio de bodega (MTY|CDMX) con destino a (MTY|CDMX)/, (m) => `Salió de bodega ${m[1]} con destino a ${m[2]}`],
-    [/^Llego a bodega (MTY|CDMX)/, (m) => `Llegó a bodega ${m[1]}`],
-    [/^Regreso a bodega (MTY|CDMX)/, (m) => `Regresó a bodega ${m[1]} (entrega no completada)`],
-    [/^Entregado a domicilio en (MTY|CDMX)/, (m) => `Entregado a domicilio en ${m[1]}`],
-    [/^Entregado en ocurre \(bodega (MTY|CDMX)\)/, (m) => `Entregado en bodega ${m[1]} (ocurre)`],
+    [/^Salio de bodega (MTY|CDMX) con destino a (MTY|CDMX)/, (m) => `El envío salió de ${NOMBRE_PLAZA[m[1]]} con destino a ${NOMBRE_PLAZA[m[2]]}.`],
+    [/^Llego a bodega (MTY|CDMX)/, (m) => `El envío fue recibido en nuestra sucursal de ${NOMBRE_PLAZA[m[1]]}.`],
+    [/^Regreso a bodega (MTY|CDMX)/, (m) => `El envío regresó a nuestra sucursal de ${NOMBRE_PLAZA[m[1]]}.`],
+    [/^Paquete en ruta de entrega en (MTY|CDMX)/, () => 'El envío se encuentra en proceso de entrega.'],
+    [/^Entregado a domicilio en (MTY|CDMX)/, () => 'Entrega realizada con éxito.'],
+    [/^Entregado en ocurre \(bodega (MTY|CDMX)\)/, () => 'Entrega realizada con éxito.'],
     // Textos de versiones anteriores del sistema
-    [/Llego a bodega de Ciudad de Mexico/, () => 'Llegó a bodega CDMX'],
-    [/Llego a bodega de Monterrey/, () => 'Llegó a bodega MTY'],
-    [/salio de Monterrey|hacia Ciudad de Mexico$/, () => 'Salió de bodega MTY con destino a CDMX'],
-    [/salio de Ciudad de Mexico|hacia Monterrey$/, () => 'Salió de bodega CDMX con destino a MTY'],
+    [/Llego a bodega de Ciudad de Mexico/, () => `El envío fue recibido en nuestra sucursal de ${NOMBRE_PLAZA.CDMX}.`],
+    [/Llego a bodega de Monterrey/, () => `El envío fue recibido en nuestra sucursal de ${NOMBRE_PLAZA.MTY}.`],
+    [/salio de Monterrey|hacia Ciudad de Mexico$/, () => `El envío salió de ${NOMBRE_PLAZA.MTY} con destino a ${NOMBRE_PLAZA.CDMX}.`],
+    [/salio de Ciudad de Mexico|hacia Monterrey$/, () => `El envío salió de ${NOMBRE_PLAZA.CDMX} con destino a ${NOMBRE_PLAZA.MTY}.`],
   ];
 
   function textoEvento(desc, accion) {
@@ -194,7 +200,7 @@
       }
       return desc;
     }
-    return accion === 'SALIDA' ? 'Salió de bodega' : 'Llegó a bodega';
+    return accion === 'SALIDA' ? 'El envío salió de nuestra sucursal.' : 'El envío fue recibido en nuestra sucursal.';
   }
 
   function fmtFecha(f) {
@@ -220,8 +226,9 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No pudimos consultar tu guía, intenta más tarde.');
 
-      $('resEstatus').textContent = (ETIQUETAS[data.estatus] || data.estatus) + ' - ' + data.numeroGuia;
+      $('resEstatus').textContent = ETIQUETAS[data.estatus] || data.estatus;
       $('resEstatus').className = 'estatus-grande ' + claseEstatus(data.estatus);
+      $('resGuia').textContent = 'Guía: ' + data.numeroGuia + (data.complemento ? ' · Complemento: ' + data.complemento : '');
       $('resMensaje').textContent = DETALLES[data.estatus] || data.mensaje;
       pintarStepper(data.estatus);
       $('resActualizado').textContent = 'Última actualización: ' + fmtFecha(data.actualizado_en);
