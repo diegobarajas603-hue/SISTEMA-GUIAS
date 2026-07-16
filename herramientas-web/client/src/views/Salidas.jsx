@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { Confirmar, Buscador, Vacio, Cargando, useToast, fechaBonita, normalizar } from '../ui.jsx';
 
+const hoy = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+
 export default function Salidas() {
   const avisar = useToast();
   const [salidas, setSalidas] = useState([]);
@@ -10,7 +12,7 @@ export default function Salidas() {
   const [guardando, setGuardando] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [errorFolio, setErrorFolio] = useState('');
-  const [form, setForm] = useState({ folio: '', nombre: '', departamento: '', trabajo: '', observaciones: '' });
+  const [form, setForm] = useState({ folio: '', fecha: hoy(), nombre: '', departamento: '', trabajo: '', observaciones: '' });
 
   const cargar = async () => {
     setCargando(true);
@@ -34,7 +36,7 @@ export default function Salidas() {
     try {
       const r = await api.post('/api/salidas', form);
       avisar(`Salida ${form.folio} registrada`);
-      setForm({ folio: '', nombre: '', departamento: '', trabajo: '', observaciones: '' });
+      setForm({ folio: '', fecha: hoy(), nombre: '', departamento: '', trabajo: '', observaciones: '' });
       cargar();
       window.open(`/api/salidas/${r.id}/pdf`, '_blank');
     } catch (err) {
@@ -63,6 +65,9 @@ export default function Salidas() {
         <div className="field"><label>Folio</label>
           <input className="input" required placeholder="Ej: SAL-0001"
             value={form.folio} onChange={e => set('folio', e.target.value)} /></div>
+        <div className="field"><label>Fecha de la salida</label>
+          <input className="input" type="date" required
+            value={form.fecha} onChange={e => set('fecha', e.target.value)} /></div>
         <div className="field"><label>Nombre (quien recibe)</label>
           <input className="input" required value={form.nombre} onChange={e => set('nombre', e.target.value)} /></div>
         <div className="field"><label>¿Para qué departamento será usada la herramienta?</label>
@@ -102,7 +107,7 @@ export default function Salidas() {
                       <td>{s.nombre}</td>
                       <td style={{ fontSize: 13, color: 'var(--muted)' }}>{s.departamento || '—'}</td>
                       <td style={{ fontSize: 13, color: 'var(--muted)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.trabajo || ''}>{s.trabajo || '—'}</td>
-                      <td style={{ color: 'var(--muted)', fontSize: 13 }}>{fechaBonita(s.created_at)}</td>
+                      <td style={{ color: 'var(--muted)', fontSize: 13 }}>{fechaBonita(s.fecha || s.created_at)}</td>
                       <td style={{ textAlign: 'right' }}>
                         <a className="btn ghost sm" href={`/api/salidas/${s.id_salida}/pdf`} target="_blank" rel="noreferrer">📄 PDF</a>{' '}
                         <button className="btn ghost sm" onClick={() => setBorrar(s)}>🗑</button>

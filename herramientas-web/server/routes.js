@@ -7,7 +7,7 @@ const os = require('os');
 const mysql = require('mysql2/promise');
 const unzipper = require('unzipper');
 
-const { pool, asegurarColumnas, UPLOADS_DIR } = require('./db');
+const { pool, asegurarColumnas, ahoraMx, UPLOADS_DIR } = require('./db');
 const { firmar, setCookie, clearCookie, requireAuth, requireAdmin } = require('./auth');
 const { responsiva, salidaAlmacen } = require('./pdf');
 
@@ -277,9 +277,7 @@ r.post('/asignaciones', wrap(async (req, res) => {
   const items = Array.isArray(req.body.items) ? req.body.items : [];
   if (!empleado || !items.length) return res.status(400).json({ error: 'Elige empleado y al menos una herramienta' });
 
-  const p = n => String(n).padStart(2, '0');
-  const d = new Date();
-  const lote = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  const lote = ahoraMx().fechaHora;
 
   for (const it of items) {
     const hid = +it.herramienta_id;
@@ -293,7 +291,7 @@ r.post('/asignaciones', wrap(async (req, res) => {
 }));
 
 r.post('/asignaciones/:id/retirar', wrap(async (req, res) => {
-  await pool.query('UPDATE asignaciones SET activa=0, fecha_fin=NOW() WHERE id_asignacion=?', [+req.params.id]);
+  await pool.query('UPDATE asignaciones SET activa=0, fecha_fin=? WHERE id_asignacion=?', [ahoraMx().fechaHora, +req.params.id]);
   res.json({ ok: true });
 }));
 
@@ -355,17 +353,15 @@ r.post('/salidas', wrap(async (req, res) => {
   const observaciones = (req.body.observaciones || '').trim();
   const departamento = (req.body.departamento || '').trim();
   const trabajo = (req.body.trabajo || '').trim();
+  // la fecha la elige el usuario (para capturar salidas de días anteriores)
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.body.fecha || '') ? req.body.fecha : ahoraMx().fecha;
   if (!folio || !nombre || !observaciones || !trabajo) return res.status(400).json({ error: 'Llena todos los campos' });
   const [dup] = await pool.query('SELECT 1 FROM salidas_almacen WHERE folio=?', [folio]);
   if (dup.length) return res.status(409).json({ error: `El folio "${folio}" ya existe — la salida NO se registró` });
 
-  const p = n => String(n).padStart(2, '0');
-  const d = new Date();
   const [ins] = await pool.query(
     'INSERT INTO salidas_almacen(folio, nombre, observaciones, departamento, trabajo, fecha, hora, pdf) VALUES(?,?,?,?,?,?,?,?)',
-    [folio, nombre, observaciones, departamento, trabajo,
-      `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
-      `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`,
+    [folio, nombre, observaciones, departamento, trabajo, fecha, ahoraMx().hora,
       folio.replace(/[^A-Za-z0-9_-]/g, '_') + '.pdf']);
   res.json({ id: ins.insertId });
 }));

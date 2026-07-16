@@ -23,6 +23,22 @@ const pool = typeof base === 'string'
   ? mysql.createPool({ uri: base, ...comunes })
   : mysql.createPool({ ...base, ...comunes });
 
+/* ---------- hora local de México (el servidor corre en UTC) ---------- */
+const APP_TZ = process.env.APP_TZ || 'America/Monterrey';
+function ahoraMx(d = new Date()) {
+  const p = {};
+  for (const parte of new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+  }).formatToParts(d)) p[parte.type] = parte.value;
+  return {
+    fecha: `${p.year}-${p.month}-${p.day}`,                                   // YYYY-MM-DD
+    hora: `${p.hour}:${p.minute}:${p.second}`,                                // HH:MM:SS
+    fechaHora: `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`,
+    bonita: `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`             // DD/MM/YYYY HH:MM
+  };
+}
+
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS departamentos (
     id_departamento INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -135,4 +151,4 @@ async function init() {
   }
 }
 
-module.exports = { pool, init, asegurarColumnas, UPLOADS_DIR };
+module.exports = { pool, init, asegurarColumnas, ahoraMx, UPLOADS_DIR };

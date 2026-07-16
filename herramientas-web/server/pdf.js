@@ -1,7 +1,7 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
-const { UPLOADS_DIR } = require('./db');
+const { UPLOADS_DIR, ahoraMx } = require('./db');
 
 const AZUL = '#1d4ed8';
 const GRIS = '#6b7280';
@@ -14,9 +14,9 @@ function logoPath() {
   return null;
 }
 
+// siempre en hora de México, sin importar la zona horaria del servidor
 function fechaMx(d = new Date()) {
-  const p = n => String(n).padStart(2, '0');
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return ahoraMx(d).bonita;
 }
 
 /* ---------- paleta de los documentos ---------- */
