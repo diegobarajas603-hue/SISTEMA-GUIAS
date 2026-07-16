@@ -36,15 +36,16 @@ function entregado(plaza) {
   return `ENTREGADO_${plaza}`;
 }
 
+// Mensajes que ve el cliente (rastreo publico y WhatsApp)
 const MENSAJES = {
-  EN_TRANSITO_A_CDMX: (g) => `Tu envio ${g} salio de bodega MTY y esta en transito hacia CDMX.`,
-  EN_TRANSITO_A_MTY: (g) => `Tu envio ${g} salio de bodega CDMX y esta en transito hacia MTY.`,
-  EN_BODEGA_CDMX: (g) => `Tu envio ${g} llego a bodega CDMX y esta listo.`,
-  EN_BODEGA_MTY: (g) => `Tu envio ${g} llego a bodega MTY y esta listo.`,
-  EN_RUTA_ENTREGA_CDMX: (g) => `Tu envio ${g} esta en ruta de entrega en CDMX.`,
-  EN_RUTA_ENTREGA_MTY: (g) => `Tu envio ${g} esta en ruta de entrega en MTY.`,
-  ENTREGADO_CDMX: (g) => `Tu envio ${g} fue entregado. Gracias por tu preferencia.`,
-  ENTREGADO_MTY: (g) => `Tu envio ${g} fue entregado. Gracias por tu preferencia.`,
+  EN_TRANSITO_A_CDMX: (g) => `Tu envío ${g} se encuentra en ruta hacia nuestro centro de distribución.`,
+  EN_TRANSITO_A_MTY: (g) => `Tu envío ${g} se encuentra en ruta hacia nuestro centro de distribución.`,
+  EN_BODEGA_CDMX: (g) => `Tu envío ${g} fue recibido en nuestra sucursal y está siendo preparado para su siguiente etapa.`,
+  EN_BODEGA_MTY: (g) => `Tu envío ${g} fue recibido en nuestra sucursal y está siendo preparado para su siguiente etapa.`,
+  EN_RUTA_ENTREGA_CDMX: (g) => `Tu envío ${g} se encuentra en ruta hacia la dirección de entrega.`,
+  EN_RUTA_ENTREGA_MTY: (g) => `Tu envío ${g} se encuentra en ruta hacia la dirección de entrega.`,
+  ENTREGADO_CDMX: (g) => `Tu envío ${g} fue entregado correctamente. Gracias por confiar en nosotros.`,
+  ENTREGADO_MTY: (g) => `Tu envío ${g} fue entregado correctamente. Gracias por confiar en nosotros.`,
 };
 
 function mensajeEstatus(numeroGuia, estatus) {

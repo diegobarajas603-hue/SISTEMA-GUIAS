@@ -121,25 +121,25 @@
   actualizarBotonWa(null);
 
   const ETIQUETAS = {
-    EN_TRANSITO_A_CDMX: 'En tránsito a CDMX',
-    EN_TRANSITO_A_MTY: 'En tránsito a MTY',
-    EN_BODEGA_CDMX: 'En bodega CDMX',
-    EN_BODEGA_MTY: 'En bodega MTY',
-    EN_RUTA_ENTREGA_CDMX: 'En ruta de entrega',
-    EN_RUTA_ENTREGA_MTY: 'En ruta de entrega',
+    EN_TRANSITO_A_CDMX: 'En tránsito',
+    EN_TRANSITO_A_MTY: 'En tránsito',
+    EN_BODEGA_CDMX: 'Recibido en sucursal',
+    EN_BODEGA_MTY: 'Recibido en sucursal',
+    EN_RUTA_ENTREGA_CDMX: 'En proceso de entrega',
+    EN_RUTA_ENTREGA_MTY: 'En proceso de entrega',
     ENTREGADO_CDMX: 'Entregado',
     ENTREGADO_MTY: 'Entregado',
   };
 
   const DETALLES = {
-    EN_TRANSITO_A_CDMX: 'Tu envío salió de bodega MTY y está en tránsito hacia CDMX.',
-    EN_TRANSITO_A_MTY: 'Tu envío salió de bodega CDMX y está en tránsito hacia MTY.',
-    EN_BODEGA_CDMX: 'Tu envío llegó a bodega CDMX y está listo.',
-    EN_BODEGA_MTY: 'Tu envío llegó a bodega MTY y está listo.',
-    EN_RUTA_ENTREGA_CDMX: 'Tu paquete está en ruta de entrega en CDMX.',
-    EN_RUTA_ENTREGA_MTY: 'Tu paquete está en ruta de entrega en MTY.',
-    ENTREGADO_CDMX: 'Tu envío fue entregado. Gracias por tu preferencia.',
-    ENTREGADO_MTY: 'Tu envío fue entregado. Gracias por tu preferencia.',
+    EN_TRANSITO_A_CDMX: 'Tu envío se encuentra en ruta hacia nuestro centro de distribución.',
+    EN_TRANSITO_A_MTY: 'Tu envío se encuentra en ruta hacia nuestro centro de distribución.',
+    EN_BODEGA_CDMX: 'Tu envío fue recibido en nuestra sucursal y está siendo preparado para su siguiente etapa.',
+    EN_BODEGA_MTY: 'Tu envío fue recibido en nuestra sucursal y está siendo preparado para su siguiente etapa.',
+    EN_RUTA_ENTREGA_CDMX: 'Tu envío se encuentra en ruta hacia la dirección de entrega.',
+    EN_RUTA_ENTREGA_MTY: 'Tu envío se encuentra en ruta hacia la dirección de entrega.',
+    ENTREGADO_CDMX: 'Tu envío fue entregado correctamente. Gracias por confiar en nosotros.',
+    ENTREGADO_MTY: 'Tu envío fue entregado correctamente. Gracias por confiar en nosotros.',
   };
 
   function claseEstatus(estatus) {
@@ -150,7 +150,7 @@
 
   // Barra de progreso: 4 etapas del envio. El indice "actual" indica cuantas
   // ya se completaron (las anteriores llevan check, esa es la etapa en curso).
-  const PASOS = ['En camino', 'En bodega', 'En reparto', 'Entregado'];
+  const PASOS = ['En tránsito', 'Recibido en sucursal', 'En proceso de entrega', 'Entregado'];
 
   function pasoActual(estatus) {
     if (estatus.startsWith('ENTREGADO')) return 4; // todas completas
