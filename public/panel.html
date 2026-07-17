@@ -1297,7 +1297,9 @@
     document.querySelectorAll('#revOpciones button').forEach((b) => b.classList.toggle('activa', b.dataset.rev === revTipo));
     $('revNumeroWrap').style.display = revTipo === 'solo' ? 'none' : '';
     $('revNumeroLabel').textContent = revTipo === 'cancelada' ? 'Numero de la guia nueva' : 'Numero del complemento';
-    $('revNumero').placeholder = revTipo === 'cancelada' ? 'AN... (sale de MTY) o BN... (sale de CDMX)' : '';
+    const prefGuia = /^(AN|BN)/.exec(guiaDetalleActual || '');
+    $('revNumero').placeholder =
+      revTipo === 'cancelada' ? (prefGuia ? `Debe empezar con ${prefGuia[1]}, igual que la guia cancelada` : 'AN... o BN...') : '';
   }
 
   $('btnRevertir').addEventListener('click', () => {

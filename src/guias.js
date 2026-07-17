@@ -318,10 +318,16 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
     if (resolucion && resolucion.tipo === 'cancelada') {
       const nuevo = normalizarNumero(resolucion.numero, 'El nuevo numero de guia');
       if (nuevo === numeroGuia) throw new Error('El nuevo numero debe ser diferente al numero actual');
-      // El numero nuevo pasa a ser el numero operativo de la guia: debe tener
-      // un prefijo de plaza valido (AN = sale de MTY, BN = sale de CDMX) para
-      // que los escaneos de salida posteriores no lo rechacen.
-      if (!nuevo.startsWith('AN') && !nuevo.startsWith('BN')) {
+      // El numero nuevo pasa a ser el numero operativo de la guia y debe
+      // conservar el prefijo de la guia cancelada: una AN se reemplaza con
+      // otra AN y una BN con otra BN (el prefijo indica la plaza de salida).
+      const prefijo = /^(AN|BN)/.exec(numeroGuia)?.[1];
+      if (prefijo) {
+        if (!nuevo.startsWith(prefijo)) {
+          throw new Error(`La guia ${numeroGuia} es ${prefijo}: el nuevo numero tambien debe empezar con ${prefijo}`);
+        }
+      } else if (!nuevo.startsWith('AN') && !nuevo.startsWith('BN')) {
+        // Guias antiguas sin prefijo: al menos exigir un prefijo valido
         throw new Error('El nuevo numero debe empezar con AN (guia de MTY) o BN (guia de CDMX)');
       }
       await verificarNumeroDisponible(nuevo, client);
