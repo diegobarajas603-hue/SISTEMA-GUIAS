@@ -4,6 +4,13 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+// Un error en una conexion inactiva (p. ej. el servidor de base de datos se
+// reinicia o corta la conexion) no debe tumbar el proceso: el pool descarta
+// esa conexion y abre otra en el siguiente uso.
+pool.on('error', (e) => {
+  console.error('[db] Error en conexion inactiva del pool (se recupera solo):', e.message);
+});
+
 async function init() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS guias (
