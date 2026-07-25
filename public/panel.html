@@ -14,7 +14,7 @@
   aside { width: 240px; background: #141414; color: #a3a3a3; display: flex; flex-direction: column; flex-shrink: 0; }
   .logo { padding: 16px 14px 14px; background: #fff; border-bottom: 3px solid #d92027; border-right: 1px solid #d4d4d8; }
   .logo-card { background: #fff; padding: 0 4px; }
-  .logo-card img { width: 100%; display: block; }
+  .logo-card img { width: 70%; margin: 0 auto; display: block; }
   .logo small { display: block; color: #7a7a7a; font-size: 0.72rem; margin-top: 8px; text-align: center; letter-spacing: 0.04em; }
   nav { flex: 1; padding: 12px 10px; }
   .sec { display: block; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: #6b6b6b; margin: 16px 10px 7px; }
@@ -38,15 +38,47 @@
   h2.titulo-card { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.07em; color: #8a8a8a; margin: 0 0 14px; }
 
   /* KPIs */
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .kpi { background: #fff; border-radius: 14px; padding: 14px 16px; border: 1px solid #ececee; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.04); border-top: 3px solid #d4d4d8; cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: #fff; border-radius: 14px; padding: 15px 16px; border: 1px solid #ececee; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.04); cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
   .kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.06), 0 10px 24px rgba(0,0,0,0.08); }
-  .kpi.rojo { border-top-color: #d92027; }
-  .kpi.ambar { border-top-color: #f59e0b; }
-  .kpi.verde { border-top-color: #16a34a; }
-  .kpi.azul { border-top-color: #3b82f6; }
-  .kpi .valor { font-size: 1.7rem; font-weight: 800; }
-  .kpi .etiqueta { font-size: 0.78rem; color: #71717a; margin-top: 2px; }
+  .kpi .valor { font-size: 1.8rem; font-weight: 800; line-height: 1.1; }
+  .kpi .etiqueta { font-size: 0.78rem; color: #71717a; margin-top: 4px; }
+  .kpi .chip { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .kpi .chip svg { width: 20px; height: 20px; }
+
+  /* Selector de rango de las graficas */
+  .rango { display: flex; align-items: center; gap: 12px; margin: 2px 0 14px; font-size: 0.84rem; color: #71717a; flex-wrap: wrap; }
+  .rango-btns { display: flex; background: #fff; border: 1px solid #e4e4e7; border-radius: 10px; padding: 3px; gap: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .rango-btns button { border: none; background: none; padding: 7px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #52525b; cursor: pointer; }
+  .rango-btns button.activa { background: #d92027; color: #fff; }
+
+  /* Tarjetas de graficas */
+  .grid-charts { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-bottom: 16px; align-items: stretch; }
+  .chart-card { margin-bottom: 0; display: flex; flex-direction: column; }
+  .chart-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+  .chart-kpi { font-size: 1.65rem; font-weight: 800; margin: 2px 0 4px; }
+  .chart-kpi small { font-size: 0.78rem; font-weight: 500; color: #8a8a8a; margin-left: 7px; }
+  .leyenda { display: flex; gap: 14px; font-size: 0.78rem; color: #52525b; align-items: center; padding-top: 4px; flex-wrap: wrap; }
+  .leyenda .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .chart-wrap { position: relative; margin-top: 4px; transition: opacity 0.15s; }
+  .chart-wrap.cargando { opacity: 0.45; }
+  .chart-wrap svg { display: block; width: 100%; height: auto; }
+  .chart-wrap svg text { font-family: inherit; }
+  .seg { transition: filter 0.1s; }
+  .seg.lift { filter: brightness(1.16); }
+
+  /* Tooltip de las graficas */
+  .viz-tip { position: fixed; z-index: 60; background: #1a1a1a; color: #fff; border-radius: 9px; padding: 9px 12px; font-size: 0.8rem; pointer-events: none; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.28); min-width: 160px; }
+  .viz-tip .tfecha { color: #a3a3a3; font-size: 0.72rem; margin-bottom: 5px; text-transform: capitalize; }
+  .viz-tip .fila { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+  .viz-tip .fila .clave { flex: 1; color: #d4d4d4; }
+  .viz-tip .fila b { font-size: 0.92rem; }
+  .viz-tip .fila.total { border-top: 1px solid #3a3a3a; margin-top: 6px; padding-top: 6px; }
+  .viz-tip .raya { display: inline-block; width: 10px; height: 3px; border-radius: 2px; }
+
+  @media (max-width: 1020px) {
+    .grid-charts { grid-template-columns: 1fr; }
+  }
 
   /* Botones y campos */
   button.primario { padding: 11px 18px; border: none; border-radius: 8px; background: #d92027; color: #fff; font-weight: 700; font-size: 0.92rem; cursor: pointer; }
@@ -166,7 +198,7 @@
   #loginOverlay { position: fixed; inset: 0; background: #141414; display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
   .login-card { background: #fff; border-radius: 16px; padding: 28px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
   .login-card .logo-login { background: #fff; border: 1px solid #ececee; border-radius: 10px; padding: 10px 14px; margin-bottom: 18px; }
-  .login-card .logo-login img { width: 100%; display: block; }
+  .login-card .logo-login img { width: 62%; margin: 0 auto; display: block; }
   .login-card h2 { margin: 0 0 4px; font-size: 1.25rem; }
   .login-card .sub { margin: 0 0 8px; font-size: 0.85rem; color: #71717a; }
   .login-card input { width: 100%; }
@@ -180,6 +212,21 @@
   .usuario-pie .quien small { display: block; color: #8a8a8a; font-size: 0.7rem; text-transform: capitalize; }
   .btn-salir { background: #262626; border: none; color: #d4d4d8; border-radius: 8px; padding: 7px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; flex-shrink: 0; }
   .btn-salir:hover { background: #d92027; color: #fff; }
+
+  /* Modal para revertir el ultimo escaneo (con cancelacion o complemento) */
+  #modalRevertir { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 95; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #modalRevertir.abierto { display: flex; }
+  .rev-opciones { display: flex; flex-direction: column; gap: 8px; }
+  .rev-opciones button { text-align: left; padding: 12px 14px; border: 2px solid #d4d4d8; border-radius: 8px; background: #fff; color: #1a1a1a; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+  .rev-opciones button.activa { border-color: #d92027; background: #fef2f2; }
+  .rev-opciones button small { display: block; font-weight: 400; color: #71717a; margin-top: 2px; }
+
+  /* Boton para ver/ocultar la contraseña */
+  .campo-pass { position: relative; display: block; }
+  .campo-pass input { width: 100%; padding-right: 42px; }
+  .ver-pass { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); border: none; background: none; cursor: pointer; color: #8a8a8a; padding: 6px; display: flex; border-radius: 6px; }
+  .ver-pass:hover { color: #1a1a1a; background: #f4f4f5; }
+  .ver-pass svg { width: 18px; height: 18px; }
 
   /* Mensajes en formularios de Configuracion */
   .msg-form { display: none; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-top: 12px; }
@@ -197,7 +244,10 @@
     nav { display: flex; overflow-x: auto; padding: 8px; }
     .sec { display: none; }
     .nav-item { width: auto; white-space: nowrap; }
-    .plaza-pie { display: none; }
+    /* En moviles el pie se vuelve una barra compacta: la plaza a la izquierda
+       y el usuario con su boton Salir a la derecha */
+    .plaza-pie { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+    .usuario-pie { margin-top: 0; }
     .grid-2 { grid-template-columns: 1fr; }
     .topbar input { width: 100%; }
   }
@@ -208,7 +258,7 @@
 <!-- ============ Login ============ -->
 <div id="loginOverlay">
   <form class="login-card" id="formLogin" autocomplete="on">
-    <div class="logo-login"><img src="/logo-tauro.png" alt="Fletes Tauro" onerror="this.onerror=null;this.src='/logo.svg'" /></div>
+    <div class="logo-login"><img src="/logo-ft.svg" alt="Fletes Tauro" onerror="this.onerror=null;this.src='/logo-tauro.png'" /></div>
     <h2>Iniciar sesion</h2>
     <p class="sub">Sistema de guias MTY &harr; CDMX</p>
     <label for="loginUsuario">Usuario</label>
@@ -224,7 +274,7 @@
 
   <aside>
     <div class="logo">
-      <div class="logo-card"><img src="/logo-tauro.png" alt="Fletes Tauro" onerror="this.onerror=null;this.src='/logo.svg'" /></div>
+      <div class="logo-card"><img src="/logo-ft.svg" alt="Fletes Tauro" onerror="this.onerror=null;this.src='/logo-tauro.png'" /></div>
       <small>Sistema de guias</small>
     </div>
     <nav>
@@ -256,6 +306,38 @@
       <!-- ============ Dashboard ============ -->
       <section id="v-dashboard" style="display:none">
         <div class="kpis" id="kpis"></div>
+        <div class="rango">
+          <span>Actividad de los ultimos</span>
+          <div class="rango-btns" id="rangoBtns">
+            <button data-dias="7">7 dias</button>
+            <button data-dias="14">14 dias</button>
+            <button data-dias="30">30 dias</button>
+          </div>
+        </div>
+        <div class="grid-charts">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div>
+                <h2 class="titulo-card" style="margin-bottom:4px;">Guias enviadas por dia</h2>
+                <div class="chart-kpi" id="envTotal"></div>
+              </div>
+              <div class="leyenda">
+                <span><i class="sw" style="background:#2a78d6"></i>Salieron de MTY</span>
+                <span><i class="sw" style="background:#d92027"></i>Salieron de CDMX</span>
+              </div>
+            </div>
+            <div class="chart-wrap" id="chartEnviadas"></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div>
+                <h2 class="titulo-card" style="margin-bottom:4px;">Entregas por dia</h2>
+                <div class="chart-kpi" id="entTotal"></div>
+              </div>
+            </div>
+            <div class="chart-wrap" id="chartEntregas"></div>
+          </div>
+        </div>
         <div class="card">
           <h2 class="titulo-card">Actividad reciente</h2>
           <div class="tabla-scroll">
@@ -323,10 +405,18 @@
               <div><span class="k">Registrada</span><span id="detCreada"></span></div>
               <div><span class="k">Ultima actualizacion</span><span id="detActualizada"></span></div>
               <div><span class="k">Escaneos</span><span id="detEscaneos"></span></div>
+              <div id="detCompWrap" style="display:none"><span class="k">Complemento</span><span id="detComplemento"></span></div>
+              <div id="detAnteriorWrap" style="display:none"><span class="k">Numero anterior</span><span id="detAnterior"></span></div>
             </div>
             <button class="btn-peligro" id="btnRevertir" style="display:none; margin-top:14px;">Revertir ultimo escaneo</button>
           </div>
-          <div id="barcodeWrap"><svg id="barcode"></svg></div>
+          <div id="barcodeWrap">
+            <svg id="barcode"></svg>
+            <div id="barcodeCompWrap" style="display:none">
+              <div class="nota" style="margin:10px 0 2px;">Complemento</div>
+              <svg id="barcodeComp"></svg>
+            </div>
+          </div>
         </div>
         <div class="card">
           <h2 class="titulo-card">Progreso del envio</h2>
@@ -442,6 +532,29 @@
   </main>
 </div>
 
+<!-- ============ Modal: revertir ultimo escaneo ============ -->
+<div id="modalRevertir">
+  <div class="card" style="max-width:480px; width:100%; margin:0;">
+    <h2 class="titulo-card">Revertir ultimo escaneo</h2>
+    <p class="nota" id="revIntro"></p>
+    <label>¿Que paso con la guia?</label>
+    <div class="rev-opciones" id="revOpciones">
+      <button type="button" data-rev="solo" class="activa">Solo corregir un escaneo equivocado<small>La guia regresa a su estatus anterior y conserva su numero.</small></button>
+      <button type="button" data-rev="cancelada">La guia se cancelo y se hizo una nueva<small>La guia toma el numero de la nueva; el numero anterior queda registrado en el historial.</small></button>
+      <button type="button" data-rev="complemento">Se hizo un complemento<small>La guia conserva sus dos numeros (el original y el del complemento) y ambos sirven para rastrear.</small></button>
+    </div>
+    <div id="revNumeroWrap" style="display:none;">
+      <label id="revNumeroLabel" for="revNumero">Numero de la guia nueva</label>
+      <input type="text" id="revNumero" autocomplete="off" style="width:100%;" />
+    </div>
+    <div class="msg-form" id="msgRevertir"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+      <button class="btn-sec" id="revCerrar" type="button">Cancelar</button>
+      <button class="primario" id="revConfirmar" type="button">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <script src="/jsbarcode.min.js" onerror="window.JsBarcode=null"></script>
 <script>
   const $ = (id) => document.getElementById(id);
@@ -464,6 +577,8 @@
     ENTREGA: 'Entregado',
     ESCANEO_REPETIDO: 'Escaneo repetido',
     CORRECCION: 'Correccion',
+    CAMBIO_NUMERO: 'Cambio de numero',
+    COMPLEMENTO: 'Complemento',
     INGRESO: 'Ingreso',
   };
 
@@ -512,6 +627,38 @@
     return d.innerHTML;
   }
 
+  // ---------- Ver/ocultar contraseñas ----------
+  // Agrega el boton del "ojo" a todos los campos de contraseña para poder
+  // verificar lo que se escribio antes de enviarlo.
+  const OJO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const OJO_TACHADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg>';
+
+  document.querySelectorAll('input[type=password]').forEach((inp) => {
+    const wrap = document.createElement('span');
+    wrap.className = 'campo-pass';
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(inp);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ver-pass';
+    btn.tabIndex = -1;
+    const setVer = (ver) => {
+      inp.type = ver ? 'text' : 'password';
+      btn.innerHTML = ver ? OJO_TACHADO : OJO;
+      btn.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña');
+      btn.title = ver ? 'Ocultar contraseña' : 'Mostrar contraseña';
+    };
+    setVer(false);
+    btn.addEventListener('click', () => { setVer(inp.type === 'password'); inp.focus(); });
+    inp.ocultarPass = () => setVer(false);
+    wrap.appendChild(btn);
+  });
+
+  // Regresa los campos a modo oculto (p. ej. al volver a mostrar el login)
+  function ocultarPasswords() {
+    document.querySelectorAll('.campo-pass input').forEach((i) => i.ocultarPass && i.ocultarPass());
+  }
+
   // ---------- Estado persistido ----------
   let plaza = localStorage.getItem('plaza') || 'MTY';
   let modo = localStorage.getItem('modo') || 'bodega';
@@ -533,7 +680,12 @@
   pintarToggles();
 
   // ---------- Sesion ----------
-  let sesionToken = localStorage.getItem('sesionToken') || '';
+  // El token vive en sessionStorage: al cerrar la pestaña o el navegador se
+  // pierde y el panel vuelve a pedir login (un refresh en la misma pestaña
+  // si conserva la sesion). Se limpia el token que versiones anteriores
+  // guardaban en localStorage para que no quede una sesion "eterna".
+  localStorage.removeItem('sesionToken');
+  let sesionToken = sessionStorage.getItem('sesionToken') || '';
   let usuarioActual = null;
 
   function pintarUsuario() {
@@ -562,7 +714,8 @@
   function mostrarLogin(mensaje) {
     sesionToken = '';
     usuarioActual = null;
-    localStorage.removeItem('sesionToken');
+    sessionStorage.removeItem('sesionToken');
+    ocultarPasswords();
     $('loginOverlay').style.display = 'flex';
     const err = $('loginError');
     err.textContent = mensaje || '';
@@ -589,10 +742,13 @@
       if (!res.ok) throw new Error(data.error || 'Error de conexion');
       sesionToken = data.token;
       usuarioActual = data.usuario;
-      localStorage.setItem('sesionToken', sesionToken);
+      sessionStorage.setItem('sesionToken', sesionToken);
       pintarUsuario();
       ocultarLogin();
-      render();
+      // Al iniciar sesion siempre se entra a la pantalla de Escanear, en la
+      // plaza del usuario (o la ultima elegida en este navegador)
+      if (location.hash !== '#/escanear') location.hash = '#/escanear'; // dispara render()
+      else render();
     } catch (err2) {
       $('loginError').textContent = err2.message;
       $('loginError').classList.add('visible');
@@ -669,27 +825,36 @@
   });
 
   // ---------- Dashboard ----------
+  const ICONOS = {
+    caja: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+    camion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h11v9H2zM13 10h4l3 3v3h-7z"/><circle cx="6.5" cy="17.5" r="1.7"/><circle cx="16.5" cy="17.5" r="1.7"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
+  };
+
   async function cargarDashboard() {
+    pintarRango();
+    cargarEstadisticas();
     try {
-      const r = await api('/api/guias/resumen');
+      const [r, eventos] = await Promise.all([api('/api/guias/resumen'), api('/api/eventos?limit=10')]);
       const p = r.porEstatus || {};
       const transito = (p.EN_TRANSITO_A_CDMX || 0) + (p.EN_TRANSITO_A_MTY || 0);
       const ruta = (p.EN_RUTA_ENTREGA_CDMX || 0) + (p.EN_RUTA_ENTREGA_MTY || 0);
       const entregadas = (p.ENTREGADO_CDMX || 0) + (p.ENTREGADO_MTY || 0);
-      $('kpis').innerHTML = `
-        <div class="kpi verde" data-tab="CDMX" data-est="EN_BODEGA_MTY"><div class="valor">${p.EN_BODEGA_MTY || 0}</div><div class="etiqueta">En bodega MTY</div></div>
-        <div class="kpi verde" data-tab="MTY" data-est="EN_BODEGA_CDMX"><div class="valor">${p.EN_BODEGA_CDMX || 0}</div><div class="etiqueta">En bodega CDMX</div></div>
-        <div class="kpi ambar" data-tab="" data-est=""><div class="valor">${transito}</div><div class="etiqueta">En transito</div></div>
-        <div class="kpi azul" data-tab="" data-est=""><div class="valor">${ruta}</div><div class="etiqueta">En ruta de entrega</div></div>
-        <div class="kpi rojo" data-tab="" data-est=""><div class="valor">${entregadas}</div><div class="etiqueta">Entregadas (total)</div></div>
-        <div class="kpi rojo" data-eventos="1"><div class="valor">${r.eventos24h || 0}</div><div class="etiqueta">Escaneos ultimas 24 h</div></div>`;
+      const kpi = (valor, etiqueta, color, icono, attrs) => `
+        <div class="kpi" ${attrs}>
+          <div><div class="valor">${valor}</div><div class="etiqueta">${etiqueta}</div></div>
+          <div class="chip" style="color:${color}; background:${color}1c;">${ICONOS[icono]}</div>
+        </div>`;
+      $('kpis').innerHTML =
+        kpi(p.EN_BODEGA_MTY || 0, 'En bodega MTY', '#16a34a', 'caja', 'data-tab="CDMX" data-est="EN_BODEGA_MTY"') +
+        kpi(p.EN_BODEGA_CDMX || 0, 'En bodega CDMX', '#16a34a', 'caja', 'data-tab="MTY" data-est="EN_BODEGA_CDMX"') +
+        kpi(transito, 'En transito', '#b45309', 'camion', 'data-tab="" data-est=""') +
+        kpi(ruta, 'En ruta de entrega', '#2a78d6', 'pin', 'data-tab="" data-est=""') +
+        kpi(entregadas, 'Entregadas (total)', '#166534', 'check', 'data-tab="" data-est=""');
       document.querySelectorAll('#kpis .kpi').forEach((k) =>
-        k.addEventListener('click', () => {
-          if (k.dataset.eventos) { location.hash = '#/eventos'; return; }
-          irAGuias(k.dataset.tab, k.dataset.est);
-        })
+        k.addEventListener('click', () => irAGuias(k.dataset.tab, k.dataset.est))
       );
-      const eventos = await api('/api/eventos?limit=10');
       $('tbodyActividad').innerHTML = eventos.length
         ? eventos.map(filaEvento).join('')
         : '<tr><td colspan="5" class="vacio">Sin actividad todavia</td></tr>';
@@ -698,6 +863,239 @@
       $('kpis').innerHTML = `<div class="card vacio">${esc(e.message)}</div>`;
       $('tbodyActividad').innerHTML = '';
     }
+  }
+
+  // ---------- Graficas del dashboard ----------
+  // Colores de series validados (contraste y daltonismo) sobre tarjeta blanca
+  const C_MTY = '#2a78d6';   // salidas de MTY
+  const C_CDMX = '#d92027';  // salidas de CDMX (rojo institucional)
+  const C_ENT = '#4a3aa7';   // entregas por dia
+
+  let statsCache = null;
+  let rangoDias = Number(localStorage.getItem('rangoDias')) || 14;
+
+  function pintarRango() {
+    document.querySelectorAll('#rangoBtns button').forEach((b) =>
+      b.classList.toggle('activa', Number(b.dataset.dias) === rangoDias)
+    );
+  }
+  document.querySelectorAll('#rangoBtns button').forEach((b) =>
+    b.addEventListener('click', () => {
+      rangoDias = Number(b.dataset.dias);
+      localStorage.setItem('rangoDias', rangoDias);
+      pintarRango();
+      cargarEstadisticas();
+    })
+  );
+
+  async function cargarEstadisticas() {
+    document.querySelectorAll('#v-dashboard .chart-wrap').forEach((w) => w.classList.add('cargando'));
+    try {
+      statsCache = await api('/api/guias/estadisticas?dias=' + rangoDias);
+      pintarCharts();
+    } catch (e) {
+      $('chartEnviadas').innerHTML = `<div class="vacio">${esc(e.message)}</div>`;
+      $('chartEntregas').innerHTML = '';
+    } finally {
+      document.querySelectorAll('#v-dashboard .chart-wrap').forEach((w) => w.classList.remove('cargando'));
+    }
+  }
+
+  function pintarCharts() {
+    if (!statsCache) return;
+    const t = statsCache.totales;
+    $('envTotal').innerHTML = `${t.enviadas}<small>en ${statsCache.dias} dias</small>`;
+    $('entTotal').innerHTML = `${t.entregadas}<small>en ${statsCache.dias} dias</small>`;
+    renderEnviadas($('chartEnviadas'), statsCache.serie);
+    renderEntregas($('chartEntregas'), statsCache.serie);
+  }
+
+  // Vuelve a dibujar al cambiar el tamaño de la ventana
+  let timerCharts;
+  window.addEventListener('resize', () => {
+    clearTimeout(timerCharts);
+    timerCharts = setTimeout(() => { if (statsCache && $('v-dashboard').style.display !== 'none') pintarCharts(); }, 160);
+  });
+
+  // Escala Y con numeros redondos (4 divisiones)
+  function escalaY(max) {
+    if (max <= 0) return { top: 4, paso: 1 };
+    const bruto = max / 4;
+    const pot = Math.pow(10, Math.floor(Math.log10(bruto)));
+    let paso = pot * 10;
+    for (const m of [1, 2, 5, 10]) if (pot * m >= bruto) { paso = pot * m; break; }
+    return { top: paso * 4, paso };
+  }
+
+  const fmtDiaCorto = (fecha) =>
+    new Date(fecha + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+  const fmtDiaLargo = (fecha) =>
+    new Date(fecha + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  // Tooltip compartido de las graficas (se construye con textContent)
+  let tipEl;
+  function tipShow(cx, cy, fecha, filas) {
+    if (!tipEl) { tipEl = document.createElement('div'); tipEl.className = 'viz-tip'; document.body.appendChild(tipEl); }
+    tipEl.innerHTML = '';
+    const f = document.createElement('div');
+    f.className = 'tfecha';
+    f.textContent = fmtDiaLargo(fecha);
+    tipEl.appendChild(f);
+    for (const [color, clave, valor, esTotal] of filas) {
+      const fila = document.createElement('div');
+      fila.className = 'fila' + (esTotal ? ' total' : '');
+      if (color) { const raya = document.createElement('i'); raya.className = 'raya'; raya.style.background = color; fila.appendChild(raya); }
+      const k = document.createElement('span'); k.className = 'clave'; k.textContent = clave; fila.appendChild(k);
+      const v = document.createElement('b'); v.textContent = valor; fila.appendChild(v);
+      tipEl.appendChild(fila);
+    }
+    tipEl.style.display = 'block';
+    const r = tipEl.getBoundingClientRect();
+    let x = Math.min(Math.max(cx - r.width / 2, 8), window.innerWidth - r.width - 8);
+    let y = cy - r.height - 12;
+    if (y < 8) y = cy + 16;
+    tipEl.style.left = x + 'px';
+    tipEl.style.top = y + 'px';
+  }
+  function tipHide() { if (tipEl) tipEl.style.display = 'none'; }
+
+  // Rectangulo con esquinas superiores redondeadas (remate del dato) y base recta
+  function topRound(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, h, w / 2));
+    return `M${x},${y + h} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${y + h} Z`;
+  }
+
+  // Columnas apiladas: guias enviadas por dia (por plaza de salida)
+  function renderEnviadas(el, serie) {
+    const W = Math.max(el.clientWidth || 0, 300), H = 250;
+    const padL = 34, padR = 8, padT = 20, padB = 26;
+    const pw = W - padL - padR, ph = H - padT - padB;
+    const n = serie.length;
+    const totales = serie.map((d) => d.enviadasMty + d.enviadasCdmx);
+    const maxV = Math.max(...totales);
+    const { top, paso } = escalaY(maxV);
+    const y = (v) => padT + ph - (v / top) * ph;
+    const band = pw / n;
+    const bw = Math.min(24, band * 0.62);
+    let s = '';
+    for (let v = 0; v <= top; v += paso) {
+      s += `<line x1="${padL}" y1="${y(v)}" x2="${W - padR}" y2="${y(v)}" stroke="${v === 0 ? '#c3c2b7' : '#ececee'}" stroke-width="1"/>`;
+      if (v > 0) s += `<text x="${padL - 7}" y="${y(v) + 3.5}" text-anchor="end" font-size="10.5" fill="#898781" style="font-variant-numeric:tabular-nums">${v}</text>`;
+    }
+    const pasoX = Math.ceil(n / 8);
+    const idxMax = totales.indexOf(maxV);
+    serie.forEach((d, i) => {
+      const cx = padL + band * i + band / 2;
+      const x0 = cx - bw / 2;
+      const yM = y(d.enviadasMty);
+      const yTot = y(totales[i]);
+      if (d.enviadasMty > 0) {
+        const hM = padT + ph - yM;
+        s += d.enviadasCdmx > 0
+          ? `<rect x="${x0}" y="${yM}" width="${bw}" height="${hM}" fill="${C_MTY}" class="seg g${i}"/>`
+          : `<path d="${topRound(x0, yM, bw, hM, 4)}" fill="${C_MTY}" class="seg g${i}"/>`;
+      }
+      if (d.enviadasCdmx > 0) {
+        // 2px de separacion en color de superficie entre los dos segmentos
+        const hC = Math.max(yM - yTot - (d.enviadasMty > 0 ? 2 : 0), 0.75);
+        s += `<path d="${topRound(x0, yTot, bw, hC, 4)}" fill="${C_CDMX}" class="seg g${i}"/>`;
+      }
+      if (maxV > 0 && i === idxMax) {
+        s += `<text x="${cx}" y="${yTot - 6}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0b0b0b" style="font-variant-numeric:tabular-nums">${totales[i]}</text>`;
+      }
+      if ((n - 1 - i) % pasoX === 0) {
+        s += `<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#898781">${fmtDiaCorto(d.fecha)}</text>`;
+      }
+      s += `<rect class="hit" data-i="${i}" x="${padL + band * i}" y="${padT}" width="${band}" height="${ph}" fill="transparent"/>`;
+    });
+    if (maxV === 0) {
+      s += `<text x="${padL + pw / 2}" y="${padT + ph / 2}" text-anchor="middle" font-size="12" fill="#a1a1aa">Sin envios en este periodo</text>`;
+    }
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${s}</svg>`;
+    el.querySelectorAll('.hit').forEach((h) => {
+      const mover = () => {
+        const i = Number(h.dataset.i);
+        const d = serie[i];
+        el.querySelectorAll('.seg').forEach((x) => x.classList.remove('lift'));
+        el.querySelectorAll('.g' + i).forEach((x) => x.classList.add('lift'));
+        const r = h.getBoundingClientRect();
+        const yTope = r.top + ((y(totales[i]) - padT) / ph) * r.height;
+        tipShow(r.left + r.width / 2, yTope, d.fecha, [
+          [C_MTY, 'Salieron de MTY', d.enviadasMty],
+          [C_CDMX, 'Salieron de CDMX', d.enviadasCdmx],
+          [null, 'Total', totales[i], true],
+        ]);
+      };
+      h.addEventListener('pointerenter', mover);
+      h.addEventListener('pointermove', mover);
+      h.addEventListener('pointerleave', () => {
+        el.querySelectorAll('.seg').forEach((x) => x.classList.remove('lift'));
+        tipHide();
+      });
+    });
+  }
+
+  // Linea con relleno suave: entregas por dia
+  function renderEntregas(el, serie) {
+    const W = Math.max(el.clientWidth || 0, 260), H = 250;
+    const padL = 34, padR = 14, padT = 20, padB = 26;
+    const pw = W - padL - padR, ph = H - padT - padB;
+    const n = serie.length;
+    const vals = serie.map((d) => d.entregadas);
+    const maxV = Math.max(...vals);
+    const { top, paso } = escalaY(maxV);
+    const y = (v) => padT + ph - (v / top) * ph;
+    const band = pw / n;
+    const px = (i) => padL + band * i + band / 2;
+    let s = '';
+    for (let v = 0; v <= top; v += paso) {
+      s += `<line x1="${padL}" y1="${y(v)}" x2="${W - padR}" y2="${y(v)}" stroke="${v === 0 ? '#c3c2b7' : '#ececee'}" stroke-width="1"/>`;
+      if (v > 0) s += `<text x="${padL - 7}" y="${y(v) + 3.5}" text-anchor="end" font-size="10.5" fill="#898781" style="font-variant-numeric:tabular-nums">${v}</text>`;
+    }
+    const pasoX = Math.ceil(n / 6);
+    serie.forEach((d, i) => {
+      if ((n - 1 - i) % pasoX === 0) {
+        s += `<text x="${px(i)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#898781">${fmtDiaCorto(d.fecha)}</text>`;
+      }
+    });
+    if (maxV === 0) {
+      s += `<text x="${padL + pw / 2}" y="${padT + ph / 2}" text-anchor="middle" font-size="12" fill="#a1a1aa">Sin entregas en este periodo</text>`;
+    } else {
+      const puntos = vals.map((v, i) => `${px(i)},${y(v)}`);
+      s += `<path d="M${padL},${y(0)} L${puntos.join(' L')} L${W - padR},${y(0)} Z" fill="${C_ENT}" opacity="0.09"/>`;
+      s += `<path d="M${puntos.join(' L')}" fill="none" stroke="${C_ENT}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      // Punto final con anillo de superficie + etiquetas directas (final y maximo)
+      const iFin = n - 1, iMax = vals.indexOf(maxV);
+      s += `<circle cx="${px(iFin)}" cy="${y(vals[iFin])}" r="4.5" fill="${C_ENT}" stroke="#fff" stroke-width="2"/>`;
+      s += `<text x="${px(iFin)}" y="${y(vals[iFin]) - 9}" text-anchor="${iFin === iMax ? 'middle' : 'end'}" font-size="10.5" font-weight="700" fill="#0b0b0b" style="font-variant-numeric:tabular-nums">${vals[iFin]}</text>`;
+      if (iMax !== iFin) {
+        s += `<text x="${px(iMax)}" y="${y(vals[iMax]) - 8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0b0b0b" style="font-variant-numeric:tabular-nums">${vals[iMax]}</text>`;
+      }
+      s += `<line class="cruz" x1="0" y1="${padT}" x2="0" y2="${padT + ph}" stroke="#d4d4d8" stroke-width="1" visibility="hidden"/>`;
+      s += `<circle class="foco" r="4.5" fill="${C_ENT}" stroke="#fff" stroke-width="2" visibility="hidden"/>`;
+    }
+    s += `<rect class="zona" x="${padL}" y="${padT}" width="${pw}" height="${ph}" fill="transparent"/>`;
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${s}</svg>`;
+    if (maxV === 0) return;
+    const svg = el.querySelector('svg');
+    const zona = el.querySelector('.zona');
+    const cruz = el.querySelector('.cruz');
+    const foco = el.querySelector('.foco');
+    const mover = (ev) => {
+      const rs = svg.getBoundingClientRect();
+      const sx = rs.width / W;
+      const i = Math.min(n - 1, Math.max(0, Math.round((ev.clientX - rs.left - (padL + band / 2) * sx) / (band * sx))));
+      cruz.setAttribute('x1', px(i)); cruz.setAttribute('x2', px(i)); cruz.setAttribute('visibility', 'visible');
+      foco.setAttribute('cx', px(i)); foco.setAttribute('cy', y(vals[i])); foco.setAttribute('visibility', 'visible');
+      tipShow(rs.left + px(i) * sx, rs.top + y(vals[i]) * sx, serie[i].fecha, [[C_ENT, 'Entregas', vals[i]]]);
+    };
+    zona.addEventListener('pointermove', mover);
+    zona.addEventListener('pointerenter', mover);
+    zona.addEventListener('pointerleave', () => {
+      cruz.setAttribute('visibility', 'hidden');
+      foco.setAttribute('visibility', 'hidden');
+      tipHide();
+    });
   }
 
   // Etiqueta para escaneos que un administrador revirtio
@@ -854,7 +1252,7 @@
       const data = await api('/api/guias?' + params);
       $('tbodyGuias').innerHTML = data.length
         ? data.map((g) => `<tr class="clic" data-guia="${esc(g.numero_guia)}">
-            <td><b>${esc(g.numero_guia)}</b></td>
+            <td><b>${esc(g.numero_guia)}</b>${g.complemento ? ` <span class="nota">+ ${esc(g.complemento)}</span>` : ''}</td>
             <td>${esc(g.origen)} &rarr; ${esc(g.destino)}</td>
             <td>${badge(g.estatus)}</td>
             <td>${fmtFecha(g.creado_en)}</td>
@@ -890,17 +1288,66 @@
 
   let guiaDetalleActual = null;
 
-  $('btnRevertir').addEventListener('click', async () => {
+  // Al revertir se pregunta que paso con la guia: solo corregir, se cancelo
+  // (toma el numero de la guia nueva) o se hizo complemento (conserva ambos
+  // numeros). Todo queda registrado en el historial.
+  let revTipo = 'solo';
+
+  function pintarOpcionRevertir() {
+    document.querySelectorAll('#revOpciones button').forEach((b) => b.classList.toggle('activa', b.dataset.rev === revTipo));
+    $('revNumeroWrap').style.display = revTipo === 'solo' ? 'none' : '';
+    $('revNumeroLabel').textContent = revTipo === 'cancelada' ? 'Numero de la guia nueva' : 'Numero del complemento';
+    const prefGuia = /^(AN|BN)/.exec(guiaDetalleActual || '');
+    $('revNumero').placeholder =
+      revTipo === 'cancelada' ? (prefGuia ? `Debe empezar con ${prefGuia[1]}, igual que la guia cancelada` : 'AN... o BN...') : '';
+  }
+
+  $('btnRevertir').addEventListener('click', () => {
     if (!guiaDetalleActual) return;
-    if (!confirm(`¿Revertir el ultimo escaneo de ${guiaDetalleActual}?\nLa guia regresara a su estatus anterior y quedara registrada la correccion.`)) return;
-    $('btnRevertir').disabled = true;
+    revTipo = 'solo';
+    pintarOpcionRevertir();
+    $('revNumero').value = '';
+    $('msgRevertir').className = 'msg-form';
+    $('revIntro').textContent = `Se deshara el ultimo escaneo de ${guiaDetalleActual} y la guia regresara a su estatus anterior. Todo queda registrado en el historial.`;
+    $('modalRevertir').classList.add('abierto');
+  });
+
+  document.querySelectorAll('#revOpciones button').forEach((b) =>
+    b.addEventListener('click', () => {
+      revTipo = b.dataset.rev;
+      pintarOpcionRevertir();
+      if (revTipo !== 'solo') setTimeout(() => $('revNumero').focus(), 30);
+    })
+  );
+
+  $('revCerrar').addEventListener('click', () => $('modalRevertir').classList.remove('abierto'));
+
+  $('revConfirmar').addEventListener('click', async () => {
+    if (!guiaDetalleActual) return;
+    const cuerpo = {};
+    if (revTipo !== 'solo') {
+      const numero = $('revNumero').value.trim().toUpperCase();
+      if (!numero) {
+        return msgForm('msgRevertir', revTipo === 'cancelada' ? 'Escribe el numero de la guia nueva' : 'Escribe el numero del complemento', 'err');
+      }
+      cuerpo.resolucion = revTipo;
+      cuerpo.numero = numero;
+    }
+    $('revConfirmar').disabled = true;
     try {
-      await api('/api/guias/' + encodeURIComponent(guiaDetalleActual) + '/revertir', { method: 'POST' });
-      cargarDetalle(guiaDetalleActual);
+      const r = await api('/api/guias/' + encodeURIComponent(guiaDetalleActual) + '/revertir', {
+        method: 'POST',
+        body: JSON.stringify(cuerpo),
+      });
+      $('modalRevertir').classList.remove('abierto');
+      const numeroFinal = r.guia && r.guia.numero_guia;
+      // Si la guia se cancelo, ahora vive bajo el numero nuevo
+      if (numeroFinal && numeroFinal !== guiaDetalleActual) location.hash = '#/guia/' + encodeURIComponent(numeroFinal);
+      else cargarDetalle(guiaDetalleActual);
     } catch (e) {
-      alert(e.message);
+      msgForm('msgRevertir', e.message, 'err');
     } finally {
-      $('btnRevertir').disabled = false;
+      $('revConfirmar').disabled = false;
     }
   });
 
@@ -916,11 +1363,23 @@
       $('detCreada').textContent = fmtFecha(d.creado_en);
       $('detActualizada').textContent = fmtFecha(d.actualizado_en);
       $('detEscaneos').textContent = d.historial.length;
+      $('detCompWrap').style.display = d.complemento ? '' : 'none';
+      $('detComplemento').textContent = d.complemento || '';
+      $('detAnteriorWrap').style.display = d.numero_anterior ? '' : 'none';
+      $('detAnterior').textContent = d.numero_anterior || '';
 
-      // Codigo de barras (si la libreria cargo)
+      // Codigos de barras: el de la guia y, si tiene, el del complemento
       try {
-        if (window.JsBarcode) JsBarcode('#barcode', d.numero_guia, { format: 'CODE128', height: 52, fontSize: 13, margin: 0 });
-        else $('barcodeWrap').style.display = 'none';
+        if (window.JsBarcode) {
+          $('barcodeWrap').style.display = '';
+          JsBarcode('#barcode', d.numero_guia, { format: 'CODE128', height: 52, fontSize: 13, margin: 0 });
+          if (d.complemento) {
+            $('barcodeCompWrap').style.display = '';
+            JsBarcode('#barcodeComp', d.complemento, { format: 'CODE128', height: 52, fontSize: 13, margin: 0 });
+          } else {
+            $('barcodeCompWrap').style.display = 'none';
+          }
+        } else $('barcodeWrap').style.display = 'none';
       } catch { $('barcodeWrap').style.display = 'none'; }
 
       // Stepper (ignora escaneos revertidos para no marcar pasos deshechos)
@@ -947,7 +1406,7 @@
         : '<tr><td colspan="4" class="vacio">Sin eventos</td></tr>';
 
       $('detTimeline').innerHTML = d.historial.map((ev) => {
-        const clase = { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega', CORRECCION: 'e-correccion' }[ev.accion] || '';
+        const clase = { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega', CORRECCION: 'e-correccion', CAMBIO_NUMERO: 'e-correccion', COMPLEMENTO: 'e-ruta' }[ev.accion] || '';
         return `<li class="${clase} ${ev.revertido ? 'ev-revertido' : ''}">
           <div class="desc">${esc(ev.descripcion || ev.accion)}</div>
           <div class="meta">${ev.plaza ? 'Plaza ' + esc(ev.plaza) + ' - ' : ''}${fmtFecha(ev.creado_en)}${ev.revertido ? ' - revertido' : ''}</div></li>`;
@@ -959,6 +1418,7 @@
       $('detRuta').textContent = e.message;
       $('detBadge').innerHTML = '';
       $('detCreada').textContent = $('detActualizada').textContent = $('detEscaneos').textContent = '-';
+      $('detCompWrap').style.display = $('detAnteriorWrap').style.display = 'none';
       $('stepper').innerHTML = '';
       $('barcodeWrap').style.display = 'none';
       $('tbodyDetEventos').innerHTML = `<tr><td colspan="4" class="vacio">${esc(e.message)}</td></tr>`;
@@ -1054,6 +1514,7 @@
         body: JSON.stringify({ actual: $('pwActual').value, nueva: $('pwNueva').value }),
       });
       $('formPassword').reset();
+      ocultarPasswords();
       msgForm('msgPassword', 'Contraseña actualizada correctamente', 'ok');
     } catch (err2) {
       msgForm('msgPassword', err2.message, 'err');
@@ -1126,6 +1587,7 @@
         }),
       });
       $('formNuevoUsuario').reset();
+      ocultarPasswords();
       msgForm('msgUsuarios', 'Usuario creado correctamente', 'ok');
       cargarUsuarios();
     } catch (err2) {

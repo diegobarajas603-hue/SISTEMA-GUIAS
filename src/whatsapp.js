@@ -2,11 +2,13 @@ const TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const GRAPH_URL = `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`;
 
-// Extrae el primer numero de guia (alfanumerico, 4-30 caracteres) que el cliente escribio
+// Extrae el numero de guia que el cliente escribio. Un numero de guia real
+// siempre contiene al menos un digito: asi las palabras del saludo ("HOLA",
+// "BUENAS") no se confunden con el numero aunque vengan antes en el mensaje.
 function extraerNumeroGuia(texto) {
   if (!texto) return null;
-  const match = texto.toUpperCase().match(/[A-Z0-9-]{4,30}/);
-  return match ? match[0] : null;
+  const candidatos = texto.toUpperCase().match(/[A-Z0-9-]{4,30}/g) || [];
+  return candidatos.find((c) => /\d/.test(c)) || null;
 }
 
 async function enviarMensaje(numeroTelefono, texto) {

@@ -8,6 +8,9 @@ const { mensajeEstatus } = require('./estatus');
 const { extraerNumeroGuia, enviarMensaje } = require('./whatsapp');
 
 const app = express();
+// Detras del proxy del hosting (Railway): req.ip debe ser la IP real del
+// cliente, no la del proxy (la usa el limite de intentos de login)
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -20,6 +23,10 @@ app.get('/index.html', (req, res) => res.redirect('/panel'));
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || '';
 const { requireAuth, requireAdmin } = auth;
+
+// Envuelve rutas async para que un fallo inesperado (p. ej. la base de datos
+// caida un instante) responda un error 500 en lugar de tumbar el proceso.
+const seguro = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -36,11 +43,11 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/logout', requireAuth, async (req, res) => {
+app.post('/api/auth/logout', requireAuth, seguro(async (req, res) => {
   const token = auth.extraerToken(req);
   if (token) await auth.logout(token);
   res.json({ ok: true });
-});
+}));
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ usuario: req.usuario });
@@ -61,9 +68,9 @@ app.post('/api/auth/password', requireAuth, requireAdmin, async (req, res) => {
 
 // ---------- Gestion de usuarios (solo administradores) ----------
 
-app.get('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/usuarios', requireAuth, requireAdmin, seguro(async (req, res) => {
   res.json(await auth.listarUsuarios());
-});
+}));
 
 app.post('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
   const { usuario, nombre, password, rol, plaza } = req.body || {};
@@ -107,17 +114,17 @@ app.put('/api/usuarios/:id/password', requireAuth, requireAdmin, async (req, res
 // operacion (bodega, domicilio u ocurre); el sistema decide que significa el
 // escaneo segun el estado actual de la guia.
 app.post('/api/guias/escanear', requireAuth, async (req, res) => {
-  const { numeroGuia, plaza, modo } = req.body;
+  const { numeroGuia, plaza, modo } = req.body || {};
   if (!numeroGuia || !plaza) return res.status(400).json({ error: 'numeroGuia y plaza son requeridos' });
   // Si el usuario tiene plaza asignada, solo puede escanear en esa plaza
-  if (req.usuario.plaza && plaza.trim().toUpperCase() !== req.usuario.plaza) {
+  if (req.usuario.plaza && String(plaza).trim().toUpperCase() !== req.usuario.plaza) {
     return res.status(403).json({ error: `Tu usuario solo puede escanear en ${req.usuario.plaza}` });
   }
   try {
     const resultado = await guias.escanearGuia(
-      numeroGuia.trim().toUpperCase(),
-      plaza.trim().toUpperCase(),
-      (modo || 'bodega').trim().toLowerCase()
+      String(numeroGuia).trim().toUpperCase(),
+      String(plaza).trim().toUpperCase(),
+      String(modo || 'bodega').trim().toLowerCase()
     );
     res.json(resultado);
   } catch (e) {
@@ -140,12 +147,25 @@ app.post('/api/guias/borrar-todas', requireAuth, requireAdmin, async (req, res) 
   }
 });
 
-// Revertir el ultimo escaneo de una guia (solo administradores)
+// Revertir el ultimo escaneo de una guia (solo administradores). Acepta una
+// resolucion opcional de que paso con la guia (p. ej. entrega no pagada):
+//  { resolucion: 'cancelada', numero: 'AN...' }  -> la guia se cancelo y toma
+//    el numero de la nueva guia, conservando todo su historial.
+//  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento;
+//    la guia conserva ambos numeros y los dos sirven para rastrear.
 app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
+  const { resolucion, numero } = req.body || {};
+  let r = null;
+  if (resolucion === 'cancelada' || resolucion === 'complemento') {
+    r = { tipo: resolucion, numero };
+  } else if (resolucion) {
+    return res.status(400).json({ error: 'Resolucion invalida: usa "cancelada" o "complemento"' });
+  }
   try {
     const resultado = await guias.revertirUltimoEscaneo(
       req.params.numeroGuia.trim().toUpperCase(),
-      req.usuario.usuario
+      req.usuario.usuario,
+      r
     );
     res.json(resultado);
   } catch (e) {
@@ -153,54 +173,64 @@ app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (re
   }
 });
 
-app.get('/api/guias/resumen', requireAuth, async (req, res) => {
+app.get('/api/guias/resumen', requireAuth, seguro(async (req, res) => {
   res.json(await guias.resumen());
-});
+}));
 
-app.get('/api/eventos', requireAuth, async (req, res) => {
+// Actividad por dia (guias enviadas y entregas) para las graficas del dashboard
+app.get('/api/guias/estadisticas', requireAuth, seguro(async (req, res) => {
+  res.json(await guias.estadisticas(req.query.dias));
+}));
+
+app.get('/api/eventos', requireAuth, seguro(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
   res.json(await guias.listarEventos({ limit }));
-});
+}));
 
-app.get('/api/guias/:numeroGuia', requireAuth, async (req, res) => {
+app.get('/api/guias/:numeroGuia', requireAuth, seguro(async (req, res) => {
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
-  const guia = await guias.obtenerGuia(numeroGuia);
+  // Busca tambien por el numero de complemento
+  const guia = await guias.buscarGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'Guia no encontrada' });
-  const historial = await guias.obtenerHistorial(numeroGuia);
-  res.json({ ...guia, mensaje: mensajeEstatus(numeroGuia, guia.estatus), historial });
-});
+  const historial = await guias.obtenerHistorial(guia.numero_guia);
+  res.json({ ...guia, mensaje: mensajeEstatus(guia.numero_guia, guia.estatus), historial });
+}));
 
-app.get('/api/guias', requireAuth, async (req, res) => {
+app.get('/api/guias', requireAuth, seguro(async (req, res) => {
   const { buscar, estatus, plaza } = req.query;
   res.json(await guias.listarGuias({ buscar, estatus, plaza: plaza && plaza.toUpperCase() }));
-});
+}));
 
 // ---------- API publica de rastreo (sin token, para clientes) ----------
 
 // Solo permite consultar una guia por su numero exacto; nunca expone la lista
 // completa ni las operaciones de escaneo. CORS abierto para poder llamarla
 // desde la pagina web de la empresa.
-app.get('/api/publico/guias/:numeroGuia', async (req, res) => {
+const ACCIONES_INTERNAS = ['ESCANEO_REPETIDO', 'CORRECCION', 'CAMBIO_NUMERO', 'COMPLEMENTO'];
+
+app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
   if (!/^[A-Z0-9-]{3,40}$/.test(numeroGuia)) {
     return res.status(400).json({ error: 'Numero de guia invalido' });
   }
-  const guia = await guias.obtenerGuia(numeroGuia);
+  // Busca tambien por el numero de complemento: ambos numeros rastrean la guia
+  const guia = await guias.buscarGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'No encontramos esa guia. Verifica el numero e intenta de nuevo.' });
-  // Los escaneos repetidos, las correcciones internas y los escaneos que
-  // fueron revertidos no se muestran al cliente
-  const historial = (await guias.obtenerHistorial(numeroGuia))
-    .filter((ev) => ev.accion !== 'ESCANEO_REPETIDO' && ev.accion !== 'CORRECCION' && !ev.revertido)
+  // Los escaneos repetidos, las anotaciones internas (correcciones, cambios de
+  // numero, complementos) y los escaneos revertidos no se muestran al cliente
+  const historial = (await guias.obtenerHistorial(guia.numero_guia))
+    .filter((ev) => !ACCIONES_INTERNAS.includes(ev.accion) && !ev.revertido)
     .map(({ accion, descripcion, creado_en }) => ({ accion, descripcion, creado_en }));
   res.json({
     numeroGuia: guia.numero_guia,
+    complemento: guia.complemento || null,
     estatus: guia.estatus,
     mensaje: mensajeEstatus(guia.numero_guia, guia.estatus),
     actualizado_en: guia.actualizado_en,
     historial,
   });
-});
+}));
 
 // ---------- Webhook de WhatsApp Business Cloud API (Meta) ----------
 
@@ -234,15 +264,27 @@ app.post('/webhook/whatsapp', async (req, res) => {
       return;
     }
 
-    const guia = await guias.obtenerGuia(numeroGuia);
+    // Busca tambien por el numero de complemento
+    const guia = await guias.buscarGuia(numeroGuia);
     if (!guia) {
       await enviarMensaje(de, `No encontramos la guia ${numeroGuia}. Verifica el numero e intenta de nuevo.`);
       return;
     }
 
-    await enviarMensaje(de, mensajeEstatus(numeroGuia, guia.estatus));
+    await enviarMensaje(de, mensajeEstatus(guia.numero_guia, guia.estatus));
   } catch (e) {
     console.error('Error procesando webhook de WhatsApp:', e);
+  }
+});
+
+// Manejador final de errores: responde JSON claro y el servidor sigue vivo
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'El cuerpo de la peticion no es JSON valido' });
+  }
+  console.error('Error no controlado:', err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'Error interno del servidor. Intenta de nuevo en un momento.' });
   }
 });
 
