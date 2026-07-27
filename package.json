@@ -1,15 +1,19 @@
 {
-  "name": "sistema-guias",
+  "name": "tauro-crm",
   "version": "1.0.0",
-  "description": "Sistema de rastreo de guias MTY <-> CDMX con webhook para WhatsApp Business (Meta Cloud API)",
+  "description": "CRM de ventas de Fletes Tauro: pipeline, prospectos y clientes, cotizaciones con PDF, tareas, servicios y reportes comerciales",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "dependencies": {
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "pg": "^8.22.0"
+    "nodemailer": "^6.9.14",
+    "pdfkit": "^0.15.0"
   }
 }

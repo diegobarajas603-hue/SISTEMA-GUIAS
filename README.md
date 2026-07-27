@@ -1,269 +1,150 @@
-# Sistema de Guias MTY <-> CDMX
+# CRM de Ventas — Fletes Tauro
 
-Sistema para rastrear guias en la ruta unica Monterrey <-> Ciudad de Mexico,
-usando una pistola lectora de codigos con **escaneo inteligente**, y un
-webhook compatible con WhatsApp Business Cloud API (Meta) para que tus
-clientes consulten el estatus de su guia escribiendo el numero por WhatsApp.
+Sistema de ventas para gestionar la relacion con los clientes de Fletes
+Tauro: pipeline de prospectos, cotizaciones con folio y PDF con logotipo,
+envio por correo y WhatsApp, tareas con recordatorios, servicios
+realizados y reportes comerciales calculados con informacion real.
+Pensado para un equipo de hasta 10 personas con usuarios y roles, y con
+diseño adaptable a celular.
 
-## Como funciona el escaneo inteligente
+## Que incluye
 
-En el panel web solo eliges **en que plaza estas** (MTY o CDMX) una sola vez;
-la eleccion queda guardada en el navegador. A partir de ahi solo escaneas y el
-sistema decide automaticamente que significa cada escaneo:
-
-Estando en la plaza P (la otra plaza es Q):
-
-| Estado actual de la guia | Que hace el escaneo en P |
-| --- | --- |
-| No existe en el sistema | La registra: **salio de P hacia Q** (`EN_TRANSITO_A_Q`) |
-| `EN_TRANSITO_A_P` (venia hacia aqui) | **Llego**: queda en bodega de P, lista (`EN_BODEGA_P`) |
-| `EN_BODEGA_P` (estaba aqui) | **Vuelve a salir** de P hacia Q (`EN_TRANSITO_A_Q`) |
-| `EN_TRANSITO_A_Q` (ya salio de aqui) | Escaneo repetido: no cambia nada, solo se registra en el historial |
-| `EN_BODEGA_Q` (figuraba en la otra plaza) | Llego a P aunque no se escaneo su salida en Q (`EN_BODEGA_P`) |
-
-Ejemplo: estas en MTY y escaneas una guia nueva -> el sistema registra que
-salio hacia CDMX. Cuando esa guia llega a CDMX y la escanean alla -> el
-sistema detecta que ya esta en bodega de CDMX, lista.
-
-**Prefijos por plaza de salida**: las guias que salen de MTY empiezan con
-`AN` y las que salen de CDMX con `BN`. El sistema rechaza registrar una
-salida con el prefijo equivocado (una BN no puede salir de MTY ni viceversa);
-las llegadas y entregas en la plaza destino si se escanean normalmente.
-
-## Modos de operacion
-
-Ademas de la plaza, en el panel se elige el tipo de operacion:
-
-- **Bodega (MTY <-> CDMX)**: transito entre plazas, con la logica de la tabla
-  de arriba. Ademas, si se escanea en bodega un paquete que estaba
-  `EN_RUTA_ENTREGA_P`, se interpreta como regreso por entrega no completada
-  (vuelve a `EN_BODEGA_P`); un paquete `ENTREGADO_*` escaneado en bodega
-  inicia un nuevo embarque hacia la otra plaza.
-- **Entrega a domicilio**: `EN_BODEGA_P` -> `EN_RUTA_ENTREGA_P` (paquete en
-  ruta de entrega) y `EN_RUTA_ENTREGA_P` -> `ENTREGADO_P`.
-- **Ocurre (el cliente recoge en bodega)**: `EN_BODEGA_P` -> `ENTREGADO_P`
-  directamente.
-
-En los modos de entrega el paquete debe estar ya en la bodega de la plaza:
-si venia `EN_TRANSITO_A_P`, el escaneo se rechaza e indica darle llegada
-primero en modo bodega.
-
-## Estatus posibles
-
-- `EN_TRANSITO_A_CDMX` / `EN_TRANSITO_A_MTY`: la guia va en camino a esa plaza.
-- `EN_BODEGA_CDMX` / `EN_BODEGA_MTY`: la guia llego y esta en esa bodega, lista.
-- `EN_RUTA_ENTREGA_CDMX` / `EN_RUTA_ENTREGA_MTY`: paquete en ruta de entrega a domicilio.
-- `ENTREGADO_CDMX` / `ENTREGADO_MTY`: paquete entregado (a domicilio o en ocurre).
-
-(Los estatus del modelo anterior `EN_CAMINO_X` y `LLEGO_X` se migran
-automaticamente al arrancar el servidor.)
-
-## Historial
-
-Cada escaneo queda registrado en la tabla `eventos` con la accion (SALIDA,
-LLEGADA o ESCANEO_REPETIDO), la plaza donde se escaneo, una descripcion y la
-fecha/hora. En el panel web, pestaña **"Guias e historial"**, puedes:
-
-- Ver el resumen de cuantas guias hay en cada estatus.
-- Buscar por numero de guia y filtrar por estatus.
-- Dar clic en cualquier guia para ver su linea de tiempo completa.
+- **Panel operativo**: KPIs del dia (prospectos activos, cotizaciones
+  abiertas y su monto, ganado del mes, venta del mes, pendientes), mis
+  tareas, cotizaciones por vencer, proximos servicios, embudo y bitacora
+  de actividad del equipo.
+- **Pipeline**: tablero kanban por etapas (nuevo → contactado →
+  calificado → propuesta → negociacion → ganado / perdido) con arrastrar
+  y soltar en computadora y "Mover a..." en celular.
+- **Prospectos y clientes**: registro completo de empresas con RFC, giro,
+  origen del prospecto, direccion, vendedor asignado y notas; contactos
+  ilimitados por empresa con botones directos para llamar, WhatsApp y
+  correo.
+- **Historial real**: cada llamada, mensaje, correo, reunion, visita,
+  nota, cambio de etapa, cotizacion, envio y conversion queda registrado
+  con usuario, fecha y hora en la linea de tiempo de la empresa.
+- **Cotizaciones** con el flujo: cliente → ruta y carga → servicio y
+  unidad → costos adicionales → precio e impuestos → vista previa →
+  PDF/envio. Formato completo: cliente, origen, destino, tipo de unidad,
+  mercancia, peso, maniobras, seguro, otros cargos, tarifa, IVA,
+  retencion de IVA (4% fletes), vigencia y condiciones.
+  - Folio consecutivo automatico (`COT-2026-0001`).
+  - PDF profesional con el logotipo de Fletes Tauro e importe con letra.
+  - Envio por **correo** (SMTP, con el PDF adjunto) y por **WhatsApp**
+    (liga wa.me con el mensaje listo y liga publica del PDF; envio
+    directo opcional con la API de WhatsApp Business).
+  - Estatus: borrador, enviada, aceptada, rechazada, vencida (automatico
+    al pasar la vigencia) y convertida. Duplicar para renegociar.
+- **Conversion a servicio**: una cotizacion aceptada se convierte en
+  servicio con folio `SRV-2026-0001`; el prospecto pasa a cliente en
+  automatico.
+- **Servicios realizados**: programado → en transito → entregado →
+  facturado → pagado (o cancelado), con operador, fechas, factura y
+  venta; tambien alta directa sin cotizacion.
+- **Tareas completables y recordatorios**: con vencimiento, prioridad,
+  responsable y liga a la empresa; agrupadas en vencidas / hoy /
+  proximas.
+- **Reportes comerciales** con datos reales y rango de fechas:
+  cotizaciones emitidas vs ganadas, tasa de conversion, venta por mes,
+  desempeno por vendedor, top de clientes, rutas mas vendidas, embudo;
+  exportables a CSV.
+- **Busqueda global y altas rapidas**: buscador de empresas, contactos y
+  folios en la barra superior, y boton "+" para capturar prospecto,
+  cotizacion, tarea, actividad o servicio desde cualquier pantalla.
+- **Catalogos**: rutas (origen-destino), tipos de unidad con capacidad,
+  tarifas base por ruta+unidad (el asistente las sugiere solo) y
+  vendedores.
+- **Usuarios y roles** para las 10 personas:
+  - `admin`: todo, incluidos usuarios, configuracion y eliminaciones.
+  - `gerente`: ve y edita todo, administra catalogos y reasigna vendedores.
+  - `vendedor`: captura y da seguimiento a sus empresas y cotizaciones.
+- **Base de datos persistente** en SQLite (archivo local, sin instalar
+  nada extra).
 
 ## Instalacion
 
-Requiere PostgreSQL (local o en un servicio como Railway/Render/Supabase).
+Requiere **Node.js 22.5 o mas nuevo** (usa el SQLite integrado de Node).
 
 ```bash
 npm install
-cp .env.example .env
-# edita .env con tu DATABASE_URL y tus tokens
-
-# si tu PostgreSQL es local y no existe aun la base de datos:
-createdb sistema_guias
-
+cp .env.example .env   # edita al menos ADMIN_PASSWORD
 npm start
 ```
 
-El servidor crea automaticamente las tablas (`guias`, `eventos`, `usuarios`,
-`sesiones`) al arrancar.
+Abre `http://localhost:3000`. La primera vez se crean los catalogos
+iniciales y el usuario administrador (`ADMIN_USER` / `ADMIN_PASSWORD` del
+`.env`; por defecto `admin` / `admin123` — **cambiala de inmediato**).
 
-El servidor corre en `http://localhost:3000`. Abre esa URL en una
-computadora/tablet conectada a la pistola escaner (la pistola funciona
-como teclado: escanea y manda "Enter" automaticamente).
+Despues de entrar:
 
-## Login del panel
+1. **Configuracion** → captura los datos fiscales de la empresa (salen en
+   el PDF), el correo SMTP y, si quieres ligas de PDF por WhatsApp, la
+   URL publica del sistema.
+2. **Usuarios** → da de alta a las 10 personas con su rol.
+3. **Catalogos** → revisa rutas y unidades, y captura tus tarifas base.
+4. A vender: registra prospectos y haz tu primera cotizacion.
 
-El panel pide iniciar sesion con usuario y contraseña. La primera vez que
-arranca (sin usuarios en la base de datos) se crea un administrador inicial:
+## Variables de entorno
 
-- Usuario: el valor de `ADMIN_USER` en `.env` (por defecto `admin`).
-- Contraseña: el valor de `ADMIN_PASSWORD` en `.env` (si no lo defines, sera
-  `admin123`; **cambiala de inmediato** desde Configuracion).
+| Variable | Para que sirve |
+| --- | --- |
+| `PORT` | Puerto del servidor (3000 por defecto) |
+| `DB_PATH` | Archivo de la base de datos (por defecto `data/tauro-crm.db`) |
+| `BASE_URL` | URL publica del sistema; habilita la liga del PDF en WhatsApp/correo |
+| `ADMIN_USER` / `ADMIN_PASSWORD` | Administrador inicial (solo primera vez) |
+| `SESSION_HOURS` | Duracion de la sesion (12 h por defecto) |
+| `SMTP_HOST/PORT/SECURE/USER/PASS`, `CORREO_DE` | Correo saliente; tambien se captura en el panel (el panel tiene prioridad) |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | Opcional: envio directo por la API de WhatsApp Business (Meta) |
 
-Hay dos roles:
+## Envio por WhatsApp
 
-- **Administrador**: todo lo del operador, y ademas puede crear y eliminar
-  usuarios y restablecer sus contraseñas desde **Configuracion → Usuarios del
-  sistema**, cambiar su propia contraseña, y revertir escaneos equivocados
-  desde el detalle de la guia (boton **Revertir ultimo escaneo**; la guia
-  regresa a su estatus anterior y la correccion queda en el historial).
-- **Operador**: puede escanear y consultar guias y eventos. No puede cambiar
-  su contraseña; si la necesita cambiar, un administrador se la restablece.
+Funciona de dos formas:
 
-Ademas, a cada usuario se le puede asignar una **plaza** (MTY o CDMX, o
-"ambas") al crearlo o desde la tabla de usuarios. Un usuario con plaza
-asignada solo ve el boton de escanear de su plaza y el servidor rechaza
-cualquier escaneo suyo en la otra plaza.
+1. **Sin configurar nada**: el sistema abre WhatsApp con el mensaje ya
+   escrito (folio, ruta, unidad, total y vigencia). Si capturaste
+   `BASE_URL`, el mensaje incluye una liga publica y segura para que el
+   cliente descargue el PDF (`/cotizacion/<token>.pdf`, con token
+   aleatorio no adivinable).
+2. **Con la API de WhatsApp Business (opcional)**: capturando token y
+   Phone Number ID en Configuracion, el boton "Enviar directo (API)"
+   manda el PDF al cliente sin abrir WhatsApp.
 
-Las sesiones duran `SESSION_HOURS` horas (12 por defecto); al expirar, el
-panel vuelve a pedir login. Las contraseñas se guardan cifradas (scrypt) y el
-login se bloquea 15 minutos despues de 10 intentos fallidos.
+## Despliegue (Railway / Render / VPS)
 
-## Pagina publica de rastreo para clientes
+- El servidor es un solo proceso Node (`npm start`).
+- La base es un archivo SQLite: monta un **volumen persistente** y apunta
+  `DB_PATH` ahi (por ejemplo `/data/tauro-crm.db`) para no perder datos
+  entre despliegues.
+- Define `BASE_URL` con tu dominio para las ligas de PDF.
 
-La pagina principal del sitio (`https://tu-dominio.com/`) es la pagina
-publica de rastreo (tambien disponible en `/rastreo.html`), sin login,
-donde el cliente escribe su numero de guia y ve el estatus y el historial de
-su envio. Formas de conectarla a tu pagina web:
+## API
 
-**1. Un boton o liga que lleve a la pagina de rastreo:**
+Toda la API vive bajo `/api` y requiere `Authorization: Bearer <token>`
+(el token lo da `POST /api/auth/login`). Recursos principales:
+`/api/empresas`, `/api/contactos`, `/api/actividades`, `/api/tareas`,
+`/api/cotizaciones` (con `/pdf`, `/enviar-correo`, `/whatsapp`,
+`/convertir`, `/duplicar`), `/api/servicios`, `/api/rutas`,
+`/api/unidades`, `/api/tarifas`, `/api/reportes/resumen`,
+`/api/reportes/comercial`, `/api/buscar`, `/api/usuarios`,
+`/api/configuracion`. La unica ruta publica es
+`GET /cotizacion/<token>.pdf`.
 
-```html
-<a href="https://tu-dominio.com/">Rastrea tu envio</a>
+## Estructura
+
 ```
-
-Tambien acepta el numero de guia en la URL para ligas directas:
-`https://tu-dominio.com/?guia=TAU-1001`
-
-**2. Incrustada dentro de tu sitio con un iframe:**
-
-```html
-<iframe src="https://tu-dominio.com/"
-        style="width:100%; height:640px; border:none;"></iframe>
+src/
+  server.js        servidor Express y montaje de rutas
+  db.js            esquema SQLite, semillas y helpers
+  util.js          fechas de Mexico, dinero, importe con letra, scrypt
+  auth.js          login, sesiones, roles y usuarios
+  empresas.js      prospectos/clientes, contactos, pipeline, historial
+  tareas.js        tareas y recordatorios
+  cotizaciones.js  folios, totales, PDF, correo, WhatsApp, conversion
+  servicios.js     servicios realizados
+  catalogos.js     rutas, unidades y tarifas
+  reportes.js      panel operativo, reporte comercial y busqueda global
+  config.js        configuracion editable desde el panel
+  pdf.js           PDF de cotizacion con el logotipo
+  correo.js        envio SMTP (nodemailer)
+public/            aplicacion web (SPA sin dependencias, adaptable a celular)
 ```
-
-**3. Integracion directa con la API publica** (para que tu desarrollador web
-la consuma desde tu propio diseño; tiene CORS abierto):
-
-```
-GET https://tu-dominio.com/api/publico/guias/:numeroGuia
-```
-
-Respuesta: `{ numeroGuia, estatus, mensaje, actualizado_en, historial }`.
-Esta API solo permite consultar guias por numero exacto; no expone la lista
-de guias ni permite modificar nada.
-
-## API REST (interna)
-
-Todas las rutas requieren autenticacion: el header
-`Authorization: Bearer <token>` con el token que regresa
-`POST /api/auth/login`. Por compatibilidad tambien se acepta el header
-`X-App-Token: <APP_TOKEN>` si `APP_TOKEN` esta definido en `.env` (util para
-integraciones fijas como la pistola de escaneo).
-
-- `POST /api/auth/login` `{ usuario, password }` -> `{ token, expiraEn, usuario }`.
-- `POST /api/auth/logout` -> cierra la sesion actual.
-- `GET /api/auth/me` -> datos del usuario de la sesion.
-- `POST /api/auth/password` `{ actual, nueva }` -> cambia tu contraseña
-  (solo rol `admin`).
-- `GET /api/usuarios` / `POST /api/usuarios` / `DELETE /api/usuarios/:id` /
-  `PUT /api/usuarios/:id/password` -> gestion de usuarios (solo rol `admin`).
-- `POST /api/guias/:numeroGuia/revertir` -> revierte el ultimo escaneo de la
-  guia y la regresa a su estatus anterior (solo rol `admin`); agrega un
-  evento `CORRECCION` al historial.
-- `POST /api/guias/borrar-todas` `{ confirmar: "BORRAR" }` -> borra todas las
-  guias y su historial para dejar el sistema como nuevo (solo rol `admin`; no
-  toca usuarios ni sesiones).
-- `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX", modo?: "bodega"|"domicilio"|"ocurre" }`
-  -> aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje }`, donde
-  `tipo` es `salida`, `llegada`, `ruta`, `entregado` o `repetido`.
-- `GET /api/guias?buscar=<texto>&estatus=<estatus>` -> lista de guias
-  recientes, con busqueda por numero y filtro por estatus (ambos opcionales).
-- `GET /api/guias/resumen` -> conteo de guias por estatus.
-- `GET /api/guias/:numeroGuia` -> estatus actual, mensaje en lenguaje
-  natural e historial completo de eventos.
-
-## Conectar con WhatsApp Business (Meta Cloud API) - desde cero
-
-Como aun no tienes nada configurado en Meta, sigue estos pasos en orden.
-Todo esto se hace dentro de [developers.facebook.com](https://developers.facebook.com/),
-no requiere instalar nada adicional.
-
-### 1. Crear la app de Meta
-
-1. Entra a [developers.facebook.com/apps](https://developers.facebook.com/apps)
-   con tu cuenta de Facebook (usa una cuenta de la empresa, no personal si es
-   posible).
-2. Clic en **"Crear app"** → tipo de app: **"Otro"** → caso de uso:
-   **"Empresa"**.
-3. Ponle un nombre (ej. "Sistema Guias Fletes Tauro") y crea la app.
-
-### 2. Agregar el producto WhatsApp
-
-1. En el panel de la app, busca la tarjeta **WhatsApp** y clic en
-   **"Configurar"**.
-2. Meta te pedira asociar o crear una **Cuenta de WhatsApp Business**
-   (WABA). Sigue el asistente; puedes usar el numero de telefono de prueba
-   que Meta te da gratis para probar antes de usar tu numero real.
-3. En **WhatsApp > Configuracion de la API**, copia:
-   - **Phone Number ID** (ID del numero de telefono)
-   - **Token de acceso temporal** (dura 24 horas, sirve para probar)
-
-### 3. Generar un token permanente (para produccion)
-
-El token temporal expira en 24 horas, no sirve para un sistema en vivo.
-
-1. Ve a **Configuracion de la empresa** (Business Settings) en
-   business.facebook.com.
-2. En **Usuarios > Usuarios del sistema**, crea un **System User** con rol
-   de administrador.
-3. Asigna ese usuario del sistema a tu app de WhatsApp con permiso
-   `whatsapp_business_messaging`.
-4. Genera un token para ese usuario del sistema, sin fecha de expiracion
-   (o la mas larga posible). Ese es tu `WHATSAPP_TOKEN` definitivo.
-
-### 4. Verificar tu numero real (cuando dejes el numero de prueba)
-
-1. En **WhatsApp > Numeros de telefono**, clic en **"Agregar numero de
-   telefono"** y registra el numero real de la empresa (debe poder recibir
-   un SMS o llamada de verificacion, y no puede estar ya activo en la app
-   normal de WhatsApp).
-2. Una vez verificado, ese numero tendra su propio `Phone Number ID`,
-   actualiza `WHATSAPP_PHONE_NUMBER_ID` en `.env`.
-
-### 5. Configurar el webhook hacia tu sistema
-
-1. Pon en tu `.env`:
-   - `WHATSAPP_TOKEN` = el token del paso 2 o 3.
-   - `WHATSAPP_PHONE_NUMBER_ID` = el ID del paso 2 o 4.
-   - `WHATSAPP_VERIFY_TOKEN` = cualquier cadena secreta que tu inventes
-     (ej. `tauro2026secreto`).
-2. Despliega tu servidor en algun lugar accesible por HTTPS (Railway,
-   Render, un VPS con dominio y certificado, etc). Mientras pruebas en tu
-   computadora puedes usar un tunel como `ngrok http 3000` para obtener una
-   URL publica temporal.
-3. En el panel de Meta, ve a **WhatsApp > Configuracion** → **Webhooks**
-   → **Editar**:
-   - **Callback URL**: `https://tu-dominio.com/webhook/whatsapp`
-   - **Verify token**: el mismo valor que pusiste en `WHATSAPP_VERIFY_TOKEN`
-   - Clic en **Verificar y guardar** (Meta llamara a tu endpoint GET para
-     confirmar que coincide).
-4. En la lista de campos del webhook, suscribete al campo **`messages`**.
-
-### 6. Probar
-
-1. Registra una guia de prueba en el panel de escaneo (`/`).
-2. Desde tu celular, envia un WhatsApp al numero configurado con el
-   numero de guia (ej. "XYZ999").
-3. El sistema debe responder automaticamente con el estatus.
-
-Nota: mientras uses el numero de prueba gratuito de Meta, solo puede
-recibir mensajes de numeros que agregues como "destinatarios de prueba" en
-el panel de WhatsApp. Para que cualquier cliente pueda escribir, necesitas
-verificar tu numero real de negocio (paso 4) y pasar la revision de la app
-si planeas enviar mensajes fuera de la ventana de 24 horas de respuesta.
-
-## Notas
-
-- El campo `numeroGuia` se normaliza a mayusculas.
-- El ciclo de ida y vuelta esta soportado: una guia en bodega puede volver a
-  salir hacia la otra plaza y todo queda en el mismo historial.

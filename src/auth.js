@@ -1,245 +1,183 @@
-const crypto = require('crypto');
-const { promisify } = require('util');
-const { pool } = require('./db');
+'use strict';
+// Autenticacion con sesiones, bloqueo por intentos fallidos y
+// administracion de usuarios (roles: admin, gerente, vendedor).
 
-const scrypt = promisify(crypto.scrypt);
+const express = require('express');
+const { get, all, run } = require('./db');
+const { hashPassword, verifyPassword, tokenAleatorio, ahora, limpiarTexto } = require('./util');
 
-// Duracion de la sesion en horas (12 h por defecto, configurable por env)
-const SESSION_HOURS = Number(process.env.SESSION_HOURS) || 12;
-
-// ---------- Hash de contraseñas (scrypt, sin dependencias externas) ----------
-
-async function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = await scrypt(password, salt, 64);
-  return `scrypt:${salt}:${hash.toString('hex')}`;
-}
-
-async function verificarPassword(password, almacenado) {
-  const [esquema, salt, hashHex] = String(almacenado || '').split(':');
-  if (esquema !== 'scrypt' || !salt || !hashHex) return false;
-  const hash = await scrypt(password, salt, 64);
-  const esperado = Buffer.from(hashHex, 'hex');
-  return hash.length === esperado.length && crypto.timingSafeEqual(hash, esperado);
-}
-
-// ---------- Tablas y usuario administrador inicial ----------
-
-async function initAuth() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS usuarios (
-      id SERIAL PRIMARY KEY,
-      usuario TEXT UNIQUE NOT NULL,
-      nombre TEXT NOT NULL,
-      password_hash TEXT NOT NULL,
-      rol TEXT NOT NULL DEFAULT 'operador',
-      creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-
-    -- Plaza del usuario (MTY o CDMX); NULL = puede operar en ambas
-    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plaza TEXT;
-
-    CREATE TABLE IF NOT EXISTS sesiones (
-      token TEXT PRIMARY KEY,
-      usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-      creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
-      expira_en TIMESTAMPTZ NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_sesiones_expira_en ON sesiones (expira_en);
-  `);
-
-  // Si no hay usuarios, crea el administrador inicial
-  const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM usuarios');
-  if (rows[0].n === 0) {
-    const usuario = process.env.ADMIN_USER || 'admin';
-    const password = process.env.ADMIN_PASSWORD || 'admin123';
-    await pool.query(
-      'INSERT INTO usuarios (usuario, nombre, password_hash, rol) VALUES ($1, $2, $3, $4)',
-      [usuario, 'Administrador', await hashPassword(password), 'admin']
-    );
-    if (!process.env.ADMIN_PASSWORD) {
-      console.warn(`[auth] Usuario inicial creado: "${usuario}" con contraseña "admin123". CAMBIALA desde Configuracion o define ADMIN_PASSWORD en .env`);
-    } else {
-      console.log(`[auth] Usuario administrador inicial creado: "${usuario}"`);
-    }
-  }
-}
-
-// ---------- Limite de intentos de login (en memoria) ----------
-
-const intentos = new Map(); // clave -> { fallos, desde }
-const MAX_INTENTOS = 10;
-const VENTANA_MS = 15 * 60 * 1000;
-
-function bloqueado(clave) {
-  const reg = intentos.get(clave);
-  if (!reg) return false;
-  if (Date.now() - reg.desde > VENTANA_MS) { intentos.delete(clave); return false; }
-  return reg.fallos >= MAX_INTENTOS;
-}
-
-function registrarFallo(clave) {
-  const reg = intentos.get(clave);
-  if (!reg || Date.now() - reg.desde > VENTANA_MS) intentos.set(clave, { fallos: 1, desde: Date.now() });
-  else reg.fallos += 1;
-}
+const SESSION_HOURS = Number(process.env.SESSION_HOURS || 12);
+const MAX_FALLOS = 10;
+const MINUTOS_BLOQUEO = 15;
+const ROLES = ['admin', 'gerente', 'vendedor'];
 
 // ---------- Sesiones ----------
 
-async function login(usuario, password, ip) {
-  const clave = `${ip}|${usuario.toLowerCase()}`;
-  if (bloqueado(clave)) throw new Error('Demasiados intentos fallidos. Espera 15 minutos e intenta de nuevo.');
-
-  const { rows } = await pool.query('SELECT * FROM usuarios WHERE lower(usuario) = lower($1)', [usuario]);
-  const u = rows[0];
-  if (!u || !(await verificarPassword(password, u.password_hash))) {
-    registrarFallo(clave);
-    throw new Error('Usuario o contraseña incorrectos');
-  }
-  intentos.delete(clave);
-
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiraEn = new Date(Date.now() + SESSION_HOURS * 3600 * 1000);
-  await pool.query('INSERT INTO sesiones (token, usuario_id, expira_en) VALUES ($1, $2, $3)', [token, u.id, expiraEn]);
-  // Limpia sesiones vencidas de vez en cuando
-  pool.query('DELETE FROM sesiones WHERE expira_en < now()').catch(() => {});
-
-  return { token, expiraEn, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, plaza: u.plaza } };
+function crearSesion(usuarioId) {
+  const token = tokenAleatorio(32);
+  const expira = new Date(Date.now() + SESSION_HOURS * 3600 * 1000).toISOString();
+  run('INSERT INTO sesiones (token, usuario_id, creada_en, expira_en) VALUES (?, ?, ?, ?)', token, usuarioId, ahora(), expira);
+  // limpieza ocasional de sesiones vencidas
+  if (Math.random() < 0.05) run('DELETE FROM sesiones WHERE expira_en < ?', ahora());
+  return { token, expira };
 }
 
-async function logout(token) {
-  await pool.query('DELETE FROM sesiones WHERE token = $1', [token]);
-}
-
-async function validarSesion(token) {
+function usuarioPorToken(token) {
   if (!token) return null;
-  const { rows } = await pool.query(
-    `SELECT u.id, u.usuario, u.nombre, u.rol, u.plaza
+  const fila = get(
+    `SELECT u.id, u.usuario, u.nombre, u.email, u.telefono, u.rol, u.activo, s.expira_en
        FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id
-      WHERE s.token = $1 AND s.expira_en > now()`,
-    [token]
+      WHERE s.token = ?`, token
   );
-  return rows[0] || null;
-}
-
-// ---------- Middlewares ----------
-
-// Token de sesion: header Authorization: Bearer <token> o X-Session-Token.
-// Se mantiene compatibilidad con el APP_TOKEN anterior (X-App-Token o ?token=)
-// para integraciones existentes como la pistola de escaneo.
-function extraerToken(req) {
-  const auth = req.headers.authorization || '';
-  if (auth.startsWith('Bearer ')) return auth.slice(7);
-  return req.headers['x-session-token'] || null;
-}
-
-function requireAuth(req, res, next) {
-  const APP_TOKEN = process.env.APP_TOKEN || '';
-  const legado = req.headers['x-app-token'] || req.query.token;
-  if (APP_TOKEN && legado === APP_TOKEN) {
-    req.usuario = { id: 0, usuario: 'app-token', nombre: 'Integracion (APP_TOKEN)', rol: 'operador' };
-    return next();
+  if (!fila) return null;
+  if (fila.expira_en < ahora() || !fila.activo) {
+    run('DELETE FROM sesiones WHERE token = ?', token);
+    return null;
   }
-  validarSesion(extraerToken(req))
-    .then((usuario) => {
-      if (!usuario) return res.status(401).json({ error: 'Sesion invalida o expirada. Inicia sesion de nuevo.' });
-      req.usuario = usuario;
-      next();
-    })
-    .catch(next);
+  return fila;
 }
 
-function requireAdmin(req, res, next) {
-  if (req.usuario?.rol !== 'admin') return res.status(403).json({ error: 'Se requiere rol de administrador' });
+// Middleware: requiere sesion valida; deja el usuario en req.usuario
+function autenticar(req, res, next) {
+  const encabezado = req.headers.authorization || '';
+  const token = encabezado.startsWith('Bearer ') ? encabezado.slice(7) : '';
+  const usuario = usuarioPorToken(token);
+  if (!usuario) return res.status(401).json({ error: 'Sesion invalida o expirada. Inicia sesion de nuevo.' });
+  req.usuario = usuario;
+  req.token = token;
   next();
 }
 
-// ---------- Gestion de usuarios ----------
-
-async function listarUsuarios() {
-  const { rows } = await pool.query('SELECT id, usuario, nombre, rol, plaza, creado_en FROM usuarios ORDER BY usuario');
-  return rows;
+// Middleware: limita una ruta a ciertos roles
+function requerirRol(...roles) {
+  return (req, res, next) => {
+    if (!req.usuario || !roles.includes(req.usuario.rol)) {
+      return res.status(403).json({ error: 'No tienes permiso para esta operacion.' });
+    }
+    next();
+  };
 }
 
-function normalizarPlaza(plaza) {
-  const p = String(plaza || '').trim().toUpperCase();
-  if (!p) return null; // sin plaza = puede operar en ambas
-  if (!['MTY', 'CDMX'].includes(p)) throw new Error('Plaza invalida (MTY, CDMX o vacia para ambas)');
-  return p;
-}
+const esAdminOGerente = (usuario) => usuario.rol === 'admin' || usuario.rol === 'gerente';
 
-async function crearUsuario({ usuario, nombre, password, rol, plaza }) {
-  if (!usuario || !/^[a-zA-Z0-9._-]{3,30}$/.test(usuario)) {
-    throw new Error('El usuario debe tener de 3 a 30 caracteres (letras, numeros, punto, guion)');
+// ---------- Rutas de autenticacion ----------
+
+const rutasAuth = express.Router();
+
+rutasAuth.post('/login', (req, res) => {
+  const usuario = limpiarTexto(req.body.usuario, 100).toLowerCase();
+  const password = String(req.body.password || '');
+  if (!usuario || !password) return res.status(400).json({ error: 'Escribe tu usuario y contrasena.' });
+
+  const intento = get('SELECT * FROM intentos_login WHERE usuario = ?', usuario);
+  if (intento && intento.bloqueado_hasta && intento.bloqueado_hasta > ahora()) {
+    return res.status(429).json({ error: `Demasiados intentos fallidos. Espera ${MINUTOS_BLOQUEO} minutos e intenta de nuevo.` });
   }
-  if (!password || password.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres');
-  if (!['admin', 'operador'].includes(rol)) throw new Error('Rol invalido (admin u operador)');
-  try {
-    const { rows } = await pool.query(
-      'INSERT INTO usuarios (usuario, nombre, password_hash, rol, plaza) VALUES ($1, $2, $3, $4, $5) RETURNING id, usuario, nombre, rol, plaza, creado_en',
-      [usuario.trim(), (nombre || usuario).trim(), await hashPassword(password), rol, normalizarPlaza(plaza)]
+
+  const fila = get('SELECT * FROM usuarios WHERE lower(usuario) = ? AND activo = 1', usuario);
+  if (!fila || !verifyPassword(password, fila.password_hash)) {
+    const fallos = (intento ? intento.fallos : 0) + 1;
+    const bloqueo = fallos >= MAX_FALLOS ? new Date(Date.now() + MINUTOS_BLOQUEO * 60000).toISOString() : null;
+    run(
+      `INSERT INTO intentos_login (usuario, fallos, bloqueado_hasta) VALUES (?, ?, ?)
+       ON CONFLICT(usuario) DO UPDATE SET fallos = excluded.fallos, bloqueado_hasta = excluded.bloqueado_hasta`,
+      usuario, bloqueo ? 0 : fallos, bloqueo
     );
-    return rows[0];
-  } catch (e) {
-    if (e.code === '23505') throw new Error('Ese usuario ya existe');
-    throw e;
+    return res.status(401).json({ error: 'Usuario o contrasena incorrectos.' });
   }
-}
 
-async function actualizarPlaza(id, plaza) {
-  const { rowCount } = await pool.query('UPDATE usuarios SET plaza = $1 WHERE id = $2', [
-    normalizarPlaza(plaza),
-    id,
-  ]);
-  if (!rowCount) throw new Error('Usuario no encontrado');
-}
+  run('DELETE FROM intentos_login WHERE usuario = ?', usuario);
+  const { token, expira } = crearSesion(fila.id);
+  res.json({
+    token,
+    expiraEn: expira,
+    usuario: { id: fila.id, usuario: fila.usuario, nombre: fila.nombre, email: fila.email, telefono: fila.telefono, rol: fila.rol },
+  });
+});
 
-async function eliminarUsuario(id, solicitante) {
-  if (Number(id) === solicitante.id) throw new Error('No puedes eliminar tu propio usuario');
-  const { rows } = await pool.query('SELECT rol FROM usuarios WHERE id = $1', [id]);
-  if (!rows[0]) throw new Error('Usuario no encontrado');
-  if (rows[0].rol === 'admin') {
-    const { rows: admins } = await pool.query(`SELECT COUNT(*)::int AS n FROM usuarios WHERE rol = 'admin'`);
-    if (admins[0].n <= 1) throw new Error('No puedes eliminar al ultimo administrador');
+rutasAuth.post('/logout', autenticar, (req, res) => {
+  run('DELETE FROM sesiones WHERE token = ?', req.token);
+  res.json({ ok: true });
+});
+
+rutasAuth.get('/me', autenticar, (req, res) => {
+  const u = req.usuario;
+  res.json({ id: u.id, usuario: u.usuario, nombre: u.nombre, email: u.email, telefono: u.telefono, rol: u.rol });
+});
+
+// Cualquier usuario puede cambiar su propia contrasena
+rutasAuth.put('/password', autenticar, (req, res) => {
+  const actual = String(req.body.actual || '');
+  const nueva = String(req.body.nueva || '');
+  if (nueva.length < 6) return res.status(400).json({ error: 'La nueva contrasena debe tener al menos 6 caracteres.' });
+  const fila = get('SELECT password_hash FROM usuarios WHERE id = ?', req.usuario.id);
+  if (!verifyPassword(actual, fila.password_hash)) return res.status(400).json({ error: 'La contrasena actual no es correcta.' });
+  run('UPDATE usuarios SET password_hash = ? WHERE id = ?', hashPassword(nueva), req.usuario.id);
+  run('DELETE FROM sesiones WHERE usuario_id = ? AND token != ?', req.usuario.id, req.token);
+  res.json({ ok: true });
+});
+
+// ---------- Rutas de usuarios (equipo de 10 personas) ----------
+
+const rutasUsuarios = express.Router();
+rutasUsuarios.use(autenticar);
+
+// Lista para llenar selectores de vendedor: visible para todos.
+// Los datos completos (usuario de acceso, correo, telefono) solo para admin/gerente.
+rutasUsuarios.get('/', (req, res) => {
+  const completo = esAdminOGerente(req.usuario);
+  const filas = all('SELECT id, usuario, nombre, email, telefono, rol, activo, creado_en FROM usuarios ORDER BY activo DESC, nombre');
+  if (completo) return res.json(filas);
+  res.json(filas.map((u) => ({ id: u.id, nombre: u.nombre, rol: u.rol, activo: u.activo })));
+});
+
+rutasUsuarios.post('/', requerirRol('admin'), (req, res) => {
+  const usuario = limpiarTexto(req.body.usuario, 50).toLowerCase().replace(/\s+/g, '');
+  const nombre = limpiarTexto(req.body.nombre, 120);
+  const rol = ROLES.includes(req.body.rol) ? req.body.rol : 'vendedor';
+  const password = String(req.body.password || '');
+  if (!usuario || !nombre) return res.status(400).json({ error: 'Usuario y nombre son obligatorios.' });
+  if (password.length < 6) return res.status(400).json({ error: 'La contrasena debe tener al menos 6 caracteres.' });
+  if (get('SELECT id FROM usuarios WHERE lower(usuario) = ?', usuario)) {
+    return res.status(400).json({ error: `El usuario "${usuario}" ya existe.` });
   }
-  await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
-}
+  const info = run(
+    'INSERT INTO usuarios (usuario, nombre, email, telefono, rol, password_hash, activo, creado_en) VALUES (?, ?, ?, ?, ?, ?, 1, ?)',
+    usuario, nombre, limpiarTexto(req.body.email, 120), limpiarTexto(req.body.telefono, 30), rol, hashPassword(password), ahora()
+  );
+  res.status(201).json(get('SELECT id, usuario, nombre, email, telefono, rol, activo, creado_en FROM usuarios WHERE id = ?', info.lastInsertRowid));
+});
 
-async function cambiarPassword(usuarioId, actual, nueva, tokenActual) {
-  if (!nueva || nueva.length < 6) throw new Error('La nueva contraseña debe tener al menos 6 caracteres');
-  const { rows } = await pool.query('SELECT password_hash FROM usuarios WHERE id = $1', [usuarioId]);
-  if (!rows[0] || !(await verificarPassword(actual, rows[0].password_hash))) {
-    throw new Error('La contraseña actual es incorrecta');
+rutasUsuarios.put('/:id', requerirRol('admin'), (req, res) => {
+  const id = Number(req.params.id);
+  const fila = get('SELECT * FROM usuarios WHERE id = ?', id);
+  if (!fila) return res.status(404).json({ error: 'Usuario no encontrado.' });
+
+  const rol = ROLES.includes(req.body.rol) ? req.body.rol : fila.rol;
+  const activo = req.body.activo === undefined ? fila.activo : (req.body.activo ? 1 : 0);
+  if (id === req.usuario.id && (!activo || rol !== 'admin')) {
+    return res.status(400).json({ error: 'No puedes desactivarte ni quitarte el rol de administrador a ti mismo.' });
   }
-  await pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [await hashPassword(nueva), usuarioId]);
-  // Cierra las demas sesiones del usuario por seguridad (conserva la actual)
-  await pool.query('DELETE FROM sesiones WHERE usuario_id = $1 AND token <> $2', [usuarioId, tokenActual || '']);
-}
+  run(
+    'UPDATE usuarios SET nombre = ?, email = ?, telefono = ?, rol = ?, activo = ? WHERE id = ?',
+    limpiarTexto(req.body.nombre, 120) || fila.nombre,
+    req.body.email === undefined ? fila.email : limpiarTexto(req.body.email, 120),
+    req.body.telefono === undefined ? fila.telefono : limpiarTexto(req.body.telefono, 30),
+    rol, activo, id
+  );
+  if (!activo) run('DELETE FROM sesiones WHERE usuario_id = ?', id);
+  res.json(get('SELECT id, usuario, nombre, email, telefono, rol, activo, creado_en FROM usuarios WHERE id = ?', id));
+});
 
-// Restablece la contraseña de cualquier usuario (accion de administrador,
-// no requiere la contraseña actual) y cierra todas sus sesiones.
-async function resetPassword(usuarioId, nueva) {
-  if (!nueva || nueva.length < 6) throw new Error('La nueva contraseña debe tener al menos 6 caracteres');
-  const { rowCount } = await pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [
-    await hashPassword(nueva),
-    usuarioId,
-  ]);
-  if (!rowCount) throw new Error('Usuario no encontrado');
-  await pool.query('DELETE FROM sesiones WHERE usuario_id = $1', [usuarioId]);
-}
+// El administrador restablece la contrasena de cualquier usuario
+rutasUsuarios.put('/:id/password', requerirRol('admin'), (req, res) => {
+  const id = Number(req.params.id);
+  const nueva = String(req.body.nueva || '');
+  if (!get('SELECT id FROM usuarios WHERE id = ?', id)) return res.status(404).json({ error: 'Usuario no encontrado.' });
+  if (nueva.length < 6) return res.status(400).json({ error: 'La contrasena debe tener al menos 6 caracteres.' });
+  run('UPDATE usuarios SET password_hash = ? WHERE id = ?', hashPassword(nueva), id);
+  run('DELETE FROM sesiones WHERE usuario_id = ?', id);
+  res.json({ ok: true });
+});
 
-module.exports = {
-  initAuth,
-  login,
-  logout,
-  extraerToken,
-  requireAuth,
-  requireAdmin,
-  listarUsuarios,
-  crearUsuario,
-  actualizarPlaza,
-  eliminarUsuario,
-  cambiarPassword,
-  resetPassword,
-};
+module.exports = { rutasAuth, rutasUsuarios, autenticar, requerirRol, esAdminOGerente };

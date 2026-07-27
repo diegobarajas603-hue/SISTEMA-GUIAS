@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#131313">
+  <title>CRM Fletes Tauro</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <!-- Pantalla de acceso -->
+  <div id="pantalla-login" class="login-fondo oculto">
+    <form id="forma-login" class="login-caja" autocomplete="on">
+      <div class="login-logo"><img src="/logo-tauro.png" alt="Fletes Tauro"></div>
+      <h1>CRM de Ventas</h1>
+      <p class="login-sub">Gestion de prospectos, cotizaciones y servicios</p>
+      <label class="campo">
+        <span>Usuario</span>
+        <input type="text" id="login-usuario" name="username" autocomplete="username" required autofocus>
+      </label>
+      <label class="campo">
+        <span>Contrasena</span>
+        <input type="password" id="login-password" name="password" autocomplete="current-password" required>
+      </label>
+      <div id="login-error" class="login-error oculto"></div>
+      <button type="submit" class="btn btn-primario btn-bloque" id="login-boton">Entrar</button>
+    </form>
+  </div>
+
+  <!-- Aplicacion -->
+  <div id="app" class="app oculto">
+    <div id="velo" class="velo"></div>
+
+    <aside id="menu-lateral" class="menu-lateral">
+      <div class="menu-logo"><img src="/logo-tauro.png" alt="Fletes Tauro"></div>
+      <nav id="navegacion" class="navegacion"></nav>
+      <div class="menu-pie">
+        <div id="menu-usuario" class="menu-usuario"></div>
+        <button id="boton-salir" class="btn-salir" type="button">Cerrar sesion</button>
+      </div>
+    </aside>
+
+    <div class="principal">
+      <header class="barra-superior">
+        <button id="boton-menu" class="boton-icono solo-movil" type="button" aria-label="Menu"></button>
+        <div class="busqueda">
+          <span class="busqueda-icono"></span>
+          <input type="search" id="busqueda-global" placeholder="Buscar clientes, contactos, folios..." autocomplete="off">
+          <div id="resultados-busqueda" class="resultados-busqueda oculto"></div>
+        </div>
+        <button id="boton-rapido" class="btn btn-primario btn-redondo" type="button" title="Alta rapida">+</button>
+        <div id="menu-rapido" class="menu-rapido oculto"></div>
+      </header>
+      <main id="contenido" class="contenido"></main>
+    </div>
+  </div>
+
+  <div id="zona-modales"></div>
+  <div id="zona-toasts" class="zona-toasts"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/views-crm.js"></script>
+  <script src="/js/views-cot.js"></script>
+  <script src="/js/views-oper.js"></script>
+  <script src="/js/views-admin.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
