@@ -643,7 +643,7 @@
           </form>
         </div>
 
-        <div class="card" id="cardUsuarios" style="max-width:640px; display:none;">
+        <div class="card" id="cardUsuarios" style="max-width:730px; display:none;">
           <h2 class="titulo-card">Usuarios del sistema</h2>
           <div class="tabla-scroll">
             <table>
@@ -695,10 +695,13 @@
 
         <div class="card" id="cardBorrar" style="max-width:520px; display:none; border-color: var(--vino-borde);">
           <h2 class="titulo-card" style="color: var(--vino);">Zona de peligro</h2>
-          <p class="nota">Para <b>eliminar una guia</b> en concreto, abre su detalle y presiona <b class="tecla">Ctrl</b> + <b class="tecla">Alt</b> + <b class="tecla">E</b>. Eso muestra el boton de eliminar, que normalmente esta oculto para que nadie lo borre por accidente. El mismo atajo lo vuelve a esconder, y se apaga solo al recargar o cerrar sesion.</p>
-          <p class="nota" style="margin-top:14px;">Lo de abajo es distinto: borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
-          <div class="msg-form" id="msgBorrar"></div>
-          <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:12px;">Borrar todas las guias</button>
+          <p class="nota">Los botones para borrar estan escondidos, para que nadie los use por accidente. Para mostrarlos presiona <b class="tecla">Ctrl</b> + <b class="tecla">Alt</b> + <b class="tecla">E</b>; el mismo atajo los vuelve a esconder, y se apagan solos al recargar la pagina o cerrar sesion.</p>
+          <p class="nota" style="margin-top:12px;">Con el modo activado aparecen dos cosas: el boton <b>Eliminar guia</b> en el detalle de cada guia, y aqui abajo el de borrar todo.</p>
+          <div id="zonaBorrarTodas" style="display:none; margin-top:16px; padding-top:16px; border-top:1px solid var(--linea);">
+            <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
+            <div class="msg-form" id="msgBorrar"></div>
+            <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:12px;">Borrar todas las guias</button>
+          </div>
         </div>
       </section>
 
@@ -893,16 +896,19 @@
   let usuarioActual = null;
 
   // ---------- Modo eliminacion (oculto tras un atajo de teclado) ----------
-  // Borrar una guia es definitivo, asi que el boton no esta a la vista: hay que
-  // habilitarlo a proposito con Ctrl+Alt+E (Cmd+Alt+E en Mac). Se apaga con el
-  // mismo atajo, al recargar la pagina o al cerrar sesion, para que no quede
-  // encendido por descuido.
+  // Borrar es definitivo, asi que ningun boton de borrado esta a la vista: hay
+  // que habilitarlos a proposito con Ctrl+Alt+E (Cmd+Alt+E en Mac). Cubre tanto
+  // eliminar una guia como borrar todas. Se apaga con el mismo atajo, al
+  // recargar la pagina o al cerrar sesion, para que no quede encendido por
+  // descuido.
   let modoEliminar = false;
 
   function aplicarModoEliminar() {
     const esAdmin = usuarioActual && usuarioActual.rol === 'admin';
+    const activo = esAdmin && modoEliminar;
     const enDetalle = !!guiaDetalleActual;
-    $('btnEliminarGuia').style.display = esAdmin && modoEliminar && enDetalle ? '' : 'none';
+    $('btnEliminarGuia').style.display = activo && enDetalle ? '' : 'none';
+    $('zonaBorrarTodas').style.display = activo ? '' : 'none';
   }
 
   function avisoFlotante(texto, tipo) {
@@ -955,6 +961,7 @@
     sesionToken = '';
     usuarioActual = null;
     modoEliminar = false;
+    aplicarModoEliminar();
     sessionStorage.removeItem('sesionToken');
     ocultarPasswords();
     $('loginOverlay').style.display = 'flex';
