@@ -189,6 +189,9 @@
   .plaza-banner span { color: var(--negro-texto); }
   .plaza-banner b { font-size: 1.55rem; letter-spacing: 0.1em; }
 
+  /* Cuando el rol solo permite un tipo de operacion, se muestra fijo */
+  .modo-unico { margin: 0; font-size: 1rem; font-weight: 600; color: var(--texto); background: var(--superficie-2); border: 1px solid var(--linea); border-radius: var(--radio-sm); padding: 13px 16px; }
+
   /* Toggles de plaza / modo */
   .toggle { display: flex; gap: 9px; flex-wrap: wrap; }
   .toggle button { flex: 1; min-width: 120px; padding: 13px 10px; border: 1px solid var(--linea); border-radius: var(--radio-sm); background: var(--superficie); color: var(--texto-2); font-weight: 600; font-size: 0.88rem; cursor: pointer; transition: all 0.15s; }
@@ -532,11 +535,17 @@
           <b id="plazaBannerNombre"></b>
         </div>
         <div class="card">
-          <label>Tipo de operacion</label>
-          <div class="toggle" id="toggleModo">
-            <button data-modo="bodega">Bodega MTY &harr; CDMX</button>
-            <button data-modo="domicilio">Entrega a domicilio</button>
-            <button data-modo="ocurre">Ocurre (recoge en bodega)</button>
+          <div id="modoWrap">
+            <label>Tipo de operacion</label>
+            <div class="toggle" id="toggleModo">
+              <button data-modo="bodega">Bodega MTY &harr; CDMX</button>
+              <button data-modo="domicilio">Entrega a domicilio</button>
+              <button data-modo="ocurre">Ocurre (recoge en bodega)</button>
+            </div>
+          </div>
+          <div id="modoUnico" style="display:none">
+            <label>Tipo de operacion</label>
+            <p class="modo-unico" id="modoUnicoTexto"></p>
           </div>
           <label for="guia">Numero de guia (escanea aqui)</label>
           <input type="text" id="guia" autocomplete="off" placeholder="Escanea o escribe el numero de guia" style="width:100%; font-size:1.1rem; padding:13px;" />
@@ -640,7 +649,7 @@
           </form>
         </div>
 
-        <div class="card" id="cardUsuarios" style="max-width:730px; display:none;">
+        <div class="card" id="cardUsuarios" style="max-width:820px; display:none;">
           <h2 class="titulo-card">Usuarios del sistema</h2>
           <div class="tabla-scroll">
             <table>
@@ -665,10 +674,9 @@
               </div>
               <div>
                 <label for="nuRol">Rol</label>
-                <select id="nuRol" style="width:100%;">
-                  <option value="operador">Operador</option>
-                  <option value="admin">Administrador</option>
-                </select>
+                <!-- Las opciones las llena cargarRoles() con el catalogo del
+                     servidor, para no repetir aqui la tabla de permisos -->
+                <select id="nuRol" style="width:100%;"></select>
               </div>
               <div>
                 <label for="nuPlaza">Plaza (donde trabaja)</label>
@@ -861,6 +869,12 @@
     document.querySelectorAll('.campo-pass input').forEach((i) => i.ocultarPass && i.ocultarPass());
   }
 
+  // ---------- Sesion ----------
+  // Se declaran aqui arriba porque pintarToggles(), que corre al cargar la
+  // pagina, necesita saber el rol para decidir que botones de escaneo mostrar
+  let sesionToken = sessionStorage.getItem('sesionToken') || '';
+  let usuarioActual = null;
+
   // ---------- Estado persistido ----------
   let plaza = localStorage.getItem('plaza') || 'MTY';
   let modo = localStorage.getItem('modo') || 'bodega';
@@ -872,9 +886,44 @@
     $('plazaBannerNombre').textContent = p === 'MTY' ? 'Monterrey' : 'Ciudad de Mexico';
     $('plazaPie').textContent = p;
   }
-  function pintarToggles() {
-    document.querySelectorAll('#toggleModo button').forEach((b) => b.classList.toggle('activa', b.dataset.modo === modo));
+  // Cada rol solo hace su tipo de escaneo: se muestran unicamente sus botones.
+  // Si le toca uno solo, se elige solo y el selector se oculta (no hay nada que
+  // elegir) para que la pantalla quede en lo unico que importa: el numero.
+  function modosPermitidos() {
+    const m = usuarioActual && usuarioActual.modos;
+    // Sesiones antiguas o la integracion por APP_TOKEN no traen la lista
+    return Array.isArray(m) && m.length ? m : ['bodega', 'domicilio', 'ocurre'];
   }
+
+  function pintarToggles() {
+    // Mientras no se sepa quien entro no se muestra ningun tipo de operacion:
+    // de lo contrario, al cargar la pagina alcanzan a verse por un instante
+    // opciones que a ese usuario no le corresponden.
+    if (!usuarioActual) {
+      $('modoWrap').style.display = 'none';
+      $('modoUnico').style.display = 'none';
+      return;
+    }
+    const permitidos = modosPermitidos();
+    if (!permitidos.includes(modo)) {
+      modo = permitidos[0];
+      localStorage.setItem('modo', modo);
+    }
+    document.querySelectorAll('#toggleModo button').forEach((b) => {
+      b.style.display = permitidos.includes(b.dataset.modo) ? '' : 'none';
+      b.classList.toggle('activa', b.dataset.modo === modo);
+    });
+    // Con un solo modo permitido no hay eleccion que mostrar
+    $('modoWrap').style.display = permitidos.length > 1 ? '' : 'none';
+    $('modoUnico').style.display = permitidos.length > 1 ? 'none' : '';
+    if (permitidos.length === 1) $('modoUnicoTexto').textContent = NOMBRE_MODO[modo] || modo;
+  }
+
+  const NOMBRE_MODO = {
+    bodega: 'Bodega MTY ↔ CDMX',
+    domicilio: 'Entrega a domicilio',
+    ocurre: 'Ocurre (recoge en bodega)',
+  };
   document.querySelectorAll('#toggleModo button').forEach((b) =>
     b.addEventListener('click', () => { modo = b.dataset.modo; localStorage.setItem('modo', modo); pintarToggles(); $('guia').focus(); })
   );
@@ -887,8 +936,22 @@
   // si conserva la sesion). Se limpia el token que versiones anteriores
   // guardaban en localStorage para que no quede una sesion "eterna".
   localStorage.removeItem('sesionToken');
-  let sesionToken = sessionStorage.getItem('sesionToken') || '';
-  let usuarioActual = null;
+  // Catalogo de roles del servidor (nombre visible y tipos de escaneo de cada
+  // uno). Se pide una vez al entrar y se usa para el selector de rol y para
+  // saber que botones de escaneo mostrar.
+  let ROLES = [];
+  async function cargarRoles() {
+    if (ROLES.length) return;
+    try { ROLES = await api('/api/roles'); } catch { ROLES = []; }
+    const sel = $('nuRol');
+    if (ROLES.length) sel.innerHTML = ROLES.map((r) => `<option value="${r.id}">${esc(r.nombre)}</option>`).join('');
+    sel.value = ROLES.some((r) => r.id === 'salidas') ? 'salidas' : sel.value;
+  }
+  function nombreRol(id) {
+    const r = ROLES.find((x) => x.id === id);
+    if (r) return r.nombre;
+    return id === 'operador' ? 'Operador (todos los escaneos)' : id;
+  }
 
   // ---------- Modo eliminacion (oculto tras un atajo de teclado) ----------
   // Borrar es definitivo, asi que ningun boton de borrado esta a la vista: hay
@@ -937,12 +1000,13 @@
       $('usuarioPie').innerHTML = `${esc(usuarioActual.nombre)}<small>${esc(usuarioActual.rol)}${plazaUsuario ? ' - ' + esc(plazaUsuario) : ''}</small>`;
       $('cfgUsuario').textContent = `${usuarioActual.nombre} (${usuarioActual.usuario})`;
       $('cfgRol').textContent =
-        (esAdmin ? 'Rol: administrador' : 'Rol: operador') +
+        `Rol: ${nombreRol(usuarioActual.rol)}` +
         (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
       $('cardUsuarios').style.display = esAdmin ? '' : 'none';
       $('cardPassword').style.display = esAdmin ? '' : 'none';
       $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
       aplicarModoEliminar();
+      pintarToggles();
       // Si el usuario tiene plaza asignada, solo ve el boton de escanear de
       // su plaza y esa queda como la plaza activa
       document.querySelector('[data-ruta="escanear-mty"]').style.display =
@@ -987,6 +1051,7 @@
       sesionToken = data.token;
       usuarioActual = data.usuario;
       sessionStorage.setItem('sesionToken', sesionToken);
+      cargarRoles();
       pintarUsuario();
       ocultarLogin();
       // Al iniciar sesion siempre se entra a la pantalla de Escanear, en la
@@ -1860,10 +1925,18 @@
       const opcionesPlaza = (sel) =>
         [['MTY', 'MTY'], ['CDMX', 'CDMX'], ['', 'Ambas']]
           .map(([v, t]) => `<option value="${v}" ${v === (sel || '') ? 'selected' : ''}>${t}</option>`).join('');
+      // El rol anterior ("operador") no se ofrece para usuarios nuevos, pero si
+      // alguno lo tiene todavia debe verse en su fila
+      const opcionesRol = (sel) => {
+        const lista = ROLES.some((r) => r.id === sel) ? ROLES : [...ROLES, { id: sel, nombre: nombreRol(sel) }];
+        return lista.map((r) => `<option value="${r.id}" ${r.id === sel ? 'selected' : ''}>${esc(r.nombre)}</option>`).join('');
+      };
       $('tbodyUsuarios').innerHTML = usuarios.map((u) => `<tr>
         <td><b>${esc(u.usuario)}</b></td>
         <td>${esc(u.nombre)}</td>
-        <td>${u.rol === 'admin' ? 'Administrador' : 'Operador'}</td>
+        <td>${u.id === usuarioActual.id
+          ? esc(nombreRol(u.rol))
+          : `<select class="sel-rol" data-id="${u.id}" data-usuario="${esc(u.usuario)}" style="padding:6px 8px; font-size:0.82rem;">${opcionesRol(u.rol)}</select>`}</td>
         <td><select class="sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}" style="padding:6px 8px; font-size:0.82rem;">${opcionesPlaza(u.plaza)}</select></td>
         <td style="text-align:right; white-space:nowrap;">${u.id === usuarioActual.id
           ? '<span class="nota">(tu)</span>'
@@ -1875,6 +1948,17 @@
             await api('/api/usuarios/' + s.dataset.id + '/plaza', { method: 'PUT', body: JSON.stringify({ plaza: s.value }) });
             msgForm('msgUsuarios', `Plaza de "${s.dataset.usuario}" actualizada a ${s.value || 'ambas plazas'}. Aplica en cuanto vuelva a entrar o recargue.`, 'ok');
             if (Number(s.dataset.id) === usuarioActual.id) { usuarioActual.plaza = s.value || null; pintarUsuario(); }
+          } catch (err2) {
+            msgForm('msgUsuarios', err2.message, 'err');
+            cargarUsuarios();
+          }
+        })
+      );
+      document.querySelectorAll('#tbodyUsuarios .sel-rol').forEach((s) =>
+        s.addEventListener('change', async () => {
+          try {
+            await api('/api/usuarios/' + s.dataset.id + '/rol', { method: 'PUT', body: JSON.stringify({ rol: s.value }) });
+            msgForm('msgUsuarios', `"${s.dataset.usuario}" ahora es ${nombreRol(s.value)}. Aplica en cuanto vuelva a entrar o recargue.`, 'ok');
           } catch (err2) {
             msgForm('msgUsuarios', err2.message, 'err');
             cargarUsuarios();
@@ -1952,6 +2036,7 @@
     try {
       const me = await api('/api/auth/me');
       usuarioActual = me.usuario;
+      cargarRoles();
       pintarUsuario();
       ocultarLogin();
       render();

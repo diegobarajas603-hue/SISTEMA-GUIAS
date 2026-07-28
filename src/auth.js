@@ -105,7 +105,11 @@ async function login(usuario, password, ip) {
   // Limpia sesiones vencidas de vez en cuando
   pool.query('DELETE FROM sesiones WHERE expira_en < now()').catch(() => {});
 
-  return { token, expiraEn, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, plaza: u.plaza } };
+  return {
+    token,
+    expiraEn,
+    usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, plaza: u.plaza, modos: modosDeRol(u.rol) },
+  };
 }
 
 async function logout(token) {
@@ -120,7 +124,8 @@ async function validarSesion(token) {
       WHERE s.token = $1 AND s.expira_en > now()`,
     [token]
   );
-  return rows[0] || null;
+  if (!rows[0]) return null;
+  return { ...rows[0], modos: modosDeRol(rows[0].rol) };
 }
 
 // ---------- Middlewares ----------
@@ -138,7 +143,7 @@ function requireAuth(req, res, next) {
   const APP_TOKEN = process.env.APP_TOKEN || '';
   const legado = req.headers['x-app-token'] || req.query.token;
   if (APP_TOKEN && legado === APP_TOKEN) {
-    req.usuario = { id: 0, usuario: 'app-token', nombre: 'Integracion (APP_TOKEN)', rol: 'operador' };
+    req.usuario = { id: 0, usuario: 'app-token', nombre: 'Integracion (APP_TOKEN)', rol: 'operador', modos: modosDeRol('operador') };
     return next();
   }
   validarSesion(extraerToken(req))
@@ -153,6 +158,46 @@ function requireAuth(req, res, next) {
 function requireAdmin(req, res, next) {
   if (req.usuario?.rol !== 'admin') return res.status(403).json({ error: 'Se requiere rol de administrador' });
   next();
+}
+
+// ---------- Roles ----------
+
+// Cada rol define que tipos de escaneo puede hacer su usuario. La pantalla de
+// escaneo solo muestra los que le corresponden, pero la restriccion de verdad
+// se aplica aqui y en el endpoint de escaneo: esconder el boton no basta.
+//
+// "operador" es el rol anterior a esta separacion; se conserva para que los
+// usuarios que ya existian sigan funcionando igual, pero ya no se ofrece al
+// crear usuarios nuevos.
+const ROLES = {
+  admin: { nombre: 'Administrador', descripcion: 'Acceso a todo el sistema', modos: ['bodega', 'domicilio', 'ocurre'] },
+  salidas: { nombre: 'Salidas de guias', descripcion: 'Solo bodega MTY <-> CDMX', modos: ['bodega'] },
+  ocurre: { nombre: 'Entregas en ocurre', descripcion: 'Solo entregas en bodega', modos: ['ocurre'] },
+  domicilio: { nombre: 'Entregas a domicilio', descripcion: 'Solo entregas a domicilio', modos: ['domicilio'] },
+  operador: { nombre: 'Operador (todos los escaneos)', descripcion: 'Rol anterior: los tres tipos de escaneo', modos: ['bodega', 'domicilio', 'ocurre'] },
+};
+
+// Los que se pueden elegir al crear o cambiar un usuario
+const ROLES_ASIGNABLES = ['admin', 'salidas', 'ocurre', 'domicilio'];
+
+// Un rol desconocido no puede escanear nada: ante la duda, se niega
+function modosDeRol(rol) {
+  return ROLES[rol] ? ROLES[rol].modos : [];
+}
+
+function puedeModo(rol, modo) {
+  return modosDeRol(rol).includes(modo);
+}
+
+function nombreDeRol(rol) {
+  return ROLES[rol] ? ROLES[rol].nombre : rol;
+}
+
+function validarRol(rol) {
+  if (!ROLES_ASIGNABLES.includes(rol)) {
+    throw new Error(`Rol invalido. Usa: ${ROLES_ASIGNABLES.join(', ')}`);
+  }
+  return rol;
 }
 
 // ---------- Gestion de usuarios ----------
@@ -174,7 +219,7 @@ async function crearUsuario({ usuario, nombre, password, rol, plaza }) {
     throw new Error('El usuario debe tener de 3 a 30 caracteres (letras, numeros, punto, guion)');
   }
   if (!password || password.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres');
-  if (!['admin', 'operador'].includes(rol)) throw new Error('Rol invalido (admin u operador)');
+  validarRol(rol);
   try {
     const { rows } = await pool.query(
       'INSERT INTO usuarios (usuario, nombre, password_hash, rol, plaza) VALUES ($1, $2, $3, $4, $5) RETURNING id, usuario, nombre, rol, plaza, creado_en',
@@ -193,6 +238,20 @@ async function actualizarPlaza(id, plaza) {
     id,
   ]);
   if (!rowCount) throw new Error('Usuario no encontrado');
+}
+
+// Cambia el rol de un usuario. No se permite cambiar el propio (para no
+// quitarse los permisos por error) ni dejar al sistema sin administradores.
+async function actualizarRol(id, rol, solicitante) {
+  validarRol(rol);
+  if (Number(id) === solicitante.id) throw new Error('No puedes cambiar tu propio rol; pideselo a otro administrador');
+  const { rows } = await pool.query('SELECT rol FROM usuarios WHERE id = $1', [id]);
+  if (!rows[0]) throw new Error('Usuario no encontrado');
+  if (rows[0].rol === 'admin' && rol !== 'admin') {
+    const { rows: admins } = await pool.query(`SELECT COUNT(*)::int AS n FROM usuarios WHERE rol = 'admin'`);
+    if (admins[0].n <= 1) throw new Error('No puedes quitarle el rol al ultimo administrador');
+  }
+  await pool.query('UPDATE usuarios SET rol = $1 WHERE id = $2', [rol, id]);
 }
 
 async function eliminarUsuario(id, solicitante) {
@@ -236,9 +295,15 @@ module.exports = {
   extraerToken,
   requireAuth,
   requireAdmin,
+  ROLES,
+  ROLES_ASIGNABLES,
+  modosDeRol,
+  puedeModo,
+  nombreDeRol,
   listarUsuarios,
   crearUsuario,
   actualizarPlaza,
+  actualizarRol,
   eliminarUsuario,
   cambiarPassword,
   resetPassword,

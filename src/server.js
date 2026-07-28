@@ -90,6 +90,22 @@ app.put('/api/usuarios/:id/plaza', requireAuth, requireAdmin, async (req, res) =
   }
 });
 
+app.put('/api/usuarios/:id/rol', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await auth.actualizarRol(Number(req.params.id), (req.body || {}).rol, req.usuario);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Roles que se pueden asignar, con el nombre que ve el usuario y los tipos de
+// escaneo de cada uno. El panel arma con esto el selector y los botones de
+// escaneo, para no repetir la tabla de permisos en el navegador.
+app.get('/api/roles', requireAuth, (req, res) => {
+  res.json(auth.ROLES_ASIGNABLES.map((id) => ({ id, ...auth.ROLES[id] })));
+});
+
 app.delete('/api/usuarios/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     await auth.eliminarUsuario(Number(req.params.id), req.usuario);
@@ -120,11 +136,23 @@ app.post('/api/guias/escanear', requireAuth, async (req, res) => {
   if (req.usuario.plaza && String(plaza).trim().toUpperCase() !== req.usuario.plaza) {
     return res.status(403).json({ error: `Tu usuario solo puede escanear en ${req.usuario.plaza}` });
   }
+  // Cada rol solo hace el tipo de escaneo que le toca (salidas, ocurre o
+  // domicilio). El panel ya oculta los demas, pero se valida aqui tambien:
+  // esconder un boton no es una restriccion.
+  const modoPedido = String(modo || 'bodega').trim().toLowerCase();
+  if (!auth.puedeModo(req.usuario.rol, modoPedido)) {
+    const permitidos = auth.modosDeRol(req.usuario.rol);
+    return res.status(403).json({
+      error: permitidos.length
+        ? `Tu usuario (${auth.nombreDeRol(req.usuario.rol)}) no puede hacer escaneos de tipo "${modoPedido}"`
+        : 'Tu usuario no tiene permitido escanear guias',
+    });
+  }
   try {
     const resultado = await guias.escanearGuia(
       String(numeroGuia).trim().toUpperCase(),
       String(plaza).trim().toUpperCase(),
-      String(modo || 'bodega').trim().toLowerCase()
+      modoPedido
     );
     res.json(resultado);
   } catch (e) {
