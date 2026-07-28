@@ -38,9 +38,10 @@
 
     /* Estatus en tonos apagados (no de caramelo) */
     --ambar-bg: #FAF2E2; --ambar-tx: #7A5A1E;
-    --verde-bg: #ECF1EC; --verde-tx: #3B5744;
+    --verde-bg: #E4F5EA; --verde-tx: #0B6B34;
     --azul-bg:  #EBEFF4; --azul-tx:  #3A5171;
-    --bosque:   #2F4A38;
+    --bosque:   #0E8C45;   /* verde vivo para puntos, pasos y graficas */
+    --verde-solido: #0B7A3C; /* fondo del badge "Entregado", con texto blanco */
 
     --sombra-1: 0 1px 2px rgba(28,25,23,0.05);
     --sombra-2: 0 1px 2px rgba(28,25,23,0.04), 0 8px 24px -10px rgba(28,25,23,0.12);
@@ -199,7 +200,7 @@
   .resultado h3 { margin: 0 0 5px; font-size: 1.15rem; text-transform: uppercase; letter-spacing: 0.04em; }
   .resultado p { margin: 0; font-size: 0.92rem; }
   .r-salida { display: block; background: var(--ambar-bg); border-color: #D9BE86; color: var(--ambar-tx); }
-  .r-llegada { display: block; background: var(--verde-bg); border-color: #9DB4A3; color: var(--verde-tx); }
+  .r-llegada { display: block; background: var(--verde-bg); border-color: #6BC791; color: var(--verde-tx); }
   .r-ruta { display: block; background: var(--azul-bg); border-color: #9DAEC2; color: var(--azul-tx); }
   .r-entregado { display: block; background: var(--verde-bg); border-color: var(--bosque); color: var(--bosque); }
   .r-repetido { display: block; background: var(--superficie-2); border-color: #CFC8BF; color: var(--texto-2); }
@@ -227,7 +228,7 @@
   .s-transito { background: var(--ambar-bg); color: var(--ambar-tx); }
   .s-bodega { background: var(--verde-bg); color: var(--verde-tx); }
   .s-ruta { background: var(--azul-bg); color: var(--azul-tx); }
-  .s-entregado { background: var(--bosque); color: #E9EFEA; }
+  .s-entregado { background: var(--verde-solido); color: #FFFFFF; }
 
   /* ---------- Detalle de guia ---------- */
   .det-header { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
@@ -263,7 +264,7 @@
   .timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
   .timeline li::before { content: ''; position: absolute; left: -6px; top: 3px; width: 11px; height: 11px; border-radius: 50%; background: #CFC8BF; border: 2px solid var(--superficie); box-shadow: 0 0 0 1px var(--linea); }
   .timeline li.e-salida::before { background: #B98A2E; box-shadow: 0 0 0 1px #B98A2E; }
-  .timeline li.e-llegada::before { background: #5C7F63; box-shadow: 0 0 0 1px #5C7F63; }
+  .timeline li.e-llegada::before { background: #16A757; box-shadow: 0 0 0 1px #16A757; }
   .timeline li.e-ruta::before { background: #5B7A9E; box-shadow: 0 0 0 1px #5B7A9E; }
   .timeline li.e-entrega::before { background: var(--bosque); box-shadow: 0 0 0 1px var(--bosque); }
   .timeline li.e-correccion::before { background: var(--vino); box-shadow: 0 0 0 1px var(--vino); }
@@ -352,7 +353,7 @@
 
   /* Mensajes en formularios */
   .msg-form { display: none; border-radius: var(--radio-sm); padding: 11px 13px; font-size: 0.84rem; margin-top: 14px; }
-  .msg-form.ok { display: block; background: var(--verde-bg); border: 1px solid #B7C7BC; color: var(--verde-tx); }
+  .msg-form.ok { display: block; background: var(--verde-bg); border: 1px solid #9BDCB6; color: var(--verde-tx); }
   .msg-form.err { display: block; background: var(--vino-tinte); border: 1px solid var(--vino-borde); color: var(--vino); }
 
   /* ---------- Responsive ---------- */
@@ -1034,11 +1035,11 @@
           <div class="chip" style="color:${color}; background:${color}1c;">${ICONOS[icono]}</div>
         </div>`;
       $('kpis').innerHTML =
-        kpi(p.EN_BODEGA_MTY || 0, 'En bodega MTY', '#5C7F63', 'caja', 'data-tab="CDMX" data-est="EN_BODEGA_MTY"') +
-        kpi(p.EN_BODEGA_CDMX || 0, 'En bodega CDMX', '#5C7F63', 'caja', 'data-tab="MTY" data-est="EN_BODEGA_CDMX"') +
+        kpi(p.EN_BODEGA_MTY || 0, 'En bodega MTY', '#0E8C45', 'caja', 'data-tab="CDMX" data-est="EN_BODEGA_MTY"') +
+        kpi(p.EN_BODEGA_CDMX || 0, 'En bodega CDMX', '#0E8C45', 'caja', 'data-tab="MTY" data-est="EN_BODEGA_CDMX"') +
         kpi(transito, 'En transito', '#B98A2E', 'camion', 'data-tab="" data-est=""') +
         kpi(ruta, 'En ruta de entrega', '#5B7A9E', 'pin', 'data-tab="" data-est=""') +
-        kpi(entregadas, 'Entregadas (total)', '#2F4A38', 'check', 'data-tab="" data-est=""');
+        kpi(entregadas, 'Entregadas (total)', '#0B7A3C', 'check', 'data-tab="" data-est=""');
       document.querySelectorAll('#kpis .kpi').forEach((k) =>
         k.addEventListener('click', () => irAGuias(k.dataset.tab, k.dataset.est))
       );
@@ -1056,7 +1057,7 @@
   // Colores de series validados (contraste y daltonismo) sobre tarjeta blanca
   const C_MTY = '#3C5A78';   // salidas de MTY
   const C_CDMX = '#8E1B2E';  // salidas de CDMX (vino institucional)
-  const C_ENT = '#2F4A38';   // entregas por dia
+  const C_ENT = '#0E8C45';   // entregas por dia
 
   let statsCache = null;
   let rangoDias = Number(localStorage.getItem('rangoDias')) || 14;
