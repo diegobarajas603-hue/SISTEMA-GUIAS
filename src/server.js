@@ -150,14 +150,21 @@ app.post('/api/guias/borrar-todas', requireAuth, requireAdmin, async (req, res) 
 // Revertir el ultimo escaneo de una guia (solo administradores). Acepta una
 // resolucion opcional de que paso con la guia (p. ej. entrega no pagada):
 //  { resolucion: 'cancelada', numero: 'AN...' }  -> la guia se cancelo y toma
-//    el numero de la nueva guia, conservando todo su historial.
+//    el numero de la nueva guia, conservando todo su historial. Opcionalmente
+//    acepta "estatus" (con que estatus arranca la guia nueva; si no se indica,
+//    regresa al estatus anterior al ultimo escaneo) y "conservarComplemento"
+//    (por omision el complemento se queda con la guia cancelada).
 //  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento;
 //    la guia conserva ambos numeros y los dos sirven para rastrear.
 app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
-  const { resolucion, numero } = req.body || {};
+  const { resolucion, numero, estatus, conservarComplemento } = req.body || {};
   let r = null;
   if (resolucion === 'cancelada' || resolucion === 'complemento') {
     r = { tipo: resolucion, numero };
+    if (resolucion === 'cancelada') {
+      r.estatus = estatus || null;
+      r.conservarComplemento = conservarComplemento === true;
+    }
   } else if (resolucion) {
     return res.status(400).json({ error: 'Resolucion invalida: usa "cancelada" o "complemento"' });
   }

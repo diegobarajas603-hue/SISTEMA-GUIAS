@@ -220,6 +220,8 @@
   .rev-opciones button { text-align: left; padding: 12px 14px; border: 2px solid #d4d4d8; border-radius: 8px; background: #fff; color: #1a1a1a; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
   .rev-opciones button.activa { border-color: #d92027; background: #fef2f2; }
   .rev-opciones button small { display: block; font-weight: 400; color: #71717a; margin-top: 2px; }
+  .rev-check { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 0; font-size: 0.85rem; color: #52525b; cursor: pointer; }
+  .rev-check input { margin-top: 2px; flex-shrink: 0; }
 
   /* Boton para ver/ocultar la contraseña */
   .campo-pass { position: relative; display: block; }
@@ -546,6 +548,15 @@
     <div id="revNumeroWrap" style="display:none;">
       <label id="revNumeroLabel" for="revNumero">Numero de la guia nueva</label>
       <input type="text" id="revNumero" autocomplete="off" style="width:100%;" />
+    </div>
+    <div id="revCanceladaWrap" style="display:none;">
+      <label for="revEstatus">¿En que estatus queda la guia nueva?</label>
+      <select id="revEstatus" style="width:100%;"></select>
+      <p class="nota" id="revEstatusNota" style="margin:6px 0 0;"></p>
+      <label class="rev-check" id="revCompWrap" style="display:none;">
+        <input type="checkbox" id="revConservarComp" />
+        <span id="revCompTexto"></span>
+      </label>
     </div>
     <div class="msg-form" id="msgRevertir"></div>
     <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
@@ -1287,11 +1298,25 @@
   }
 
   let guiaDetalleActual = null;
+  let guiaDetalle = null;
 
   // Al revertir se pregunta que paso con la guia: solo corregir, se cancelo
   // (toma el numero de la guia nueva) o se hizo complemento (conserva ambos
   // numeros). Todo queda registrado en el historial.
   let revTipo = 'solo';
+
+  // Estatus con el que puede arrancar la guia nueva al cancelar una guia. La
+  // opcion vacia deja el comportamiento de siempre: deshacer el ultimo escaneo
+  // y quedarse con el estatus anterior.
+  function llenarEstatusRevertir() {
+    const sel = $('revEstatus');
+    if (sel.options.length) return;
+    sel.innerHTML =
+      '<option value="">El anterior al ultimo escaneo (automatico)</option>' +
+      Object.entries(ETIQUETAS)
+        .map(([valor, texto]) => `<option value="${valor}">${texto}</option>`)
+        .join('');
+  }
 
   function pintarOpcionRevertir() {
     document.querySelectorAll('#revOpciones button').forEach((b) => b.classList.toggle('activa', b.dataset.rev === revTipo));
@@ -1300,17 +1325,43 @@
     const prefGuia = /^(AN|BN)/.exec(guiaDetalleActual || '');
     $('revNumero').placeholder =
       revTipo === 'cancelada' ? (prefGuia ? `Debe empezar con ${prefGuia[1]}, igual que la guia cancelada` : 'AN... o BN...') : '';
+
+    // Solo al cancelar se elige el estatus de la guia nueva y que pasa con el
+    // complemento de la guia cancelada.
+    $('revCanceladaWrap').style.display = revTipo === 'cancelada' ? '' : 'none';
+    const comp = guiaDetalle && guiaDetalle.complemento;
+    $('revCompWrap').style.display = revTipo === 'cancelada' && comp ? '' : 'none';
+    if (comp) $('revCompTexto').textContent = `Pasar tambien el complemento ${comp} a la guia nueva (si no lo marcas, se queda con la guia cancelada y ese numero vuelve a quedar libre)`;
+
+    const intros = {
+      solo: `Se deshara el ultimo escaneo de ${guiaDetalleActual} y la guia regresara a su estatus anterior.`,
+      cancelada: `La guia ${guiaDetalleActual} se cancela y su historial pasa a la guia nueva.`,
+      complemento: `La guia ${guiaDetalleActual} conserva su numero y ademas el del complemento.`,
+    };
+    $('revIntro').textContent = `${intros[revTipo]} Todo queda registrado en el historial.`;
+  }
+
+  function pintarNotaEstatus() {
+    const valor = $('revEstatus').value;
+    $('revEstatusNota').textContent = valor
+      ? `La guia nueva quedara en "${ETIQUETAS[valor] || valor}" y ese movimiento se agrega al historial.`
+      : 'Se deshace el ultimo escaneo y la guia nueva queda en el estatus que tenia antes.';
   }
 
   $('btnRevertir').addEventListener('click', () => {
     if (!guiaDetalleActual) return;
     revTipo = 'solo';
+    llenarEstatusRevertir();
+    $('revEstatus').value = '';
+    $('revConservarComp').checked = false;
+    pintarNotaEstatus();
     pintarOpcionRevertir();
     $('revNumero').value = '';
     $('msgRevertir').className = 'msg-form';
-    $('revIntro').textContent = `Se deshara el ultimo escaneo de ${guiaDetalleActual} y la guia regresara a su estatus anterior. Todo queda registrado en el historial.`;
     $('modalRevertir').classList.add('abierto');
   });
+
+  $('revEstatus').addEventListener('change', pintarNotaEstatus);
 
   document.querySelectorAll('#revOpciones button').forEach((b) =>
     b.addEventListener('click', () => {
@@ -1332,6 +1383,10 @@
       }
       cuerpo.resolucion = revTipo;
       cuerpo.numero = numero;
+      if (revTipo === 'cancelada') {
+        if ($('revEstatus').value) cuerpo.estatus = $('revEstatus').value;
+        cuerpo.conservarComplemento = $('revConservarComp').checked;
+      }
     }
     $('revConfirmar').disabled = true;
     try {
@@ -1355,6 +1410,7 @@
     try {
       const d = await api('/api/guias/' + encodeURIComponent(numeroGuia));
       guiaDetalleActual = d.numero_guia;
+      guiaDetalle = d;
       $('btnRevertir').style.display =
         usuarioActual && usuarioActual.rol === 'admin' && d.historial.length ? '' : 'none';
       $('detNumero').textContent = d.numero_guia;
@@ -1413,6 +1469,7 @@
       }).join('');
     } catch (e) {
       guiaDetalleActual = null;
+      guiaDetalle = null;
       $('btnRevertir').style.display = 'none';
       $('detNumero').textContent = numeroGuia;
       $('detRuta').textContent = e.message;

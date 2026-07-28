@@ -36,6 +36,40 @@ function entregado(plaza) {
   return `ENTREGADO_${plaza}`;
 }
 
+// Todos los estatus que puede tener una guia. Se usa para dejar elegir a mano
+// el estatus con el que arranca una guia nueva cuando se cancela la anterior.
+const ESTATUS = [];
+for (const plaza of PLAZAS) {
+  ESTATUS.push(enTransitoA(plaza), enBodega(plaza), enRutaEntrega(plaza), entregado(plaza));
+}
+
+// Plaza a la que apunta un estatus: donde esta la guia o hacia donde va
+function plazaDeEstatus(estatus) {
+  return estatus.endsWith('_MTY') ? 'MTY' : 'CDMX';
+}
+
+// Escaneo equivalente a un estatus fijado a mano. Permite dejar en el historial
+// el movimiento que corresponde a ese estatus, para que el rastreo del cliente
+// y las correcciones posteriores sigan siendo coherentes.
+function eventoDeEstatus(estatus) {
+  const plaza = plazaDeEstatus(estatus);
+  if (estatus.startsWith('EN_TRANSITO_A_')) {
+    const origen = otraPlaza(plaza);
+    return {
+      accion: ACCIONES.SALIDA,
+      plaza: origen,
+      descripcion: `Salio de bodega ${origen} con destino a ${plaza}`,
+    };
+  }
+  if (estatus.startsWith('EN_BODEGA_')) {
+    return { accion: ACCIONES.LLEGADA, plaza, descripcion: `Llego a bodega ${plaza}` };
+  }
+  if (estatus.startsWith('EN_RUTA_ENTREGA_')) {
+    return { accion: ACCIONES.RUTA_ENTREGA, plaza, descripcion: `Paquete en ruta de entrega en ${plaza}` };
+  }
+  return { accion: ACCIONES.ENTREGA, plaza, descripcion: `Entregado en ${plaza}` };
+}
+
 // Mensajes que ve el cliente (rastreo publico y WhatsApp)
 const MENSAJES = {
   EN_TRANSITO_A_CDMX: (g) => `Tu envío ${g} se encuentra en ruta hacia nuestro centro de distribución.`,
@@ -57,6 +91,9 @@ module.exports = {
   PLAZAS,
   NOMBRES_PLAZA,
   ACCIONES,
+  ESTATUS,
+  plazaDeEstatus,
+  eventoDeEstatus,
   otraPlaza,
   enTransitoA,
   enBodega,

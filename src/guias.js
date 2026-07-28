@@ -2,6 +2,9 @@ const { pool } = require('./db');
 const {
   PLAZAS,
   ACCIONES,
+  ESTATUS,
+  plazaDeEstatus,
+  eventoDeEstatus,
   otraPlaza,
   enTransitoA,
   enBodega,
@@ -51,6 +54,12 @@ function normalizarNumero(numero, etiqueta) {
     throw new Error(`${etiqueta} invalido: usa de 3 a 40 letras, numeros o guiones`);
   }
   return n;
+}
+
+function normalizarEstatus(estatus) {
+  const e = String(estatus || '').trim().toUpperCase();
+  if (!ESTATUS.includes(e)) throw new Error(`Estatus invalido para la guia nueva: ${estatus}`);
+  return e;
 }
 
 // Rechaza un numero que ya este ocupado como numero principal o complemento
@@ -261,6 +270,13 @@ async function escanearEntrega(numeroGuia, plaza, modo) {
 //  - { tipo: 'cancelada', numero }   la guia se cancelo y se emitio una nueva:
 //    la guia toma el numero nuevo conservando todo su historial, y el numero
 //    anterior queda registrado (columna numero_anterior + evento CAMBIO_NUMERO).
+//    Admite ademas:
+//      · estatus: estatus con el que arranca la guia nueva. Si se indica, no se
+//        deshace el ultimo escaneo (el estatus lo define el administrador) y se
+//        deja en el historial el movimiento equivalente.
+//      · conservarComplemento: por omision la guia nueva arranca SIN el
+//        complemento de la cancelada, porque ese numero pertenecia a la guia
+//        que se cancelo; con true se traslada a la guia nueva.
 //  - { tipo: 'complemento', numero } se emitio un complemento: la guia conserva
 //    su numero y ademas el del complemento (columna complemento + evento
 //    COMPLEMENTO); ambos numeros sirven para rastrear y escanear.
@@ -286,13 +302,19 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
       throw new Error('No hay un estatus anterior: ese fue el escaneo con el que se registro la guia');
     }
 
+    // Al cancelar se puede fijar a mano el estatus con el que arranca la guia
+    // nueva. En ese caso no se deshace el ultimo escaneo: el estatus lo decide
+    // el administrador y no la reconstruccion del historial.
+    const cancelada = resolucion && resolucion.tipo === 'cancelada';
+    const estatusElegido = cancelada && resolucion.estatus ? normalizarEstatus(resolucion.estatus) : null;
+
     let estatusFinal = guia.estatus;
     let plazaEvento = guia.destino;
     let mensaje = '';
 
     // Con resolucion, si no hay escaneo que revertir (solo queda el registro
     // inicial) se aplica de todos modos la cancelacion o el complemento.
-    if (pila.length >= 2) {
+    if (pila.length >= 2 && !estatusElegido) {
       const ultimo = pila[pila.length - 1];
 
       // Marca el escaneo deshecho para que deje de mostrarse al cliente
@@ -315,7 +337,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
 
     let numeroFinal = numeroGuia;
 
-    if (resolucion && resolucion.tipo === 'cancelada') {
+    if (cancelada) {
       const nuevo = normalizarNumero(resolucion.numero, 'El nuevo numero de guia');
       if (nuevo === numeroGuia) throw new Error('El nuevo numero debe ser diferente al numero actual');
       // El numero nuevo pasa a ser el numero operativo de la guia y debe
@@ -332,19 +354,46 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
       }
       await verificarNumeroDisponible(nuevo, client);
 
+      // El complemento pertenece a la guia que se cancelo: la guia nueva
+      // arranca sin el (y ese numero vuelve a quedar libre), salvo que se pida
+      // conservarlo expresamente.
+      const complemento = resolucion.conservarComplemento ? guia.complemento || null : null;
+
       // Renumera conservando todo el historial: copia la fila con el numero
       // nuevo, traslada los eventos y elimina la fila anterior (la llave
       // foranea de eventos impide cambiar el numero con un UPDATE directo).
       await client.query(
         `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, numero_anterior, complemento)
-         SELECT $1, origen, destino, estatus, creado_en, $3, numero_guia, complemento FROM guias WHERE numero_guia = $2`,
-        [nuevo, numeroGuia, now()]
+         SELECT $1, origen, destino, estatus, creado_en, $3, numero_guia, $4 FROM guias WHERE numero_guia = $2`,
+        [nuevo, numeroGuia, now(), complemento]
       );
       await client.query('UPDATE eventos SET numero_guia = $1 WHERE numero_guia = $2', [nuevo, numeroGuia]);
       await client.query('DELETE FROM guias WHERE numero_guia = $1', [numeroGuia]);
 
+      // Estatus elegido a mano: se fija en la guia nueva y se deja el escaneo
+      // equivalente en el historial, para que el rastreo del cliente y las
+      // correcciones posteriores partan de un historial coherente.
+      const evEstatus = estatusElegido ? eventoDeEstatus(estatusElegido) : null;
+      if (estatusElegido) {
+        const plazaDestino = plazaDeEstatus(estatusElegido);
+        await client.query(
+          'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
+          [otraPlaza(plazaDestino), plazaDestino, estatusElegido, now(), nuevo]
+        );
+        estatusFinal = estatusElegido;
+        plazaEvento = evEstatus.plaza;
+      }
+
       mensaje = `${usuario} cancelo la guia ${numeroGuia} y la reemplazo por la nueva guia ${nuevo}; el historial se conserva`;
+      if (guia.complemento && !complemento) {
+        mensaje += `. El complemento ${guia.complemento} quedo con la guia cancelada y ya no aplica a ${nuevo}`;
+      }
+      if (estatusElegido) mensaje += `. La guia nueva arranca en estatus ${estatusElegido}`;
       await registrarEvento(nuevo, ACCIONES.CAMBIO_NUMERO, estatusFinal, plazaEvento, mensaje, client);
+      // El movimiento visible para el cliente va sin la nota interna
+      if (evEstatus) {
+        await registrarEvento(nuevo, evEstatus.accion, estatusElegido, evEstatus.plaza, evEstatus.descripcion, client);
+      }
       numeroFinal = nuevo;
     }
 
