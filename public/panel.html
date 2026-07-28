@@ -213,9 +213,12 @@
   .btn-salir { background: #262626; border: none; color: #d4d4d8; border-radius: 8px; padding: 7px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; flex-shrink: 0; }
   .btn-salir:hover { background: #d92027; color: #fff; }
 
-  /* Modal para revertir el ultimo escaneo (con cancelacion o complemento) */
-  #modalRevertir { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 95; display: none; align-items: center; justify-content: center; padding: 20px; }
-  #modalRevertir.abierto { display: flex; }
+  /* Modales del detalle: revertir escaneo y eliminar guia */
+  #modalRevertir, #modalEliminar { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 95; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #modalRevertir.abierto, #modalEliminar.abierto { display: flex; }
+  .aviso-peligro { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 8px; padding: 12px 14px; font-size: 0.85rem; }
+  .aviso-peligro ul { margin: 8px 0 0; padding-left: 18px; }
+  .det-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
   .rev-opciones { display: flex; flex-direction: column; gap: 8px; }
   .rev-opciones button { text-align: left; padding: 12px 14px; border: 2px solid #d4d4d8; border-radius: 8px; background: #fff; color: #1a1a1a; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
   .rev-opciones button.activa { border-color: #d92027; background: #fef2f2; }
@@ -410,7 +413,10 @@
               <div id="detCompWrap" style="display:none"><span class="k">Complemento</span><span id="detComplemento"></span></div>
               <div id="detAnteriorWrap" style="display:none"><span class="k">Numero anterior</span><span id="detAnterior"></span></div>
             </div>
-            <button class="btn-peligro" id="btnRevertir" style="display:none; margin-top:14px;">Revertir ultimo escaneo</button>
+            <div class="det-acciones">
+              <button class="btn-peligro" id="btnRevertir" style="display:none;">Revertir ultimo escaneo</button>
+              <button class="btn-peligro" id="btnEliminarGuia" style="display:none;">Eliminar guia</button>
+            </div>
           </div>
           <div id="barcodeWrap">
             <svg id="barcode"></svg>
@@ -562,6 +568,25 @@
     <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
       <button class="btn-sec" id="revCerrar" type="button">Cancelar</button>
       <button class="primario" id="revConfirmar" type="button">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Modal: eliminar una guia ============ -->
+<div id="modalEliminar">
+  <div class="card" style="max-width:460px; width:100%; margin:0;">
+    <h2 class="titulo-card">Eliminar guia</h2>
+    <div class="aviso-peligro">
+      <b>Esto no se puede deshacer.</b>
+      <ul id="elimDetalle"></ul>
+    </div>
+    <p class="nota" style="margin:12px 0 0;">Usalo solo si la guia se capturo por equivocacion (por ejemplo un numero mal escaneado). Si el envio existe y solo se cancelo, usa "Revertir ultimo escaneo" para dejarlo registrado en el historial.</p>
+    <label for="elimConfirmar">Para confirmar, escribe el numero de la guia</label>
+    <input type="text" id="elimConfirmar" autocomplete="off" style="width:100%;" />
+    <div class="msg-form" id="msgEliminar"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+      <button class="btn-sec" id="elimCerrar" type="button">Cancelar</button>
+      <button class="primario" id="elimConfirmarBtn" type="button">Eliminar definitivamente</button>
     </div>
   </div>
 </div>
@@ -1406,13 +1431,57 @@
     }
   });
 
+  // Eliminar una guia capturada por equivocacion. Es definitivo, asi que se
+  // pide escribir el numero exacto antes de habilitar el boton.
+  $('btnEliminarGuia').addEventListener('click', () => {
+    if (!guiaDetalleActual || !guiaDetalle) return;
+    const puntos = [
+      `Se borra la guia <b>${esc(guiaDetalleActual)}</b> y sus ${guiaDetalle.historial.length} escaneo(s) del historial.`,
+      `El numero ${esc(guiaDetalleActual)} queda libre y podra usarse de nuevo.`,
+    ];
+    if (guiaDetalle.complemento) puntos.push(`El complemento ${esc(guiaDetalle.complemento)} tambien queda libre.`);
+    puntos.push('El cliente que rastree ese numero ya no encontrara nada.');
+    $('elimDetalle').innerHTML = puntos.map((p) => `<li>${p}</li>`).join('');
+    $('elimConfirmar').value = '';
+    $('elimConfirmar').placeholder = guiaDetalleActual;
+    $('msgEliminar').className = 'msg-form';
+    $('modalEliminar').classList.add('abierto');
+    setTimeout(() => $('elimConfirmar').focus(), 30);
+  });
+
+  $('elimCerrar').addEventListener('click', () => $('modalEliminar').classList.remove('abierto'));
+
+  $('elimConfirmarBtn').addEventListener('click', async () => {
+    if (!guiaDetalleActual) return;
+    const confirmar = $('elimConfirmar').value.trim().toUpperCase();
+    if (confirmar !== guiaDetalleActual) {
+      return msgForm('msgEliminar', `Escribe el numero exacto de la guia (${guiaDetalleActual}) para confirmar.`, 'err');
+    }
+    $('elimConfirmarBtn').disabled = true;
+    try {
+      await api('/api/guias/' + encodeURIComponent(guiaDetalleActual), {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmar }),
+      });
+      $('modalEliminar').classList.remove('abierto');
+      guiaDetalleActual = null;
+      guiaDetalle = null;
+      location.hash = '#/guias';
+    } catch (e) {
+      msgForm('msgEliminar', e.message, 'err');
+    } finally {
+      $('elimConfirmarBtn').disabled = false;
+    }
+  });
+
   async function cargarDetalle(numeroGuia) {
     try {
       const d = await api('/api/guias/' + encodeURIComponent(numeroGuia));
       guiaDetalleActual = d.numero_guia;
       guiaDetalle = d;
-      $('btnRevertir').style.display =
-        usuarioActual && usuarioActual.rol === 'admin' && d.historial.length ? '' : 'none';
+      const esAdmin = usuarioActual && usuarioActual.rol === 'admin';
+      $('btnRevertir').style.display = esAdmin && d.historial.length ? '' : 'none';
+      $('btnEliminarGuia').style.display = esAdmin ? '' : 'none';
       $('detNumero').textContent = d.numero_guia;
       $('detRuta').innerHTML = `${esc(d.origen)} &#8644; ${esc(d.destino)}`;
       $('detBadge').innerHTML = badge(d.estatus);
@@ -1471,6 +1540,7 @@
       guiaDetalleActual = null;
       guiaDetalle = null;
       $('btnRevertir').style.display = 'none';
+      $('btnEliminarGuia').style.display = 'none';
       $('detNumero').textContent = numeroGuia;
       $('detRuta').textContent = e.message;
       $('detBadge').innerHTML = '';

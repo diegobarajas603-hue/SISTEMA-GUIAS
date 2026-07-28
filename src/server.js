@@ -147,6 +147,27 @@ app.post('/api/guias/borrar-todas', requireAuth, requireAdmin, async (req, res) 
   }
 });
 
+// Eliminar UNA guia con todo su historial (solo administradores). Pensado para
+// deshacer una captura equivocada. Es definitivo, asi que exige confirmar el
+// numero exacto de la guia; el borrado queda en el log del servidor.
+app.delete('/api/guias/:numeroGuia', requireAuth, requireAdmin, async (req, res) => {
+  const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
+  const confirmar = String((req.body || {}).confirmar || req.query.confirmar || '').trim().toUpperCase();
+  if (confirmar !== numeroGuia) {
+    return res.status(400).json({ error: `Confirmacion invalida: escribe el numero exacto de la guia (${numeroGuia})` });
+  }
+  try {
+    const r = await guias.borrarGuia(numeroGuia);
+    console.log(
+      `[guias] ${req.usuario.usuario} elimino la guia ${r.numeroGuia} (estatus ${r.estatus}, ${r.eventos} evento(s)` +
+        `${r.complemento ? `, complemento ${r.complemento}` : ''})`
+    );
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 // Revertir el ultimo escaneo de una guia (solo administradores). Acepta una
 // resolucion opcional de que paso con la guia (p. ej. entrega no pagada):
 //  { resolucion: 'cancelada', numero: 'AN...' }  -> la guia se cancelo y toma

@@ -539,6 +539,31 @@ async function listarEventos({ limit = 50 } = {}) {
   return rows;
 }
 
+// Borra UNA guia y todo su historial. Sirve para deshacer una captura
+// equivocada (p. ej. un numero mal escaneado que creo una guia que no existe).
+// Es definitivo: no queda rastro de la guia y su numero vuelve a quedar libre,
+// junto con el de su complemento si tenia. Por eso solo lo hace un
+// administrador y se pide confirmar el numero exacto.
+async function borrarGuia(numeroGuia) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const guia = await obtenerGuia(numeroGuia, client);
+    if (!guia) throw new Error('Guia no encontrada');
+    const { rows } = await client.query('SELECT COUNT(*)::int AS n FROM eventos WHERE numero_guia = $1', [numeroGuia]);
+    // Los eventos van primero: la llave foranea impide borrar la guia antes
+    await client.query('DELETE FROM eventos WHERE numero_guia = $1', [numeroGuia]);
+    await client.query('DELETE FROM guias WHERE numero_guia = $1', [numeroGuia]);
+    await client.query('COMMIT');
+    return { numeroGuia, estatus: guia.estatus, complemento: guia.complemento, eventos: rows[0].n };
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 // Borra TODAS las guias y sus eventos para dejar el sistema como nuevo.
 // No toca usuarios ni sesiones. Devuelve cuantas guias se eliminaron.
 async function borrarTodas() {
@@ -613,6 +638,7 @@ module.exports = {
     conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion)),
   marcarRevertidosHistoricos,
   marcarDuplicadosHistoricos,
+  borrarGuia: (numeroGuia) => conCandado(numeroGuia, () => borrarGuia(numeroGuia)),
   borrarTodas,
   obtenerGuia,
   buscarGuia,
