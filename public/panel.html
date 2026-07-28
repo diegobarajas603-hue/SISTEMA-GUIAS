@@ -356,6 +356,19 @@
   .msg-form.ok { display: block; background: var(--verde-bg); border: 1px solid #9BDCB6; color: var(--verde-tx); }
   .msg-form.err { display: block; background: var(--vino-tinte); border: 1px solid var(--vino-borde); color: var(--vino); }
 
+  /* Tecla dentro de un texto, para explicar un atajo */
+  .tecla { display: inline-block; background: var(--superficie-2); border: 1px solid var(--linea); border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; font-size: 0.78rem; font-weight: 600; color: var(--texto); }
+
+  /* Aviso flotante (p. ej. al activar el modo eliminacion con el atajo) */
+  .aviso {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(14px);
+    background: var(--negro); color: #fff; border-radius: 999px; padding: 12px 22px;
+    font-size: 0.86rem; font-weight: 500; box-shadow: var(--sombra-3); z-index: 120;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; max-width: calc(100vw - 32px);
+  }
+  .aviso.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .aviso.peligro { background: var(--vino); }
+
   /* ---------- Responsive ---------- */
   @media (max-width: 860px) {
     .layout { flex-direction: column; }
@@ -680,9 +693,10 @@
           <p class="nota">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
         </div>
 
-        <div class="card" id="cardBorrar" style="max-width:520px; display:none; border:1px solid #fecaca;">
-          <h2 class="titulo-card" style="color:#dc2626;">Zona de peligro</h2>
-          <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
+        <div class="card" id="cardBorrar" style="max-width:520px; display:none; border-color: var(--vino-borde);">
+          <h2 class="titulo-card" style="color: var(--vino);">Zona de peligro</h2>
+          <p class="nota">Para <b>eliminar una guia</b> en concreto, abre su detalle y presiona <b class="tecla">Ctrl</b> + <b class="tecla">Alt</b> + <b class="tecla">E</b>. Eso muestra el boton de eliminar, que normalmente esta oculto para que nadie lo borre por accidente. El mismo atajo lo vuelve a esconder, y se apaga solo al recargar o cerrar sesion.</p>
+          <p class="nota" style="margin-top:14px;">Lo de abajo es distinto: borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
           <div class="msg-form" id="msgBorrar"></div>
           <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:12px;">Borrar todas las guias</button>
         </div>
@@ -723,6 +737,8 @@
     </div>
   </div>
 </div>
+
+<div class="aviso" id="aviso"></div>
 
 <!-- ============ Modal: eliminar una guia ============ -->
 <div id="modalEliminar">
@@ -876,6 +892,42 @@
   let sesionToken = sessionStorage.getItem('sesionToken') || '';
   let usuarioActual = null;
 
+  // ---------- Modo eliminacion (oculto tras un atajo de teclado) ----------
+  // Borrar una guia es definitivo, asi que el boton no esta a la vista: hay que
+  // habilitarlo a proposito con Ctrl+Alt+E (Cmd+Alt+E en Mac). Se apaga con el
+  // mismo atajo, al recargar la pagina o al cerrar sesion, para que no quede
+  // encendido por descuido.
+  let modoEliminar = false;
+
+  function aplicarModoEliminar() {
+    const esAdmin = usuarioActual && usuarioActual.rol === 'admin';
+    const enDetalle = !!guiaDetalleActual;
+    $('btnEliminarGuia').style.display = esAdmin && modoEliminar && enDetalle ? '' : 'none';
+  }
+
+  function avisoFlotante(texto, tipo) {
+    const t = $('aviso');
+    t.textContent = texto;
+    t.className = 'aviso visible' + (tipo ? ' ' + tipo : '');
+    clearTimeout(avisoFlotante.timer);
+    avisoFlotante.timer = setTimeout(() => (t.className = 'aviso'), 3200);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey) || !e.altKey) return;
+    if ((e.key || '').toLowerCase() !== 'e') return;
+    if (!usuarioActual || usuarioActual.rol !== 'admin') return;
+    e.preventDefault();
+    modoEliminar = !modoEliminar;
+    aplicarModoEliminar();
+    avisoFlotante(
+      modoEliminar
+        ? 'Modo eliminacion activado: ya puedes borrar guias'
+        : 'Modo eliminacion desactivado',
+      modoEliminar ? 'peligro' : ''
+    );
+  });
+
   function pintarUsuario() {
     if (usuarioActual) {
       const esAdmin = usuarioActual.rol === 'admin';
@@ -902,6 +954,7 @@
   function mostrarLogin(mensaje) {
     sesionToken = '';
     usuarioActual = null;
+    modoEliminar = false;
     sessionStorage.removeItem('sesionToken');
     ocultarPasswords();
     $('loginOverlay').style.display = 'flex';
@@ -1632,7 +1685,7 @@
       guiaDetalle = d;
       const esAdmin = usuarioActual && usuarioActual.rol === 'admin';
       $('btnRevertir').style.display = esAdmin && d.historial.length ? '' : 'none';
-      $('btnEliminarGuia').style.display = esAdmin ? '' : 'none';
+      aplicarModoEliminar();
       $('detNumero').textContent = d.numero_guia;
       $('detRuta').innerHTML = `${esc(d.origen)} &#8644; ${esc(d.destino)}`;
       $('detBadge').innerHTML = badge(d.estatus);
@@ -1699,8 +1752,7 @@
       $('detCompWrap').style.display = $('detAnteriorWrap').style.display = 'none';
       $('stepper').innerHTML = '';
       $('barcodeWrap').style.display = 'none';
-      $('tbodyDetEventos').innerHTML = `<tr><td colspan="4" class="vacio">${esc(e.message)}</td></tr>`;
-      $('detTimeline').innerHTML = '';
+      $('detTimeline').innerHTML = `<li class="vacio">${esc(e.message)}</li>`;
     }
   }
 
