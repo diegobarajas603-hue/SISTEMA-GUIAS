@@ -356,9 +356,6 @@
   .msg-form.ok { display: block; background: var(--verde-bg); border: 1px solid #9BDCB6; color: var(--verde-tx); }
   .msg-form.err { display: block; background: var(--vino-tinte); border: 1px solid var(--vino-borde); color: var(--vino); }
 
-  /* Tecla dentro de un texto, para explicar un atajo */
-  .tecla { display: inline-block; background: var(--superficie-2); border: 1px solid var(--linea); border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; font-size: 0.78rem; font-weight: 600; color: var(--texto); }
-
   /* Aviso flotante (p. ej. al activar el modo eliminacion con el atajo) */
   .aviso {
     position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(14px);
@@ -693,15 +690,13 @@
           <p class="nota">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
         </div>
 
+        <!-- Esta tarjeta no aparece hasta que se activa el modo eliminacion con
+             el atajo; sin el, nada en pantalla revela que existe. -->
         <div class="card" id="cardBorrar" style="max-width:520px; display:none; border-color: var(--vino-borde);">
           <h2 class="titulo-card" style="color: var(--vino);">Zona de peligro</h2>
-          <p class="nota">Los botones para borrar estan escondidos, para que nadie los use por accidente. Para mostrarlos presiona <b class="tecla">Ctrl</b> + <b class="tecla">Alt</b> + <b class="tecla">E</b>; el mismo atajo los vuelve a esconder, y se apagan solos al recargar la pagina o cerrar sesion.</p>
-          <p class="nota" style="margin-top:12px;">Con el modo activado aparecen dos cosas: el boton <b>Eliminar guia</b> en el detalle de cada guia, y aqui abajo el de borrar todo.</p>
-          <div id="zonaBorrarTodas" style="display:none; margin-top:16px; padding-top:16px; border-top:1px solid var(--linea);">
-            <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
-            <div class="msg-form" id="msgBorrar"></div>
-            <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:12px;">Borrar todas las guias</button>
-          </div>
+          <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
+          <div class="msg-form" id="msgBorrar"></div>
+          <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:12px;">Borrar todas las guias</button>
         </div>
       </section>
 
@@ -908,7 +903,8 @@
     const activo = esAdmin && modoEliminar;
     const enDetalle = !!guiaDetalleActual;
     $('btnEliminarGuia').style.display = activo && enDetalle ? '' : 'none';
-    $('zonaBorrarTodas').style.display = activo ? '' : 'none';
+    // La tarjeta completa, no solo el boton: asi nada delata que existe
+    $('cardBorrar').style.display = activo ? '' : 'none';
   }
 
   function avisoFlotante(texto, tipo) {
@@ -945,8 +941,8 @@
         (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
       $('cardUsuarios').style.display = esAdmin ? '' : 'none';
       $('cardPassword').style.display = esAdmin ? '' : 'none';
-      $('cardBorrar').style.display = esAdmin ? '' : 'none';
       $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
+      aplicarModoEliminar();
       // Si el usuario tiene plaza asignada, solo ve el boton de escanear de
       // su plaza y esa queda como la plaza activa
       document.querySelector('[data-ruta="escanear-mty"]').style.display =
