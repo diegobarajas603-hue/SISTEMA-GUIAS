@@ -583,9 +583,10 @@ async function estadisticas(dias = 14) {
     `SELECT to_char(creado_en AT TIME ZONE 'America/Mexico_City', 'YYYY-MM-DD') AS dia,
             COUNT(*) FILTER (WHERE accion = 'SALIDA' AND plaza = 'MTY')::int AS enviadas_mty,
             COUNT(*) FILTER (WHERE accion = 'SALIDA' AND plaza = 'CDMX')::int AS enviadas_cdmx,
+            COUNT(*) FILTER (WHERE accion = 'LLEGADA')::int AS llegadas,
             COUNT(*) FILTER (WHERE accion = 'ENTREGA')::int AS entregadas
        FROM eventos
-      WHERE NOT revertido AND accion IN ('SALIDA', 'ENTREGA')
+      WHERE NOT revertido AND accion IN ('SALIDA', 'LLEGADA', 'ENTREGA')
         AND creado_en >= now() - make_interval(days => $1)
       GROUP BY dia`,
     [n]
@@ -599,18 +600,20 @@ async function estadisticas(dias = 14) {
     day: '2-digit',
   });
   const serie = [];
-  const totales = { enviadas: 0, enviadasMty: 0, enviadasCdmx: 0, entregadas: 0 };
+  const totales = { enviadas: 0, enviadasMty: 0, enviadasCdmx: 0, llegadas: 0, entregadas: 0 };
   for (let i = n - 1; i >= 0; i--) {
     const fecha = fmt.format(new Date(Date.now() - i * 86400000));
-    const r = porDia.get(fecha) || { enviadas_mty: 0, enviadas_cdmx: 0, entregadas: 0 };
+    const r = porDia.get(fecha) || { enviadas_mty: 0, enviadas_cdmx: 0, llegadas: 0, entregadas: 0 };
     serie.push({
       fecha,
       enviadasMty: r.enviadas_mty,
       enviadasCdmx: r.enviadas_cdmx,
+      llegadas: r.llegadas,
       entregadas: r.entregadas,
     });
     totales.enviadasMty += r.enviadas_mty;
     totales.enviadasCdmx += r.enviadas_cdmx;
+    totales.llegadas += r.llegadas;
     totales.entregadas += r.entregadas;
   }
   totales.enviadas = totales.enviadasMty + totales.enviadasCdmx;

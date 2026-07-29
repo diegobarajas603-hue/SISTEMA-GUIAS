@@ -474,3 +474,94 @@ El rediseño se probó con navegador real (Chromium) en 1440, 900 y 400 px:
 3. **Centro de notificaciones.** La campana ya avisa de guías detenidas; el
    siguiente paso es persistir avisos y marcarlos como leídos.
 4. **Guías por lote.** Escanear una lista y registrar la salida de todas juntas.
+
+---
+
+## 22. Segunda iteracion: cambios estructurales
+
+La primera version rediseño la superficie. Esta rehace la estructura, con
+cuatro decisiones que no son de estilo sino de producto.
+
+### 22.1 Modo operacion: la terminal de escaneo ocupa la pantalla
+
+**Critica del diseño anterior:** la pantalla mas usada del sistema (cientos de
+escaneos al dia) vivia dentro de un menu lateral, un encabezado, una tarjeta y
+un pie. Todo eso compite por atencion con lo unico que importa: el numero.
+
+**Ahora:** al abrir Escanear, el menu y el encabezado desaparecen. Queda una
+barra fina con el contexto (plaza y tipo de operacion), el campo a 2.3 rem
+centrado en la pantalla, y debajo la confirmacion y los ultimos escaneos.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ [FT] PLAZA Monterrey │ [Bodega MTY↔CDMX][Domicilio][Ocurre]  ●Listo  ✕ │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│              ┌────────────────────────────────┐              │
+│              │ ▥  AN1005▮                     │              │
+│              └────────────────────────────────┘              │
+│         El sistema decide solo si es salida o llegada        │
+│                  12 guias en esta sesion                     │
+│                                                              │
+│              ( ✓ ) AN1005 — Salida registrada                │
+│              ─────────────────────────────────               │
+│              AN1004  Llego a bodega CDMX      17:42          │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Justificacion:** el espacio vacio no es desperdicio, es jerarquia. Cuando en
+la pantalla solo hay una cosa que hacer, no hace falta buscarla ni decidir.
+El contador de sesion ocupa el hueco con informacion que al operador si le
+importa ("como voy"), en vez de rellenar con adornos.
+
+**Consecuencia asumida:** desde la terminal no hay menu. Se navega con la
+paleta (Ctrl+K) o con la cruz. Es el mismo compromiso que hacen los editores
+de codigo en modo concentracion, y es deliberado.
+
+### 22.2 Paleta de comandos (Ctrl+K)
+
+Una sola entrada para todo: se escribe un numero de guia y aparecen las
+coincidencias reales del servidor; se escribe una palabra y aparecen las
+acciones. Navegacion con flechas, `Enter` ejecuta, `Esc` cierra.
+
+**Justificacion:** es la diferencia entre un panel y una herramienta. El
+usuario experto deja de recorrer menus y pasa a **ordenar**. Ademas resuelve la
+navegacion en modo operacion sin devolver el menu a la pantalla.
+
+### 22.3 El dashboard se ordena por urgencia, no por disponibilidad
+
+**Critica:** el panel abria con cinco KPI de inventario ("cuantas tengo en
+bodega"). Nadie llega por la mañana preguntandose eso: se pregunta **como
+vamos hoy** y **que se atoro**.
+
+**Ahora, en este orden:**
+
+1. **HOY** — franja oscura con guias procesadas, salidas, llegadas y entregas
+   del dia. La cifra principal en azul, las demas en navy.
+2. **ATENCION** — banda ambar que **solo aparece si hay guias detenidas**. Un
+   panel que siempre muestra una alerta deja de comunicar.
+3. **INVENTARIO EN ESTE MOMENTO** — los KPI de siempre, ahora rotulados y
+   demotados a su papel real: contexto, no titular.
+4. Graficas y actividad reciente.
+
+Requirio un cambio de backend: la consulta de estadisticas no contaba las
+llegadas, asi que el dato del dia estaba incompleto.
+
+### 22.4 Cada rol entra donde trabaja
+
+Antes todos caian en la pantalla de escaneo. Ahora **el administrador entra al
+panel de control** y **los roles operativos entran a la terminal**. El trabajo
+de un administrador es mirar el conjunto, no dar de alta guias una por una.
+
+### 22.5 Navegacion consolidada
+
+"Escanear en MTY" y "Escanear en CDMX" eran dos entradas de menu para una sola
+actividad. Ahora hay **una** entrada "Escanear" y la plaza se cambia desde la
+propia barra de la terminal, que es donde se necesita. El menu baja de 6 a 5
+entradas y la de escaneo deja de estar duplicada.
+
+### 22.6 Verificacion
+
+24 comprobaciones nuevas en navegador (modo operacion, conmutador de plaza,
+paleta con busqueda real, jerarquia del dashboard, navegacion consolidada) mas
+las 8 suites anteriores. Nueve suites en verde.

@@ -631,6 +631,171 @@
   .aviso.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
   .aviso.peligro { background: var(--rojo); border-color: var(--rojo); }
 
+
+  /* =====================================================================
+     PALETA DE COMANDOS (Ctrl+K)
+     Una sola entrada para todo: buscar una guia, saltar a una pantalla o
+     ejecutar una accion. Es lo que convierte un panel en una herramienta:
+     el operador experto deja de navegar y empieza a ordenar.
+     ===================================================================== */
+  #paleta {
+    position: fixed; inset: 0; z-index: 130; display: none;
+    justify-content: center; align-items: flex-start; padding: 11vh 20px 20px;
+    background: rgba(6, 11, 20, 0.5); backdrop-filter: blur(6px) saturate(140%);
+  }
+  #paleta.abierta { display: flex; animation: aparecer 140ms ease-out; }
+  .paleta-caja {
+    width: 100%; max-width: 640px; background: var(--superficie);
+    border: 1px solid var(--linea); border-radius: var(--r-lg); box-shadow: var(--e4);
+    overflow: hidden; animation: subir 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex; flex-direction: column; max-height: 74vh;
+  }
+  .paleta-campo { display: flex; align-items: center; gap: var(--e-3); padding: var(--e-4) var(--e-5); border-bottom: 1px solid var(--linea); flex-shrink: 0; }
+  .paleta-campo svg { width: 18px; height: 18px; color: var(--tinta-3); flex-shrink: 0; }
+  .paleta-campo input[type=text] {
+    flex: 1; border: none; padding: 0; font-size: 1.02rem; background: none;
+    border-radius: 0; min-width: 0;
+  }
+  .paleta-campo input[type=text]:focus, .paleta-campo input[type=text]:hover { box-shadow: none; border: none; }
+  .paleta-lista { overflow-y: auto; padding: var(--e-2); flex: 1; }
+  .paleta-grupo { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--tinta-3); padding: var(--e-3) var(--e-3) var(--e-1); font-weight: 700; }
+  .paleta-item {
+    display: flex; align-items: center; gap: var(--e-3); padding: 9px var(--e-3);
+    border-radius: var(--r); cursor: pointer; font-size: 0.88rem; color: var(--tinta);
+    border: none; background: none; width: 100%; text-align: left; font-family: inherit;
+  }
+  .paleta-item .ico { width: 17px; height: 17px; color: var(--tinta-3); flex-shrink: 0; display: flex; }
+  .paleta-item .ico svg { width: 17px; height: 17px; }
+  .paleta-item .txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .paleta-item .sub { font-size: 0.75rem; color: var(--tinta-3); flex-shrink: 0; }
+  .paleta-item.sel { background: var(--azul-tenue); color: var(--azul-700); }
+  .paleta-item.sel .ico { color: var(--azul); }
+  .paleta-vacia { padding: var(--e-8) var(--e-4); text-align: center; color: var(--tinta-3); font-size: 0.86rem; }
+  .paleta-pie { display: flex; gap: var(--e-4); padding: 9px var(--e-5); border-top: 1px solid var(--linea); background: var(--superficie-2); font-size: 0.71rem; color: var(--tinta-3); flex-shrink: 0; flex-wrap: wrap; }
+  .paleta-pie b { font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
+
+  /* =====================================================================
+     MODO OPERACION — la pantalla de escaneo a pantalla completa
+     Quien escanea 300 guias al dia no necesita menu, encabezado ni
+     tarjetas: necesita un campo enorme y una respuesta inequivoca. Todo
+     lo demas es ruido que compite por su atencion.
+     ===================================================================== */
+  body.operacion aside, body.operacion .topbar { display: none; }
+  body.operacion main { padding: 0; }
+  body.operacion .contenido { padding: 0; max-width: none; }
+  body.operacion #v-escanear { min-height: 100vh; display: flex; flex-direction: column; background: var(--lienzo); }
+
+  .op-barra {
+    display: flex; align-items: center; gap: var(--e-5); flex-wrap: wrap;
+    padding: var(--e-3) var(--e-5); background: var(--navy-900); color: #fff;
+    border-bottom: 1px solid var(--navy-linea); flex-shrink: 0;
+  }
+  .op-marca { display: flex; align-items: center; gap: var(--e-3); }
+  .op-marca .op-logo { background: #fff; border-radius: var(--r-sm); padding: 5px 8px; display: flex; }
+  .op-marca .op-logo img { height: 24px; width: auto; display: block; }
+  .op-dato { display: flex; flex-direction: column; line-height: 1.2; }
+  .op-dato span { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--navy-texto-2); font-weight: 650; }
+  .op-dato b { font-size: 0.95rem; letter-spacing: 0.06em; }
+  .op-sep { width: 1px; height: 28px; background: var(--navy-linea); }
+  button.op-plaza { border: 1px solid var(--navy-linea); background: var(--navy-800); border-radius: var(--r-sm); padding: 5px 12px; cursor: pointer; text-align: left; font-family: inherit; color: #fff; transition: all var(--transicion); }
+  button.op-plaza:hover:not(:disabled) { background: var(--navy-700); border-color: var(--azul); }
+  button.op-plaza:disabled { cursor: default; opacity: 0.85; }
+  .op-barra .op-der { margin-left: auto; display: flex; align-items: center; gap: var(--e-3); }
+  /* Los selectores de tipo de operacion, compactos y sobre oscuro */
+  .op-barra .toggle { gap: 4px; }
+  .op-barra .toggle button {
+    flex: none; min-width: 0; padding: 6px 13px; font-size: 0.78rem;
+    background: var(--navy-800); border-color: var(--navy-linea); color: var(--navy-texto);
+  }
+  .op-barra .toggle button:hover { color: #fff; border-color: var(--navy-700); }
+  .op-barra .toggle button.activa { background: var(--azul); border-color: var(--azul); color: #fff; }
+  .op-barra label { display: none; }
+  .op-barra .modo-unico { background: var(--navy-800); border-color: var(--navy-linea); color: #fff; padding: 6px 13px; font-size: 0.78rem; }
+  .op-barra .listo-punto { color: var(--navy-texto-2); }
+  .op-salir {
+    width: 30px; height: 30px; border-radius: var(--r-sm); border: 1px solid var(--navy-linea);
+    background: var(--navy-800); color: var(--navy-texto); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all var(--transicion);
+  }
+  .op-salir:hover { background: var(--navy-700); color: #fff; }
+  .op-salir svg { width: 15px; height: 15px; }
+
+  /* El centro: solo el campo. Ocupa el alto disponible para que la vista
+     caiga ahi sin buscarlo. */
+  .op-centro { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--e-6); gap: var(--e-4); }
+  .op-campo { width: 100%; max-width: 720px; position: relative; }
+  .op-campo svg.icono {
+    position: absolute; left: 22px; top: 50%; transform: translateY(-50%);
+    width: 28px; height: 28px; color: var(--tinta-3); pointer-events: none; transition: color var(--transicion);
+  }
+  body.operacion input#guia {
+    width: 100%; font-size: 2.3rem; font-weight: 600; padding: 22px 24px 22px 66px;
+    border-radius: var(--r-lg); border: 2px solid var(--linea-fuerte); background: var(--superficie);
+    box-shadow: var(--e2); letter-spacing: 0.08em; text-align: left;
+  }
+  body.operacion input#guia:focus { border-color: var(--azul); box-shadow: 0 0 0 5px var(--azul-tenue), var(--e2); }
+  body.operacion .op-campo:focus-within svg.icono { color: var(--azul); }
+  body.operacion input#guia::placeholder { font-size: 1.05rem; letter-spacing: 0; font-weight: 500; font-family: 'Inter', system-ui, sans-serif; }
+  .op-ayuda { margin: 0; font-size: 0.83rem; color: var(--tinta-3); text-align: center; }
+
+  /* Confirmacion a lo ancho, con el color como señal principal */
+  body.operacion .resultado {
+    width: 100%; max-width: 720px; margin: 0; padding: var(--e-5) var(--e-6);
+    border-width: 1px; border-left-width: 5px; box-shadow: var(--e2);
+  }
+  body.operacion .resultado h3 { font-size: 1.3rem; }
+  body.operacion .resultado .res-ico { width: 48px; height: 48px; }
+
+  /* Bitacora al pie: contexto sin robar protagonismo */
+  .op-feed { width: 100%; max-width: 720px; margin-top: var(--e-2); }
+  .op-sesion { font-size: 0.8rem; color: var(--tinta-3); text-align: center; }
+  .op-sesion b { color: var(--tinta); font-weight: 650; font-variant-numeric: tabular-nums; }
+  .op-sesion.oculto { visibility: hidden; }
+  .op-feed:empty { display: none; }
+  body.operacion .log-row { background: var(--superficie); }
+
+  /* =====================================================================
+     DASHBOARD: jerarquia por urgencia
+     ===================================================================== */
+  /* Franja "hoy": el flujo del dia, que es lo que se pregunta al llegar */
+  .hoy {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    background: var(--navy-900); border-radius: var(--r-lg); overflow: hidden;
+    margin-bottom: var(--e-3); box-shadow: var(--e2); border: 1px solid var(--navy-linea);
+  }
+  .hoy-celda { padding: var(--e-4) var(--e-5); border-right: 1px solid var(--navy-linea); position: relative; }
+  .hoy-celda:last-child { border-right: none; }
+  .hoy-celda .n { font-size: 1.75rem; font-weight: 680; color: #fff; letter-spacing: -0.035em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .hoy-celda .et { font-size: 0.75rem; color: var(--navy-texto-2); margin-top: 6px; font-weight: 500; }
+  .hoy-celda.principal { background: linear-gradient(135deg, var(--azul) 0%, var(--azul-600) 100%); border-right-color: rgba(255,255,255,0.16); }
+  .hoy-celda.principal .et { color: rgba(255,255,255,0.82); }
+
+  /* Banda de atencion: aparece solo cuando hay algo que hacer */
+  .atencion {
+    display: none; align-items: center; gap: var(--e-4); padding: var(--e-4) var(--e-5);
+    background: var(--ambar-bg); border: 1px solid #F0DFC0; border-left: 4px solid var(--ambar);
+    border-radius: var(--r-md); margin-bottom: var(--e-4); animation: entrar 240ms ease-out;
+  }
+  .atencion.visible { display: flex; }
+  .atencion .ico { width: 36px; height: 36px; border-radius: 50%; background: var(--ambar); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .atencion .ico svg { width: 19px; height: 19px; }
+  .atencion .txt { flex: 1; min-width: 0; }
+  .atencion .txt b { display: block; font-size: 0.92rem; color: var(--ambar-tx); }
+  .atencion .txt span { font-size: 0.82rem; color: var(--ambar-tx); opacity: 0.85; }
+  .atencion button { flex-shrink: 0; }
+
+  .seccion-titulo { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--tinta-3); font-weight: 650; margin: var(--e-6) 0 var(--e-3); }
+
+  @media (max-width: 720px) {
+    .op-barra { gap: var(--e-3); padding: var(--e-2) var(--e-3); }
+    .op-barra .op-der { width: 100%; margin-left: 0; justify-content: space-between; }
+    body.operacion input#guia { font-size: 1.5rem; padding: 16px 16px 16px 52px; }
+    .op-campo svg.icono { left: 16px; width: 22px; height: 22px; }
+    .paleta-caja { max-height: 82vh; }
+    #paleta { padding-top: 6vh; }
+    .hoy { grid-template-columns: repeat(2, 1fr); }
+  }
+
   /* ================= RESPONSIVE ================= */
   /* Laptop: la barra lateral se compacta sola para ganar ancho util */
   @media (max-width: 1180px) {
@@ -735,8 +900,7 @@
     <nav>
       <span class="sec">Operaciones</span>
       <button class="nav-item" data-ruta="dashboard" data-titulo="Dashboard"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="4.5" rx="2"/><rect x="13.5" y="10.5" width="7.5" height="10.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/></svg></span><span class="txt">Dashboard</span></button>
-      <button class="nav-item" data-ruta="escanear-mty" data-titulo="Escanear en MTY"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg></span><span class="txt">Escanear en MTY</span></button>
-      <button class="nav-item" data-ruta="escanear-cdmx" data-titulo="Escanear en CDMX"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg></span><span class="txt">Escanear en CDMX</span></button>
+      <button class="nav-item" data-ruta="escanear" data-titulo="Escanear"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg></span><span class="txt">Escanear</span></button>
       <button class="nav-item" data-ruta="guias" data-titulo="Guias"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linejoin="round"><path d="M21 8.5v7a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 15.5v-7a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8.5z"/><path d="M3.3 7.5L12 12.5l8.7-5M12 12.5V21"/></svg></span><span class="txt">Guias</span></button>
       <button class="nav-item" data-ruta="eventos" data-titulo="Eventos"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 4v4h4"/><path d="M12 8v4.5l3 1.8"/></svg></span><span class="txt">Eventos</span></button>
       <span class="sec">Sistema</span>
@@ -779,6 +943,15 @@
 
       <!-- ============ Dashboard ============ -->
       <section id="v-dashboard" style="display:none">
+        <!-- Primero el flujo de HOY: es lo que se pregunta al llegar -->
+        <div class="hoy" id="hoy"></div>
+        <!-- Despues, solo si hay algo que hacer, la banda de atencion -->
+        <div class="atencion" id="atencion">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg></span>
+          <span class="txt"><b id="atencionTitulo"></b><span id="atencionSub"></span></span>
+          <button class="btn-sec" id="atencionVer" type="button">Ver guias</button>
+        </div>
+        <div class="seccion-titulo">Inventario en este momento</div>
         <div class="kpis" id="kpis"></div>
         <div class="rango">
           <span>Actividad de los ultimos</span>
@@ -825,41 +998,51 @@
 
       <!-- ============ Escanear ============ -->
       <section id="v-escanear" style="display:none">
-        <div class="plaza-banner" id="plazaBanner">
-          <span>Estas escaneando en la plaza</span>
-          <b id="plazaBannerNombre"></b>
-        </div>
-        <div class="card terminal">
+        <!-- Barra fina: todo el contexto (plaza y tipo de operacion) en una
+             sola linea, para que el resto de la pantalla sea el campo -->
+        <div class="op-barra" id="plazaBanner">
+          <div class="op-marca">
+            <span class="op-logo"><img src="/logo-ft.svg" alt="Fletes Tauro" onerror="this.onerror=null;this.src='/logo-tauro.png'" /></span>
+            <button class="op-dato op-plaza" id="btnPlaza" type="button" title="Cambiar de plaza"><span>Plaza</span><b id="plazaBannerNombre"></b></button>
+          </div>
+          <span class="op-sep"></span>
           <div id="modoWrap">
             <label>Tipo de operacion</label>
             <div class="toggle" id="toggleModo">
               <button data-modo="bodega">Bodega MTY &harr; CDMX</button>
               <button data-modo="domicilio">Entrega a domicilio</button>
-              <button data-modo="ocurre">Ocurre (recoge en bodega)</button>
+              <button data-modo="ocurre">Ocurre</button>
             </div>
           </div>
           <div id="modoUnico" style="display:none">
             <label>Tipo de operacion</label>
             <p class="modo-unico" id="modoUnicoTexto"></p>
           </div>
-          <label for="guia" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-            <span>Numero de guia</span>
+          <div class="op-der">
             <span class="listo-punto"><i></i> Listo para escanear</span>
-          </label>
-          <div class="campo-escaneo">
-            <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>
+            <button class="op-salir" id="btnSalirOperacion" type="button" title="Salir al panel de control" aria-label="Salir al panel de control">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="op-centro">
+          <label for="guia" class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Numero de guia</label>
+          <div class="op-campo campo-escaneo">
+            <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>
             <input type="text" id="guia" autocomplete="off" spellcheck="false" placeholder="Dispara la pistola o escribe y presiona Enter" />
           </div>
-          <p class="nota" style="margin:10px 0 0">El sistema decide solo si el escaneo es salida, llegada, ruta de entrega o entrega, segun el estado de la guia. No tienes que elegir nada.</p>
-        </div>
-        <div class="resultado" id="resultado">
-          <span class="res-ico" id="resIcono"></span>
-          <div>
-            <h3 id="resTitulo"></h3>
-            <p id="resDetalle"></p>
+          <p class="op-ayuda">El sistema decide solo si es salida, llegada, reparto o entrega, segun el estado de la guia.</p>
+          <div class="op-sesion oculto" id="opSesion"><b id="opSesionN">0</b> guias escaneadas en esta sesion</div>
+          <div class="resultado" id="resultado">
+            <span class="res-ico" id="resIcono"></span>
+            <div>
+              <h3 id="resTitulo"></h3>
+              <p id="resDetalle"></p>
+            </div>
           </div>
+          <div class="op-feed" id="log"></div>
         </div>
-        <div id="log"></div>
       </section>
 
       <!-- ============ Guias ============ -->
@@ -1050,6 +1233,23 @@
 
 <div class="aviso" id="aviso"></div>
 <div class="destello" id="destello"></div>
+
+<!-- ============ Paleta de comandos (Ctrl+K) ============ -->
+<div id="paleta" role="dialog" aria-label="Paleta de comandos">
+  <div class="paleta-caja">
+    <div class="paleta-campo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input type="text" id="paletaInput" autocomplete="off" spellcheck="false" placeholder="Buscar una guia o escribir un comando..." aria-label="Buscar o ejecutar" />
+      <span class="kbd">Esc</span>
+    </div>
+    <div class="paleta-lista" id="paletaLista"></div>
+    <div class="paleta-pie">
+      <b><span class="kbd">&uarr;</span><span class="kbd">&darr;</span> moverse</b>
+      <b><span class="kbd">&crarr;</span> abrir</b>
+      <b><span class="kbd">Esc</span> cerrar</b>
+    </div>
+  </div>
+</div>
 
 <!-- ============ Modal: eliminar una guia ============ -->
 <div id="modalEliminar">
@@ -1332,12 +1532,9 @@
       $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
       aplicarModoEliminar();
       pintarToggles();
-      // Si el usuario tiene plaza asignada, solo ve el boton de escanear de
-      // su plaza y esa queda como la plaza activa
-      document.querySelector('[data-ruta="escanear-mty"]').style.display =
-        !plazaUsuario || plazaUsuario === 'MTY' ? '' : 'none';
-      document.querySelector('[data-ruta="escanear-cdmx"]').style.display =
-        !plazaUsuario || plazaUsuario === 'CDMX' ? '' : 'none';
+      // Con plaza asignada no hay nada que elegir: el conmutador desaparece
+      $('btnPlaza').disabled = !!plazaUsuario;
+      $('btnPlaza').title = plazaUsuario ? `Tu usuario opera solo en ${plazaUsuario}` : 'Cambiar de plaza';
       if (plazaUsuario) setPlaza(plazaUsuario);
     }
   }
@@ -1380,9 +1577,11 @@
       pintarUsuario();
       ocultarLogin();
       setTimeout(revisarAlertas, 800);
-      // Al iniciar sesion siempre se entra a la pantalla de Escanear, en la
-      // plaza del usuario (o la ultima elegida en este navegador)
-      if (location.hash !== '#/escanear') location.hash = '#/escanear'; // dispara render()
+      // Cada rol entra donde trabaja: quien escanea, directo a la terminal;
+      // el administrador, al panel de control, porque su trabajo es mirar el
+      // conjunto y no dar de alta guias una por una.
+      const inicio = usuarioActual.rol === 'admin' ? '#/dashboard' : '#/escanear';
+      if (location.hash !== inicio) location.hash = inicio; // dispara render()
       else render();
     } catch (err2) {
       $('loginError').textContent = err2.message;
@@ -1419,6 +1618,7 @@
   const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'config'];
 
   function render() {
+    aplicarModoOperacion();
     let ruta = location.hash.replace(/^#\/?/, '') || 'dashboard';
     let vista = ruta;
     let arg = null;
@@ -1437,7 +1637,7 @@
     }
     if (!VISTAS.includes(vista)) { vista = 'dashboard'; }
 
-    const navRuta = vista === 'detalle' ? 'guias' : vista === 'escanear' ? 'escanear-' + plaza.toLowerCase() : vista;
+    const navRuta = vista === 'detalle' ? 'guias' : vista;
     VISTAS.forEach((v) => ($('v-' + v).style.display = v === vista ? '' : 'none'));
     document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('activa', b.dataset.ruta === navRuta));
     $('tituloVista').textContent = vista === 'escanear' ? 'Escanear en ' + plaza : TITULOS[vista];
@@ -1536,9 +1736,41 @@
     }
   }
 
+  // Franja "hoy": el flujo del dia, que es la primera pregunta de quien abre
+  // el panel por la mañana. Los KPI de inventario responden "cuanto tengo";
+  // esto responde "como vamos", que es lo que de verdad se pregunta.
+  function pintarHoy() {
+    if (!statsCache || !statsCache.serie.length) return;
+    const hoy = statsCache.serie[statsCache.serie.length - 1];
+    const salidas = hoy.enviadasMty + hoy.enviadasCdmx;
+    const procesadas = salidas + hoy.llegadas + hoy.entregadas;
+    const celdas = [
+      { n: procesadas, et: 'Guias procesadas hoy', principal: true },
+      { n: salidas, et: 'Salidas' },
+      { n: hoy.llegadas, et: 'Llegadas' },
+      { n: hoy.entregadas, et: 'Entregas' },
+    ];
+    $('hoy').innerHTML = celdas
+      .map((c) => `<div class="hoy-celda ${c.principal ? 'principal' : ''}"><div class="n">${c.n}</div><div class="et">${esc(c.et)}</div></div>`)
+      .join('');
+  }
+
+  // Banda de atencion: solo aparece cuando hay algo que hacer. Un panel que
+  // siempre muestra una alerta deja de comunicar.
+  function pintarAtencion() {
+    const n = guiasDetenidas.length;
+    $('atencion').classList.toggle('visible', n > 0);
+    if (!n) return;
+    $('atencionTitulo').textContent = `${n} guia${n === 1 ? '' : 's'} detenida${n === 1 ? '' : 's'} en transito`;
+    $('atencionSub').textContent = `Llevan mas de ${DIAS_DETENIDA} dias sin movimiento. Suelen ser envios traspapelados o en la bodega equivocada.`;
+  }
+  $('atencionVer').addEventListener('click', () => $('accAlertas').click());
+
   function pintarCharts() {
     if (!statsCache) return;
     const t = statsCache.totales;
+    pintarHoy();
+    pintarAtencion();
     $('envTotal').innerHTML = `${t.enviadas}<small>en ${statsCache.dias} dias</small>`;
     $('entTotal').innerHTML = `${t.entregadas}<small>en ${statsCache.dias} dias</small>`;
     renderEnviadas($('chartEnviadas'), statsCache.serie);
@@ -1814,7 +2046,15 @@
     while ($('log').children.length > 4) $('log').lastChild.remove();
   }
 
+  let escaneosSesion = 0;
+  function subirContador() {
+    escaneosSesion++;
+    $('opSesionN').textContent = escaneosSesion;
+    $('opSesion').classList.remove('oculto');
+  }
+
   async function escanear(numeroGuia) {
+    subirContador();
     try {
       const data = await api('/api/guias/escanear', { method: 'POST', body: JSON.stringify({ numeroGuia, plaza, modo }) });
       const titulos = { salida: 'Salida registrada', llegada: 'Llegada registrada', ruta: 'En ruta de entrega', entregado: 'Entregado', repetido: 'Escaneo repetido' };
@@ -2393,6 +2633,131 @@
     }
   });
 
+  // ---------- Paleta de comandos (Ctrl+K) ----------
+  // Una sola entrada para todo el sistema: escribe un numero y va a esa guia,
+  // escribe una palabra y ejecuta la accion. El operador experto deja de
+  // navegar por menus y pasa a ordenar directamente.
+  const ICO_P = {
+    guia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M21 8.5v7a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 15.5v-7a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8.5z"/><path d="M3.3 7.5L12 12.5l8.7-5M12 12.5V21"/></svg>',
+    escanear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>',
+    ir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+    alerta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg>',
+  };
+
+  let paletaItems = [];
+  let paletaSel = 0;
+  let paletaTimer;
+
+  function comandosBase() {
+    const admin = usuarioActual && usuarioActual.rol === 'admin';
+    const cmds = [
+      { grupo: 'Ir a', ico: 'escanear', txt: 'Escanear guias', sub: 'E', accion: () => (location.hash = '#/escanear') },
+      { grupo: 'Ir a', ico: 'ir', txt: 'Guias', sub: 'G', accion: () => (location.hash = '#/guias') },
+      { grupo: 'Ir a', ico: 'ir', txt: 'Panel de control', sub: 'D', accion: () => (location.hash = '#/dashboard') },
+      { grupo: 'Ir a', ico: 'ir', txt: 'Eventos', sub: 'V', accion: () => (location.hash = '#/eventos') },
+      { grupo: 'Ir a', ico: 'ir', txt: 'Configuracion', accion: () => (location.hash = '#/config') },
+      { grupo: 'Acciones', ico: 'escanear', txt: 'Escanear en MTY', accion: () => (location.hash = '#/escanear-mty') },
+      { grupo: 'Acciones', ico: 'escanear', txt: 'Escanear en CDMX', accion: () => (location.hash = '#/escanear-cdmx') },
+      { grupo: 'Acciones', ico: 'alerta', txt: 'Ver guias detenidas', sub: guiasDetenidas.length ? String(guiasDetenidas.length) : '0', accion: () => $('accAlertas').click() },
+    ];
+    if (admin) cmds.push({ grupo: 'Acciones', ico: 'ir', txt: 'Gestionar usuarios', accion: () => (location.hash = '#/config') });
+    return cmds;
+  }
+
+  function pintarPaleta() {
+    const lista = $('paletaLista');
+    if (!paletaItems.length) {
+      lista.innerHTML = '<div class="paleta-vacia">Sin resultados</div>';
+      return;
+    }
+    let html = '';
+    let grupoActual = null;
+    paletaItems.forEach((it, i) => {
+      if (it.grupo !== grupoActual) { grupoActual = it.grupo; html += `<div class="paleta-grupo">${esc(grupoActual)}</div>`; }
+      html += `<button type="button" class="paleta-item ${i === paletaSel ? 'sel' : ''}" data-i="${i}">
+        <span class="ico">${ICO_P[it.ico] || ICO_P.ir}</span>
+        <span class="txt">${esc(it.txt)}</span>
+        ${it.sub ? `<span class="sub">${esc(it.sub)}</span>` : ''}</button>`;
+    });
+    lista.innerHTML = html;
+    lista.querySelectorAll('.paleta-item').forEach((b) =>
+      b.addEventListener('click', () => ejecutarPaleta(Number(b.dataset.i)))
+    );
+    const sel = lista.querySelector('.paleta-item.sel');
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+
+  function filtrarPaleta(q) {
+    const texto = q.trim().toLowerCase();
+    const base = comandosBase().filter((c) => !texto || c.txt.toLowerCase().includes(texto));
+    paletaItems = base;
+    paletaSel = 0;
+    pintarPaleta();
+    // Si parece un numero de guia, se consulta al servidor
+    clearTimeout(paletaTimer);
+    if (texto.length >= 2) {
+      paletaTimer = setTimeout(async () => {
+        try {
+          const guias = await api('/api/guias?buscar=' + encodeURIComponent(texto.toUpperCase()));
+          const encontradas = guias.slice(0, 6).map((g) => ({
+            grupo: 'Guias', ico: 'guia', txt: g.numero_guia,
+            sub: ETIQUETAS[g.estatus] || g.estatus,
+            accion: () => (location.hash = '#/guia/' + encodeURIComponent(g.numero_guia)),
+          }));
+          if ($('paleta').classList.contains('abierta')) {
+            paletaItems = [...encontradas, ...base];
+            paletaSel = 0;
+            pintarPaleta();
+          }
+        } catch {}
+      }, 180);
+    }
+  }
+
+  function ejecutarPaleta(i) {
+    const it = paletaItems[i];
+    if (!it) return;
+    cerrarPaleta();
+    it.accion();
+  }
+  function abrirPaleta() {
+    if (!usuarioActual) return;
+    $('paleta').classList.add('abierta');
+    $('paletaInput').value = '';
+    filtrarPaleta('');
+    setTimeout(() => $('paletaInput').focus(), 20);
+  }
+  function cerrarPaleta() {
+    $('paleta').classList.remove('abierta');
+    if (document.body.classList.contains('operacion')) setTimeout(() => $('guia').focus(), 30);
+  }
+
+  $('paletaInput').addEventListener('input', () => filtrarPaleta($('paletaInput').value));
+  $('paletaInput').addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); paletaSel = Math.min(paletaSel + 1, paletaItems.length - 1); pintarPaleta(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); paletaSel = Math.max(paletaSel - 1, 0); pintarPaleta(); }
+    else if (e.key === 'Enter') { e.preventDefault(); ejecutarPaleta(paletaSel); }
+    else if (e.key === 'Escape') { e.preventDefault(); cerrarPaleta(); }
+  });
+  $('paleta').addEventListener('click', (e) => { if (e.target === $('paleta')) cerrarPaleta(); });
+
+  // ---------- Modo operacion ----------
+  // La pantalla de escaneo se presenta sola, sin menu ni encabezado: quien
+  // escanea todo el dia no necesita nada mas. Para navegar desde ahi esta la
+  // paleta (Ctrl+K); la cruz sale al panel de control.
+  function aplicarModoOperacion() {
+    document.body.classList.toggle('operacion', location.hash.startsWith('#/escanear'));
+  }
+  $('btnSalirOperacion').addEventListener('click', () => (location.hash = '#/dashboard'));
+
+  // Conmutador de plaza dentro del modo operacion: sin el, un administrador
+  // no podria cambiar de plaza porque el menu no esta a la vista
+  $('btnPlaza').addEventListener('click', () => {
+    if ($('btnPlaza').disabled) return;
+    const otra = plaza === 'MTY' ? 'cdmx' : 'mty';
+    location.hash = '#/escanear-' + otra;
+  });
+
   // ---------- Atajos de teclado ----------
   // Un operador que escanea cientos de guias no deberia tocar el raton. Los
   // atajos se ignoran mientras se escribe en un campo, para no estorbar.
@@ -2404,13 +2769,20 @@
   };
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) {
+      const tecla = (e.key || '').toLowerCase();
+      // Ctrl+K abre la paleta de comandos, como en Linear, Notion o Vercel
+      if (tecla === 'k' && (e.ctrlKey || e.metaKey) && !e.altKey) {
+        e.preventDefault();
+        $('paleta').classList.contains('abierta') ? cerrarPaleta() : abrirPaleta();
+      }
       // Ctrl+B contrae o expande el menu, como en los editores de codigo
-      if ((e.key || '').toLowerCase() === 'b' && (e.ctrlKey || e.metaKey) && !e.altKey) {
+      if (tecla === 'b' && (e.ctrlKey || e.metaKey) && !e.altKey) {
         e.preventDefault();
         $('btnColapsar').click();
       }
       return;
     }
+    if (e.key === 'Escape' && $('paleta').classList.contains('abierta')) { cerrarPaleta(); return; }
     const enCampo = /^(INPUT|SELECT|TEXTAREA)$/.test((e.target.tagName || '').toUpperCase());
     if (e.key === 'Escape' && enCampo) { e.target.blur(); return; }
     if (enCampo) return;
