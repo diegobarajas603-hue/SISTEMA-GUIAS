@@ -16,7 +16,15 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // La raiz del sitio es la pagina publica de rastreo para clientes; el panel
 // interno (protegido con login) vive en /panel.
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'rastreo.html')));
+//
+// Modo mantenimiento: mientras este activo, la raiz muestra el aviso de
+// mantenimiento en lugar del buscador de guias. Para apagarlo basta con
+// definir MANTENIMIENTO=0 en las variables de entorno del hosting (no hace
+// falta tocar el codigo). El rastreo real sigue disponible en /rastreo.html
+// para poder hacer pruebas, igual que el panel y la API.
+const EN_MANTENIMIENTO = process.env.MANTENIMIENTO !== '0';
+const paginaRaiz = EN_MANTENIMIENTO ? 'mantenimiento.html' : 'rastreo.html';
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', paginaRaiz)));
 app.get('/panel', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'panel.html')));
 // Compatibilidad con la ruta anterior del panel
 app.get('/index.html', (req, res) => res.redirect('/panel'));
