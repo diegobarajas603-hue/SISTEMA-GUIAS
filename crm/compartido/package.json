@@ -1,0 +1,12 @@
+{
+  "name": "@aura/compartido",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reglas compartidas entre la API y la web: catálogo de campos y normalizadores de importación.",
+  "main": "./indice.js",
+  "types": "./indice.d.ts",
+  "exports": {
+    ".": { "types": "./indice.d.ts", "default": "./indice.js" }
+  }
+}

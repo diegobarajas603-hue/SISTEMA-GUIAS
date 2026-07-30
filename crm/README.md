@@ -51,8 +51,12 @@ Contraseña de demostración: `Aura2026!` (configurable con `CRM_DEMO_PASSWORD`)
 | `npm run build` | Compila el frontend a `web/dist` |
 | `npm start` | Sirve la API en modo producción |
 | `npm run typecheck` | TypeScript en modo estricto, sin emitir |
-| `npm run prueba:api` | 105 casos contra la API en marcha |
+| `npm run prueba:api` | 106 casos contra la API en marcha |
+| `npm run prueba:importacion` | 20 casos del importador de clientes |
 | `npm run prueba:ui` | Recorre la app en Chromium y captura pantallas |
+| `npm run prueba:ui:importacion` | Recorre el asistente de importación en navegador |
+| `npm run prueba:rendimiento` | Importa 50 000 clientes y mide bloqueos de interfaz |
+| `npm run pruebas:archivos` | Genera los Excel de prueba (100 a 50 000 filas) |
 | `npm run db:migrar` · `db:semilla` · `db:reiniciar` | Base de datos |
 
 Las pruebas necesitan la API (`:4100`) levantada; `prueba:ui` además el front (`:5180`).
@@ -92,6 +96,9 @@ usuario sale de un modelo generativo.
 
 ```
 crm/
+├── compartido/             Reglas que API y web comparten literalmente
+│   ├── normalizar.js       RFC, teléfono, CP, estados, fechas de Excel
+│   └── campos-importacion.js  Catálogo de campos y detección de columnas
 ├── api/                    Express (ESM) + PostgreSQL sin ORM
 │   ├── src/
 │   │   ├── db/             esquema.sql · migrar.js · semilla.js · pool.js
@@ -100,7 +107,7 @@ crm/
 │   │   ├── ia/             motor determinista · copiloto · herramientas
 │   │   ├── motor/          ejecutor de automatizaciones + programador
 │   │   └── middleware/     sesión, roles, límite de peticiones
-│   └── pruebas/humo.mjs    105 casos de extremo a extremo
+│   └── pruebas/humo.mjs    106 casos de extremo a extremo
 ├── web/                    React 19 · TypeScript · Vite · Tailwind 4
 │   └── src/
 │       ├── estilos/        tokens OKLCH, tema claro/oscuro
@@ -108,7 +115,7 @@ crm/
 │       ├── lib/            api, tipos, formato, hooks, consultas React Query
 │       └── modulos/        un directorio por módulo del producto
 ├── docs/                   arquitectura, modelo de datos, diseño, UX, roadmap
-└── pruebas/humo-ui.mjs     recorrido en navegador real
+└── pruebas/                recorridos en navegador y generador de Excel de prueba
 ```
 
 La documentación de diseño se escribió antes del código y sigue vigente:
@@ -142,6 +149,20 @@ ejecutor no sepa ejecutar.
 resuelven por nombre. Un `import * as` de la librería impedía el *tree-shaking* y
 metía 625 kB en el paquete; enumerarlos dejó el total en 346 kB.
 
+**La importación valida dos veces, con el mismo código.** El navegador lee el
+Excel y normaliza las 50 000 filas en un *web worker* para responder al instante;
+el servidor vuelve a normalizar todo antes de escribir. Lo que llega del cliente
+es una propuesta, nunca la verdad. Ambos importan `compartido/normalizar.js`, así
+que la vista previa y lo que acaba en la base no pueden divergir.
+
+**Una transacción por cliente, no por lote.** La cuenta y sus contactos entran o
+no entran juntos —nunca queda una cuenta a medias— y a la vez una fila con
+problemas no arrastra a las otras 199 del lote.
+
+**El RFC manda sobre el nombre.** Hay decenas de «Transportes del Norte»; lo que
+las distingue es el RFC. Si el registro entrante trae RFC y el candidato por
+nombre tiene otro distinto, son empresas diferentes y se dan de alta por separado.
+
 **Tema por atributo.** El modo oscuro se activa con `data-theme="dark"` en la raíz.
 Un script previo a la primera pintura lo fija desde `localStorage` para que no haya
 destello claro al cargar.
@@ -150,8 +171,11 @@ destello claro al cargar.
 
 ## Estado
 
-- API: 105/105 casos en verde, incluidas las diez preguntas de ejemplo del copiloto,
+- API: 106/106 casos en verde, incluidas las diez preguntas de ejemplo del copiloto,
   defensa ante inyección SQL y verificación aritmética de cotizaciones.
+- Importación: 20/20 en API y 20/20 en navegador, con archivos reales de 100 a
+  50 000 filas. Las 50 000 tardan 3.8 min y la pausa máxima del hilo principal es
+  de 110 ms: la interfaz nunca se congela.
 - Frontend: `tsc` estricto sin errores y compilación de producción limpia.
 - Navegador: los doce módulos recorridos en Chromium sin errores de consola, en
   modo claro y oscuro, sin desbordamiento horizontal.

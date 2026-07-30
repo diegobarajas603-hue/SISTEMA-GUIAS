@@ -12,6 +12,7 @@ import reportes from './reportes.js';
 import automatizaciones from './automatizaciones.js';
 import ia from './ia.js';
 import catalogo from './catalogo.js';
+import importacion from './importacion.js';
 
 const BASE = '/api/v1';
 
@@ -25,7 +26,7 @@ export default function montarRutas(app) {
 
   const protegidos = {
     dashboard, leads, cuentas, oportunidades, cotizaciones, actividades,
-    tickets, marketing, reportes, automatizaciones, ia, catalogo,
+    tickets, marketing, reportes, automatizaciones, ia, catalogo, importacion,
   };
 
   for (const [nombre, router] of Object.entries(protegidos)) {

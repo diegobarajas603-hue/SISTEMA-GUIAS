@@ -164,45 +164,59 @@ function mapaDePoder(contactos) {
 
 const ACTUALIZABLES = [
   'nombre', 'nombre_comercial', 'rfc', 'industria', 'tamano', 'sitio_web', 'telefono', 'email',
-  'calle', 'ciudad', 'estado', 'pais', 'codigo_postal', 'tipo', 'propietario_id',
-  'dias_credito', 'origen', 'etiquetas', 'notas', 'cliente_desde',
+  'calle', 'numero', 'colonia', 'ciudad', 'estado', 'pais', 'codigo_postal', 'tipo',
+  'propietario_id', 'dias_credito', 'origen', 'etiquetas', 'notas', 'cliente_desde',
 ];
 
-export async function crear(datos, usuario) {
-  const cuenta = await uno(
+/**
+ * Ejecutor por omisión: el pool global. Todas las escrituras de abajo aceptan un
+ * cliente de transacción opcional —igual que `bitacora.registrar`— para que el
+ * importador pueda meter la cuenta y sus contactos en una sola transacción sin
+ * reescribir el SQL de alta.
+ */
+const global = { consultar, uno };
+
+export async function crear(datos, usuario, t = null) {
+  const ej = t ?? global;
+  const cuenta = await ej.uno(
     `INSERT INTO cuentas (nombre, nombre_comercial, rfc, industria, tamano, sitio_web, telefono,
-                          email, calle, ciudad, estado, codigo_postal, tipo, propietario_id,
-                          dias_credito, origen, etiquetas, notas)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,COALESCE($13,'prospecto'),
-             COALESCE($14::int,$18::int),COALESCE($15,0),$16,COALESCE($17::text[],'{}'),$19)
+                          email, calle, numero, colonia, ciudad, estado, pais, codigo_postal, tipo,
+                          propietario_id, dias_credito, origen, etiquetas, notas, cliente_desde)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,COALESCE($14,'México'),$15,
+             COALESCE($16,'prospecto'),COALESCE($17::int,$22::int),COALESCE($18,0),$19,
+             COALESCE($20::text[],'{}'),$21,$23)
      RETURNING *`,
     [
       datos.nombre, datos.nombre_comercial ?? null, datos.rfc ?? null, datos.industria ?? null,
       datos.tamano ?? null, datos.sitio_web ?? null, datos.telefono ?? null, datos.email ?? null,
-      datos.calle ?? null, datos.ciudad ?? null, datos.estado ?? null, datos.codigo_postal ?? null,
+      datos.calle ?? null, datos.numero ?? null, datos.colonia ?? null, datos.ciudad ?? null,
+      datos.estado ?? null, datos.pais ?? null, datos.codigo_postal ?? null,
       datos.tipo ?? null, datos.propietario_id ?? null, datos.dias_credito ?? null,
-      datos.origen ?? null, datos.etiquetas ?? null, usuario.id, datos.notas ?? null,
+      datos.origen ?? null, datos.etiquetas ?? null, datos.notas ?? null, usuario.id,
+      datos.cliente_desde ?? null,
     ],
   );
   await bitacora.registrar({
     entidad_tipo: 'cuenta', entidad_id: cuenta.id, cuenta_id: cuenta.id, tipo: 'creado',
     titulo: 'Cuenta creada', detalle: `Alta de ${cuenta.nombre}.`, usuario_id: usuario.id,
-  });
+    metadata: datos.origen_alta ? { origen_alta: datos.origen_alta } : {},
+  }, t);
   return cuenta;
 }
 
-export async function actualizar(id, datos, usuario) {
-  const previo = await uno('SELECT * FROM cuentas WHERE id = $1', [id]);
+export async function actualizar(id, datos, usuario, t = null) {
+  const ej = t ?? global;
+  const previo = await ej.uno('SELECT * FROM cuentas WHERE id = $1', [id]);
   if (!previo) throw noEncontrado('cliente');
   const consulta = armarUpdate('cuentas', id, datos, ACTUALIZABLES);
   if (!consulta) return previo;
-  const cuenta = await uno(consulta.sql, consulta.valores);
+  const cuenta = await ej.uno(consulta.sql, consulta.valores);
 
   if (datos.tipo && datos.tipo !== previo.tipo) {
     await bitacora.registrar({
       entidad_tipo: 'cuenta', entidad_id: id, cuenta_id: id, tipo: 'estado',
       titulo: `Cuenta ${previo.tipo} → ${datos.tipo}`, usuario_id: usuario.id,
-    });
+    }, t);
   }
   return cuenta;
 }
@@ -217,29 +231,31 @@ export async function eliminar(id) {
 export const contactos = (cuentaId) =>
   consultar('SELECT * FROM contactos WHERE cuenta_id = $1 ORDER BY es_principal DESC, nombre', [cuentaId]);
 
-export async function crearContacto(cuentaId, datos, usuario) {
-  return tx(async (t) => {
-    // Solo puede haber un contacto principal por cuenta.
-    if (datos.es_principal) {
-      await t.consultar('UPDATE contactos SET es_principal = false WHERE cuenta_id = $1', [cuentaId]);
-    }
-    const contacto = await t.uno(
-      `INSERT INTO contactos (cuenta_id, nombre, puesto, email, telefono, whatsapp, linkedin,
-                              es_principal, rol_compra, notas)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,false),$9,$10) RETURNING *`,
-      [
-        cuentaId, datos.nombre, datos.puesto ?? null, datos.email ?? null, datos.telefono ?? null,
-        datos.whatsapp ?? null, datos.linkedin ?? null, datos.es_principal ?? null,
-        datos.rol_compra ?? null, datos.notas ?? null,
-      ],
-    );
-    await bitacora.registrar({
-      entidad_tipo: 'cuenta', entidad_id: cuentaId, cuenta_id: cuentaId, tipo: 'contacto',
-      titulo: `Contacto agregado: ${contacto.nombre}`,
-      detalle: contacto.puesto, usuario_id: usuario.id,
-    }, t);
-    return contacto;
-  });
+export async function crearContacto(cuentaId, datos, usuario, t = null) {
+  // Con transacción propia se usa; sin ella se abre una, para que la llamada
+  // desde el endpoint siga siendo atómica igual que antes.
+  if (!t) return tx((nueva) => crearContacto(cuentaId, datos, usuario, nueva));
+
+  // Solo puede haber un contacto principal por cuenta.
+  if (datos.es_principal) {
+    await t.consultar('UPDATE contactos SET es_principal = false WHERE cuenta_id = $1', [cuentaId]);
+  }
+  const contacto = await t.uno(
+    `INSERT INTO contactos (cuenta_id, nombre, puesto, email, telefono, whatsapp, linkedin,
+                            es_principal, rol_compra, notas)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,false),$9,$10) RETURNING *`,
+    [
+      cuentaId, datos.nombre, datos.puesto ?? null, datos.email ?? null, datos.telefono ?? null,
+      datos.whatsapp ?? null, datos.linkedin ?? null, datos.es_principal ?? null,
+      datos.rol_compra ?? null, datos.notas ?? null,
+    ],
+  );
+  await bitacora.registrar({
+    entidad_tipo: 'cuenta', entidad_id: cuentaId, cuenta_id: cuentaId, tipo: 'contacto',
+    titulo: `Contacto agregado: ${contacto.nombre}`,
+    detalle: contacto.puesto, usuario_id: usuario.id,
+  }, t);
+  return contacto;
 }
 
 const CONTACTO_ACTUALIZABLE = ['nombre', 'puesto', 'email', 'telefono', 'whatsapp', 'linkedin', 'rol_compra', 'notas', 'es_principal'];

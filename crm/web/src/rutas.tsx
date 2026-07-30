@@ -19,6 +19,8 @@ const PaginaTicketDetalle = lazy(() => import('@/modulos/soporte/PaginaTicketDet
 const PaginaBaseConocimiento = lazy(() => import('@/modulos/soporte/PaginaBaseConocimiento'));
 const PaginaAgenda = lazy(() => import('@/modulos/agenda/PaginaAgenda'));
 const PaginaReportes = lazy(() => import('@/modulos/reportes/PaginaReportes'));
+const PaginaImportarClientes = lazy(() => import('@/modulos/importacion/PaginaImportarClientes'));
+const PaginaHistorialImportaciones = lazy(() => import('@/modulos/importacion/PaginaHistorialImportaciones'));
 const PaginaAutomatizaciones = lazy(() => import('@/modulos/automatizaciones/PaginaAutomatizaciones'));
 const PaginaEditorFlujo = lazy(() => import('@/modulos/automatizaciones/PaginaEditorFlujo'));
 const PaginaCopilotoCompleto = lazy(() => import('@/modulos/ia/PaginaCopilotoCompleto'));
@@ -34,6 +36,10 @@ export const enrutador = createBrowserRouter([
       { path: 'prospectos', element: <PaginaProspectos /> },
       { path: 'prospectos/:id', element: <PaginaProspectos /> },
       { path: 'clientes', element: <PaginaClientes /> },
+      // Las rutas estáticas van antes que «clientes/:id» para que «importar» no
+      // se interprete como el id de un cliente.
+      { path: 'clientes/importar', element: <PaginaImportarClientes /> },
+      { path: 'clientes/importaciones', element: <PaginaHistorialImportaciones /> },
       { path: 'clientes/:id', element: <PaginaClienteFicha /> },
       { path: 'oportunidades', element: <PaginaOportunidades /> },
       { path: 'oportunidades/:id', element: <PaginaOportunidadDetalle /> },

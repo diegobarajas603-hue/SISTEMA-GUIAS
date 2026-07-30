@@ -590,6 +590,48 @@ CREATE INDEX IF NOT EXISTS ix_autom_reanudar ON automatizacion_ejecuciones (rean
   WHERE estado = 'esperando';
 
 -- ---------------------------------------------------------------------------
+--  Importación de clientes
+--  El historial existe para auditoría: quién subió qué archivo, cuándo, con qué
+--  mapeo y con qué resultado. `errores` guarda un extracto acotado —el detalle
+--  completo lo descarga el usuario al terminar— para que una carga de 50 000
+--  filas con muchos rechazos no infle la tabla.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS importaciones (
+  id             SERIAL PRIMARY KEY,
+  usuario_id     INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+  archivo        TEXT NOT NULL,
+  tamano_bytes   BIGINT NOT NULL DEFAULT 0,
+  estado         TEXT NOT NULL DEFAULT 'en_proceso'
+                 CHECK (estado IN ('en_proceso','completada','cancelada','fallida')),
+  estrategia     TEXT NOT NULL DEFAULT 'omitir'
+                 CHECK (estrategia IN ('omitir','actualizar','crear_nuevo','caso_por_caso')),
+  total_filas    INTEGER NOT NULL DEFAULT 0,
+  total_clientes INTEGER NOT NULL DEFAULT 0,
+  creados        INTEGER NOT NULL DEFAULT 0,
+  actualizados   INTEGER NOT NULL DEFAULT 0,
+  omitidos       INTEGER NOT NULL DEFAULT 0,
+  fallidos       INTEGER NOT NULL DEFAULT 0,
+  contactos      INTEGER NOT NULL DEFAULT 0,
+  duracion_ms    INTEGER NOT NULL DEFAULT 0,
+  mapeo          JSONB NOT NULL DEFAULT '{}'::jsonb,
+  errores        JSONB NOT NULL DEFAULT '[]'::jsonb,
+  creado_en      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  terminado_en   TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ix_importaciones_usuario ON importaciones (usuario_id, creado_en DESC);
+
+-- Dirección desglosada: el importador recibe calle, número y colonia por
+-- separado y guardarlos concatenados impide volver a separarlos después.
+ALTER TABLE cuentas ADD COLUMN IF NOT EXISTS numero  TEXT;
+ALTER TABLE cuentas ADD COLUMN IF NOT EXISTS colonia TEXT;
+
+-- Búsqueda de duplicados por RFC durante la importación. No es UNIQUE a
+-- propósito: el usuario puede elegir «crear como nuevo» y una restricción dura
+-- se lo impediría.
+CREATE INDEX IF NOT EXISTS ix_cuentas_rfc ON cuentas (upper(rfc)) WHERE rfc IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
 --  Bitácora unificada, notificaciones
 -- ---------------------------------------------------------------------------
 

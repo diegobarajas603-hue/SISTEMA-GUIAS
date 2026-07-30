@@ -13,6 +13,11 @@ export function crearApp() {
 
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
+  // La importación manda lotes de clientes en el cuerpo, así que necesita más
+  // holgura que el resto de la API. Va primero y solo para esa ruta: el parser
+  // general de abajo ve el cuerpo ya leído y no vuelve a tocarlo, de modo que
+  // el límite estricto sigue vigente para todos los demás endpoints.
+  app.use('/api/v1/importacion', express.json({ limit: '12mb' }));
   app.use(express.json({ limit: '1mb' }));
 
   // Cabeceras de seguridad. Sin CDNs externos, así que la CSP puede ser estricta;

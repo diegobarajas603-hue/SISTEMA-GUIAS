@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Search, X, Building2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Plus, Search, X, Building2, Upload } from 'lucide-react';
 import { usarCuentas, usarFacetasCuentas, type FiltrosCuenta } from '@/lib/consultas/cuentas';
 import { Segmentado } from '@/componentes/ui/Segmentado';
 import { Campo, Selector } from '@/componentes/ui/Campo';
@@ -39,7 +39,12 @@ export default function PaginaClientes() {
           <h1 className="text-2xl font-bold tracking-tight text-texto">Clientes</h1>
           <p className="text-sm text-texto-tenue">{data?.total ?? 0} cuentas en la cartera</p>
         </div>
-        <Boton variante="primario" iconoIzq={<Plus className="size-4" />} onClick={() => setNuevoAbierto(true)}>Nueva cuenta</Boton>
+        <div className="flex items-center gap-2">
+          <Link to="/clientes/importar">
+            <Boton variante="secundario" iconoIzq={<Upload className="size-4" />}>Importar Excel</Boton>
+          </Link>
+          <Boton variante="primario" iconoIzq={<Plus className="size-4" />} onClick={() => setNuevoAbierto(true)}>Nueva cuenta</Boton>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">

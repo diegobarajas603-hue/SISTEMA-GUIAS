@@ -4,6 +4,7 @@
   "private": true,
   "description": "Aura CRM - plataforma comercial inteligente (Fletes Tauro)",
   "workspaces": [
+    "compartido",
     "api",
     "web"
   ],
@@ -18,7 +19,11 @@
     "db:reiniciar": "npm run db:reiniciar --workspace api",
     "typecheck": "npm run typecheck --workspace web",
     "prueba:api": "node api/pruebas/humo.mjs",
-    "prueba:ui": "node pruebas/humo-ui.mjs"
+    "prueba:ui": "node pruebas/humo-ui.mjs",
+    "prueba:importacion": "node pruebas/humo-importacion.mjs",
+    "prueba:ui:importacion": "node pruebas/humo-ui-importacion.mjs",
+    "prueba:rendimiento": "node pruebas/rendimiento-importacion.mjs",
+    "pruebas:archivos": "node pruebas/generar-excel.mjs"
   },
   "engines": {
     "node": ">=22"
