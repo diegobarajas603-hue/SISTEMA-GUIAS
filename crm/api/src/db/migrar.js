@@ -13,7 +13,7 @@ const TABLAS = [
   'facturas', 'contratos', 'archivos', 'notas', 'actividades', 'cotizacion_items',
   'cotizaciones', 'etapa_historial', 'oportunidad_productos', 'oportunidades',
   'productos', 'senales', 'leads', 'contactos', 'cuentas', 'metas', 'sesiones',
-  'usuarios', 'equipos',
+  'usuarios', 'equipos', 'importaciones', 'sistema_ajustes',
 ];
 
 /** Aplica el esquema. Es idempotente, así que se puede llamar en cada arranque. */

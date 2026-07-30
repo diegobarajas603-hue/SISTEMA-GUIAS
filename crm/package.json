@@ -23,7 +23,8 @@
     "prueba:importacion": "node pruebas/humo-importacion.mjs",
     "prueba:ui:importacion": "node pruebas/humo-ui-importacion.mjs",
     "prueba:rendimiento": "node pruebas/rendimiento-importacion.mjs",
-    "pruebas:archivos": "node pruebas/generar-excel.mjs"
+    "pruebas:archivos": "node pruebas/generar-excel.mjs",
+    "prueba:ui:arranque": "node pruebas/humo-ui-arranque.mjs"
   },
   "engines": {
     "node": ">=22"

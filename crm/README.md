@@ -82,6 +82,7 @@ Todo tiene un valor por omisión razonable; solo se define lo que se quiera camb
 | `CRM_ADMIN_EMAIL` | — | Crea el administrador inicial si la base está vacía |
 | `CRM_ADMIN_PASSWORD` | — | Su contraseña |
 | `CRM_ADMIN_NOMBRE` | `Administrador` | Su nombre visible |
+| `CRM_REINICIAR_BASE` | — | Vacía la base una vez; recuerda la palabra usada |
 | `CRM_DB_SSL` | *(automático)* | TLS a Postgres; se detecta solo, defínelo solo para forzarlo |
 
 ### Sobre la IA
@@ -134,6 +135,30 @@ un usuario real deja de hacer nada, y conviene ponerlo en `0`.
 
 Para cargar tu cartera de verdad, entra a **Clientes → Importar Excel** en la
 instancia desplegada en lugar de sembrar.
+
+---
+
+## Arrancar de cero con tus datos
+
+Los datos de demostración sirven para conocer el sistema; para operar de verdad
+conviene empezar limpio.
+
+1. **Vacía la base.** En las variables del servicio define
+   `CRM_REINICIAR_BASE` con cualquier palabra, por ejemplo `empezar-limpio`.
+   El siguiente arranque borra todo y **registra esa palabra**: dejar la variable
+   puesta ya no vuelve a borrar nada. Para volver a vaciar, cámbiala.
+2. **Créate como administrador.** Quita `CRM_SEMILLA_INICIAL` (o ponla en `0`) y
+   define `CRM_ADMIN_EMAIL` y `CRM_ADMIN_PASSWORD`. Al arrancar con la base vacía
+   se crea esa cuenta.
+3. **Da de alta a tu equipo** en *Ajustes → Equipo*. Crea primero los equipos por
+   zona y luego a cada persona: el sistema genera una contraseña inicial que le
+   pasas y que podrá cambiar al entrar.
+4. **Carga tu catálogo** en *Ajustes → Servicios*, con precio y costo por unidad.
+   El margen se calcula solo. Sin catálogo no se pueden armar cotizaciones.
+5. **Importa tu cartera** en *Clientes → Importar Excel*.
+
+Después del primer arranque conviene quitar `CRM_ADMIN_PASSWORD` de las variables
+y cambiar la contraseña desde *Ajustes → Perfil*.
 
 ---
 

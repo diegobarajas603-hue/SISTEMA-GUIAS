@@ -17,16 +17,46 @@ try {
   process.exit(1);
 }
 
+const { valor: valorBD, uno: unoBD, consultar: consultarBD } = await import('./db/pool.js');
+
 /**
- * Siembra de primer arranque, para que un despliegue nuevo no reciba al usuario
- * con una pantalla vacía.
+ * Reinicio en limpio, pensado para hacerse desde el panel del proveedor sin
+ * consola: se define `CRM_REINICIAR_BASE` con cualquier palabra y el siguiente
+ * arranque vacía la base.
  *
- * Solo corre si se pide explícitamente **y** la base no tiene ni un usuario. Esa
- * segunda condición no es opcional: la semilla inserta, no reemplaza, así que
- * ejecutarla dos veces duplicaría 18 meses de historia. Con datos reales dentro,
- * esto nunca se dispara.
+ * La palabra queda registrada en `sistema_ajustes` **después** del borrado, y un
+ * arranque posterior con la misma palabra no hace nada. Eso es lo que permite
+ * dejar la variable puesta sin miedo: sin esa memoria, cada reinicio del
+ * contenedor —un despliegue, un fallo, un escalado— borraría la operación
+ * entera. Para volver a vaciar, se cambia la palabra.
  */
-const { valor: valorBD, uno: unoBD } = await import('./db/pool.js');
+const tokenReinicio = process.env.CRM_REINICIAR_BASE?.trim();
+if (tokenReinicio) {
+  const aplicado = await valorBD(
+    "SELECT valor FROM sistema_ajustes WHERE clave = 'reinicio_token'",
+  ).catch(() => null);
+
+  if (aplicado === tokenReinicio) {
+    console.log(`[api] CRM_REINICIAR_BASE=«${tokenReinicio}» ya se aplicó; no se toca la base.`);
+  } else {
+    console.warn(`[api] CRM_REINICIAR_BASE=«${tokenReinicio}» · vaciando la base…`);
+    await migrar({ reiniciar: true, silencioso: true });
+    await consultarBD(
+      `INSERT INTO sistema_ajustes (clave, valor) VALUES ('reinicio_token', $1)
+       ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor, actualizado = now()`,
+      [tokenReinicio],
+    );
+    console.warn('[api] base vacía. Puedes dejar la variable puesta: no volverá a borrar.');
+  }
+}
+
+/**
+ * Primer usuario. Sin esto un despliegue nuevo queda inaccesible: no hay nadie
+ * en la tabla y la pantalla de acceso no tiene forma de crear al primero.
+ *
+ * La semilla solo corre con la base vacía porque inserta en lugar de reemplazar:
+ * ejecutarla dos veces duplicaría 18 meses de historia.
+ */
 const usuariosExistentes = await valorBD('SELECT count(*)::int FROM usuarios').catch(() => null);
 
 if (usuariosExistentes === 0) {

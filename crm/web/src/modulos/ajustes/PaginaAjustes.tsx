@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { Sun, Moon, Monitor, KeyRound, Users, Sparkles, Check, LogOut } from 'lucide-react';
+import { Sun, Moon, Monitor, KeyRound, Users, Sparkles, Check, LogOut, Plus, PenLine, Package } from 'lucide-react';
 import { useSesion } from '@/estado/sesion';
 import { useTema } from '@/estado/tema';
-import { usarUsuarios, usarEquipos, usarCambiarPassword, usarGuardarPreferencias } from '@/lib/consultas/auth';
+import { usarUsuarios, usarEquipos, usarCambiarPassword, usarGuardarPreferencias, usarEliminarEquipo } from '@/lib/consultas/auth';
+import { usarProductos } from '@/lib/consultas/catalogo';
+import { ModalUsuario } from './ModalUsuario';
+import { ModalEquipo } from './ModalEquipo';
+import { ModalProducto } from './ModalProducto';
 import { usarEstadoIA, usarRecalcularIA } from '@/lib/consultas/ia';
 import { Panel, EncabezadoPanel, CuerpoPanel } from '@/componentes/ui/Panel';
 import { Boton } from '@/componentes/ui/Boton';
@@ -16,6 +20,7 @@ import { ErrorAPI } from '@/lib/api';
 import { dinero, fechaHora, numero } from '@/lib/formato';
 import { ROL_TEXTO } from '@/lib/constantes';
 import { cx } from '@/lib/utilidades';
+import type { Producto, Usuario } from '@/lib/tipos';
 
 const TEMAS = [
   { valor: 'claro' as const, titulo: 'Claro', icono: Sun },
@@ -39,6 +44,7 @@ export default function PaginaAjustes() {
           { valor: 'perfil', etiqueta: 'Perfil' },
           { valor: 'apariencia', etiqueta: 'Apariencia' },
           { valor: 'equipo', etiqueta: 'Equipo' },
+          { valor: 'servicios', etiqueta: 'Servicios' },
           { valor: 'inteligencia', etiqueta: 'Inteligencia' },
         ]}
       />
@@ -46,6 +52,7 @@ export default function PaginaAjustes() {
       {pestana === 'perfil' && <SeccionPerfil />}
       {pestana === 'apariencia' && <SeccionApariencia />}
       {pestana === 'equipo' && <SeccionEquipo />}
+      {pestana === 'servicios' && <SeccionServicios />}
       {pestana === 'inteligencia' && <SeccionInteligencia />}
     </div>
   );
@@ -188,11 +195,26 @@ function SeccionApariencia() {
 function SeccionEquipo() {
   const { data: usuarios } = usarUsuarios();
   const { data: equipos } = usarEquipos();
+  const eliminarEquipo = usarEliminarEquipo();
+  const { avisar } = useAvisos();
+  const [editando, setEditando] = useState<Usuario | null>(null);
+  const [modalUsuario, setModalUsuario] = useState(false);
+  const [modalEquipo, setModalEquipo] = useState(false);
+
+  const abrir = (u: Usuario | null) => { setEditando(u); setModalUsuario(true); };
 
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
       <Panel>
-        <EncabezadoPanel titulo="Personas" subtitulo={`${numero(usuarios?.length ?? 0)} usuarios`} />
+        <EncabezadoPanel
+          titulo="Personas"
+          subtitulo={`${numero(usuarios?.length ?? 0)} ${usuarios?.length === 1 ? 'persona' : 'personas'} con acceso`}
+          acciones={
+            <Boton tamano="sm" variante="primario" iconoIzq={<Plus className="size-3.5" />} onClick={() => abrir(null)}>
+              Nueva persona
+            </Boton>
+          }
+        />
         <CuerpoPanel>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -200,9 +222,10 @@ function SeccionEquipo() {
                 <tr className="border-b border-borde text-2xs uppercase text-texto-tenue">
                   <th className="py-2 text-left">Persona</th>
                   <th className="py-2 text-left">Rol</th>
-                  <th className="py-2 text-left">Zona</th>
+                  <th className="py-2 text-left">Equipo</th>
                   <th className="py-2 text-right">Abiertas</th>
                   <th className="py-2 text-right">Meta</th>
+                  <th className="w-10 py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -212,42 +235,183 @@ function SeccionEquipo() {
                       <div className="flex items-center gap-2">
                         <Avatar nombre={u.nombre} tono={u.avatar_tono} tamano="xs" />
                         <div className="min-w-0">
-                          <p className="truncate text-texto">{u.nombre}</p>
+                          <p className="truncate text-texto">
+                            {u.nombre}
+                            {!u.activo && <span className="ml-1.5 text-2xs text-texto-tenue">(inactiva)</span>}
+                          </p>
                           <p className="truncate text-2xs text-texto-tenue">{u.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="py-2.5"><Insignia color={u.rol === 'gerente' ? 'marca' : 'gris'}>{ROL_TEXTO[u.rol] ?? u.rol}</Insignia></td>
-                    <td className="py-2.5 text-texto-secundario">{u.zona ?? '—'}</td>
+                    <td className="py-2.5">
+                      <Insignia color={u.rol === 'admin' ? 'ia' : u.rol === 'gerente' ? 'marca' : 'gris'}>
+                        {ROL_TEXTO[u.rol] ?? u.rol}
+                      </Insignia>
+                    </td>
+                    <td className="py-2.5 text-texto-secundario">{u.equipo_nombre ?? u.zona ?? '—'}</td>
                     <td className="num py-2.5 text-right text-texto-secundario">{numero(u.oportunidades_abiertas ?? 0)}</td>
                     <td className="num py-2.5 text-right">{u.meta_mensual ? dinero(u.meta_mensual) : '—'}</td>
+                    <td className="py-2.5 text-right">
+                      <button
+                        onClick={() => abrir(u)} aria-label={`Editar a ${u.nombre}`}
+                        className="rounded-md p-1.5 text-texto-tenue hover:bg-superficie-2 hover:text-texto"
+                      >
+                        <PenLine className="size-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {usuarios?.length === 1 && (
+            <p className="mt-3 rounded-lg bg-superficie-2 p-3 text-2xs leading-relaxed text-texto-secundario">
+              Eres la única persona con acceso. Da de alta a tu equipo comercial para poder asignarles
+              clientes y oportunidades, y para que el ranking y el pronóstico tengan sentido.
+            </p>
+          )}
         </CuerpoPanel>
       </Panel>
 
       <Panel className="h-fit">
-        <EncabezadoPanel titulo="Equipos" acciones={<Users className="size-4 text-texto-tenue" />} />
+        <EncabezadoPanel
+          titulo="Equipos"
+          acciones={
+            <Boton tamano="sm" variante="secundario" iconoIzq={<Plus className="size-3.5" />} onClick={() => setModalEquipo(true)}>
+              Nuevo
+            </Boton>
+          }
+        />
         <CuerpoPanel>
-          <ul className="space-y-2">
-            {equipos?.map((e) => (
-              <li key={e.id} className="flex items-center justify-between rounded-lg border border-borde px-3 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-texto">{e.nombre}</p>
-                  {e.zona && <p className="truncate text-2xs text-texto-tenue">{e.zona}</p>}
-                </div>
-                <span className="num shrink-0 text-xs text-texto-secundario">{e.miembros}</span>
-              </li>
-            ))}
-          </ul>
+          {!equipos?.length ? (
+            <p className="py-4 text-center text-2xs text-texto-tenue">
+              Sin equipos todavía. Sirven para agrupar por zona o por cartera.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {equipos.map((e) => (
+                <li key={e.id} className="group flex items-center justify-between gap-2 rounded-lg border border-borde px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-texto">{e.nombre}</p>
+                    <p className="truncate text-2xs text-texto-tenue">
+                      {e.zona ? `${e.zona} · ` : ''}{e.miembros} {e.miembros === 1 ? 'persona' : 'personas'}
+                    </p>
+                  </div>
+                  {e.miembros === 0 && (
+                    <button
+                      onClick={() => eliminarEquipo.mutate(e.id, {
+                        onSuccess: () => avisar({ tipo: 'exito', titulo: `Equipo «${e.nombre}» eliminado` }),
+                      })}
+                      aria-label={`Eliminar el equipo ${e.nombre}`}
+                      className="shrink-0 rounded-md p-1 text-texto-tenue opacity-0 transition-opacity hover:text-peligro-500 group-hover:opacity-100"
+                    >
+                      <Users className="size-3.5" />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-2xs leading-relaxed text-texto-tenue">
+            Solo se pueden borrar los equipos vacíos.
+          </p>
         </CuerpoPanel>
       </Panel>
+
+      <ModalUsuario abierto={modalUsuario} usuario={editando} onCerrar={() => setModalUsuario(false)} />
+      <ModalEquipo abierto={modalEquipo} onCerrar={() => setModalEquipo(false)} />
     </div>
   );
 }
+
+function SeccionServicios() {
+  const { data: productos } = usarProductos(true);
+  const [editando, setEditando] = useState<Producto | null>(null);
+  const [modal, setModal] = useState(false);
+
+  const abrir = (p: Producto | null) => { setEditando(p); setModal(true); };
+  const margen = (p: Producto) =>
+    p.precio_base > 0 ? Math.round(((p.precio_base - p.costo_base) / p.precio_base) * 100) : 0;
+
+  return (
+    <Panel>
+      <EncabezadoPanel
+        titulo="Catálogo de servicios"
+        subtitulo="Lo que aparece al armar una cotización"
+        acciones={
+          <Boton tamano="sm" variante="primario" iconoIzq={<Plus className="size-3.5" />} onClick={() => abrir(null)}>
+            Nuevo servicio
+          </Boton>
+        }
+      />
+      <CuerpoPanel>
+        {!productos?.length ? (
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            <Package className="size-6 text-texto-tenue" />
+            <p className="text-sm font-medium text-texto">Tu catálogo está vacío</p>
+            <p className="max-w-sm text-2xs leading-relaxed text-texto-tenue">
+              Sin servicios no se pueden armar cotizaciones. Da de alta los que vendes con su precio
+              y su costo; el margen se calcula solo.
+            </p>
+            <Boton tamano="sm" variante="primario" className="mt-1" onClick={() => abrir(null)}>
+              Agregar el primero
+            </Boton>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-borde text-2xs uppercase text-texto-tenue">
+                  <th className="py-2 text-left">Clave</th>
+                  <th className="py-2 text-left">Servicio</th>
+                  <th className="py-2 text-left">Categoría</th>
+                  <th className="py-2 text-right">Precio</th>
+                  <th className="py-2 text-right">Costo</th>
+                  <th className="py-2 text-right">Margen</th>
+                  <th className="w-10 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {productos.map((p) => (
+                  <tr key={p.id} className={cx('border-b border-borde last:border-0', p.activo === false && 'opacity-50')}>
+                    <td className="py-2.5 font-mono text-2xs text-texto-secundario">{p.sku}</td>
+                    <td className="py-2.5">
+                      <p className="text-texto">
+                        {p.nombre}
+                        {p.recurrente && <span className="ml-1.5 text-2xs text-texto-tenue">recurrente</span>}
+                        {p.activo === false && <span className="ml-1.5 text-2xs text-texto-tenue">(retirado)</span>}
+                      </p>
+                      <p className="text-2xs text-texto-tenue">por {p.unidad}</p>
+                    </td>
+                    <td className="py-2.5 text-texto-secundario">{p.categoria ?? '—'}</td>
+                    <td className="num py-2.5 text-right font-medium text-texto">{dinero(p.precio_base)}</td>
+                    <td className="num py-2.5 text-right text-texto-secundario">{dinero(p.costo_base)}</td>
+                    <td className={cx('num py-2.5 text-right font-medium',
+                      margen(p) >= 30 ? 'text-exito-600' : margen(p) >= 15 ? 'text-alerta-600' : 'text-peligro-500')}>
+                      {margen(p)}%
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <button
+                        onClick={() => abrir(p)} aria-label={`Editar ${p.nombre}`}
+                        className="rounded-md p-1.5 text-texto-tenue hover:bg-superficie-2 hover:text-texto"
+                      >
+                        <PenLine className="size-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CuerpoPanel>
+
+      <ModalProducto abierto={modal} producto={editando} onCerrar={() => setModal(false)} />
+    </Panel>
+  );
+}
+
 
 function SeccionInteligencia() {
   const { data: estado } = usarEstadoIA();

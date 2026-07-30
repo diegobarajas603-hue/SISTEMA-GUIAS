@@ -590,6 +590,19 @@ CREATE INDEX IF NOT EXISTS ix_autom_reanudar ON automatizacion_ejecuciones (rean
   WHERE estado = 'esperando';
 
 -- ---------------------------------------------------------------------------
+--  Ajustes internos del sistema
+--  Pares clave/valor para lo que el servidor necesita recordar entre arranques.
+--  Hoy solo guarda qué token de reinicio ya se aplicó, para que dejar la
+--  variable puesta en el panel no vuelva a vaciar la base en cada despliegue.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS sistema_ajustes (
+  clave       TEXT PRIMARY KEY,
+  valor       TEXT,
+  actualizado TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
 --  Importación de clientes
 --  El historial existe para auditoría: quién subió qué archivo, cuándo, con qué
 --  mapeo y con qué resultado. `errores` guarda un extracto acotado —el detalle
