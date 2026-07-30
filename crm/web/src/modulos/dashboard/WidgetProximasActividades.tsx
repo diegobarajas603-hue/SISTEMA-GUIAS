@@ -1,16 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { CalendarClock } from 'lucide-react';
-import * as Iconos from 'lucide-react';
 import { Panel, EncabezadoPanel, CuerpoPanel } from '@/componentes/ui/Panel';
 import { Vacio } from '@/componentes/ui/Vacio';
 import { TIPO_ACTIVIDAD_ICONO, TIPO_ACTIVIDAD_TEXTO } from '@/lib/constantes';
 import { fechaHora } from '@/lib/formato';
 import type { DashboardResumen } from '@/lib/tipos';
+import { iconoPorNombre } from '@/lib/iconos';
 
-type NombreIcono = keyof typeof Iconos;
 function IconoTipo({ tipo }: { tipo: string }) {
   const nombre = TIPO_ACTIVIDAD_ICONO[tipo] ?? 'circle';
-  const Comp = Iconos[(nombre.replace(/(^\w|-\w)/g, (m) => m.replace('-', '').toUpperCase())) as NombreIcono] as Iconos.LucideIcon | undefined;
+  const Comp = iconoPorNombre(nombre);
   return Comp ? <Comp className="size-3.5" /> : null;
 }
 

@@ -1,15 +1,15 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import * as Iconos from 'lucide-react';
 import { NAV_PRINCIPAL } from '@/lib/constantes';
 import { useSesion } from '@/estado/sesion';
 import { Avatar } from '@/componentes/ui/Avatar';
 import { cx } from '@/lib/utilidades';
+import { Sparkles } from 'lucide-react';
+import { iconoPorNombre } from '@/lib/iconos';
 
-type NombreIcono = keyof typeof Iconos;
 
 function Icono({ nombre, className }: { nombre: string; className?: string }) {
-  const Componente = Iconos[(nombre.replace(/(^\w|-\w)/g, (m) => m.replace('-', '').toUpperCase())) as NombreIcono] as Iconos.LucideIcon | undefined;
+  const Componente = iconoPorNombre(nombre);
   if (!Componente) return null;
   return <Componente className={className} />;
 }
@@ -32,7 +32,7 @@ export function BarraLateral({ colapsada, contadores }: { colapsada: boolean; co
     )}>
       <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
         <div className="flex size-7 shrink-0 items-center justify-center rounded-lg gradiente-ia text-white">
-          <Iconos.Sparkles className="size-4" />
+          <Sparkles className="size-4" />
         </div>
         {!colapsada && <span className="text-[15px] font-bold tracking-tight text-texto">Aura</span>}
       </div>

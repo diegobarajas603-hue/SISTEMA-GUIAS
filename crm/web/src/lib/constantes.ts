@@ -60,6 +60,11 @@ export const TIPO_ACTIVIDAD_ICONO: Record<string, string> = {
   tarea: 'check-square', visita: 'map-pin', seguimiento: 'repeat', demo: 'monitor-play',
 };
 
+export const ROL_TEXTO: Record<string, string> = {
+  admin: 'Administrador', gerente: 'Gerente', ejecutivo: 'Ejecutivo',
+  marketing: 'Marketing', soporte: 'Soporte',
+};
+
 export const ROL_COMPRA_TEXTO: Record<string, string> = {
   decisor: 'Decisor', influenciador: 'Influenciador', usuario: 'Usuario', bloqueador: 'Bloqueador', campeon: 'Campeón',
 };

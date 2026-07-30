@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Send, Filter } from 'lucide-react';
-import * as Iconos from 'lucide-react';
 import { Panel, EncabezadoPanel, CuerpoPanel } from '@/componentes/ui/Panel';
 import { AreaTexto } from '@/componentes/ui/Campo';
 import { Boton } from '@/componentes/ui/Boton';
@@ -10,6 +9,7 @@ import { usarCrearNota } from '@/lib/consultas/cuentas';
 import { useAvisos } from '@/componentes/ui/Notificaciones';
 import { fechaHora, relativo } from '@/lib/formato';
 import type { Ficha360 } from '@/lib/consultas/cuentas';
+import { iconoPorNombre } from '@/lib/iconos';
 
 const ICONO_TIPO: Record<string, string> = {
   creado: 'sparkles', etapa: 'git-branch', nota: 'sticky-note', llamada: 'phone', correo: 'mail',
@@ -18,10 +18,9 @@ const ICONO_TIPO: Record<string, string> = {
   asignacion: 'user-check', monto: 'circle-dollar-sign', ia: 'sparkles', automatizacion: 'workflow', estado: 'refresh-cw',
 };
 
-type NombreIcono = keyof typeof Iconos;
 function Icono({ tipo }: { tipo: string }) {
   const nombre = ICONO_TIPO[tipo] ?? 'circle';
-  const Comp = Iconos[(nombre.replace(/(^\w|-\w)/g, (m) => m.replace('-', '').toUpperCase())) as NombreIcono] as Iconos.LucideIcon | undefined;
+  const Comp = iconoPorNombre(nombre);
   return Comp ? <Comp className="size-3.5" /> : null;
 }
 

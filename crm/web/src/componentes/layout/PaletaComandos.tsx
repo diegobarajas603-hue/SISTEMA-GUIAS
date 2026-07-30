@@ -3,11 +3,11 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowRight, Sparkles, Plus } from 'lucide-react';
-import * as Iconos from 'lucide-react';
 import { useDespacio } from '@/lib/hooks';
 import { usarBusquedaGlobal } from '@/lib/consultas/catalogo';
 import { NAV_PRINCIPAL } from '@/lib/constantes';
 import { cx } from '@/lib/utilidades';
+import { iconoPorNombre } from '@/lib/iconos';
 
 interface Props { abierta: boolean; onCerrar: () => void; onAbrirCopiloto: (pregunta?: string) => void; }
 
@@ -21,9 +21,8 @@ const ETIQUETA_TIPO: Record<string, string> = {
   cotizacion: 'Cotizaciones', ticket: 'Tickets',
 };
 
-type NombreIcono = keyof typeof Iconos;
 function IconoNav({ nombre }: { nombre: string }) {
-  const Comp = Iconos[(nombre.replace(/(^\w|-\w)/g, (m) => m.replace('-', '').toUpperCase())) as NombreIcono] as Iconos.LucideIcon | undefined;
+  const Comp = iconoPorNombre(nombre);
   return Comp ? <Comp className="size-4" /> : null;
 }
 

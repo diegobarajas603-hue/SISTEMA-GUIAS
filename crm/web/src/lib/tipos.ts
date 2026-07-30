@@ -16,6 +16,7 @@ export interface Usuario {
   meta_mensual?: number;
   activo?: boolean;
   preferencias?: Record<string, unknown>;
+  ultimo_acceso?: string | null;
   oportunidades_abiertas?: number;
 }
 

@@ -11,8 +11,12 @@ import { limitar, exigirRol } from '../middleware/sesion.js';
 
 const r = Router();
 
-// La IA es lo más costoso de la API (llamadas al modelo y consultas pesadas).
-r.use(limitar({ maximo: 40, ventanaMs: 60_000, clave: 'ia' }));
+// Dos presupuestos distintos: las lecturas (estado, sugerencias, insights) son
+// consultas normales y las hace cualquier pantalla al abrirse, así que compartir
+// cupo con la generación acababa cortándole la navegación a un usuario que solo
+// mira. Lo caro —lo que llama al modelo o recorre toda la base— se limita aparte.
+r.use(limitar({ maximo: 160, ventanaMs: 60_000, clave: 'ia-lectura' }));
+const limiteGeneracion = limitar({ maximo: 20, ventanaMs: 60_000, clave: 'ia-generacion' });
 
 /** Estado de la capa de IA: la interfaz lo usa para etiquetar de dónde viene cada texto. */
 r.get('/estado', (_req, res) => {
@@ -32,7 +36,7 @@ r.get('/estado', (_req, res) => {
 
 // ------------------------------------------------------------------- copiloto
 
-r.post('/preguntar', asincrono(async (req, res) => {
+r.post('/preguntar', limiteGeneracion, asincrono(async (req, res) => {
   const pregunta = texto(req.body?.pregunta, 'pregunta', { requerido: true, max: 2000 });
   const contexto = {
     ruta: texto(req.body?.contexto?.ruta, 'ruta', { max: 120 }),
@@ -69,7 +73,7 @@ r.delete('/conversaciones/:id', asincrono(async (req, res) => {
 
 // ------------------------------------------------------------------ redacción
 
-r.post('/redactar-correo', asincrono(async (req, res) => {
+r.post('/redactar-correo', limiteGeneracion, asincrono(async (req, res) => {
   res.json(await redaccion.redactarCorreo({
     tipo: unoDe(req.body?.tipo, 'tipo',
       ['primer_contacto', 'seguimiento', 'propuesta', 'reactivacion', 'agradecimiento']) ?? 'seguimiento',
@@ -80,14 +84,14 @@ r.post('/redactar-correo', asincrono(async (req, res) => {
   }, req.usuario));
 }));
 
-r.post('/generar-propuesta', asincrono(async (req, res) => {
+r.post('/generar-propuesta', limiteGeneracion, asincrono(async (req, res) => {
   const id = entero(req.body?.oportunidad_id, 'oportunidad_id', { requerido: true });
   res.json(await redaccion.generarPropuesta(id, req.usuario, {
     instrucciones: texto(req.body?.instrucciones, 'instrucciones', { max: 600 }),
   }));
 }));
 
-r.post('/analizar-conversacion', asincrono(async (req, res) => {
+r.post('/analizar-conversacion', limiteGeneracion, asincrono(async (req, res) => {
   res.json(await redaccion.analizarConversacion(
     texto(req.body?.texto, 'texto', { requerido: true, max: 20_000 }),
   ));
@@ -145,7 +149,7 @@ r.get('/score/:leadId', asincrono(async (req, res) => {
  * Recálculo global. Es costoso, así que queda restringido a gerencia; el programador
  * lo corre solo una vez al día.
  */
-r.post('/recalcular', exigirRol('gerente'), asincrono(async (_req, res) => {
+r.post('/recalcular', limiteGeneracion, exigirRol('gerente'), asincrono(async (_req, res) => {
   const t0 = Date.now();
   const resultado = await recalcularIA();
   res.json({ ...resultado, ms: Date.now() - t0 });

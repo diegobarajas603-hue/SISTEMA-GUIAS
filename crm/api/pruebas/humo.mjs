@@ -183,11 +183,14 @@ await prueba('el alta creó actividad de primer contacto', async () => {
   return `${ia.length} actividad(es) con origen «ia»`;
 });
 
-await prueba('POST /leads duplicado → 409', () =>
-  pedir('POST', '/api/v1/leads', { nombre: 'X', email: 'duplicado.test@pruebas.mx' }, { esperado: 201 })
-    .then(() => pedir('POST', '/api/v1/leads',
-      { nombre: 'Y', email: 'duplicado.test@pruebas.mx' }, { esperado: 409 }))
-    .then(() => 'deduplicación correcta'));
+await prueba('POST /leads duplicado → 409', () => {
+  // Correo único por corrida: con uno fijo, la segunda ejecución de la suite
+  // choca contra el lead que dejó la primera y el 201 inicial se vuelve 409.
+  const email = `duplicado.${Date.now().toString(36)}@pruebas.mx`;
+  return pedir('POST', '/api/v1/leads', { nombre: 'X', email }, { esperado: 201 })
+    .then(() => pedir('POST', '/api/v1/leads', { nombre: 'Y', email }, { esperado: 409 }))
+    .then(() => 'deduplicación correcta');
+});
 
 await prueba('POST /leads/:id/senales recalcula el score', async () => {
   const antes = await pedir('GET', `/api/v1/leads/${leadCreado}`);
@@ -617,6 +620,18 @@ await prueba('POST /automatizaciones/:id/ejecutar de verdad', async () => {
 
 await prueba('GET /automatizaciones/ejecuciones', async () =>
   `${(await pedir('GET', '/api/v1/automatizaciones/ejecuciones?limite=10')).length} ejecuciones`);
+
+// La suite se corre contra la base de demostración, así que recoge lo que ensucia:
+// sin esto cada corrida deja un «Flujo de prueba» más en la lista del usuario.
+await prueba('DELETE /automatizaciones limpia los flujos de prueba', async () => {
+  const flujos = await pedir('GET', '/api/v1/automatizaciones');
+  const basura = flujos.filter((f) => f.nombre.startsWith('Flujo de prueba '));
+  for (const f of basura) await pedir('DELETE', `/api/v1/automatizaciones/${f.id}`);
+  const quedan = (await pedir('GET', '/api/v1/automatizaciones'))
+    .filter((f) => f.nombre.startsWith('Flujo de prueba ')).length;
+  if (quedan) throw new Error(`quedaron ${quedan} flujos de prueba sin borrar`);
+  return `${basura.length} flujo(s) de prueba eliminados`;
+});
 
 seccion('Catálogo y búsqueda global');
 

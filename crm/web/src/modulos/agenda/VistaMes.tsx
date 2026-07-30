@@ -1,16 +1,15 @@
 import { useMemo } from 'react';
-import * as Iconos from 'lucide-react';
 import { TIPO_ACTIVIDAD_ICONO } from '@/lib/constantes';
 import { hora } from '@/lib/formato';
 import type { Actividad } from '@/lib/tipos';
 import { cx } from '@/lib/utilidades';
+import { iconoPorNombre } from '@/lib/iconos';
 
 const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-type NombreIcono = keyof typeof Iconos;
 function IconoTipo({ tipo }: { tipo: string }) {
   const nombre = TIPO_ACTIVIDAD_ICONO[tipo] ?? 'circle';
-  const Comp = Iconos[(nombre.replace(/(^\w|-\w)/g, (m) => m.replace('-', '').toUpperCase())) as NombreIcono] as Iconos.LucideIcon | undefined;
+  const Comp = iconoPorNombre(nombre);
   return Comp ? <Comp className="size-2.5" /> : null;
 }
 

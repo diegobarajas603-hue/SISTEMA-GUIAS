@@ -90,9 +90,14 @@
   color: var(--texto);
 }
 
-:root[data-theme='dark'],
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+/*
+ * Paleta oscura. Va solo sobre [data-theme='dark'] porque el atributo lo escribe
+ * siempre alguien: el script previo a la primera pintura en index.html y, después,
+ * ProveedorTema. Antes esto era `:root[data-theme='dark'], @media (…) { … }`, que
+ * es CSS inválido —una lista de selectores no puede continuar en una at-rule— así
+ * que el navegador descartaba el bloque entero y el modo oscuro manual no pintaba.
+ */
+:root[data-theme='dark'] {
     color-scheme: dark;
     --canvas: oklch(0.175 0.011 265);
     --superficie: oklch(0.215 0.013 265);
@@ -138,7 +143,6 @@
 
     --vidrio-fondo: oklch(0.215 0.013 265 / 0.72);
     --vidrio-borde: oklch(1 0 0 / 0.08);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
