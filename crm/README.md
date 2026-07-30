@@ -79,6 +79,9 @@ Todo tiene un valor por omisión razonable; solo se define lo que se quiera camb
 | `CRM_DEMO_PASSWORD` | `Aura2026!` | Contraseña de los usuarios sembrados |
 | `CRM_SEED` | `20260729` | Semilla del generador de datos |
 | `CRM_SEMILLA_INICIAL` | `0` | Con `1`, siembra al arrancar si la base está vacía |
+| `CRM_ADMIN_EMAIL` | — | Crea el administrador inicial si la base está vacía |
+| `CRM_ADMIN_PASSWORD` | — | Su contraseña |
+| `CRM_ADMIN_NOMBRE` | `Administrador` | Su nombre visible |
 | `CRM_DB_SSL` | *(automático)* | TLS a Postgres; se detecta solo, defínelo solo para forzarlo |
 
 ### Sobre la IA
@@ -112,6 +115,14 @@ de salud. Faltan cuatro pasos en el panel de Railway:
    | `NODE_ENV` | `production` | Cookies solo por HTTPS y activos cacheados |
    | `CRM_SEMILLA_INICIAL` | `1` | Siembra la demostración en el primer arranque |
    | `CRM_DEMO_PASSWORD` | *(la que elijas)* | Contraseña de los usuarios sembrados |
+
+   Si prefieres arrancar **sin datos de demostración**, deja `CRM_SEMILLA_INICIAL`
+   en `0` y define en su lugar `CRM_ADMIN_EMAIL` y `CRM_ADMIN_PASSWORD`: el primer
+   arranque crea ese administrador y desde ahí se da de alta al resto del equipo.
+   Una de las dos cosas hace falta, o nadie podrá iniciar sesión.
+
+   | Variable | Valor | Para qué |
+   | --- | --- | --- |
    | `ANTHROPIC_API_KEY` | *(opcional)* | Activa la redacción generativa |
 
    **No definas `PORT`**: lo inyecta Railway y el proceso lo respeta.
