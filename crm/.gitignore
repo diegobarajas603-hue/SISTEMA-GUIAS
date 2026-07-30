@@ -4,3 +4,4 @@ dist/
 .env.local
 pruebas/tomas/
 pruebas/archivos/
+*.tsbuildinfo
