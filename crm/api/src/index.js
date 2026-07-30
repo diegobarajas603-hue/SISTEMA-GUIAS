@@ -17,6 +17,27 @@ try {
   process.exit(1);
 }
 
+/**
+ * Siembra de primer arranque, para que un despliegue nuevo no reciba al usuario
+ * con una pantalla vacía.
+ *
+ * Solo corre si se pide explícitamente **y** la base no tiene ni un usuario. Esa
+ * segunda condición no es opcional: la semilla inserta, no reemplaza, así que
+ * ejecutarla dos veces duplicaría 18 meses de historia. Con datos reales dentro,
+ * esto nunca se dispara.
+ */
+if (process.env.CRM_SEMILLA_INICIAL === '1') {
+  const { valor } = await import('./db/pool.js');
+  const usuarios = await valor('SELECT count(*)::int FROM usuarios').catch(() => null);
+  if (usuarios === 0) {
+    console.log('[api] base vacía y CRM_SEMILLA_INICIAL=1 · sembrando datos de demostración…');
+    const { sembrar } = await import('./db/semilla.js');
+    await sembrar().catch((e) => console.error('[api] la semilla falló:', e.message));
+  } else {
+    console.log(`[api] CRM_SEMILLA_INICIAL=1 ignorado: ya hay ${usuarios} usuarios.`);
+  }
+}
+
 const servidor = app.listen(config.puerto, () => {
   console.log(`\n  Aura CRM · API lista en http://localhost:${config.puerto}`);
   console.log(`  Entorno: ${config.entorno}`);

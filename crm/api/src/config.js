@@ -15,15 +15,42 @@ const num = (valor, porDefecto) => {
 const bool = (valor, porDefecto) =>
   valor === undefined ? porDefecto : ['1', 'true', 'si', 'yes'].includes(String(valor).toLowerCase());
 
+const URL_BD = process.env.CRM_DATABASE_URL
+  || process.env.DATABASE_URL
+  || 'postgres://postgres@localhost:5432/aura_crm';
+
+/**
+ * ¿Hace falta TLS para hablar con esta base?
+ *
+ * Un Postgres gestionado (Railway, Neon, Supabase, RDS) lo exige; uno local o el
+ * de la red interna del proveedor no. Acertar por omisión evita el clásico
+ * despliegue que falla con «connection terminated unexpectedly» sin más pistas.
+ * `CRM_DB_SSL` sigue mandando cuando se define a mano.
+ */
+function requiereTLS(url) {
+  if (process.env.CRM_DB_SSL !== undefined) return bool(process.env.CRM_DB_SSL, false);
+  try {
+    const host = new URL(url).hostname;
+    const local = ['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(host);
+    // Las redes internas de los proveedores van sin cifrar y sin certificado.
+    const interno = host.endsWith('.internal') || host.endsWith('.local');
+    return !local && !interno;
+  } catch {
+    return false;
+  }
+}
+
 export const config = {
   entorno: process.env.NODE_ENV || 'development',
   esProduccion: process.env.NODE_ENV === 'production',
-  puerto: num(process.env.CRM_PORT, 4100),
+  // PORT lo inyecta la plataforma (Railway, Render, Fly) y tiene que ganar, o el
+  // chequeo de salud nunca encuentra el proceso escuchando.
+  puerto: num(process.env.PORT ?? process.env.CRM_PORT, 4100),
 
   db: {
-    url: process.env.CRM_DATABASE_URL || process.env.DATABASE_URL || 'postgres://postgres@localhost:5432/aura_crm',
+    url: URL_BD,
     maxConexiones: num(process.env.CRM_DB_POOL, 12),
-    ssl: bool(process.env.CRM_DB_SSL, false) ? { rejectUnauthorized: false } : false,
+    ssl: requiereTLS(URL_BD) ? { rejectUnauthorized: false } : false,
   },
 
   sesion: {

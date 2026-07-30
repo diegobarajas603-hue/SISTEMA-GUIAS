@@ -70,13 +70,16 @@ Todo tiene un valor por omisión razonable; solo se define lo que se quiera camb
 | Variable | Por omisión | Para qué |
 | --- | --- | --- |
 | `CRM_DATABASE_URL` | `postgres://postgres@localhost:5432/aura_crm` | Conexión a Postgres |
-| `CRM_PORT` | `4100` | Puerto de la API |
+| `PORT` | *(la plataforma)* | Puerto de escucha; gana sobre `CRM_PORT` |
+| `CRM_PORT` | `4100` | Puerto en local |
 | `CRM_SESSION_HOURS` | `12` | Duración de la sesión |
 | `CRM_COOKIE_SECURE` | `true` en producción | Cookie solo por HTTPS |
 | `ANTHROPIC_API_KEY` | *(vacío)* | Activa la redacción generativa |
 | `CRM_IA_MODELO` | `claude-sonnet-5` | Modelo para redacción |
 | `CRM_DEMO_PASSWORD` | `Aura2026!` | Contraseña de los usuarios sembrados |
 | `CRM_SEED` | `20260729` | Semilla del generador de datos |
+| `CRM_SEMILLA_INICIAL` | `0` | Con `1`, siembra al arrancar si la base está vacía |
+| `CRM_DB_SSL` | *(automático)* | TLS a Postgres; se detecta solo, defínelo solo para forzarlo |
 
 ### Sobre la IA
 
@@ -89,6 +92,37 @@ clasificador de intenciones; el copiloto responde igual las mismas preguntas.
 
 Dicho de otro modo: **el modelo redacta, nunca calcula**. Ningún número que ve el
 usuario sale de un modelo generativo.
+
+---
+
+## Desplegar en Railway
+
+El repositorio ya trae `crm/railway.json` con el build, el arranque y el chequeo
+de salud. Faltan cuatro pasos en el panel de Railway:
+
+1. **Crea el servicio desde GitHub**, apuntando a la rama del proyecto, y en
+   *Settings → Root Directory* escribe `crm`. Es imprescindible: la aplicación
+   vive en esa subcarpeta, no en la raíz del repositorio.
+2. **Añade un Postgres** al proyecto y enlázalo al servicio. Railway inyecta
+   `DATABASE_URL`; la API la toma sola y activa TLS por su cuenta.
+3. **Define las variables** del servicio:
+
+   | Variable | Valor | Para qué |
+   | --- | --- | --- |
+   | `NODE_ENV` | `production` | Cookies solo por HTTPS y activos cacheados |
+   | `CRM_SEMILLA_INICIAL` | `1` | Siembra la demostración en el primer arranque |
+   | `CRM_DEMO_PASSWORD` | *(la que elijas)* | Contraseña de los usuarios sembrados |
+   | `ANTHROPIC_API_KEY` | *(opcional)* | Activa la redacción generativa |
+
+   **No definas `PORT`**: lo inyecta Railway y el proceso lo respeta.
+4. **Genera el dominio** en *Settings → Networking → Generate Domain*.
+
+El esquema se aplica solo en cada arranque, así que no hay paso de migración
+manual. `CRM_SEMILLA_INICIAL=1` solo actúa si la base está vacía: en cuanto haya
+un usuario real deja de hacer nada, y conviene ponerlo en `0`.
+
+Para cargar tu cartera de verdad, entra a **Clientes → Importar Excel** en la
+instancia desplegada en lugar de sembrar.
 
 ---
 
