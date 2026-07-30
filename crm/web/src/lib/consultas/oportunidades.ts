@@ -49,10 +49,20 @@ export const usarOportunidad = (id: number | null) =>
     enabled: id != null,
   });
 
+export interface DatosPronostico {
+  cerrado: number; proyeccion: number; rango: { bajo: number; alto: number }; desviacion: number;
+  meta: number; probabilidadMeta: number | null; faltante: number;
+  tramos: { comprometido: number; probable: number; optimista: number };
+  oportunidadesEnPeriodo: number;
+  ritmo: { diasTranscurridos: number; diasRestantes: number; requeridoDiario: number; logradoDiario: number };
+  porVendedor: Array<{ id: number; nombre: string; avatar_tono: number; meta_mensual: number; cerrado: number; ponderado: number }>;
+  detalle: Oportunidad[];
+}
+
 export const usarPronostico = (alcance: 'auto' | 'mio' | 'todo' = 'auto') =>
   useQuery({
     queryKey: ['pronostico', alcance],
-    queryFn: () => api.get(conQuery('/oportunidades/pronostico', { alcance })),
+    queryFn: () => api.get<DatosPronostico>(conQuery('/oportunidades/pronostico', { alcance })),
   });
 
 export const usarEstancadas = (dias = 14) =>

@@ -62,8 +62,13 @@ export const usarFacetasCuentas = () =>
     staleTime: 5 * 60_000,
   });
 
-/** Payload de escritura: usa nombres de columna de la API (`notas`), no la forma de lectura. */
-export type DatosCuenta = Partial<Omit<Cuenta, 'notasLibres'>> & { notas?: string };
+/**
+ * Payload de escritura: usa nombres de columna de la API (`notas`), no la forma de
+ * lectura, y relaja los campos de enumeración a `string` — un formulario controlado
+ * por <select> entrega texto, y es la API quien valida contra la lista blanca real.
+ */
+export type DatosCuenta = Partial<Omit<Cuenta, 'notasLibres' | 'tipo' | 'tamano'>> & { notas?: string; tipo?: string; tamano?: string };
+export type DatosContacto = Partial<Omit<Contacto, 'rol_compra'>> & { rol_compra?: string };
 
 export function usarCrearCuenta() {
   const qc = useQueryClient();
@@ -87,7 +92,7 @@ export function usarActualizarCuenta() {
 export function usarCrearContacto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ cuentaId, datos }: { cuentaId: number; datos: Partial<Contacto> & { nombre: string } }) =>
+    mutationFn: ({ cuentaId, datos }: { cuentaId: number; datos: DatosContacto & { nombre: string } }) =>
       api.post<Contacto>(`/cuentas/${cuentaId}/contactos`, datos),
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['cuenta', v.cuentaId] }),
   });
@@ -96,7 +101,7 @@ export function usarCrearContacto() {
 export function usarActualizarContacto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, datos }: { id: number; datos: Partial<Contacto>; cuentaId: number }) =>
+    mutationFn: ({ id, datos }: { id: number; datos: DatosContacto; cuentaId: number }) =>
       api.put<Contacto>(`/cuentas/contactos/${id}`, datos),
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['cuenta', v.cuentaId] }),
   });

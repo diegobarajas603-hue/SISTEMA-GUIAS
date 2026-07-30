@@ -94,6 +94,7 @@ export interface Oportunidad {
   ia_probabilidad?: number | null;
   ia_riesgos?: Riesgo[];
   ia_acciones?: AccionSugerida[];
+  ia_calculado_en?: string | null;
   cierre_estimado?: string | null;
   cerrado_en?: string | null;
   competidor?: string | null;
