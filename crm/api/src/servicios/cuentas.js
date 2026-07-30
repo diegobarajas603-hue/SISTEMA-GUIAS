@@ -126,8 +126,14 @@ export async function ficha360(id) {
     [id],
   );
 
+  // `cuenta.notas` es un campo de texto libre legado; `notas` (la lista) es la
+  // funcionalidad real de notas con autor y fecha. No pueden compartir la misma
+  // clave en la respuesta sin que una se coma a la otra.
+  const { notas: notasLibres, ...cuentaSinNotas } = cuenta;
+
   return {
-    ...cuenta,
+    ...cuentaSinNotas,
+    notasLibres,
     contactos, oportunidades, cotizaciones, facturas, contratos, tickets,
     actividades, notas, archivos, cronologia, insights,
     facturacion: { ...resumenFacturacion, serie: serieFacturacion },

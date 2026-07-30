@@ -1,0 +1,151 @@
+/**
+ * Aura CRM — tokens de diseño
+ * Ver crm/docs/SISTEMA-DISENO.md para el razonamiento detrás de cada valor.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ---------- Neutros (claro) ---------- */
+  --canvas: oklch(0.985 0.002 265);
+  --superficie: oklch(1 0 0);
+  --superficie-2: oklch(0.975 0.003 265);
+  --borde: oklch(0.92 0.004 265);
+  --borde-fuerte: oklch(0.86 0.006 265);
+  --texto: oklch(0.22 0.012 265);
+  --texto-secundario: oklch(0.45 0.012 265);
+  --texto-tenue: oklch(0.6 0.01 265);
+  --overlay: oklch(0.2 0.01 265 / 0.42);
+
+  /* ---------- Acentos ---------- */
+  --marca-50: oklch(0.96 0.02 258);
+  --marca-200: oklch(0.86 0.06 258);
+  --marca-500: oklch(0.62 0.204 258);
+  --marca-600: oklch(0.54 0.19 260);
+  --marca-700: oklch(0.45 0.17 262);
+
+  --exito-50: oklch(0.96 0.03 156);
+  --exito-200: oklch(0.85 0.09 156);
+  --exito-500: oklch(0.66 0.16 156);
+  --exito-600: oklch(0.55 0.15 156);
+
+  --alerta-50: oklch(0.97 0.04 86);
+  --alerta-200: oklch(0.88 0.1 80);
+  --alerta-500: oklch(0.78 0.15 76);
+  --alerta-600: oklch(0.62 0.14 70);
+
+  --peligro-50: oklch(0.96 0.03 22);
+  --peligro-200: oklch(0.85 0.09 22);
+  --peligro-500: oklch(0.6 0.19 22);
+  --peligro-600: oklch(0.52 0.19 24);
+
+  --ia-50: oklch(0.96 0.03 295);
+  --ia-200: oklch(0.85 0.09 295);
+  --ia-500: oklch(0.62 0.19 295);
+  --ia-600: oklch(0.52 0.18 297);
+
+  /* Series de gráfica: distancia perceptual, no rueda de color */
+  --serie-1: var(--marca-500);
+  --serie-2: oklch(0.68 0.11 195);
+  --serie-3: var(--ia-500);
+  --serie-4: var(--alerta-500);
+  --serie-5: oklch(0.68 0.16 350);
+  --serie-6: oklch(0.62 0.15 135);
+
+  /* ---------- Tipografía ---------- */
+  --fuente: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --texto-2xs: 0.625rem;
+  --texto-xs: 0.719rem;
+  --texto-sm: 0.813rem;
+  --texto-base: 0.906rem;
+  --texto-lg: 1.063rem;
+  --texto-xl: 1.313rem;
+  --texto-2xl: 1.75rem;
+  --texto-3xl: 2.375rem;
+
+  /* ---------- Espacio ---------- */
+  --e-1: 0.25rem; --e-2: 0.5rem; --e-3: 0.75rem; --e-4: 1rem;
+  --e-5: 1.25rem; --e-6: 1.5rem; --e-8: 2rem; --e-10: 2.5rem; --e-12: 3rem; --e-16: 4rem;
+
+  /* ---------- Radios ---------- */
+  --radio-sm: 6px; --radio-md: 10px; --radio-lg: 14px; --radio-xl: 18px; --radio-2xl: 24px; --radio-pildora: 999px;
+
+  /* ---------- Elevación (claro) ---------- */
+  --sombra-1: 0 1px 2px oklch(0.2 0 0 / 0.04);
+  --sombra-2: 0 2px 4px oklch(0.2 0 0 / 0.05), 0 6px 16px oklch(0.2 0 0 / 0.05);
+  --sombra-3: 0 4px 8px oklch(0.2 0 0 / 0.06), 0 12px 28px oklch(0.2 0 0 / 0.07);
+  --sombra-4: 0 8px 16px oklch(0.2 0 0 / 0.07), 0 24px 48px oklch(0.2 0 0 / 0.09);
+  --sombra-5: 0 16px 32px oklch(0.2 0 0 / 0.09), 0 40px 80px oklch(0.2 0 0 / 0.12);
+
+  /* ---------- Movimiento ---------- */
+  --mov-instante: 90ms; --mov-rapido: 160ms; --mov-medio: 240ms; --mov-panel: 380ms; --mov-dato: 700ms;
+  --curva: cubic-bezier(.32,.72,0,1);
+  --curva-panel: cubic-bezier(.16,1,.3,1);
+  --curva-dato: cubic-bezier(.22,1,.36,1);
+
+  /* ---------- Vidrio ---------- */
+  --vidrio-fondo: oklch(1 0 0 / 0.72);
+  --vidrio-borde: oklch(1 0 0 / 0.5);
+
+  color: var(--texto);
+}
+
+:root[data-theme='dark'],
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --canvas: oklch(0.175 0.011 265);
+    --superficie: oklch(0.215 0.013 265);
+    --superficie-2: oklch(0.25 0.014 265);
+    --borde: oklch(0.32 0.015 265);
+    --borde-fuerte: oklch(0.4 0.017 265);
+    --texto: oklch(0.96 0.003 265);
+    --texto-secundario: oklch(0.72 0.008 265);
+    --texto-tenue: oklch(0.58 0.008 265);
+    --overlay: oklch(0.1 0.01 265 / 0.6);
+
+    --marca-50: oklch(0.28 0.05 258);
+    --marca-200: oklch(0.4 0.09 258);
+    --marca-500: oklch(0.68 0.17 258);
+    --marca-600: oklch(0.74 0.15 258);
+    --marca-700: oklch(0.8 0.12 260);
+
+    --exito-50: oklch(0.26 0.04 156);
+    --exito-200: oklch(0.36 0.08 156);
+    --exito-500: oklch(0.7 0.15 156);
+    --exito-600: oklch(0.76 0.14 156);
+
+    --alerta-50: oklch(0.27 0.04 76);
+    --alerta-200: oklch(0.38 0.08 76);
+    --alerta-500: oklch(0.78 0.14 76);
+    --alerta-600: oklch(0.83 0.13 76);
+
+    --peligro-50: oklch(0.27 0.05 22);
+    --peligro-200: oklch(0.38 0.09 22);
+    --peligro-500: oklch(0.68 0.17 22);
+    --peligro-600: oklch(0.74 0.16 22);
+
+    --ia-50: oklch(0.28 0.05 295);
+    --ia-200: oklch(0.38 0.09 295);
+    --ia-500: oklch(0.7 0.17 295);
+    --ia-600: oklch(0.76 0.15 295);
+
+    --sombra-1: inset 0 1px 0 oklch(1 0 0 / 0.05);
+    --sombra-2: inset 0 1px 0 oklch(1 0 0 / 0.055), 0 4px 12px oklch(0 0 0 / 0.28);
+    --sombra-3: inset 0 1px 0 oklch(1 0 0 / 0.06), 0 8px 20px oklch(0 0 0 / 0.34);
+    --sombra-4: inset 0 1px 0 oklch(1 0 0 / 0.06), 0 16px 36px oklch(0 0 0 / 0.4);
+    --sombra-5: inset 0 1px 0 oklch(1 0 0 / 0.07), 0 24px 60px oklch(0 0 0 / 0.5);
+
+    --vidrio-fondo: oklch(0.215 0.013 265 / 0.72);
+    --vidrio-borde: oklch(1 0 0 / 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

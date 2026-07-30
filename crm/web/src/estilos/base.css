@@ -1,0 +1,193 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import './tokens.css';
+
+/* ---------------------------------------------------------------------------
+ * Puente entre los tokens (custom properties, que cambian con el tema) y las
+ * utilidades de Tailwind. Los valores de @theme referencian los tokens, así que
+ * `bg-marca-500` sigue funcionando en claro y oscuro sin duplicar la paleta.
+ * -------------------------------------------------------------------------*/
+@theme {
+  --font-sans: var(--fuente);
+
+  --color-canvas: var(--canvas);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+  --color-borde: var(--borde);
+  --color-borde-fuerte: var(--borde-fuerte);
+  --color-texto: var(--texto);
+  --color-texto-secundario: var(--texto-secundario);
+  --color-texto-tenue: var(--texto-tenue);
+
+  --color-marca-50: var(--marca-50);
+  --color-marca-200: var(--marca-200);
+  --color-marca-500: var(--marca-500);
+  --color-marca-600: var(--marca-600);
+  --color-marca-700: var(--marca-700);
+
+  --color-exito-50: var(--exito-50);
+  --color-exito-200: var(--exito-200);
+  --color-exito-500: var(--exito-500);
+  --color-exito-600: var(--exito-600);
+
+  --color-alerta-50: var(--alerta-50);
+  --color-alerta-200: var(--alerta-200);
+  --color-alerta-500: var(--alerta-500);
+  --color-alerta-600: var(--alerta-600);
+
+  --color-peligro-50: var(--peligro-50);
+  --color-peligro-200: var(--peligro-200);
+  --color-peligro-500: var(--peligro-500);
+  --color-peligro-600: var(--peligro-600);
+
+  --color-ia-50: var(--ia-50);
+  --color-ia-200: var(--ia-200);
+  --color-ia-500: var(--ia-500);
+  --color-ia-600: var(--ia-600);
+
+  --color-serie-1: var(--serie-1);
+  --color-serie-2: var(--serie-2);
+  --color-serie-3: var(--serie-3);
+  --color-serie-4: var(--serie-4);
+  --color-serie-5: var(--serie-5);
+  --color-serie-6: var(--serie-6);
+
+  --text-2xs: var(--texto-2xs);
+  --text-2xs--line-height: 0.9rem;
+  --text-2xs--letter-spacing: 0.06em;
+  --text-xs: var(--texto-xs);
+  --text-xs--line-height: 1rem;
+  --text-xs--letter-spacing: 0.01em;
+  --text-sm: var(--texto-sm);
+  --text-sm--line-height: 1.19rem;
+  --text-base: var(--texto-base);
+  --text-base--line-height: 1.375rem;
+  --text-base--letter-spacing: -0.006em;
+  --text-lg: var(--texto-lg);
+  --text-lg--line-height: 1.5rem;
+  --text-lg--letter-spacing: -0.012em;
+  --text-xl: var(--texto-xl);
+  --text-xl--line-height: 1.75rem;
+  --text-xl--letter-spacing: -0.018em;
+  --text-2xl: var(--texto-2xl);
+  --text-2xl--line-height: 2.125rem;
+  --text-2xl--letter-spacing: -0.022em;
+  --text-3xl: var(--texto-3xl);
+  --text-3xl--line-height: 2.625rem;
+  --text-3xl--letter-spacing: -0.028em;
+
+  --radius-sm: var(--radio-sm);
+  --radius-md: var(--radio-md);
+  --radius-lg: var(--radio-lg);
+  --radius-xl: var(--radio-xl);
+  --radius-2xl: var(--radio-2xl);
+  --radius-pildora: var(--radio-pildora);
+
+  --shadow-1: var(--sombra-1);
+  --shadow-2: var(--sombra-2);
+  --shadow-3: var(--sombra-3);
+  --shadow-4: var(--sombra-4);
+  --shadow-5: var(--sombra-5);
+
+  --ease-casa: var(--curva);
+  --ease-panel: var(--curva-panel);
+  --ease-dato: var(--curva-dato);
+}
+
+@layer base {
+  * { border-color: var(--borde); }
+
+  html { color-scheme: light dark; }
+
+  body {
+    background: var(--canvas);
+    color: var(--texto);
+    font-family: var(--fuente);
+    font-feature-settings: 'ss03' 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: var(--marca-200); color: var(--texto); }
+
+  /* Scrollbar discreta, consistente entre navegadores basados en Chromium */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--borde-fuerte);
+    border-radius: 999px;
+    border: 2px solid var(--canvas);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--texto-tenue); background-clip: padding-box; }
+
+  :focus-visible {
+    outline: 2px solid var(--marca-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Toda cifra tabular: los dígitos no bailan al actualizarse */
+  .num, table { font-variant-numeric: tabular-nums; }
+}
+
+@layer utilities {
+  .vidrio {
+    background: var(--vidrio-fondo);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-color: var(--vidrio-borde);
+  }
+  @supports not ((backdrop-filter: blur(1px))) {
+    .vidrio { background: var(--superficie); }
+  }
+
+  .gradiente-ia {
+    background-image: linear-gradient(135deg, var(--marca-500), var(--ia-500));
+  }
+  .texto-gradiente-ia {
+    background-image: linear-gradient(135deg, var(--marca-600), var(--ia-600));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+
+  .clic-activo { transition: transform var(--mov-instante) var(--curva); }
+  .clic-activo:active { transform: scale(0.975); }
+
+  .fila-hover { transition: background-color var(--mov-instante) var(--curva); }
+  .fila-hover:hover { background: var(--superficie-2); }
+
+  /* Neomorfismo: exclusivo para el riel de progreso y el conmutador segmentado */
+  .riel-hundido {
+    background: var(--superficie-2);
+    box-shadow: inset 0 1px 2px oklch(0 0 0 / 0.08), inset 0 0 0 1px var(--borde);
+  }
+
+  /* Destello que recorre el borde de una insignia de IA recién llegada */
+  .aura-destello { position: relative; overflow: hidden; }
+  .aura-destello::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    background: linear-gradient(115deg, transparent 30%, oklch(1 0 0 / 0.5) 48%, transparent 66%);
+    background-size: 220% 100%;
+    animation: aura-barrido 2.2s ease-in-out 2;
+  }
+  @keyframes aura-barrido {
+    from { background-position: 140% 0; }
+    to { background-position: -40% 0; }
+  }
+
+  @keyframes aura-entrar-arriba {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .aura-entrar { animation: aura-entrar-arriba var(--mov-medio) var(--ease-casa) both; }
+
+  @keyframes aura-barrido-esqueleto {
+    from { background-position: -160% 0; }
+    to { background-position: 160% 0; }
+  }
+  .aura-esqueleto {
+    background: linear-gradient(100deg, var(--superficie-2) 40%, var(--borde) 50%, var(--superficie-2) 60%);
+    background-size: 250% 100%;
+    animation: aura-barrido-esqueleto 1.4s ease-in-out infinite;
+  }
+}
