@@ -499,9 +499,40 @@ async function conCandado(numeroGuia, fn) {
   }
 }
 
-async function listarGuias({ buscar, estatus, plaza, limit = 200 } = {}) {
+// Valida una fecha en formato YYYY-MM-DD (la que produce <input type="date">)
+const FORMATO_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+function normalizarFecha(fecha, etiqueta) {
+  const f = String(fecha || '').trim();
+  if (!f) return null;
+  if (!FORMATO_FECHA.test(f)) throw new Error(`${etiqueta} no es valida: usa el formato AAAA-MM-DD`);
+  return f;
+}
+
+// Campos por los que se puede filtrar una fecha. "movimiento" es el ultimo
+// escaneo (lo que muestra la columna Movimiento) y "registro" es cuando se dio
+// de alta la guia. Son preguntas distintas: "que se movio hoy" y "que se
+// capturo hoy".
+const CAMPOS_FECHA = { movimiento: 'actualizado_en', registro: 'creado_en' };
+
+async function listarGuias({ buscar, estatus, plaza, desde, hasta, campoFecha, limit = 200 } = {}) {
   const condiciones = [];
   const params = [];
+
+  // El dia se calcula en horario de Mexico: de lo contrario, lo escaneado
+  // despues de las 18:00 aparecia como del dia siguiente (la base guarda UTC)
+  const columna = CAMPOS_FECHA[campoFecha] || CAMPOS_FECHA.movimiento;
+  const d = normalizarFecha(desde, 'La fecha inicial');
+  const h = normalizarFecha(hasta, 'La fecha final');
+  if (d && h && d > h) throw new Error('La fecha inicial no puede ser posterior a la final');
+  if (d) {
+    params.push(d);
+    condiciones.push(`(${columna} AT TIME ZONE 'America/Mexico_City')::date >= $${params.length}::date`);
+  }
+  if (h) {
+    params.push(h);
+    condiciones.push(`(${columna} AT TIME ZONE 'America/Mexico_City')::date <= $${params.length}::date`);
+  }
+
   if (buscar) {
     params.push(`%${buscar}%`);
     // Busca tambien por el numero de complemento y por el numero anterior

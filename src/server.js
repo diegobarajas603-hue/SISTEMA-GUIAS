@@ -260,10 +260,26 @@ app.get('/api/guias/:numeroGuia', requireAuth, seguro(async (req, res) => {
   res.json({ ...guia, mensaje: mensajeEstatus(guia.numero_guia, guia.estatus), historial });
 }));
 
-app.get('/api/guias', requireAuth, seguro(async (req, res) => {
-  const { buscar, estatus, plaza } = req.query;
-  res.json(await guias.listarGuias({ buscar, estatus, plaza: plaza && plaza.toUpperCase() }));
-}));
+// Listado de guias. Ademas de buscar por numero y filtrar por estatus y plaza,
+// acepta un rango de fechas (desde/hasta en AAAA-MM-DD) sobre el ultimo
+// movimiento o sobre la fecha de registro, segun campoFecha.
+app.get('/api/guias', requireAuth, async (req, res) => {
+  const { buscar, estatus, plaza, desde, hasta, campoFecha } = req.query;
+  try {
+    res.json(
+      await guias.listarGuias({
+        buscar,
+        estatus,
+        plaza: plaza && plaza.toUpperCase(),
+        desde,
+        hasta,
+        campoFecha,
+      })
+    );
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
 
 // ---------- API publica de rastreo (sin token, para clientes) ----------
 

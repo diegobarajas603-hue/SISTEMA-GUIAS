@@ -560,6 +560,29 @@
   .nota { font-size: 0.82rem; color: var(--tinta-2); line-height: 1.55; }
   .solo-cel { display: none; }
 
+  /* Filtros de la lista de guias */
+  .filtros { display: flex; flex-direction: column; gap: var(--e-3); }
+  .filtros-fila { display: flex; gap: var(--e-2); flex-wrap: wrap; align-items: center; }
+  .filtros-fecha { padding-top: var(--e-3); border-top: 1px solid var(--linea); }
+  .filtros-sep { width: 1px; height: 22px; background: var(--linea); margin: 0 var(--e-1); }
+  .filtro-fecha { display: inline-flex; align-items: center; gap: var(--e-2); margin: 0; font-size: 0.75rem; color: var(--tinta-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type=date] {
+    padding: 7px 10px; border: 1px solid var(--linea-fuerte); border-radius: var(--r);
+    font-size: 0.83rem; background: var(--superficie); color: var(--tinta); font-family: inherit;
+    font-variant-numeric: tabular-nums; transition: border-color var(--transicion), box-shadow var(--transicion);
+  }
+  input[type=date]:hover { border-color: var(--tinta-3); }
+  input[type=date]:focus { outline: none; border-color: var(--azul); box-shadow: var(--anillo); }
+  #fCampo { font-size: 0.8rem; padding: 7px 28px 7px 10px; }
+  .filtros-resumen { margin-left: auto; font-size: 0.8rem; color: var(--tinta-2); font-weight: 500; }
+  .filtros-resumen b { color: var(--tinta); font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 720px) {
+    .filtros-resumen { margin-left: 0; width: 100%; }
+    .filtros-sep { display: none; }
+    #fechaPresets { width: 100%; overflow-x: auto; }
+  }
+
   /* ================= LOGIN ================= */
   #loginOverlay {
     position: fixed; inset: 0; z-index: 100; padding: var(--e-5);
@@ -1053,9 +1076,31 @@
           <button data-ptab="">Todas</button>
         </div>
         <div class="chips" id="chipsPlaza"></div>
-        <div class="card" style="display:flex; gap:10px; flex-wrap:wrap;">
-          <input type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" style="flex:2; min-width:180px;" />
-          <select id="filtroEstatus" style="flex:1; min-width:170px;"></select>
+        <div class="card filtros">
+          <div class="filtros-fila">
+            <span class="campo-icono" style="flex:2; min-width:190px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              <input type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" />
+            </span>
+            <select id="filtroEstatus" style="flex:1; min-width:170px;"></select>
+          </div>
+          <div class="filtros-fila filtros-fecha">
+            <div class="rango-btns" id="fechaPresets">
+              <button data-rango="hoy">Hoy</button>
+              <button data-rango="ayer">Ayer</button>
+              <button data-rango="7">7 dias</button>
+              <button data-rango="mes">Este mes</button>
+              <button data-rango="" class="activa">Todas</button>
+            </div>
+            <span class="filtros-sep"></span>
+            <label class="filtro-fecha" for="fDesde">Desde <input type="date" id="fDesde" /></label>
+            <label class="filtro-fecha" for="fHasta">Hasta <input type="date" id="fHasta" /></label>
+            <select id="fCampo" title="Sobre que fecha se filtra">
+              <option value="movimiento">Por ultimo movimiento</option>
+              <option value="registro">Por fecha de registro</option>
+            </select>
+            <span class="filtros-resumen" id="fResumen"></span>
+          </div>
         </div>
         <div class="card tabla-scroll">
           <table>
@@ -2149,6 +2194,55 @@
     } catch { $('chipsPlaza').innerHTML = ''; }
   }
 
+  // ---------- Filtro por fecha ----------
+  // Las fechas se calculan en el navegador del usuario y se mandan como
+  // AAAA-MM-DD; el servidor las interpreta en horario de Mexico, para que lo
+  // escaneado por la tarde no aparezca como del dia siguiente.
+  const isoLocal = (d) => {
+    const x = new Date(d);
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  };
+
+  function aplicarPreset(rango) {
+    const hoy = new Date();
+    if (rango === 'hoy') { $('fDesde').value = isoLocal(hoy); $('fHasta').value = isoLocal(hoy); }
+    else if (rango === 'ayer') {
+      const a = new Date(hoy); a.setDate(a.getDate() - 1);
+      $('fDesde').value = isoLocal(a); $('fHasta').value = isoLocal(a);
+    } else if (rango === '7') {
+      const a = new Date(hoy); a.setDate(a.getDate() - 6);
+      $('fDesde').value = isoLocal(a); $('fHasta').value = isoLocal(hoy);
+    } else if (rango === 'mes') {
+      $('fDesde').value = isoLocal(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+      $('fHasta').value = isoLocal(hoy);
+    } else { $('fDesde').value = ''; $('fHasta').value = ''; }
+    document.querySelectorAll('#fechaPresets button').forEach((b) => b.classList.toggle('activa', b.dataset.rango === rango));
+  }
+
+  // Si las fechas se escriben a mano, ningun preset queda marcado
+  function despintarPresets() {
+    document.querySelectorAll('#fechaPresets button').forEach((b) => b.classList.remove('activa'));
+  }
+
+  document.querySelectorAll('#fechaPresets button').forEach((b) =>
+    b.addEventListener('click', () => { aplicarPreset(b.dataset.rango); cargarGuias(); })
+  );
+  ['fDesde', 'fHasta'].forEach((id) =>
+    $(id).addEventListener('change', () => { despintarPresets(); cargarGuias(); })
+  );
+  $('fCampo').addEventListener('change', () => cargarGuias());
+
+  function textoRango() {
+    const d = $('fDesde').value, h = $('fHasta').value;
+    const bonita = (f) => new Date(f + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
+    const campo = $('fCampo').value === 'registro' ? 'registradas' : 'con movimiento';
+    if (d && h && d === h) return `${campo} el ${bonita(d)}`;
+    if (d && h) return `${campo} del ${bonita(d)} al ${bonita(h)}`;
+    if (d) return `${campo} desde el ${bonita(d)}`;
+    if (h) return `${campo} hasta el ${bonita(h)}`;
+    return '';
+  }
+
   async function cargarGuias() {
     const params = new URLSearchParams();
     const buscar = $('buscar').value.trim();
@@ -2160,15 +2254,24 @@
     } else if (plazaTab) {
       params.set('plaza', plazaTab);
     }
+    // El rango de fechas se aplica siempre, se busque o no por numero
+    if ($('fDesde').value) params.set('desde', $('fDesde').value);
+    if ($('fHasta').value) params.set('hasta', $('fHasta').value);
+    if ($('fCampo').value !== 'movimiento') params.set('campoFecha', $('fCampo').value);
     try {
       const data = await api('/api/guias?' + params);
+      const rango = textoRango();
+      $('fResumen').innerHTML = `<b>${data.length}</b> guia${data.length === 1 ? '' : 's'}${rango ? ' ' + esc(rango) : ''}`;
       $('tbodyGuias').innerHTML = data.length
         ? data.map((g) => `<tr class="clic" data-guia="${esc(g.numero_guia)}">
             <td><b>${esc(g.numero_guia)}</b>${g.complemento ? ` <span class="nota">+ ${esc(g.complemento)}</span>` : ''}<span class="solo-cel">${fmtFecha(g.actualizado_en)}</span></td>
             <td>${esc(g.origen)} &rarr; ${esc(g.destino)}</td>
             <td>${badge(g.estatus)}</td>
             <td>${fmtFecha(g.actualizado_en)}</td></tr>`).join('')
-        : vacioFila(4, 'lupa', 'No hay guias que coincidan', 'Prueba con otro numero, cambia el estatus del filtro o revisa la otra plaza.');
+        : vacioFila(4, 'lupa', 'No hay guias que coincidan',
+            textoRango()
+              ? `Ninguna guia ${textoRango()}. Prueba con otra fecha o quita el filtro con "Todas".`
+              : 'Prueba con otro numero, cambia el estatus del filtro o revisa la otra plaza.');
       activarFilasGuia('#tbodyGuias');
     } catch (e) {
       $('tbodyGuias').innerHTML = vacioFila(4, 'alerta', 'No se pudo cargar la lista', e.message);
