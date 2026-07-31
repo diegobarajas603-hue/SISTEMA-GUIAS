@@ -46,8 +46,28 @@ export function crearApp() {
   // segundo servidor. En desarrollo esto no existe y Vite hace de proxy.
   const dist = resolve(aqui, '..', '..', 'web', 'dist');
   if (existsSync(dist)) {
-    app.use(express.static(dist, { maxAge: '1y', index: false }));
-    app.get(/^(?!\/api).*/, (_req, res) => res.sendFile(resolve(dist, 'index.html')));
+    // Los archivos de `assets/` llevan hash en el nombre, así que se pueden
+    // cachear para siempre: si cambia el contenido, cambia el nombre.
+    app.use(express.static(dist, { maxAge: '1y', index: false, etag: true }));
+
+    // Un archivo que no existe tiene que responder 404, no el `index.html`.
+    // Parece un detalle y no lo es: tras un despliegue, una pestaña abierta pide
+    // un chunk de la versión anterior; si el comodín de abajo se lo traga y le
+    // devuelve HTML con estado 200, el navegador intenta interpretar una página
+    // como JavaScript y falla con «Failed to fetch dynamically imported module»
+    // sin posibilidad de recuperarse. Con un 404 limpio, el cargador de la SPA
+    // detecta el despliegue y se recarga solo.
+    app.use(['/assets', '/favicon.svg'], (_req, res) => {
+      res.status(404).type('text/plain').send('No encontrado');
+    });
+
+    // El `index.html` es lo contrario de los assets: nombre fijo y contenido que
+    // apunta a los hashes del despliegue vigente. Si un proxy lo cachea, sirve
+    // referencias muertas, así que se entrega siempre fresco.
+    app.get(/^(?!\/api).*/, (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(resolve(dist, 'index.html'));
+    });
   }
 
   app.use('/api', noEncontradoRuta);

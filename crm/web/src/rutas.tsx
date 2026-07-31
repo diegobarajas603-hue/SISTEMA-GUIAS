@@ -1,35 +1,37 @@
-import { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { perezoso } from '@/lib/perezoso';
 import { Shell } from '@/componentes/layout/Shell';
 import { RutaProtegida } from '@/componentes/layout/RutaProtegida';
 import Entrar from '@/paginas/Entrar';
+import PaginaError from '@/paginas/Error';
 
-const PaginaDashboard = lazy(() => import('@/modulos/dashboard/PaginaDashboard'));
-const PaginaProspectos = lazy(() => import('@/modulos/prospectos/PaginaProspectos'));
-const PaginaClientes = lazy(() => import('@/modulos/clientes/PaginaClientes'));
-const PaginaClienteFicha = lazy(() => import('@/modulos/clientes/PaginaClienteFicha'));
-const PaginaOportunidades = lazy(() => import('@/modulos/oportunidades/PaginaOportunidades'));
-const PaginaOportunidadDetalle = lazy(() => import('@/modulos/oportunidades/PaginaOportunidadDetalle'));
-const PaginaCotizaciones = lazy(() => import('@/modulos/cotizaciones/PaginaCotizaciones'));
-const PaginaCotizacionDetalle = lazy(() => import('@/modulos/cotizaciones/PaginaCotizacionDetalle'));
-const PaginaMarketing = lazy(() => import('@/modulos/marketing/PaginaMarketing'));
-const PaginaCampanaDetalle = lazy(() => import('@/modulos/marketing/PaginaCampanaDetalle'));
-const PaginaSoporte = lazy(() => import('@/modulos/soporte/PaginaSoporte'));
-const PaginaTicketDetalle = lazy(() => import('@/modulos/soporte/PaginaTicketDetalle'));
-const PaginaBaseConocimiento = lazy(() => import('@/modulos/soporte/PaginaBaseConocimiento'));
-const PaginaAgenda = lazy(() => import('@/modulos/agenda/PaginaAgenda'));
-const PaginaReportes = lazy(() => import('@/modulos/reportes/PaginaReportes'));
-const PaginaImportarClientes = lazy(() => import('@/modulos/importacion/PaginaImportarClientes'));
-const PaginaHistorialImportaciones = lazy(() => import('@/modulos/importacion/PaginaHistorialImportaciones'));
-const PaginaAutomatizaciones = lazy(() => import('@/modulos/automatizaciones/PaginaAutomatizaciones'));
-const PaginaEditorFlujo = lazy(() => import('@/modulos/automatizaciones/PaginaEditorFlujo'));
-const PaginaCopilotoCompleto = lazy(() => import('@/modulos/ia/PaginaCopilotoCompleto'));
-const PaginaAjustes = lazy(() => import('@/modulos/ajustes/PaginaAjustes'));
+const PaginaDashboard = perezoso(() => import('@/modulos/dashboard/PaginaDashboard'));
+const PaginaProspectos = perezoso(() => import('@/modulos/prospectos/PaginaProspectos'));
+const PaginaClientes = perezoso(() => import('@/modulos/clientes/PaginaClientes'));
+const PaginaClienteFicha = perezoso(() => import('@/modulos/clientes/PaginaClienteFicha'));
+const PaginaOportunidades = perezoso(() => import('@/modulos/oportunidades/PaginaOportunidades'));
+const PaginaOportunidadDetalle = perezoso(() => import('@/modulos/oportunidades/PaginaOportunidadDetalle'));
+const PaginaCotizaciones = perezoso(() => import('@/modulos/cotizaciones/PaginaCotizaciones'));
+const PaginaCotizacionDetalle = perezoso(() => import('@/modulos/cotizaciones/PaginaCotizacionDetalle'));
+const PaginaMarketing = perezoso(() => import('@/modulos/marketing/PaginaMarketing'));
+const PaginaCampanaDetalle = perezoso(() => import('@/modulos/marketing/PaginaCampanaDetalle'));
+const PaginaSoporte = perezoso(() => import('@/modulos/soporte/PaginaSoporte'));
+const PaginaTicketDetalle = perezoso(() => import('@/modulos/soporte/PaginaTicketDetalle'));
+const PaginaBaseConocimiento = perezoso(() => import('@/modulos/soporte/PaginaBaseConocimiento'));
+const PaginaAgenda = perezoso(() => import('@/modulos/agenda/PaginaAgenda'));
+const PaginaReportes = perezoso(() => import('@/modulos/reportes/PaginaReportes'));
+const PaginaImportarClientes = perezoso(() => import('@/modulos/importacion/PaginaImportarClientes'));
+const PaginaHistorialImportaciones = perezoso(() => import('@/modulos/importacion/PaginaHistorialImportaciones'));
+const PaginaAutomatizaciones = perezoso(() => import('@/modulos/automatizaciones/PaginaAutomatizaciones'));
+const PaginaEditorFlujo = perezoso(() => import('@/modulos/automatizaciones/PaginaEditorFlujo'));
+const PaginaCopilotoCompleto = perezoso(() => import('@/modulos/ia/PaginaCopilotoCompleto'));
+const PaginaAjustes = perezoso(() => import('@/modulos/ajustes/PaginaAjustes'));
 
 export const enrutador = createBrowserRouter([
-  { path: '/entrar', element: <Entrar /> },
+  { path: '/entrar', element: <Entrar />, errorElement: <PaginaError /> },
   {
     path: '/',
+    errorElement: <PaginaError />,
     element: <RutaProtegida><Shell /></RutaProtegida>,
     children: [
       { index: true, element: <PaginaDashboard /> },
