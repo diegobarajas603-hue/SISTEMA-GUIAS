@@ -5,3 +5,4 @@ dist/
 pruebas/tomas/
 pruebas/archivos/
 *.tsbuildinfo
+api/pruebas/*.log

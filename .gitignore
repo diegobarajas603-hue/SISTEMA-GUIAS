@@ -1,8 +1,2 @@
 node_modules/
 .env
-.env.local
-
-# Aura CRM
-crm/web/dist/
-crm/web/*.tsbuildinfo
-crm/api/pruebas/*.log
