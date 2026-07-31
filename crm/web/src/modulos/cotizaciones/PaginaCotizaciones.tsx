@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, FileText } from 'lucide-react';
 import { usarCotizaciones, type FiltrosCotizacion } from '@/lib/consultas/cotizaciones';
 import { Campo, Selector } from '@/componentes/ui/Campo';
@@ -11,14 +11,11 @@ import { TarjetaKPI } from '@/componentes/ui/TarjetaKPI';
 import { useDespacio } from '@/lib/hooks';
 import { dinero, fechaCorta } from '@/lib/formato';
 import { ESTADO_COTIZACION_COLOR, ESTADO_COTIZACION_TEXTO } from '@/lib/constantes';
-import { ModalNuevaCotizacion } from './ModalNuevaCotizacion';
 
 export default function PaginaCotizaciones() {
   const navegar = useNavigate();
-  const [params] = useSearchParams();
   const [busqueda, setBusqueda] = useState('');
   const [estado, setEstado] = useState('');
-  const [nuevoAbierto, setNuevoAbierto] = useState(false);
   const buscadoDespacio = useDespacio(busqueda);
 
   const filtros: FiltrosCotizacion = { q: buscadoDespacio || undefined, estado: estado || undefined, limite: 60 };
@@ -35,7 +32,7 @@ export default function PaginaCotizaciones() {
           <h1 className="text-2xl font-bold tracking-tight text-texto">Cotizaciones</h1>
           <p className="text-sm text-texto-tenue">{data?.total ?? 0} en total</p>
         </div>
-        <Boton variante="primario" iconoIzq={<Plus className="size-4" />} onClick={() => setNuevoAbierto(true)}>Nueva cotización</Boton>
+        <Link to="/cotizaciones/nueva"><Boton variante="primario" iconoIzq={<Plus className="size-4" />}>Nueva cotización</Boton></Link>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -56,7 +53,7 @@ export default function PaginaCotizaciones() {
       {isLoading ? (
         <EsqueletoTabla filas={8} columnas={6} />
       ) : cotizaciones.length === 0 ? (
-        <Vacio icono={<FileText className="size-5" />} titulo="Sin cotizaciones" accion={<Boton variante="primario" onClick={() => setNuevoAbierto(true)}>Nueva cotización</Boton>} />
+        <Vacio icono={<FileText className="size-5" />} titulo="Sin cotizaciones" accion={<Link to="/cotizaciones/nueva"><Boton variante="primario">Nueva cotización</Boton></Link>} />
       ) : (
         <div className="overflow-hidden rounded-xl border border-borde bg-superficie">
           <table className="w-full text-sm">
@@ -83,11 +80,6 @@ export default function PaginaCotizaciones() {
         </div>
       )}
 
-      <ModalNuevaCotizacion
-        abierto={nuevoAbierto} onCerrar={() => setNuevoAbierto(false)}
-        oportunidadId={params.get('oportunidad') ? Number(params.get('oportunidad')) : undefined}
-        onCreada={(id) => navegar(`/cotizaciones/${id}`)}
-      />
     </div>
   );
 }

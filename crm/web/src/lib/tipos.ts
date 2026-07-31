@@ -214,7 +214,7 @@ export type EstadoCotizacion = 'borrador' | 'enviada' | 'vista' | 'aceptada' | '
 export interface ItemCotizacion {
   id?: number;
   producto_id?: number | null;
-  descripcion: string;
+  descripcion?: string | null;
   cantidad: number;
   precio_unitario: number;
   descuento_pct: number;
@@ -222,6 +222,14 @@ export interface ItemCotizacion {
   orden?: number;
   sku?: string;
   unidad?: string;
+  // --- cubicaje del flete ---
+  peso_real: number | string;
+  largo: number | string;
+  ancho: number | string;
+  alto: number | string;
+  estibable: boolean;
+  peso_volumetrico: number | string;
+  peso_cobrable: number | string;
 }
 
 export interface Cotizacion {
@@ -242,6 +250,29 @@ export interface Cotizacion {
   descuento: number;
   impuestos: number;
   total: number;
+  // --- flete ---
+  origen?: string | null;
+  destino?: string | null;
+  descripcion_envio?: string | null;
+  tipo_mercancia?: 'general' | 'quimico';
+  tarifa_centavos_kg?: number;
+  factor_volumetrico?: number;
+  peso_real_total?: number | string;
+  peso_volumetrico_total?: number | string;
+  peso_cobrable_total?: number | string;
+  observaciones?: string | null;
+  // --- ficha del cliente, para el PDF y la vista previa ---
+  rfc?: string | null;
+  cuenta_telefono?: string | null;
+  cuenta_email?: string | null;
+  calle?: string | null;
+  numero?: string | null;
+  colonia?: string | null;
+  ciudad?: string | null;
+  codigo_postal?: string | null;
+  contacto_email?: string | null;
+  contacto_telefono?: string | null;
+  contacto_puesto?: string | null;
   condiciones?: string | null;
   notas?: string | null;
   valida_hasta?: string | null;
@@ -498,3 +529,4 @@ export interface ResultadoBusqueda {
 export interface RespuestaBusqueda {
   termino: string; resultados: ResultadoBusqueda[]; porTipo: Record<string, ResultadoBusqueda[]>; total: number;
 }
+

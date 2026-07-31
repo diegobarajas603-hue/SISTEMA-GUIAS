@@ -12,6 +12,7 @@ const PaginaClienteFicha = perezoso(() => import('@/modulos/clientes/PaginaClien
 const PaginaOportunidades = perezoso(() => import('@/modulos/oportunidades/PaginaOportunidades'));
 const PaginaOportunidadDetalle = perezoso(() => import('@/modulos/oportunidades/PaginaOportunidadDetalle'));
 const PaginaCotizaciones = perezoso(() => import('@/modulos/cotizaciones/PaginaCotizaciones'));
+const PaginaNuevaCotizacion = perezoso(() => import('@/modulos/cotizaciones/PaginaNuevaCotizacion'));
 const PaginaCotizacionDetalle = perezoso(() => import('@/modulos/cotizaciones/PaginaCotizacionDetalle'));
 const PaginaMarketing = perezoso(() => import('@/modulos/marketing/PaginaMarketing'));
 const PaginaCampanaDetalle = perezoso(() => import('@/modulos/marketing/PaginaCampanaDetalle'));
@@ -46,6 +47,8 @@ export const enrutador = createBrowserRouter([
       { path: 'oportunidades', element: <PaginaOportunidades /> },
       { path: 'oportunidades/:id', element: <PaginaOportunidadDetalle /> },
       { path: 'cotizaciones', element: <PaginaCotizaciones /> },
+      // Estática antes que «cotizaciones/:id» para que «nueva» no se lea como id.
+      { path: 'cotizaciones/nueva', element: <PaginaNuevaCotizacion /> },
       { path: 'cotizaciones/:id', element: <PaginaCotizacionDetalle /> },
       { path: 'marketing', element: <PaginaMarketing /> },
       { path: 'marketing/campanas/:id', element: <PaginaCampanaDetalle /> },

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Send } from 'lucide-react';
-import { usarCotizacion, usarActualizarCotizacion, usarCambiarEstadoCotizacion } from '@/lib/consultas/cotizaciones';
-import { usarProductosCatalogo } from '@/lib/consultas/oportunidades';
+import { ArrowLeft, Save, Send, FileDown } from 'lucide-react';
+import { usarCotizacion, usarActualizarCotizacion, usarCambiarEstadoCotizacion, urlPdfCotizacion } from '@/lib/consultas/cotizaciones';
 import { Cargando } from '@/componentes/ui/Cargando';
 import { Vacio } from '@/componentes/ui/Vacio';
 import { BotonIcono, Boton } from '@/componentes/ui/Boton';
@@ -12,7 +11,8 @@ import { AreaTexto } from '@/componentes/ui/Campo';
 import { useAvisos } from '@/componentes/ui/Notificaciones';
 import { fechaCorta, fechaHora } from '@/lib/formato';
 import { ESTADO_COTIZACION_TEXTO } from '@/lib/constantes';
-import { EditorItems } from './EditorItems';
+import { EditorMercancia } from './EditorMercancia';
+import { ResumenFlete } from './ResumenFlete';
 import type { ItemCotizacion } from '@/lib/tipos';
 
 const SIGUIENTES: Record<string, string[]> = {
@@ -23,7 +23,6 @@ export default function PaginaCotizacionDetalle() {
   const { id } = useParams();
   const navegar = useNavigate();
   const { data: cot, isLoading } = usarCotizacion(id ? Number(id) : null);
-  const { data: productos } = usarProductosCatalogo();
   const actualizar = usarActualizarCotizacion();
   const cambiarEstado = usarCambiarEstadoCotizacion();
   const { avisar } = useAvisos();
@@ -75,16 +74,34 @@ export default function PaginaCotizacionDetalle() {
               {s === 'enviada' ? 'Enviar' : `Marcar ${ESTADO_COTIZACION_TEXTO[s].toLowerCase()}`}
             </Boton>
           ))}
+          <a href={urlPdfCotizacion(cot.id)} target="_blank" rel="noreferrer">
+            <Boton variante="secundario" iconoIzq={<FileDown className="size-4" />}>PDF</Boton>
+          </a>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_300px]">
-        <Panel>
-          <EncabezadoPanel titulo="Conceptos" subtitulo={!editable ? 'Esta cotización ya no se puede editar' : undefined} />
-          <CuerpoPanel>
-            <EditorItems items={items} onCambiar={setItems} productos={productos ?? []} soloLectura={!editable} />
-          </CuerpoPanel>
-        </Panel>
+        <div className="space-y-4">
+          <Panel>
+            <EncabezadoPanel
+              titulo="Mercancía"
+              subtitulo={editable ? 'Se cobra el mayor entre el peso real y el volumétrico'
+                : 'Esta cotización ya no se puede editar'}
+            />
+            <CuerpoPanel>
+              {editable ? (
+                <EditorMercancia
+                  renglones={items as unknown as Parameters<typeof EditorMercancia>[0]['renglones']}
+                  onCambiar={(r) => setItems(r as unknown as ItemCotizacion[])}
+                />
+              ) : (
+                <TablaMercancia items={items} />
+              )}
+            </CuerpoPanel>
+          </Panel>
+
+          <ResumenFlete cotizacion={cot} items={items} />
+        </div>
 
         <div className="space-y-4">
           <Panel>
@@ -116,6 +133,47 @@ export default function PaginaCotizacionDetalle() {
           </Panel>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Detalle del cubicaje cuando la cotización ya no se puede editar. */
+function TablaMercancia({ items }: { items: ItemCotizacion[] }) {
+  const kg = (n: unknown) =>
+    `${Number(n ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
+  const m = (n: unknown) => `${Number(n ?? 0).toFixed(2)} m`;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-borde text-2xs uppercase text-texto-tenue">
+            <th className="py-2 text-left">Cant.</th>
+            <th className="py-2 text-left">Descripción</th>
+            <th className="py-2 text-right">Medidas</th>
+            <th className="py-2 text-right">P. real</th>
+            <th className="py-2 text-right">P. volum.</th>
+            <th className="py-2 text-right">Cobrable</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((it, i) => (
+            <tr key={it.id ?? i} className="border-b border-borde last:border-0">
+              <td className="num py-2.5">{it.cantidad}</td>
+              <td className="py-2.5 text-texto-secundario">
+                {it.descripcion || (it.estibable ? 'Tarima estibable' : 'Tarima no estibable')}
+                {!it.estibable && <span className="ml-1.5 text-2xs text-texto-tenue">se cubica a 1.80 m</span>}
+              </td>
+              <td className="num py-2.5 text-right text-texto-tenue">
+                {m(it.largo)} × {m(it.ancho)} × {m(it.alto)}
+              </td>
+              <td className="num py-2.5 text-right text-texto-secundario">{kg(it.peso_real)}</td>
+              <td className="num py-2.5 text-right text-texto-secundario">{kg(it.peso_volumetrico)}</td>
+              <td className="num py-2.5 text-right font-semibold text-texto">{kg(it.peso_cobrable)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

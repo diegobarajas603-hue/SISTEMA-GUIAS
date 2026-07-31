@@ -28,6 +28,8 @@ export const usarEmbudoCotizaciones = () =>
     queryFn: () => api.get<{ enviadas: number; vistas: number; aceptadas: number; rechazadas: number; monto_aceptado: number; monto_en_juego: number; dias_promedio_respuesta: number }>('/cotizaciones/embudo'),
   });
 
+export const urlPdfCotizacion = (id: number) => `/api/v1/cotizaciones/${id}/pdf`;
+
 export function usarCalcularTotales() {
   return useMutation({
     mutationFn: (items: ItemCotizacion[]) => api.post<{ items: ItemCotizacion[]; subtotal: number; descuento: number; impuestos: number; total: number }>('/cotizaciones/calcular', { items }),

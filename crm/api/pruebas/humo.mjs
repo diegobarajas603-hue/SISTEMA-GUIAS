@@ -339,23 +339,45 @@ await prueba('GET /cotizaciones', async () => {
   return `${d.total} cotizaciones`;
 });
 
-await prueba('POST /cotizaciones/calcular totales', async () => {
+await prueba('POST /cotizaciones/calcular · cubicaje y peso cobrable', async () => {
   const d = await pedir('POST', '/api/v1/cotizaciones/calcular', {
-    items: [{ descripcion: 'Consolidado LTL', cantidad: 10, precio_unitario: 98_000, descuento_pct: 10 }],
+    tipo_mercancia: 'general',
+    items: [
+      // 2 × 1.2 × 1.0 × 1.5 × 500 = 1 800 kg volumétrico contra 800 real
+      { cantidad: 2, peso_real: 800, largo: 1.2, ancho: 1.0, alto: 1.5, estibable: true },
+      // No estibable: se cubica a 1.80 m aunque mida 0.5 → 1 080 kg contra 380 real
+      { cantidad: 1, peso_real: 380, largo: 1.2, ancho: 1.0, alto: 0.5, estibable: false },
+    ],
   });
-  // 10 × 980.00 = 9,800.00 − 10 % = 8,820.00 · IVA 1,411.20 · total 10,231.20
-  if (d.subtotal !== 882_000) throw new Error(`subtotal esperado 882000, obtuve ${d.subtotal}`);
-  if (d.impuestos !== 141_120) throw new Error(`IVA esperado 141120, obtuve ${d.impuestos}`);
-  if (d.total !== 1_023_120) throw new Error(`total esperado 1023120, obtuve ${d.total}`);
-  return `subtotal ${d.subtotal}, IVA ${d.impuestos}, total ${d.total} centavos`;
+  if (d.peso_real_total !== 1180) throw new Error(`peso real ${d.peso_real_total}, esperaba 1180`);
+  if (d.peso_volumetrico_total !== 2880) throw new Error(`volumétrico ${d.peso_volumetrico_total}, esperaba 2880`);
+  if (d.peso_cobrable_total !== 2880) throw new Error(`cobrable ${d.peso_cobrable_total}, esperaba 2880`);
+  // 2 880 kg × $1.60 = $4 608.00
+  if (d.subtotal !== 460_800) throw new Error(`importe ${d.subtotal}, esperaba 460800`);
+  if (d.impuestos !== 73_728) throw new Error(`IVA ${d.impuestos}, esperaba 73728`);
+  return `cobrable ${d.peso_cobrable_total} kg · $${(d.subtotal / 100).toLocaleString('es-MX')} + IVA`;
+});
+
+await prueba('la tarifa de químico es mayor que la de carga general', async () => {
+  const items = [{ cantidad: 1, peso_real: 100, largo: 1.2, ancho: 1.0, alto: 1.0, estibable: true }];
+  const g = await pedir('POST', '/api/v1/cotizaciones/calcular', { items, tipo_mercancia: 'general' });
+  const q = await pedir('POST', '/api/v1/cotizaciones/calcular', { items, tipo_mercancia: 'quimico' });
+  if (g.tarifa_centavos_kg !== 160 || q.tarifa_centavos_kg !== 180) {
+    throw new Error(`tarifas ${g.tarifa_centavos_kg} y ${q.tarifa_centavos_kg}`);
+  }
+  if (q.subtotal <= g.subtotal) throw new Error('el químico no salió más caro');
+  return `$${(g.subtotal / 100)} vs $${(q.subtotal / 100)}`;
 });
 
 await prueba('POST /cotizaciones', async () => {
   const d = await pedir('POST', '/api/v1/cotizaciones', {
     cuenta_id: cuentaId,
+    origen: 'Monterrey, N.L.',
+    destino: 'Ciudad de México, CDMX',
+    descripcion_envio: 'Tarimas de refacciones metálicas',
     items: [
-      { descripcion: 'Consolidado LTL MTY–CDMX', cantidad: 60, precio_unitario: 98_000 },
-      { descripcion: 'Última milla', cantidad: 300, precio_unitario: 24_000, descuento_pct: 5 },
+      { descripcion: 'Tarima estándar', cantidad: 4, peso_real: 1600, largo: 1.2, ancho: 1.0, alto: 1.4, estibable: true },
+      { descripcion: 'Bulto sobredimensionado', cantidad: 1, peso_real: 500, largo: 2.0, ancho: 1.2, alto: 0.6, estibable: false },
     ],
   }, { esperado: 201 });
   cotId = d.id;
