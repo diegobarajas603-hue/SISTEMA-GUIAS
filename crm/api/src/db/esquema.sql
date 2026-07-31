@@ -312,6 +312,42 @@ CREATE TABLE IF NOT EXISTS cotizacion_items (
 );
 CREATE INDEX IF NOT EXISTS ix_cotiz_items ON cotizacion_items (cotizacion_id, orden);
 
+-- Cotización de flete: además del importe, una cotización de transporte necesita
+-- de dónde a dónde, qué se mueve y cómo se cubicó. Se añaden por ALTER para no
+-- perder las cotizaciones ya capturadas.
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS origen                 TEXT;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS destino                TEXT;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS descripcion_envio      TEXT;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS tipo_mercancia         TEXT NOT NULL DEFAULT 'general';
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS tarifa_centavos_kg     INTEGER NOT NULL DEFAULT 160;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS factor_volumetrico     INTEGER NOT NULL DEFAULT 500;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS peso_real_total        NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS peso_volumetrico_total NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS peso_cobrable_total    NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS observaciones          TEXT;
+
+DO $mercancia$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'cotiz_tipo_mercancia') THEN
+    ALTER TABLE cotizaciones ADD CONSTRAINT cotiz_tipo_mercancia
+      CHECK (tipo_mercancia IN ('general','quimico'));
+  END IF;
+END $mercancia$;
+
+-- Cubicaje del renglón. `alto` guarda la altura efectivamente usada: para la
+-- mercancía no estibable son 1.80 m aunque mida menos, y conviene que el PDF
+-- muestre lo mismo que se cobró.
+ALTER TABLE cotizacion_items ADD COLUMN IF NOT EXISTS peso_real        NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE cotizacion_items ADD COLUMN IF NOT EXISTS largo            NUMERIC(8,3)  NOT NULL DEFAULT 0;
+ALTER TABLE cotizacion_items ADD COLUMN IF NOT EXISTS ancho            NUMERIC(8,3)  NOT NULL DEFAULT 0;
+ALTER TABLE cotizacion_items ADD COLUMN IF NOT EXISTS alto             NUMERIC(8,3)  NOT NULL DEFAULT 0;
+ALTER TABLE cotizacion_items ADD COLUMN IF NOT EXISTS estibable        BOOLEAN       NOT NULL DEFAULT FALSE;
+ALTER TABLE cotizacion_items ADD COLUMN IF NOT EXISTS peso_volumetrico NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE cotizacion_items ADD COLUMN IF NOT EXISTS peso_cobrable    NUMERIC(12,2) NOT NULL DEFAULT 0;
+
+-- La descripción del renglón deja de ser obligatoria: en un flete el renglón se
+-- identifica por sus medidas, y la descripción del envío va en la cotización.
+ALTER TABLE cotizacion_items ALTER COLUMN descripcion DROP NOT NULL;
+
 -- ---------------------------------------------------------------------------
 --  Actividad, notas, archivos, contratos, facturas
 -- ---------------------------------------------------------------------------

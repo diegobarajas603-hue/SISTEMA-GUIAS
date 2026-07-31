@@ -1,12 +1,16 @@
 import { consultar, uno, valor, tx, armarUpdate } from '../db/pool.js';
 import { noEncontrado, peticionInvalida } from '../lib/errores.js';
+import { calcularCotizacion } from '@aura/compartido';
 import * as bitacora from './bitacora.js';
 
 const IVA = 0.16;
 
 const SELECT_COT = `
   SELECT q.*, c.nombre AS cuenta_nombre, c.nombre_comercial AS cuenta_comercial, c.rfc,
-         ct.nombre AS contacto_nombre, ct.email AS contacto_email,
+         c.telefono AS cuenta_telefono, c.email AS cuenta_email,
+         c.calle, c.numero, c.colonia, c.ciudad, c.estado, c.codigo_postal, c.pais,
+         ct.nombre AS contacto_nombre, ct.email AS contacto_email, ct.telefono AS contacto_telefono,
+         ct.puesto AS contacto_puesto,
          u.nombre AS propietario_nombre, u.avatar_tono AS propietario_tono,
          o.nombre AS oportunidad_nombre, o.etapa AS oportunidad_etapa,
          (q.valida_hasta < CURRENT_DATE AND q.estado IN ('enviada','vista')) AS caducada
@@ -56,31 +60,52 @@ export async function porId(id) {
 }
 
 /**
- * Calcula los totales desde las líneas. Es la única función que decide importes:
- * ni el cliente ni la interfaz mandan totales, se derivan siempre aquí. Todo en
- * centavos enteros, así que no hay derivas de redondeo.
+ * Calcula los totales de una cotización de flete.
+ *
+ * Es la única función que decide importes: ni la pantalla ni el cliente HTTP
+ * mandan totales, se derivan siempre aquí a partir de las medidas. El cubicaje
+ * lo resuelve `@aura/compartido`, el mismo módulo que usa el navegador para la
+ * vista previa, así que lo que el usuario ve mientras captura y lo que se guarda
+ * no pueden separarse.
  */
-export function calcularTotales(items) {
-  let subtotal = 0;
-  let descuento = 0;
-  const calculados = items.map((it, i) => {
-    const cantidad = Number(it.cantidad ?? 1);
-    const precio = Math.round(Number(it.precio_unitario ?? 0));
-    const pct = Math.min(Math.max(Number(it.descuento_pct ?? 0), 0), 100);
-    const bruto = Math.round(cantidad * precio);
-    const dto = Math.round(bruto * (pct / 100));
-    const importe = bruto - dto;
-    subtotal += importe;
-    descuento += dto;
-    return {
-      producto_id: it.producto_id ?? null,
-      descripcion: it.descripcion,
-      cantidad, precio_unitario: precio, descuento_pct: pct, importe,
-      orden: it.orden ?? i,
-    };
-  });
+export function calcularTotales(items, tipoMercancia = 'general') {
+  const cubicaje = calcularCotizacion(items, tipoMercancia);
+
+  const calculados = cubicaje.renglones.map((r, i) => ({
+    producto_id: items[i]?.producto_id ?? null,
+    descripcion: items[i]?.descripcion ?? null,
+    cantidad: r.cantidad,
+    peso_real: r.peso_real,
+    largo: r.largo,
+    ancho: r.ancho,
+    alto: r.alto,
+    estibable: r.estibable,
+    peso_volumetrico: r.peso_volumetrico,
+    peso_cobrable: r.peso_cobrable,
+    // El renglón se cobra por su peso cobrable a la tarifa del envío.
+    precio_unitario: cubicaje.tarifa_centavos_kg,
+    descuento_pct: 0,
+    importe: Math.round(r.peso_cobrable * cubicaje.tarifa_centavos_kg),
+    orden: items[i]?.orden ?? i,
+  }));
+
+  const subtotal = cubicaje.importe;
   const impuestos = Math.round(subtotal * IVA);
-  return { items: calculados, subtotal, descuento, impuestos, total: subtotal + impuestos };
+
+  return {
+    items: calculados,
+    subtotal,
+    descuento: 0,
+    impuestos,
+    total: subtotal + impuestos,
+    tipo_mercancia: cubicaje.tipo_mercancia,
+    tarifa_centavos_kg: cubicaje.tarifa_centavos_kg,
+    factor_volumetrico: cubicaje.factor_volumetrico,
+    peso_real_total: cubicaje.peso_real_total,
+    peso_volumetrico_total: cubicaje.peso_volumetrico_total,
+    peso_cobrable_total: cubicaje.peso_cobrable_total,
+    piezas: cubicaje.piezas,
+  };
 }
 
 async function siguienteFolio(t) {
@@ -93,51 +118,76 @@ async function siguienteFolio(t) {
 }
 
 export async function crear(datos, usuario) {
-  if (!datos.items?.length) throw peticionInvalida('La cotización necesita al menos un concepto.');
+  if (!datos.cuenta_id) throw peticionInvalida('La cotización debe ir ligada a un cliente.');
+  if (!datos.items?.length) throw peticionInvalida('Agrega al menos una tarima o bulto.');
 
   return tx(async (t) => {
-    const totales = calcularTotales(datos.items);
+    const totales = calcularTotales(datos.items, datos.tipo_mercancia);
     const folio = await siguienteFolio(t);
 
     const cot = await t.uno(
       `INSERT INTO cotizaciones (folio, oportunidad_id, cuenta_id, contacto_id, propietario_id,
                                  estado, subtotal, descuento, impuestos, total, condiciones, notas,
-                                 valida_hasta)
+                                 valida_hasta, origen, destino, descripcion_envio, tipo_mercancia,
+                                 tarifa_centavos_kg, factor_volumetrico, peso_real_total,
+                                 peso_volumetrico_total, peso_cobrable_total, observaciones)
        VALUES ($1,$2,$3,$4,COALESCE($5::int,$13::int),'borrador',$6,$7,$8,$9,$10,$11,
-               COALESCE($12, CURRENT_DATE + 30)) RETURNING *`,
+               COALESCE($12, CURRENT_DATE + 30),$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+       RETURNING *`,
       [
         folio, datos.oportunidad_id ?? null, datos.cuenta_id, datos.contacto_id ?? null,
         datos.propietario_id ?? null, totales.subtotal, totales.descuento, totales.impuestos,
         totales.total, datos.condiciones ?? condicionesPorDefecto(), datos.notas ?? null,
         datos.valida_hasta ?? null, usuario.id,
+        datos.origen ?? null, datos.destino ?? null, datos.descripcion_envio ?? null,
+        totales.tipo_mercancia, totales.tarifa_centavos_kg, totales.factor_volumetrico,
+        totales.peso_real_total, totales.peso_volumetrico_total, totales.peso_cobrable_total,
+        datos.observaciones ?? null,
       ],
     );
 
-    for (const it of totales.items) {
-      await t.consultar(
-        `INSERT INTO cotizacion_items (cotizacion_id, producto_id, descripcion, cantidad,
-                                       precio_unitario, descuento_pct, importe, orden)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [cot.id, it.producto_id, it.descripcion, it.cantidad, it.precio_unitario,
-          it.descuento_pct, it.importe, it.orden],
-      );
-    }
+    await insertarRenglones(t, cot.id, totales.items);
 
     await bitacora.registrar({
       entidad_tipo: 'cotizacion', entidad_id: cot.id, cuenta_id: cot.cuenta_id, tipo: 'cotizacion',
       titulo: `Cotización ${folio} creada`,
-      detalle: `Total ${(cot.total / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.`,
-      usuario_id: usuario.id, metadata: { folio, total: cot.total },
+      detalle: `${totales.peso_cobrable_total} kg cobrables · ${(cot.total / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.`,
+      usuario_id: usuario.id, metadata: { folio, total: cot.total, peso: totales.peso_cobrable_total },
     }, t);
 
     return cot;
   });
 }
 
-const condicionesPorDefecto = () =>
-  'Tarifas vigentes 30 días naturales. No incluye maniobras especiales, estadías ni almacenaje '
-  + 'adicional. Sujeto a disponibilidad de unidad en la fecha solicitada. Precios en pesos '
-  + 'mexicanos más IVA.';
+/** Reescribe los renglones de una cotización con su cubicaje ya calculado. */
+async function insertarRenglones(t, cotizacionId, items) {
+  for (const it of items) {
+    await t.consultar(
+      `INSERT INTO cotizacion_items (cotizacion_id, producto_id, descripcion, cantidad,
+                                     precio_unitario, descuento_pct, importe, orden,
+                                     peso_real, largo, ancho, alto, estibable,
+                                     peso_volumetrico, peso_cobrable)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+      [
+        cotizacionId, it.producto_id, it.descripcion, it.cantidad, it.precio_unitario,
+        it.descuento_pct, it.importe, it.orden, it.peso_real, it.largo, it.ancho,
+        it.alto, it.estibable, it.peso_volumetrico, it.peso_cobrable,
+      ],
+    );
+  }
+}
+
+/** Condiciones que acompañan a toda cotización de flete, salvo que se sustituyan. */
+export const CONDICIONES = [
+  'Cotización sujeta a disponibilidad de unidad en la fecha solicitada.',
+  'Tarifas sujetas a cambios sin previo aviso.',
+  'Vigencia según la fecha indicada en el encabezado de esta cotización.',
+  'No incluye maniobras de carga y descarga salvo que se especifique.',
+  'La mercancía debe cumplir las restricciones aplicables a su tipo; la carga química requiere hoja de seguridad y embalaje conforme a la NOM correspondiente.',
+  'Precios en pesos mexicanos más IVA.',
+];
+
+const condicionesPorDefecto = () => CONDICIONES.join('\n');
 
 export async function actualizar(id, datos, usuario) {
   const previo = await uno('SELECT * FROM cotizaciones WHERE id = $1', [id]);
@@ -148,24 +198,31 @@ export async function actualizar(id, datos, usuario) {
 
   return tx(async (t) => {
     if (datos.items) {
-      const totales = calcularTotales(datos.items);
+      // El tipo de mercancía cambia la tarifa, así que si no viene en la petición
+      // se conserva el que ya tenía la cotización: recalcular con el de por
+      // omisión abarataría un envío químico sin que nadie lo pidiera.
+      const tipo = datos.tipo_mercancia ?? previo.tipo_mercancia;
+      const totales = calcularTotales(datos.items, tipo);
+
       await t.consultar('DELETE FROM cotizacion_items WHERE cotizacion_id = $1', [id]);
-      for (const it of totales.items) {
-        await t.consultar(
-          `INSERT INTO cotizacion_items (cotizacion_id, producto_id, descripcion, cantidad,
-                                         precio_unitario, descuento_pct, importe, orden)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-          [id, it.producto_id, it.descripcion, it.cantidad, it.precio_unitario,
-            it.descuento_pct, it.importe, it.orden],
-        );
-      }
+      await insertarRenglones(t, id, totales.items);
+
       await t.consultar(
-        `UPDATE cotizaciones SET subtotal = $2, descuento = $3, impuestos = $4, total = $5 WHERE id = $1`,
-        [id, totales.subtotal, totales.descuento, totales.impuestos, totales.total],
+        `UPDATE cotizaciones
+            SET subtotal = $2, descuento = $3, impuestos = $4, total = $5,
+                tipo_mercancia = $6, tarifa_centavos_kg = $7, factor_volumetrico = $8,
+                peso_real_total = $9, peso_volumetrico_total = $10, peso_cobrable_total = $11
+          WHERE id = $1`,
+        [
+          id, totales.subtotal, totales.descuento, totales.impuestos, totales.total,
+          totales.tipo_mercancia, totales.tarifa_centavos_kg, totales.factor_volumetrico,
+          totales.peso_real_total, totales.peso_volumetrico_total, totales.peso_cobrable_total,
+        ],
       );
     }
 
-    const columnas = ['contacto_id', 'condiciones', 'notas', 'valida_hasta', 'oportunidad_id'];
+    const columnas = ['contacto_id', 'condiciones', 'notas', 'valida_hasta', 'oportunidad_id',
+      'origen', 'destino', 'descripcion_envio', 'observaciones'];
     const cambios = columnas.filter((k) => datos[k] !== undefined);
     if (cambios.length) {
       const asignaciones = cambios.map((k, i) => `${k} = $${i + 1}`);

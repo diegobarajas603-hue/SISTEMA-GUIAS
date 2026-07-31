@@ -61,3 +61,43 @@ export declare function texto(bruto: unknown, max?: number): Normalizado;
 
 export declare const NORMALIZADORES: Record<string, (v: unknown) => Normalizado<never>>;
 export declare function normalizar(tipo: string, valor: unknown): Normalizado<never>;
+
+export interface RenglonCubicaje {
+  descripcion?: string;
+  cantidad: number;
+  peso_real: number;
+  largo: number;
+  ancho: number;
+  alto: number;
+  estibable: boolean;
+  volumen_pieza: number;
+  peso_volumetrico_pieza: number;
+  peso_volumetrico: number;
+  peso_cobrable: number;
+  cobra_por: 'real' | 'volumetrico';
+}
+
+export interface TotalesCubicaje {
+  renglones: RenglonCubicaje[];
+  piezas: number;
+  peso_real_total: number;
+  peso_volumetrico_total: number;
+  peso_cobrable_total: number;
+  tipo_mercancia: string;
+  tarifa_centavos_kg: number;
+  tarifa_titulo: string;
+  importe: number;
+  factor_volumetrico: number;
+}
+
+export interface TarifaMercancia { clave: string; titulo: string; centavosPorKg: number }
+
+export declare const FACTOR_VOLUMETRICO: number;
+export declare const ALTURA_NO_ESTIBABLE: number;
+export declare const TARIFAS: Record<string, TarifaMercancia>;
+export declare const TIPOS_MERCANCIA: TarifaMercancia[];
+export declare function tarifaDe(tipo: string): TarifaMercancia;
+export declare function alturaEfectiva(r: { estibable?: boolean; alto?: unknown }): number;
+export declare function calcularRenglon(renglon: Record<string, unknown>, factor?: number): RenglonCubicaje;
+export declare function calcularCotizacion(renglones?: Array<Record<string, unknown>>, tipoMercancia?: string, factor?: number): TotalesCubicaje;
+export declare function renglonVacio(): Record<string, unknown>;

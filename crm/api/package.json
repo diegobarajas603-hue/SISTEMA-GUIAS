@@ -12,9 +12,10 @@
     "db:reiniciar": "node src/db/migrar.js --reiniciar && node src/db/semilla.js"
   },
   "dependencies": {
+    "@aura/compartido": "*",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "pg": "^8.22.0",
-    "@aura/compartido": "*"
+    "pdfkit": "^0.19.1",
+    "pg": "^8.22.0"
   }
 }
