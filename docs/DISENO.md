@@ -728,3 +728,123 @@ Se dice explicitamente en vez de simularlo:
 
 Los cuatro son trabajo de modelo de datos, no de interfaz. Ninguno se
 "resolvio" con datos de ejemplo.
+
+---
+
+## 24. Bitacora: motivo y responsable de cada eliminacion o cancelacion
+
+Eliminar y cancelar eran las dos unicas acciones del sistema que borraban
+informacion sin dejar por que. Un numero desaparecia de la base y, meses
+despues, nadie podia responder quien lo quito ni con que razon.
+
+### 24.1 Una tabla que sobrevive a la guia
+
+```sql
+CREATE TABLE IF NOT EXISTS bitacora (
+  id SERIAL PRIMARY KEY,
+  tipo TEXT NOT NULL,          -- ELIMINACION o CANCELACION
+  numero_guia TEXT NOT NULL,
+  numero_nuevo TEXT,           -- en una cancelacion, la guia que la reemplaza
+  motivo TEXT NOT NULL,
+  usuario TEXT,
+  estatus TEXT,                -- estatus que tenia en ese momento
+  complemento TEXT,
+  eventos INTEGER,             -- movimientos que se perdieron (eliminacion)
+  creado_en TIMESTAMPTZ NOT NULL
+);
+```
+
+**A proposito no tiene llave foranea contra `guias`.** Es la decision de diseño
+que hace que la tabla sirva: si la tuviera, `ON DELETE` la arrastraria o el
+borrado fallaria. La bitacora tiene que poder hablar de una guia que ya no
+existe — es exactamente para eso.
+
+El registro se escribe **antes del `DELETE`, en la misma transaccion**: o queda
+la constancia y desaparece la guia, o no pasa ninguna de las dos cosas.
+
+### 24.2 El motivo es obligatorio, y tiene que decir algo
+
+`normalizarMotivo()` recorta, colapsa espacios y **rechaza menos de 5
+caracteres**. Un motivo de dos letras no le sirve a nadie que abra la bitacora
+en seis meses; permitirlo seria fingir que hay trazabilidad.
+
+Se valida **antes de abrir la transaccion** (no tiene sentido tocar la base con
+una peticion incompleta) y **tambien en el navegador**, para que el error se
+vea junto al campo y no despues de un viaje al servidor.
+
+En el modal de eliminar, el motivo va **antes** de la casilla de confirmacion y
+se lleva el foco al abrir: primero se explica por que, y solo despues se
+escribe el numero que consuma el borrado.
+
+### 24.3 El motivo vive en dos lugares, a proposito
+
+| Donde | Para quien |
+|---|---|
+| Evento `CAMBIO_NUMERO` de la guia (`… Motivo: …`) | Quien abre **esa** guia y quiere entender su historia |
+| Tabla `bitacora` | Quien revisa **todas** las eliminaciones y cancelaciones juntas |
+
+No es duplicacion ociosa: son dos preguntas distintas. La segunda es la unica
+que sigue teniendo respuesta cuando la guia se elimino.
+
+### 24.4 La pantalla
+
+Entrada nueva en el menu, bajo **Sistema**, visible **solo para
+administradores** — y el endpoint `GET /api/bitacora` exige `requireAdmin`, asi
+que ocultar el menu es comodidad, no seguridad.
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│  1 Guias eliminadas │ 1 Guias canceladas │ 2 Registros en total   │
+│  Registro permanente. No se puede editar ni borrar desde el sistema│
+├───────────────────────────────────────────────────────────────────┤
+│  [🔍 Buscar por numero...]      [Todo][Eliminaciones][Cancelaciones]│
+├───────────────────────────────────────────────────────────────────┤
+│  HOY                                                              │
+│ ┃ (→) CANCELADA   A̶N̶5̶0̶0̶2̶ → AN5502          01 ago 2026, 05:44 p.m.│
+│ ┃  ┌─ MOTIVO ────────────────────────────────────────────────┐    │
+│ ┃  │ El cliente no pago la entrega y se emitio una guia nueva│    │
+│ ┃  └─────────────────────────────────────────────────────────┘    │
+│ ┃  RESPONSABLE          ESTATUS QUE TENIA                         │
+│ ┃  (A) Administrador    En transito a CDMX                        │
+│  JUEVES, 30 DE JULIO DE 2026                                      │
+│ ┃ (🗑) ELIMINADA  A̶N̶5̶0̶0̶1̶                   30 jul 2026, 05:44 p.m.│
+└───────────────────────────────────────────────────────────────────┘
+```
+
+Cinco decisiones concretas:
+
+1. **Fichas, no tabla.** Es un registro de responsabilidad, no un conjunto de
+   filas comparables. El **motivo va en primer plano, citado en su propio
+   recuadro**, porque es el dato que uno viene a buscar; quien y cuando van
+   debajo, siempre en el mismo sitio, para recorrer la lista de un vistazo.
+2. **Agrupadas por dia** ("Hoy", "Ayer", la fecha completa). Al revisar
+   responsabilidades se busca *que paso el martes*, no el registro numero 47.
+3. **Los numeros muertos van tachados.** En una cancelacion se ve
+   `AN5002 → AN5502`; el numero nuevo **si es un enlace** (esa guia existe), el
+   tachado no lo es. La forma comunica que uno se puede abrir y el otro no.
+4. **Color por tipo**: rojo para eliminacion, ambar para cancelacion, en el
+   borde izquierdo y en la etiqueta. El mismo codigo que ya usa el resto del
+   sistema.
+5. **Solo lectura.** No hay `POST`, `PUT`, `DELETE` ni `PATCH` sobre
+   `/api/bitacora`, y la suite lo comprueba. Una bitacora que se puede editar
+   no es una bitacora.
+
+### 24.5 Lo que no cambio
+
+- Las otras resoluciones (revertir un escaneo, registrar un complemento)
+  **siguen sin pedir motivo**: no destruyen nada.
+- Ningun endpoint desaparecio ni cambio de forma; `motivo` es un campo nuevo en
+  el cuerpo de dos peticiones que ya existian.
+- El rastreo publico no se entera de nada de esto.
+
+### 24.6 Verificacion
+
+Suite nueva de 34 comprobaciones: motivo obligatorio y con longitud minima en
+ambas acciones, la guia intacta cuando la peticion se rechaza, normalizacion de
+espacios, la constancia sobreviviendo al borrado, el vinculo entre numero viejo
+y nuevo, el motivo en el historial de la guia, filtros por tipo y por numero,
+403 para operadores, 401 sin sesion, ausencia de metodos de escritura, y la
+pantalla completa (agrupacion por dia, contadores, filtros, enlace a la guia
+nueva, estado vacio y bloqueo de la ruta para no administradores).
+
+**Doce suites en verde.**

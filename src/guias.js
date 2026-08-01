@@ -56,6 +56,76 @@ function normalizarNumero(numero, etiqueta) {
   return n;
 }
 
+// El motivo es obligatorio en las dos acciones que no se pueden deshacer
+// (eliminar y cancelar). Se exige algo escrito de verdad: un motivo de dos
+// letras no le sirve a nadie que revise la bitacora meses despues.
+const MOTIVO_MINIMO = 5;
+const MOTIVO_MAXIMO = 500;
+
+function normalizarMotivo(motivo, accion) {
+  const m = String(motivo == null ? '' : motivo).trim().replace(/\s+/g, ' ');
+  if (!m) throw new Error(`Escribe el motivo de la ${accion}`);
+  if (m.length < MOTIVO_MINIMO) {
+    throw new Error(`El motivo de la ${accion} es muy corto: explica en pocas palabras que paso`);
+  }
+  return m.slice(0, MOTIVO_MAXIMO);
+}
+
+// Deja constancia de una eliminacion o una cancelacion. Se escribe dentro de
+// la misma transaccion que la accion: o quedan las dos, o no queda ninguna.
+async function registrarBitacora(db, datos) {
+  await db.query(
+    `INSERT INTO bitacora (tipo, numero_guia, numero_nuevo, motivo, usuario, estatus, complemento, eventos, creado_en)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [
+      datos.tipo,
+      datos.numeroGuia,
+      datos.numeroNuevo || null,
+      datos.motivo,
+      datos.usuario || null,
+      datos.estatus || null,
+      datos.complemento || null,
+      datos.eventos == null ? null : datos.eventos,
+      now(),
+    ]
+  );
+}
+
+// Historial de eliminaciones y cancelaciones, del mas reciente al mas antiguo.
+// El nombre visible del responsable sale de usuarios con un LEFT JOIN: si la
+// cuenta se borro, queda al menos el login que hizo la accion.
+async function listarBitacora({ tipo, buscar, limit = 200 } = {}) {
+  const cond = [];
+  const params = [];
+  if (tipo === 'ELIMINACION' || tipo === 'CANCELACION') {
+    params.push(tipo);
+    cond.push(`b.tipo = $${params.length}`);
+  }
+  if (buscar) {
+    params.push('%' + String(buscar).trim().toUpperCase() + '%');
+    cond.push(`(b.numero_guia LIKE $${params.length} OR b.numero_nuevo LIKE $${params.length})`);
+  }
+  params.push(Math.min(Number(limit) || 200, 500));
+  const { rows } = await pool.query(
+    `SELECT b.id, b.tipo, b.numero_guia, b.numero_nuevo, b.motivo, b.usuario,
+            COALESCE(u.nombre, b.usuario) AS responsable,
+            b.estatus, b.complemento, b.eventos, b.creado_en
+       FROM bitacora b LEFT JOIN usuarios u ON u.usuario = b.usuario
+      ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''}
+      ORDER BY b.id DESC LIMIT $${params.length}`,
+    params
+  );
+  return rows;
+}
+
+// Cuantas eliminaciones y cancelaciones hay, para rotular la pantalla
+async function resumenBitacora() {
+  const { rows } = await pool.query('SELECT tipo, COUNT(*)::int AS total FROM bitacora GROUP BY tipo');
+  const r = { ELIMINACION: 0, CANCELACION: 0 };
+  for (const f of rows) r[f.tipo] = f.total;
+  return { eliminaciones: r.ELIMINACION, cancelaciones: r.CANCELACION, total: r.ELIMINACION + r.CANCELACION };
+}
+
 function normalizarEstatus(estatus) {
   const e = String(estatus || '').trim().toUpperCase();
   if (!ESTATUS.includes(e)) throw new Error(`Estatus invalido para la guia nueva: ${estatus}`);
@@ -313,6 +383,9 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
     // el administrador y no la reconstruccion del historial.
     const cancelada = resolucion && resolucion.tipo === 'cancelada';
     const estatusElegido = cancelada && resolucion.estatus ? normalizarEstatus(resolucion.estatus) : null;
+    // Cancelar una guia es irreversible para el numero anterior: exige motivo,
+    // igual que eliminar
+    const motivoCancelacion = cancelada ? normalizarMotivo(resolucion.motivo, 'cancelacion') : null;
 
     let estatusFinal = guia.estatus;
     let plazaEvento = guia.destino;
@@ -336,7 +409,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
       );
 
       mensaje = `Correccion de ${usuario}: se revirtio "${ultimo.descripcion || ultimo.accion}" y la guia regreso a su estatus anterior`;
-      await registrarEvento(numeroGuia, ACCIONES.CORRECCION, estatus, ultimo.plaza, mensaje, client);
+      await registrarEvento(numeroGuia, ACCIONES.CORRECCION, estatus, ultimo.plaza, mensaje, client, usuario);
       estatusFinal = estatus;
       plazaEvento = ultimo.plaza;
     }
@@ -395,10 +468,23 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
         mensaje += `. El complemento ${guia.complemento} quedo con la guia cancelada y ya no aplica a ${nuevo}`;
       }
       if (estatusElegido) mensaje += `. La guia nueva arranca en estatus ${estatusElegido}`;
-      await registrarEvento(nuevo, ACCIONES.CAMBIO_NUMERO, estatusFinal, plazaEvento, mensaje, client);
+      // El motivo viaja en el propio evento (para quien mira el historial de la
+      // guia) y ademas en la bitacora (para quien revisa todas las
+      // cancelaciones juntas)
+      mensaje += `. Motivo: ${motivoCancelacion}`;
+      await registrarEvento(nuevo, ACCIONES.CAMBIO_NUMERO, estatusFinal, plazaEvento, mensaje, client, usuario);
+      await registrarBitacora(client, {
+        tipo: 'CANCELACION',
+        numeroGuia,
+        numeroNuevo: nuevo,
+        motivo: motivoCancelacion,
+        usuario,
+        estatus: guia.estatus,
+        complemento: guia.complemento,
+      });
       // El movimiento visible para el cliente va sin la nota interna
       if (evEstatus) {
-        await registrarEvento(nuevo, evEstatus.accion, estatusElegido, evEstatus.plaza, evEstatus.descripcion, client);
+        await registrarEvento(nuevo, evEstatus.accion, estatusElegido, evEstatus.plaza, evEstatus.descripcion, client, usuario);
       }
       numeroFinal = nuevo;
     }
@@ -416,7 +502,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
       mensaje = guia.complemento
         ? `${usuario} cambio el complemento ${guia.complemento} por ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`
         : `${usuario} registro el complemento ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`;
-      await registrarEvento(numeroGuia, ACCIONES.COMPLEMENTO, estatusFinal, plazaEvento, mensaje, client);
+      await registrarEvento(numeroGuia, ACCIONES.COMPLEMENTO, estatusFinal, plazaEvento, mensaje, client, usuario);
     }
 
     await client.query('COMMIT');
@@ -584,18 +670,31 @@ async function listarEventos({ limit = 50 } = {}) {
 // Es definitivo: no queda rastro de la guia y su numero vuelve a quedar libre,
 // junto con el de su complemento si tenia. Por eso solo lo hace un
 // administrador y se pide confirmar el numero exacto.
-async function borrarGuia(numeroGuia) {
+async function borrarGuia(numeroGuia, usuario = null, motivo = null) {
+  // El motivo se valida antes de abrir la transaccion: no tiene sentido tocar
+  // la base si la peticion viene incompleta
+  const motivoLimpio = normalizarMotivo(motivo, 'eliminacion');
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const guia = await obtenerGuia(numeroGuia, client);
     if (!guia) throw new Error('Guia no encontrada');
     const { rows } = await client.query('SELECT COUNT(*)::int AS n FROM eventos WHERE numero_guia = $1', [numeroGuia]);
+    // La constancia se escribe ANTES de borrar: es lo unico que va a quedar
+    await registrarBitacora(client, {
+      tipo: 'ELIMINACION',
+      numeroGuia,
+      motivo: motivoLimpio,
+      usuario,
+      estatus: guia.estatus,
+      complemento: guia.complemento,
+      eventos: rows[0].n,
+    });
     // Los eventos van primero: la llave foranea impide borrar la guia antes
     await client.query('DELETE FROM eventos WHERE numero_guia = $1', [numeroGuia]);
     await client.query('DELETE FROM guias WHERE numero_guia = $1', [numeroGuia]);
     await client.query('COMMIT');
-    return { numeroGuia, estatus: guia.estatus, complemento: guia.complemento, eventos: rows[0].n };
+    return { numeroGuia, estatus: guia.estatus, complemento: guia.complemento, eventos: rows[0].n, motivo: motivoLimpio };
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});
     throw e;
@@ -712,7 +811,9 @@ module.exports = {
     conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion)),
   marcarRevertidosHistoricos,
   marcarDuplicadosHistoricos,
-  borrarGuia: (numeroGuia) => conCandado(numeroGuia, () => borrarGuia(numeroGuia)),
+  borrarGuia: (numeroGuia, usuario, motivo) => conCandado(numeroGuia, () => borrarGuia(numeroGuia, usuario, motivo)),
+  listarBitacora,
+  resumenBitacora,
   borrarTodas,
   obtenerGuia,
   buscarGuia,

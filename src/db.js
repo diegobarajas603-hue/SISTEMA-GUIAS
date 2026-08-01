@@ -44,6 +44,28 @@ async function init() {
 
     CREATE INDEX IF NOT EXISTS idx_eventos_numero_guia ON eventos (numero_guia);
     CREATE INDEX IF NOT EXISTS idx_guias_actualizado_en ON guias (actualizado_en DESC);
+
+    -- Bitacora de eliminaciones y cancelaciones.
+    --
+    -- A proposito NO tiene llave foranea contra guias: su razon de existir es
+    -- sobrevivir a la guia. Cuando un administrador elimina una guia, la fila
+    -- de guias y todos sus eventos desaparecen; lo unico que queda para
+    -- responder "quien la borro y por que" es este registro.
+    CREATE TABLE IF NOT EXISTS bitacora (
+      id SERIAL PRIMARY KEY,
+      tipo TEXT NOT NULL,              -- ELIMINACION o CANCELACION
+      numero_guia TEXT NOT NULL,       -- guia eliminada o cancelada
+      numero_nuevo TEXT,               -- en una cancelacion, la guia que la reemplaza
+      motivo TEXT NOT NULL,
+      usuario TEXT,                    -- quien lo hizo (login)
+      estatus TEXT,                    -- estatus que tenia en ese momento
+      complemento TEXT,                -- complemento que tenia, si tenia
+      eventos INTEGER,                 -- cuantos movimientos se perdieron (eliminacion)
+      creado_en TIMESTAMPTZ NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_bitacora_creado_en ON bitacora (creado_en DESC);
+    CREATE INDEX IF NOT EXISTS idx_bitacora_numero_guia ON bitacora (numero_guia);
   `);
 
   // Migra estatus del modelo anterior (EN_CAMINO_X / LLEGO_X) al modelo actual

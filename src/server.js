@@ -197,10 +197,10 @@ app.delete('/api/guias/:numeroGuia', requireAuth, requireAdmin, async (req, res)
     return res.status(400).json({ error: `Confirmacion invalida: escribe el numero exacto de la guia (${numeroGuia})` });
   }
   try {
-    const r = await guias.borrarGuia(numeroGuia);
+    const r = await guias.borrarGuia(numeroGuia, req.usuario.usuario, (req.body || {}).motivo);
     console.log(
       `[guias] ${req.usuario.usuario} elimino la guia ${r.numeroGuia} (estatus ${r.estatus}, ${r.eventos} evento(s)` +
-        `${r.complemento ? `, complemento ${r.complemento}` : ''})`
+        `${r.complemento ? `, complemento ${r.complemento}` : ''}). Motivo: ${r.motivo}`
     );
     res.json({ ok: true, ...r });
   } catch (e) {
@@ -218,13 +218,15 @@ app.delete('/api/guias/:numeroGuia', requireAuth, requireAdmin, async (req, res)
 //  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento;
 //    la guia conserva ambos numeros y los dos sirven para rastrear.
 app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
-  const { resolucion, numero, estatus, conservarComplemento } = req.body || {};
+  const { resolucion, numero, estatus, conservarComplemento, motivo } = req.body || {};
   let r = null;
   if (resolucion === 'cancelada' || resolucion === 'complemento') {
     r = { tipo: resolucion, numero };
     if (resolucion === 'cancelada') {
       r.estatus = estatus || null;
       r.conservarComplemento = conservarComplemento === true;
+      // Obligatorio: queda en el historial de la guia y en la bitacora
+      r.motivo = motivo;
     }
   } else if (resolucion) {
     return res.status(400).json({ error: 'Resolucion invalida: usa "cancelada" o "complemento"' });
@@ -240,6 +242,18 @@ app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (re
     res.status(400).json({ error: e.message });
   }
 });
+
+// Bitacora de eliminaciones y cancelaciones (solo administradores). Es el
+// registro que sobrevive a la guia: dice quien la borro o la cancelo y por que.
+// Solo lectura: no hay forma de editarla ni de borrarla desde la aplicacion,
+// que es justamente lo que la hace util como constancia.
+app.get('/api/bitacora', requireAuth, requireAdmin, seguro(async (req, res) => {
+  const { tipo, buscar, limit } = req.query;
+  res.json({
+    resumen: await guias.resumenBitacora(),
+    registros: await guias.listarBitacora({ tipo, buscar, limit }),
+  });
+}));
 
 app.get('/api/guias/resumen', requireAuth, seguro(async (req, res) => {
   res.json(await guias.resumen());

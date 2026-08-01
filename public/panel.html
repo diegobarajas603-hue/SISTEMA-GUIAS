@@ -389,16 +389,20 @@
   .btn-peligro:active { transform: scale(0.985); }
 
   /* ================= CAMPOS ================= */
-  input[type=text], input[type=password], select {
+  input[type=text], input[type=password], select, textarea {
     padding: 9px 12px; border: 1px solid var(--linea-fuerte); border-radius: var(--r);
     font-size: 0.875rem; background: var(--superficie); color: var(--tinta); font-family: inherit;
     transition: border-color var(--transicion), box-shadow var(--transicion), background var(--transicion);
   }
-  input[type=text]:hover, input[type=password]:hover, select:hover { border-color: var(--tinta-3); }
-  input[type=text]:focus, input[type=password]:focus, select:focus {
+  input[type=text]:hover, input[type=password]:hover, select:hover, textarea:hover { border-color: var(--tinta-3); }
+  input[type=text]:focus, input[type=password]:focus, select:focus, textarea:focus {
     outline: none; border-color: var(--azul); box-shadow: var(--anillo);
   }
-  input::placeholder { color: var(--tinta-3); }
+  /* Los motivos son de una o dos lineas: el campo no debe poder estirarse a lo
+     ancho y romper el modal */
+  textarea { width: 100%; resize: vertical; line-height: 1.5; min-height: 56px; }
+  input::placeholder, textarea::placeholder { color: var(--tinta-3); }
+  .nota-motivo { margin: 6px 0 0; font-size: 0.76rem; color: var(--tinta-3); }
   select {
     appearance: none; padding-right: 30px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237B879E' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
@@ -717,6 +721,68 @@
   .tarjeta-guia .tg-pie { display: flex; justify-content: space-between; align-items: center; gap: var(--e-2); font-size: 0.76rem; color: var(--tinta-3); }
   .tarjeta-guia .tg-comp { font-size: 0.76rem; color: var(--tinta-3); }
   .rejilla-guias .vacio-ilustracion { grid-column: 1 / -1; }
+
+  /* ---------- Bitacora de eliminaciones y cancelaciones ----------
+     Es un registro de responsabilidad, no una tabla de datos: cada entrada se
+     lee como una ficha con el motivo en primer plano, porque el motivo es lo
+     que se viene a buscar. Quien y cuando van debajo, siempre en el mismo
+     sitio, para poder recorrer la lista de un vistazo. */
+  .bit-cab { margin-bottom: var(--e-4); }
+  .bit-resumen { display: flex; gap: var(--e-3); flex-wrap: wrap; margin-bottom: var(--e-3); }
+  .bit-tarjeta {
+    flex: 1 1 180px; background: var(--superficie); border: 1px solid var(--linea);
+    border-radius: var(--r-md); padding: var(--e-4) var(--e-5); box-shadow: var(--e1);
+    border-left: 3px solid var(--linea-fuerte);
+  }
+  .bit-tarjeta.elim { border-left-color: var(--rojo); }
+  .bit-tarjeta.canc { border-left-color: var(--ambar); }
+  .bit-tarjeta .n { font-size: 1.6rem; font-weight: 680; letter-spacing: -0.035em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .bit-tarjeta .et { font-size: 0.76rem; color: var(--tinta-2); margin-top: 6px; font-weight: 500; }
+  .bit-intro { margin: 0; font-size: 0.82rem; color: var(--tinta-2); line-height: 1.55; max-width: 74ch; }
+  .bit-intro b { color: var(--tinta); font-weight: 650; }
+
+  .bit-lista { display: flex; flex-direction: column; gap: var(--e-3); }
+  .bit-dia { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--tinta-3); font-weight: 650; margin: var(--e-5) 0 var(--e-1); }
+  .bit-dia:first-child { margin-top: 0; }
+  .bit-item {
+    background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--r-md);
+    border-left: 3px solid var(--linea-fuerte); padding: var(--e-4) var(--e-5); box-shadow: var(--e1);
+  }
+  .bit-item.elim { border-left-color: var(--rojo); }
+  .bit-item.canc { border-left-color: var(--ambar); }
+  .bit-top { display: flex; align-items: center; gap: var(--e-3); flex-wrap: wrap; margin-bottom: var(--e-3); }
+  .bit-tipo {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700;
+  }
+  .bit-tipo svg { width: 12px; height: 12px; }
+  .bit-item.elim .bit-tipo { background: var(--rojo-bg); color: var(--rojo-tx); }
+  .bit-item.canc .bit-tipo { background: var(--ambar-bg); color: var(--ambar-tx); }
+  .bit-numeros { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 0.98rem; font-variant-numeric: tabular-nums; }
+  .bit-numeros .tachado { text-decoration: line-through; opacity: 0.62; font-weight: 650; }
+  .bit-numeros svg { width: 14px; height: 14px; color: var(--tinta-3); }
+  .bit-numeros .nuevo {
+    color: var(--azul-700); background: none; border: none; padding: 0; cursor: pointer;
+    font: inherit; font-variant-numeric: tabular-nums;
+  }
+  .bit-numeros .nuevo:hover { text-decoration: underline; }
+  .bit-fecha { margin-left: auto; font-size: 0.76rem; color: var(--tinta-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* El motivo es el dato que se viene a buscar: se cita, no se resume */
+  .bit-motivo {
+    background: var(--superficie-3); border-radius: var(--r); padding: var(--e-3) var(--e-4);
+    font-size: 0.89rem; line-height: 1.55; color: var(--tinta); border-left: 2px solid var(--linea-fuerte);
+  }
+  .bit-motivo .k { display: block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--tinta-3); margin-bottom: 3px; }
+  .bit-pie { display: flex; gap: var(--e-2) var(--e-5); flex-wrap: wrap; margin-top: var(--e-3); }
+  .bit-pie > div { min-width: 0; }
+  .bit-pie .k { display: block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--tinta-3); margin-bottom: 2px; }
+  .bit-pie b { font-size: 0.84rem; font-weight: 650; }
+  .bit-quien { display: inline-flex; align-items: center; gap: 6px; }
+  .bit-quien .avatar {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--navy-800); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 700; flex-shrink: 0;
+  }
 
   /* Pastilla: un solo control que dice el rango puesto y abre el calendario */
   .fecha-control { position: relative; display: inline-flex; align-items: center; gap: 6px; }
@@ -1198,6 +1264,8 @@
       <button class="nav-item" data-ruta="guias" data-titulo="Guias"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linejoin="round"><path d="M21 8.5v7a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 15.5v-7a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8.5z"/><path d="M3.3 7.5L12 12.5l8.7-5M12 12.5V21"/></svg></span><span class="txt">Guias</span></button>
       <button class="nav-item" data-ruta="eventos" data-titulo="Eventos"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 4v4h4"/><path d="M12 8v4.5l3 1.8"/></svg></span><span class="txt">Eventos</span></button>
       <span class="sec">Sistema</span>
+      <!-- Solo para administradores: se muestra desde pintarUsuario() -->
+      <button class="nav-item" data-ruta="bitacora" data-titulo="Bitacora" id="navBitacora" style="display:none"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H19v3H6.5A2.5 2.5 0 0 1 4 20.5z"/><path d="M8 8h7M8 11.5h5"/></svg></span><span class="txt">Bitacora</span></button>
       <button class="nav-item" data-ruta="config" data-titulo="Configuracion"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg></span><span class="txt">Configuracion</span></button>
     </nav>
     <div class="plaza-pie">
@@ -1489,6 +1557,32 @@
         <div id="gruposEventos"></div>
       </section>
 
+      <!-- ============ Bitacora de eliminaciones y cancelaciones ============ -->
+      <section id="v-bitacora" style="display:none">
+        <div class="bit-cab">
+          <div class="bit-resumen" id="bitResumen"></div>
+          <p class="bit-intro">
+            Registro permanente de las guias que se eliminaron o se cancelaron.
+            <b>No se puede editar ni borrar desde el sistema</b>: es lo que queda cuando la guia ya no esta.
+          </p>
+        </div>
+        <div class="card filtros">
+          <div class="filtros-fila">
+            <span class="campo-icono" style="flex:2; min-width:190px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              <input type="text" id="bitBuscar" placeholder="Buscar por numero de guia..." autocomplete="off" />
+            </span>
+            <div class="segmentado" id="bitTipo">
+              <button data-tipo="" class="activa">Todo</button>
+              <button data-tipo="ELIMINACION">Eliminaciones</button>
+              <button data-tipo="CANCELACION">Cancelaciones</button>
+            </div>
+            <span class="filtros-resumen" id="bitConteo"></span>
+          </div>
+        </div>
+        <div id="bitLista"></div>
+      </section>
+
       <!-- ============ Configuracion ============ -->
       <section id="v-config" style="display:none">
         <div class="card" style="max-width:520px;">
@@ -1599,6 +1693,10 @@
         <input type="checkbox" id="revConservarComp" />
         <span id="revCompTexto"></span>
       </label>
+      <!-- Obligatorio: queda en el historial de la guia y en la bitacora -->
+      <label for="revMotivo">Motivo de la cancelacion</label>
+      <textarea id="revMotivo" rows="2" maxlength="500" placeholder="Por ejemplo: el cliente no pago la entrega y se emitio una guia nueva"></textarea>
+      <p class="nota nota-motivo">Queda registrado en el historial de la guia y en la bitacora, junto con tu usuario y la fecha.</p>
     </div>
     <div class="msg-form" id="msgRevertir"></div>
     <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
@@ -1637,6 +1735,11 @@
       <ul id="elimDetalle"></ul>
     </div>
     <p class="nota" style="margin:12px 0 0;">Usalo solo si la guia se capturo por equivocacion (por ejemplo un numero mal escaneado). Si el envio existe y solo se cancelo, usa "Revertir ultimo escaneo" para dejarlo registrado en el historial.</p>
+    <!-- El motivo va antes de la confirmacion: primero se explica por que, y
+         solo despues se escribe el numero para consumar el borrado -->
+    <label for="elimMotivo">Motivo de la eliminacion</label>
+    <textarea id="elimMotivo" rows="2" maxlength="500" placeholder="Por ejemplo: numero mal escaneado, la guia no existe"></textarea>
+    <p class="nota nota-motivo">La guia desaparece, pero este motivo queda para siempre en la bitacora con tu usuario y la fecha.</p>
     <label for="elimConfirmar">Para confirmar, escribe el numero de la guia</label>
     <input type="text" id="elimConfirmar" autocomplete="off" style="width:100%;" />
     <div class="msg-form" id="msgEliminar"></div>
@@ -1915,6 +2018,7 @@
       $('cfgRol').textContent =
         `Rol: ${nombreRol(usuarioActual.rol)}` +
         (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
+      $('navBitacora').style.display = esAdmin ? '' : 'none';
       $('cardUsuarios').style.display = esAdmin ? '' : 'none';
       $('cardPassword').style.display = esAdmin ? '' : 'none';
       $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
@@ -2002,8 +2106,8 @@
   }
 
   // ---------- Router ----------
-  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', config: 'Configuracion', detalle: 'Detalle de guia' };
-  const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'config'];
+  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', bitacora: 'Bitacora', config: 'Configuracion', detalle: 'Detalle de guia' };
+  const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'bitacora', 'config'];
 
   function render() {
     aplicarModoOperacion();
@@ -2024,6 +2128,9 @@
       setPlaza(pedida);
     }
     if (!VISTAS.includes(vista)) { vista = 'dashboard'; }
+    // La bitacora es solo de administradores; el servidor tambien lo exige, la
+    // interfaz solo evita la pantalla en blanco
+    if (vista === 'bitacora' && usuarioActual && usuarioActual.rol !== 'admin') vista = 'dashboard';
 
     const navRuta = vista === 'detalle' ? 'guias' : vista;
     VISTAS.forEach((v) => ($('v-' + v).style.display = v === vista ? '' : 'none'));
@@ -2033,6 +2140,7 @@
     if (vista === 'dashboard') cargarDashboard();
     if (vista === 'guias') setPlazaTab(plazaTab);
     if (vista === 'eventos') cargarEventos();
+    if (vista === 'bitacora') cargarBitacora();
     if (vista === 'detalle') cargarDetalle(arg);
     if (vista === 'escanear') setTimeout(() => $('guia').focus(), 50);
     if (vista === 'config') cargarConfig();
@@ -3038,6 +3146,7 @@
     pintarNotaEstatus();
     pintarOpcionRevertir();
     $('revNumero').value = '';
+    $('revMotivo').value = '';
     $('msgRevertir').className = 'msg-form';
     $('modalRevertir').classList.add('abierto');
   });
@@ -3065,6 +3174,12 @@
       cuerpo.resolucion = revTipo;
       cuerpo.numero = numero;
       if (revTipo === 'cancelada') {
+        const motivo = $('revMotivo').value.trim();
+        if (motivo.length < 5) {
+          $('revMotivo').focus();
+          return msgForm('msgRevertir', 'Escribe el motivo de la cancelacion: queda en el historial y en la bitacora.', 'err');
+        }
+        cuerpo.motivo = motivo;
         if ($('revEstatus').value) cuerpo.estatus = $('revEstatus').value;
         cuerpo.conservarComplemento = $('revConservarComp').checked;
       }
@@ -3099,16 +3214,24 @@
     puntos.push('El cliente que rastree ese numero ya no encontrara nada.');
     $('elimDetalle').innerHTML = puntos.map((p) => `<li>${p}</li>`).join('');
     $('elimConfirmar').value = '';
+    $('elimMotivo').value = '';
     $('elimConfirmar').placeholder = guiaDetalleActual;
     $('msgEliminar').className = 'msg-form';
     $('modalEliminar').classList.add('abierto');
-    setTimeout(() => $('elimConfirmar').focus(), 30);
+    // El foco va al motivo, no a la confirmacion: el orden es explicar y
+    // despues consumar
+    setTimeout(() => $('elimMotivo').focus(), 30);
   });
 
   $('elimCerrar').addEventListener('click', () => $('modalEliminar').classList.remove('abierto'));
 
   $('elimConfirmarBtn').addEventListener('click', async () => {
     if (!guiaDetalleActual) return;
+    const motivo = $('elimMotivo').value.trim();
+    if (motivo.length < 5) {
+      $('elimMotivo').focus();
+      return msgForm('msgEliminar', 'Escribe el motivo de la eliminacion: es lo unico que va a quedar de esta guia.', 'err');
+    }
     const confirmar = $('elimConfirmar').value.trim().toUpperCase();
     if (confirmar !== guiaDetalleActual) {
       return msgForm('msgEliminar', `Escribe el numero exacto de la guia (${guiaDetalleActual}) para confirmar.`, 'err');
@@ -3117,7 +3240,7 @@
     try {
       await api('/api/guias/' + encodeURIComponent(guiaDetalleActual), {
         method: 'DELETE',
-        body: JSON.stringify({ confirmar }),
+        body: JSON.stringify({ confirmar, motivo }),
       });
       $('modalEliminar').classList.remove('abierto');
       guiaDetalleActual = null;
@@ -3274,6 +3397,125 @@
 
   let timerEventos;
   $('buscarEvento').addEventListener('input', () => { clearTimeout(timerEventos); timerEventos = setTimeout(pintarGruposEventos, 200); });
+
+  // ---------- Bitacora de eliminaciones y cancelaciones ----------
+  // Es el unico rastro que queda de una guia eliminada, asi que la pantalla se
+  // ordena por lo que se viene a buscar: que guia, por que, y quien lo hizo.
+  const ICO_BIT = {
+    ELIMINACION: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V5h5v2M6.5 7l1 13h9l1-13"/></svg>',
+    CANCELACION: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h11M12 7l5 5-5 5M20 6v12"/></svg>',
+  };
+  const BIT_TXT = { ELIMINACION: 'Eliminada', CANCELACION: 'Cancelada' };
+  const BIT_CLASE = { ELIMINACION: 'elim', CANCELACION: 'canc' };
+
+  let bitTipo = '';
+  let bitTimer;
+
+  // Iniciales para el circulito del responsable
+  function iniciales(nombre) {
+    const partes = String(nombre || '?').trim().split(/\s+/).slice(0, 2);
+    return partes.map((p) => p[0]).join('').toUpperCase() || '?';
+  }
+
+  // Fecha larga para los separadores por dia ("Hoy", "Ayer", o la fecha)
+  function diaLargo(f) {
+    const d = new Date(f);
+    const hoy = new Date();
+    const soloDia = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const dif = (soloDia(hoy) - soloDia(d)) / 86400000;
+    if (dif === 0) return 'Hoy';
+    if (dif === 1) return 'Ayer';
+    return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function filaBitacora(r) {
+    const clase = BIT_CLASE[r.tipo] || '';
+    // En una cancelacion se ve de donde a donde paso el numero; en una
+    // eliminacion no hay destino, la guia dejo de existir.
+    // La guia nueva de una cancelacion si existe: se puede abrir. La eliminada
+    // y la cancelada no, por eso van tachadas y sin enlace.
+    const numeros = r.numero_nuevo
+      ? `<span class="tachado">${esc(r.numero_guia)}</span>
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+         <button class="nuevo" type="button" data-ir="${esc(r.numero_nuevo)}" title="Abrir la guia ${esc(r.numero_nuevo)}">${esc(r.numero_nuevo)}</button>`
+      : `<span class="tachado">${esc(r.numero_guia)}</span>`;
+
+    const pie = [
+      ['Responsable', `<span class="bit-quien"><span class="avatar">${esc(iniciales(r.responsable || r.usuario))}</span>${esc(r.responsable || r.usuario || 'sin registrar')}</span>`],
+      ['Estatus que tenia', r.estatus ? (ETIQUETAS[r.estatus] || esc(r.estatus)) : '-'],
+    ];
+    if (r.complemento) pie.push(['Complemento', esc(r.complemento)]);
+    if (r.tipo === 'ELIMINACION') pie.push(['Movimientos borrados', String(r.eventos == null ? '-' : r.eventos)]);
+
+    return `<article class="bit-item ${clase}">
+      <div class="bit-top">
+        <span class="bit-tipo">${ICO_BIT[r.tipo] || ''}${esc(BIT_TXT[r.tipo] || r.tipo)}</span>
+        <span class="bit-numeros">${numeros}</span>
+        <span class="bit-fecha">${fmtFechaLarga(r.creado_en)}</span>
+      </div>
+      <div class="bit-motivo"><span class="k">Motivo</span>${esc(r.motivo)}</div>
+      <div class="bit-pie">${pie.map(([k, v]) => `<div><span class="k">${esc(k)}</span><b>${v}</b></div>`).join('')}</div>
+    </article>`;
+  }
+
+  function fmtFechaLarga(f) {
+    return new Date(f).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  async function cargarBitacora() {
+    const params = new URLSearchParams();
+    if (bitTipo) params.set('tipo', bitTipo);
+    const buscar = $('bitBuscar').value.trim();
+    if (buscar) params.set('buscar', buscar);
+    try {
+      const { resumen, registros } = await api('/api/bitacora?' + params);
+      $('bitResumen').innerHTML =
+        `<div class="bit-tarjeta elim"><div class="n">${resumen.eliminaciones}</div><div class="et">Guias eliminadas</div></div>` +
+        `<div class="bit-tarjeta canc"><div class="n">${resumen.cancelaciones}</div><div class="et">Guias canceladas</div></div>` +
+        `<div class="bit-tarjeta"><div class="n">${resumen.total}</div><div class="et">Registros en total</div></div>`;
+      $('bitConteo').innerHTML = registros.length
+        ? `<b>${registros.length}</b> registro${registros.length === 1 ? '' : 's'}`
+        : '';
+
+      if (!registros.length) {
+        $('bitLista').innerHTML = buscar || bitTipo
+          ? vacio('lupa', 'Sin registros que coincidan', 'Prueba con otro numero de guia o quita el filtro de tipo.')
+          : vacio('caja', 'Todavia no hay eliminaciones ni cancelaciones',
+              'Cuando un administrador elimine o cancele una guia, aqui quedara el motivo, quien lo hizo y cuando.');
+        return;
+      }
+
+      // Agrupadas por dia: al revisar responsabilidades se busca "que paso el
+      // martes", no el registro numero 47
+      let html = '<div class="bit-lista">';
+      let diaActual = null;
+      for (const r of registros) {
+        const dia = diaLargo(r.creado_en);
+        if (dia !== diaActual) {
+          diaActual = dia;
+          html += `<div class="bit-dia">${esc(dia)}</div>`;
+        }
+        html += filaBitacora(r);
+      }
+      $('bitLista').innerHTML = html + '</div>';
+      document.querySelectorAll('#bitLista [data-ir]').forEach((b) =>
+        b.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(b.dataset.ir)))
+      );
+    } catch (e) {
+      $('bitResumen').innerHTML = '';
+      $('bitConteo').textContent = '';
+      $('bitLista').innerHTML = vacio('alerta', 'No se pudo cargar la bitacora', e.message);
+    }
+  }
+
+  document.querySelectorAll('#bitTipo button').forEach((b) =>
+    b.addEventListener('click', () => {
+      bitTipo = b.dataset.tipo;
+      document.querySelectorAll('#bitTipo button').forEach((x) => x.classList.toggle('activa', x === b));
+      cargarBitacora();
+    })
+  );
+  $('bitBuscar').addEventListener('input', () => { clearTimeout(bitTimer); bitTimer = setTimeout(cargarBitacora, 250); });
 
   // ---------- Configuracion ----------
   function msgForm(id, texto, tipo) {
@@ -3444,7 +3686,10 @@
       { grupo: 'Acciones', ico: 'escanear', txt: 'Escanear en CDMX', accion: () => (location.hash = '#/escanear-cdmx') },
       { grupo: 'Acciones', ico: 'alerta', txt: 'Ver guias detenidas', sub: guiasDetenidas.length ? String(guiasDetenidas.length) : '0', accion: () => $('accAlertas').click() },
     ];
-    if (admin) cmds.push({ grupo: 'Acciones', ico: 'ir', txt: 'Gestionar usuarios', accion: () => (location.hash = '#/config') });
+    if (admin) {
+      cmds.push({ grupo: 'Ir a', ico: 'ir', txt: 'Bitacora de eliminaciones y cancelaciones', accion: () => (location.hash = '#/bitacora') });
+      cmds.push({ grupo: 'Acciones', ico: 'ir', txt: 'Gestionar usuarios', accion: () => (location.hash = '#/config') });
+    }
     return cmds;
   }
 
