@@ -27,10 +27,10 @@ const ACCIONES_ADMINISTRATIVAS = [
   ACCIONES.COMPLEMENTO,
 ];
 
-async function registrarEvento(numeroGuia, accion, estatus, plaza, descripcion, db = pool) {
+async function registrarEvento(numeroGuia, accion, estatus, plaza, descripcion, db = pool, usuario = null) {
   await db.query(
-    'INSERT INTO eventos (numero_guia, accion, estatus, plaza, descripcion, creado_en) VALUES ($1, $2, $3, $4, $5, $6)',
-    [numeroGuia, accion, estatus, plaza, descripcion, now()]
+    'INSERT INTO eventos (numero_guia, accion, estatus, plaza, descripcion, creado_en, usuario) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+    [numeroGuia, accion, estatus, plaza, descripcion, now(), usuario]
   );
 }
 
@@ -72,7 +72,13 @@ async function verificarNumeroDisponible(numero, db) {
 
 async function obtenerHistorial(numeroGuia) {
   const { rows } = await pool.query(
-    'SELECT accion, estatus, plaza, descripcion, revertido, creado_en FROM eventos WHERE numero_guia = $1 ORDER BY id DESC',
+    // El nombre del operador se toma de la tabla de usuarios; si esa cuenta ya
+    // no existe (o el evento es anterior a que se registrara quien escanea) se
+    // queda en NULL y la interfaz lo muestra como "sin registrar".
+    `SELECT e.accion, e.estatus, e.plaza, e.descripcion, e.revertido, e.usuario,
+            COALESCE(u.nombre, e.usuario) AS operador, e.creado_en
+       FROM eventos e LEFT JOIN usuarios u ON u.usuario = e.usuario
+      WHERE e.numero_guia = $1 ORDER BY e.id DESC`,
     [numeroGuia]
   );
   return rows;
@@ -105,7 +111,7 @@ function validarPrefijoSalida(numeroGuia, plaza) {
   throw new Error(`Numero de guia invalido: las salidas de ${plaza} empiezan con ${propio}`);
 }
 
-async function marcarSalida(numeroGuia, plaza, destino) {
+async function marcarSalida(numeroGuia, plaza, destino, usuario) {
   validarPrefijoSalida(numeroGuia, plaza);
   const estatus = enTransitoA(destino);
   await pool.query(
@@ -113,7 +119,7 @@ async function marcarSalida(numeroGuia, plaza, destino) {
     [plaza, destino, estatus, now(), numeroGuia]
   );
   const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
-  await registrarEvento(numeroGuia, ACCIONES.SALIDA, estatus, plaza, descripcion);
+  await registrarEvento(numeroGuia, ACCIONES.SALIDA, estatus, plaza, descripcion, pool, usuario);
   return { guia: await obtenerGuia(numeroGuia), tipo: 'salida', mensaje: descripcion };
 }
 
@@ -141,10 +147,10 @@ async function marcarSalida(numeroGuia, plaza, destino) {
 //                                  escaneando en modo bodega
 //  - EN_RUTA_ENTREGA_P          -> error: el paquete anda en reparto; primero
 //                                  debe registrarse su regreso a bodega
-async function escanearGuia(numeroGuia, plaza, modo = 'bodega') {
+async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null) {
   if (!PLAZAS.includes(plaza)) throw new Error('Plaza invalida, usa MTY o CDMX');
   if (!MODOS.includes(modo)) throw new Error('Modo invalido, usa bodega, domicilio u ocurre');
-  if (modo !== 'bodega') return escanearEntrega(numeroGuia, plaza, modo);
+  if (modo !== 'bodega') return escanearEntrega(numeroGuia, plaza, modo, usuario);
 
   const destino = otraPlaza(plaza);
   // Si se escanea el numero de complemento, se opera sobre la guia principal
@@ -162,7 +168,7 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega') {
       [numeroGuia, plaza, destino, estatus, now()]
     );
     const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
-    await registrarEvento(numeroGuia, ACCIONES.SALIDA, estatus, plaza, descripcion);
+    await registrarEvento(numeroGuia, ACCIONES.SALIDA, estatus, plaza, descripcion, pool, usuario);
     return { guia: await obtenerGuia(numeroGuia), tipo: 'salida', mensaje: descripcion };
   }
 
@@ -170,25 +176,25 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega') {
     const estatus = enBodega(plaza);
     await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Llego a bodega ${plaza}`;
-    await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion);
+    await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion, pool, usuario);
     return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
   }
 
   if (guia.estatus === enBodega(plaza) || guia.estatus === entregado(plaza) || guia.estatus === entregado(destino)) {
-    return marcarSalida(numeroGuia, plaza, destino);
+    return marcarSalida(numeroGuia, plaza, destino, usuario);
   }
 
   if (guia.estatus === enRutaEntrega(plaza)) {
     const estatus = enBodega(plaza);
     await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Regreso a bodega ${plaza} (entrega no completada)`;
-    await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion);
+    await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion, pool, usuario);
     return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
   }
 
   if (guia.estatus === enTransitoA(destino)) {
     const descripcion = `Escaneo repetido en bodega ${plaza}: el envio ya salio con destino a ${destino}`;
-    await registrarEvento(numeroGuia, ACCIONES.ESCANEO_REPETIDO, guia.estatus, plaza, descripcion);
+    await registrarEvento(numeroGuia, ACCIONES.ESCANEO_REPETIDO, guia.estatus, plaza, descripcion, pool, usuario);
     return { guia, tipo: 'repetido', mensaje: descripcion };
   }
 
@@ -199,12 +205,12 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega') {
     [destino, plaza, estatus, now(), numeroGuia]
   );
   const descripcion = `Llego a bodega ${plaza} (sin registro de salida de bodega ${destino})`;
-  await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion);
+  await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion, pool, usuario);
   return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
 }
 
 // Escaneos de entrega (a domicilio o en ocurre) en la plaza donde esta el paquete
-async function escanearEntrega(numeroGuia, plaza, modo) {
+async function escanearEntrega(numeroGuia, plaza, modo, usuario = null) {
   // Si se escanea el numero de complemento, se opera sobre la guia principal
   const guia = await buscarGuia(numeroGuia);
   if (!guia) throw new Error('Guia no registrada; escaneala primero en modo bodega');
@@ -220,7 +226,7 @@ async function escanearEntrega(numeroGuia, plaza, modo) {
 
   if (guia.estatus === entregado(plaza) || guia.estatus === entregado(otraPlaza(plaza))) {
     const descripcion = 'Escaneo repetido: el envio ya fue entregado';
-    await registrarEvento(numeroGuia, ACCIONES.ESCANEO_REPETIDO, guia.estatus, plaza, descripcion);
+    await registrarEvento(numeroGuia, ACCIONES.ESCANEO_REPETIDO, guia.estatus, plaza, descripcion, pool, usuario);
     return { guia, tipo: 'repetido', mensaje: descripcion };
   }
 
@@ -228,7 +234,7 @@ async function escanearEntrega(numeroGuia, plaza, modo) {
     const estatus = enRutaEntrega(plaza);
     await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Paquete en ruta de entrega en ${plaza}`;
-    await registrarEvento(numeroGuia, ACCIONES.RUTA_ENTREGA, estatus, plaza, descripcion);
+    await registrarEvento(numeroGuia, ACCIONES.RUTA_ENTREGA, estatus, plaza, descripcion, pool, usuario);
     return { guia: await obtenerGuia(numeroGuia), tipo: 'ruta', mensaje: descripcion };
   }
 
@@ -236,7 +242,7 @@ async function escanearEntrega(numeroGuia, plaza, modo) {
     const estatus = entregado(plaza);
     await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Entregado a domicilio en ${plaza}`;
-    await registrarEvento(numeroGuia, ACCIONES.ENTREGA, estatus, plaza, descripcion);
+    await registrarEvento(numeroGuia, ACCIONES.ENTREGA, estatus, plaza, descripcion, pool, usuario);
     return { guia: await obtenerGuia(numeroGuia), tipo: 'entregado', mensaje: descripcion };
   }
 
@@ -253,7 +259,7 @@ async function escanearEntrega(numeroGuia, plaza, modo) {
     const estatus = entregado(plaza);
     await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Entregado en ocurre (bodega ${plaza})`;
-    await registrarEvento(numeroGuia, ACCIONES.ENTREGA, estatus, plaza, descripcion);
+    await registrarEvento(numeroGuia, ACCIONES.ENTREGA, estatus, plaza, descripcion, pool, usuario);
     return { guia: await obtenerGuia(numeroGuia), tipo: 'entregado', mensaje: descripcion };
   }
 
@@ -564,7 +570,10 @@ async function listarGuias({ buscar, estatus, plaza, desde, hasta, campoFecha, l
 
 async function listarEventos({ limit = 50 } = {}) {
   const { rows } = await pool.query(
-    'SELECT numero_guia, accion, estatus, plaza, descripcion, revertido, creado_en FROM eventos ORDER BY id DESC LIMIT $1',
+    `SELECT e.numero_guia, e.accion, e.estatus, e.plaza, e.descripcion, e.revertido, e.usuario,
+            COALESCE(u.nombre, e.usuario) AS operador, e.creado_en
+       FROM eventos e LEFT JOIN usuarios u ON u.usuario = e.usuario
+      ORDER BY e.id DESC LIMIT $1`,
     [limit]
   );
   return rows;
@@ -663,11 +672,42 @@ async function resumen() {
     `SELECT COUNT(*)::int AS eventos, COUNT(*) FILTER (WHERE accion = 'ENTREGA')::int AS entregas
      FROM eventos WHERE creado_en >= now() - interval '24 hours'`
   );
-  return { porEstatus, totalGuias, eventos24h: ev[0].eventos, entregas24h: ev[0].entregas };
+
+  // Operadores que han escaneado hoy (en horario de Mexico)
+  const { rows: op } = await pool.query(
+    `SELECT COUNT(DISTINCT usuario)::int AS n FROM eventos
+      WHERE usuario IS NOT NULL AND NOT revertido
+        AND (creado_en AT TIME ZONE 'America/Mexico_City')::date = (now() AT TIME ZONE 'America/Mexico_City')::date`
+  );
+
+  // Tiempo medio entre la salida de una guia y su llegada, sobre los ultimos
+  // 30 dias. Es el indicador que de verdad mide el servicio.
+  const { rows: t } = await pool.query(
+    `WITH pares AS (
+       SELECT e.numero_guia,
+              MIN(e.creado_en) FILTER (WHERE e.accion = 'SALIDA')  AS salida,
+              MIN(e.creado_en) FILTER (WHERE e.accion = 'LLEGADA') AS llegada
+         FROM eventos e
+        WHERE NOT e.revertido AND e.creado_en >= now() - interval '30 days'
+        GROUP BY e.numero_guia
+     )
+     SELECT COUNT(*)::int AS n,
+            COALESCE(AVG(EXTRACT(EPOCH FROM (llegada - salida))), 0)::float AS segundos
+       FROM pares WHERE salida IS NOT NULL AND llegada IS NOT NULL AND llegada > salida`
+  );
+
+  return {
+    porEstatus,
+    totalGuias,
+    eventos24h: ev[0].eventos,
+    entregas24h: ev[0].entregas,
+    operadoresHoy: op[0].n,
+    transito: { guias: t[0].n, segundos: Math.round(t[0].segundos) },
+  };
 }
 
 module.exports = {
-  escanearGuia: (numeroGuia, plaza, modo) => conCandado(numeroGuia, () => escanearGuia(numeroGuia, plaza, modo)),
+  escanearGuia: (numeroGuia, plaza, modo, usuario) => conCandado(numeroGuia, () => escanearGuia(numeroGuia, plaza, modo, usuario)),
   revertirUltimoEscaneo: (numeroGuia, usuario, resolucion) =>
     conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion)),
   marcarRevertidosHistoricos,

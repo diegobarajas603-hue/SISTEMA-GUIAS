@@ -160,8 +160,12 @@ app.post('/api/guias/escanear', requireAuth, async (req, res) => {
     const resultado = await guias.escanearGuia(
       String(numeroGuia).trim().toUpperCase(),
       String(plaza).trim().toUpperCase(),
-      modoPedido
+      modoPedido,
+      req.usuario.usuario
     );
+    // El panel muestra quien y cuando en la confirmacion del escaneo
+    resultado.operador = req.usuario.nombre || req.usuario.usuario;
+    resultado.hora = new Date().toISOString();
     res.json(resultado);
   } catch (e) {
     res.status(400).json({ error: e.message });

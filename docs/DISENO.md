@@ -565,3 +565,166 @@ entradas y la de escaneo deja de estar duplicada.
 24 comprobaciones nuevas en navegador (modo operacion, conmutador de plaza,
 paleta con busqueda real, jerarquia del dashboard, navegacion consolidada) mas
 las 8 suites anteriores. Nueve suites en verde.
+
+---
+
+## 23. Tercera iteracion: nivel enterprise
+
+La segunda iteracion rehizo la estructura. Esta cierra la distancia con el
+software que se usa en operaciones grandes: **dejar constancia de quien hace
+cada cosa**, convertir el escaneo en una terminal de punto de venta y darle a
+la lista de guias el trato de un CRM.
+
+### 23.1 El sistema ahora sabe quien escaneo
+
+**Critica:** el historial decia *que* paso y *cuando*, pero no *quien*. En una
+operacion con cuatro roles y varios turnos, ese hueco es el que impide cerrar
+una discusion: "esta guia se marco entregada y no llego".
+
+**Cambio de modelo de datos** (aditivo, no rompe nada):
+
+```sql
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS usuario TEXT;
+```
+
+`registrarEvento` recibe el usuario como septimo parametro con valor por
+defecto `null`, de modo que **toda llamada existente sigue funcionando igual**.
+Los eventos anteriores a la columna quedan en `NULL` y la interfaz los muestra
+como "sin registrar" — se dice la verdad en vez de inventar un responsable.
+
+El nombre visible se resuelve con un `LEFT JOIN` contra `usuarios`, no se
+copia: si alguien corrige su nombre, el historial entero se corrige con el.
+
+**Lo que no cambio:** el endpoint publico de rastreo sigue proyectando solo
+`{accion, descripcion, creado_en}`. El cliente final nunca ve quien movio su
+paquete.
+
+### 23.2 La confirmacion de escaneo, como un punto de venta
+
+**Critica recibida:** *"No quiero una caja enorme en medio."*
+
+Un POS profesional no pide confirmacion: muestra el resultado, lo deja leer y
+se prepara para el siguiente. Eso es lo que hace ahora la terminal.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ [FT] PLAZA Monterrey │ [Bodega][Domicilio][Ocurre] │ 12 en esta sesion ●Listo ✕ │
+├──────────────────────────────────────────────────────────────┤
+│        ┌────────────────────────────────────────┐            │
+│        │ ▥  Dispara la pistola y presiona Enter │            │  ← posicion fija
+│        └────────────────────────────────────────┘            │
+│         El sistema decide solo si es salida o llegada        │
+│        ┌────────────────────────────────────────┐            │
+│        │ (→)  Salida registrada                 │            │
+│        │      Salio de bodega MTY hacia CDMX    │            │  ← hueco reservado
+│        │      GUIA      MOVIMIENTO   ESTADO NUEVO│           │
+│        │      AN1005    Salida       En transito │           │
+│        │      DESTINO   HORA         OPERADOR    │           │
+│        │      CDMX      15:42:03     J. Ramirez  │           │
+│        │ ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬───────────────────  │            │  ← barra de 2 s
+│        └────────────────────────────────────────┘            │
+│        AN1004  Llego a bodega CDMX          15:41:20         │
+│        AN1003  Salio de bodega MTY          15:40:58         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Tres decisiones concretas:
+
+1. **Dos segundos y se va sola.** Antes la confirmacion se quedaba 30 segundos
+   y ademas borraba la bitacora al irse. Ahora la barra de progreso agota su
+   recorrido, la tarjeta sale con una animacion de 260 ms y el campo queda
+   listo. **Sin hacer clic.**
+2. **El campo no se mueve nunca.** El hueco de la confirmacion (`.op-slot`,
+   168 px) esta reservado aunque este vacio, y el campo se ancla arriba en vez
+   de centrarse verticalmente. En un POS la mirada vuelve siempre al mismo
+   punto; una interfaz que salta obliga a re-localizarla en cada paquete.
+3. **El contador de sesion se mudo a la barra de estado.** Es contexto, no
+   contenido: no debe competir con el campo.
+
+**Lo que se muestra y por que ese orden:** Guia (que), Movimiento (que paso),
+Estado nuevo (como quedo), Destino, Hora, Operador. Se lee de reojo en ese
+orden porque es el orden en que se duda.
+
+**Lo que el brief pedia y no se puede mostrar:** *Cliente* y *Destino
+(direccion)* no existen en la base de datos. El sistema guarda plaza de origen
+y plaza de destino (MTY/CDMX), no un destinatario ni un domicilio. Se muestra
+la plaza y se deja dicho el hueco, en vez de inventar un dato.
+
+### 23.3 Eventos: una linea de tiempo, no una tabla
+
+La pantalla de Eventos mostraba, por cada guia, una tabla de cuatro columnas.
+Una tabla comunica "estos registros son comparables entre si"; el recorrido de
+un paquete no es eso, es una **secuencia**. Ahora cada grupo se despliega como
+la misma linea de tiempo que ya usaba el detalle: punto de color por tipo de
+movimiento, accion, fecha, descripcion y — nuevo — **plaza y operador**.
+
+### 23.4 Guias: tabla, tarjetas, favoritas y filtros guardados
+
+| Pieza | Que resuelve |
+|---|---|
+| **Conmutador tabla/tarjetas** | Barrer 200 guias pide una tabla; revisar 10 con atencion pide fichas. Son dos tareas distintas, no una preferencia estetica. |
+| **Favoritas (estrella)** | Seguir un reclamo o un envio importante sin tocar el estado real del envio. Es una nota personal: vive en `localStorage`, no en la base. |
+| **Filtro "Favoritas"** | Convierte esas marcas en una vista de trabajo. |
+| **Filtros guardados** | Guarda la combinacion completa (pestaña, estatus, busqueda, rango de fechas) y la devuelve con un clic. |
+
+Detalles que importan: la estrella hace `stopPropagation`, porque marcar no es
+abrir; el nombre del filtro se escribe **en la misma fila** y no en un
+`prompt()` del navegador, que bloquea la pagina y rompe el diseño; y la
+seleccion de vista, las favoritas y los filtros sobreviven a la recarga.
+
+### 23.5 El dashboard mide la operacion, no solo el inventario
+
+Dos metricas nuevas en la franja HOY, ambas calculadas en SQL sobre datos
+reales:
+
+- **Tiempo medio en transito** — promedio de `LLEGADA - SALIDA` por guia sobre
+  los ultimos 30 dias, ignorando eventos revertidos. Es el indicador que de
+  verdad mide el servicio.
+- **Operadores activos hoy** — `COUNT(DISTINCT usuario)` en horario de Mexico.
+  Solo es posible gracias a 23.1.
+
+La unidad se ajusta sola (`45 min`, `3 h 40 min`, `1 d 2 h`) para que el numero
+siempre se lea de un vistazo.
+
+### 23.6 Tema oscuro
+
+No es un segundo diseño: son **los mismos componentes leyendo otros valores**.
+El sistema ya estaba construido sobre tokens, asi que el modo oscuro es un
+bloque `html[data-tema="oscuro"]` que redefine neutros, fondos semanticos y
+sombras.
+
+Tres decisiones:
+
+- **Los colores de estado se conservan**, subidos un punto de luminosidad. Un
+  operador que aprendio "ambar = salida, verde = entregado" no debe reaprender
+  nada al cambiar de tema.
+- **En oscuro la elevacion la da el borde**, no la sombra: una sombra sobre
+  fondo oscuro no se ve.
+- **El tema se aplica antes de pintar**, con un script en el `<head>`. Si se
+  aplicara al final del documento, quien usa modo oscuro veria un destello
+  blanco en cada carga. Si nunca se eligio, se respeta `prefers-color-scheme`.
+
+Se alterna con el boton de la barra superior o con la tecla `T`.
+
+### 23.7 Verificacion
+
+Suite nueva de 30 comprobaciones en navegador (confirmacion POS y su
+temporizador, estabilidad de la posicion del campo, operador en ambas lineas de
+tiempo, conmutador de vistas, favoritas, filtros guardados, persistencia y tema
+oscuro) mas las 10 suites anteriores. **Once suites en verde**, cero errores de
+JavaScript, ninguna pantalla desborda en 400 px.
+
+### 23.8 Lo que el brief pedia y no se entrego
+
+Se dice explicitamente en vez de simularlo:
+
+1. **Cliente / destinatario y direccion de entrega** — no existen en el modelo.
+   El sistema opera con numero de guia y plaza.
+2. **Top clientes** — depende de 1.
+3. **Incidencias** — los badges existen en CSS desde la primera iteracion, pero
+   no hay estado de incidencia en la base de datos.
+4. **Mapa de flujo MTY ↔ CDMX** — se puede dibujar con los datos actuales
+   (guias por estatus y sentido); quedo fuera de esta iteracion.
+
+Los cuatro son trabajo de modelo de datos, no de interfaz. Ninguno se
+"resolvio" con datos de ejemplo.
