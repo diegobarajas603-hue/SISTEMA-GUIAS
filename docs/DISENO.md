@@ -848,3 +848,73 @@ pantalla completa (agrupacion por dia, contadores, filtros, enlace a la guia
 nueva, estado vacio y bloqueo de la ruta para no administradores).
 
 **Doce suites en verde.**
+
+---
+
+## 25. Mapa de flujo entre plazas
+
+Era el ultimo punto del brief que se podia construir **sin tocar el modelo de
+datos**, y quedaba pendiente desde la tercera iteracion.
+
+### 25.1 La critica
+
+El dashboard mostraba el inventario como un renglon de cinco tarjetas:
+
+```
+[ 12 En bodega MTY ] [ 8 En bodega CDMX ] [ 9 En transito ] [ 6 En reparto ] [ 71 Entregadas ]
+```
+
+Las cifras eran correctas y no comunicaban nada. Esta operacion **es un ida y
+vuelta entre dos bodegas**, y un renglon de tarjetas destruye esa geometria:
+obliga a reconstruir en la cabeza que "En bodega MTY" y "En bodega CDMX" son
+dos puntas de la misma ruta, y que "En transito" son en realidad **dos flujos
+en sentidos opuestos** sumados en un solo numero — el dato menos util posible,
+porque nadie opera "el tránsito", se opera *lo que va hacia CDMX*.
+
+### 25.2 Lo que hay ahora
+
+```
+ DONDE ESTA LA MERCANCIA EN ESTE MOMENTO
+┌──────────────────┐                                  ┌──────────────────┐
+│ ● MONTERREY      │      🚚 4 guias hacia CDMX       │ ● CIUDAD DE MEXICO│
+│                  │      ────────────────────▶       │                  │
+│  ● 2 en bodega   │                                  │  ● 1 en bodega   │
+│  ○ 0 en reparto  │      🚚 3 guias hacia MTY        │  ● 2 en reparto  │
+│  ● 2 entregadas  │      ◀────────────────────       │  ● 2 entregadas  │
+└──────────────────┘                                  └──────────────────┘
+```
+
+Las cifras son **exactamente las mismas** que antes — sale del mismo
+`/api/guias/resumen`, sin endpoints nuevos. Lo que cambia es que cada una esta
+en el lugar donde ocurre.
+
+Seis decisiones:
+
+1. **El transito se separa por sentido.** Deja de ser un total y pasa a ser dos
+   flujos. Es el cambio que mas informacion agrega y no costo una sola consulta
+   nueva.
+2. **La via se enciende sola.** Con carga se pone ambar y la linea se anima con
+   un patron que se desplaza; vacia queda gris y quieta. El movimiento en
+   pantalla significa movimiento real, no decoracion.
+3. **El cero no desaparece, se apaga** (opacidad 0.42, y vuelve a 1 al pasar el
+   cursor). Un hueco vacio tambien es informacion: *aqui no hay nada en
+   reparto* es una respuesta, no una ausencia.
+4. **Todo es un enlace filtrado.** Cada cifra abre Guias con la pestaña y el
+   estatus ya puestos — incluida la regla de que la pestaña de una plaza agrupa
+   lo que **salio** de ahi, asi que un estatus de CDMX abre la pestaña MTY.
+5. **El destino va escrito, no solo dibujado.** "4 guias hacia CDMX", no "4 en
+   transito". Al apilarse en pantalla chica las plazas quedan una encima de
+   otra y una flecha horizontal deja de significar nada; el texto sigue siendo
+   correcto en cualquier ancho, y ahi la flecha se oculta.
+6. **Los KPI se eliminaron, no se sumaron.** Mostrar las dos cosas seria dejar
+   las mismas cinco cifras dos veces en la misma pantalla. Se borro tambien el
+   CSS de `.kpi` y los iconos que solo alimentaban ese bloque: codigo muerto es
+   deuda, aunque no se vea.
+
+### 25.3 Verificacion
+
+11 comprobaciones nuevas dentro de la suite enterprise: los dos nodos y sus
+tres filas, las dos vias con su destino escrito, ausencia del renglon de KPI,
+**las cifras del mapa contrastadas contra `/api/guias/resumen`** (que el dibujo
+no se despegue del dato), y que tocar una cifra o una via abra Guias con la
+pestaña y el estatus correctos. Doce suites en verde.

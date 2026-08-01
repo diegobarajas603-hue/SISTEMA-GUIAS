@@ -298,23 +298,82 @@
   .card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--e-4); margin-bottom: var(--e-4); flex-wrap: wrap; }
   .card-head h2.titulo-card { margin: 0; }
 
-  /* ================= KPIs ================= */
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--e-3); margin-bottom: var(--e-4); }
-  .kpi {
-    background: var(--superficie); border-radius: var(--r-lg); padding: var(--e-4) var(--e-5);
-    border: 1px solid var(--linea); box-shadow: var(--e1); cursor: pointer;
-    display: flex; justify-content: space-between; align-items: flex-start; gap: var(--e-3);
-    position: relative; overflow: hidden;
-    transition: transform var(--transicion), box-shadow var(--transicion), border-color var(--transicion);
+  /* ---------- Mapa de flujo entre plazas ----------
+     La operacion es un ida y vuelta entre dos bodegas. Un renglon de tarjetas
+     obliga a reconstruir esa geometria en la cabeza; aqui ya esta dibujada:
+     dos plazas, y en medio lo que va viajando en cada sentido. */
+  .flujo {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--e-4); align-items: stretch;
+    margin-bottom: var(--e-4);
   }
-  /* Filo superior de color: identifica el KPI sin recuadros de colores */
-  .kpi::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: currentColor; opacity: 0.85; }
-  .kpi:hover { transform: translateY(-2px); box-shadow: var(--e2); border-color: var(--linea-fuerte); }
-  .kpi:active { transform: translateY(0); }
-  .kpi .valor { font-size: 1.9rem; font-weight: 680; line-height: 1; letter-spacing: -0.035em; color: var(--tinta); font-variant-numeric: tabular-nums; }
-  .kpi .etiqueta { font-size: 0.78rem; color: var(--tinta-2); margin-top: 7px; font-weight: 500; }
-  .kpi .chip { width: 34px; height: 34px; border-radius: var(--r); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .kpi .chip svg { width: 18px; height: 18px; }
+  .plaza-nodo {
+    background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--r-lg);
+    padding: var(--e-5); box-shadow: var(--e1); display: flex; flex-direction: column;
+  }
+  .plaza-nodo .nombre {
+    display: flex; align-items: center; gap: var(--e-2); font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.11em; color: var(--tinta-3); margin-bottom: var(--e-4);
+  }
+  .plaza-nodo .nombre i {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--azul); flex-shrink: 0;
+  }
+  .plaza-nodo.cdmx .nombre i { background: var(--cian); }
+  .plaza-filas { display: flex; flex-direction: column; gap: var(--e-1); }
+  .plaza-fila {
+    display: flex; align-items: baseline; gap: var(--e-3); width: 100%; text-align: left;
+    background: none; border: none; padding: 7px var(--e-2); border-radius: var(--r);
+    font-family: inherit; cursor: pointer; color: var(--tinta-2); transition: background var(--transicion);
+  }
+  .plaza-fila:hover { background: var(--superficie-3); color: var(--tinta); }
+  .plaza-fila .n {
+    font-size: 1.35rem; font-weight: 680; letter-spacing: -0.03em; color: var(--tinta);
+    font-variant-numeric: tabular-nums; min-width: 2.2ch; text-align: right;
+  }
+  .plaza-fila .et { font-size: 0.82rem; font-weight: 500; }
+  .plaza-fila .punto { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; align-self: center; }
+  .plaza-fila.bodega .punto { background: var(--indigo); }
+  .plaza-fila.reparto .punto { background: var(--cian); }
+  .plaza-fila.entregado .punto { background: var(--verde); }
+  /* Sin nada que ver, la fila se apaga en vez de desaparecer: el hueco vacio
+     tambien es informacion ("aqui no hay nada en reparto") */
+  .plaza-fila.cero { opacity: 0.42; }
+  .plaza-fila.cero:hover { opacity: 1; }
+
+  /* El carril central: dos sentidos, uno encima del otro */
+  .flujo-carril {
+    display: flex; flex-direction: column; justify-content: center; gap: var(--e-4);
+    min-width: 190px; padding: var(--e-4) 0;
+  }
+  .via { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .via .linea { position: relative; width: 100%; height: 2px; background: var(--linea-fuerte); border-radius: 2px; }
+  /* La punta de flecha indica el sentido del viaje */
+  .via .linea::after {
+    content: ''; position: absolute; top: 50%; width: 0; height: 0;
+    border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  }
+  .via.der .linea::after { right: -1px; transform: translateY(-50%); border-left: 8px solid var(--linea-fuerte); }
+  .via.izq .linea::after { left: -1px; transform: translateY(-50%); border-right: 8px solid var(--linea-fuerte); }
+  /* Con carga, la via se enciende en ambar (el color que ya significa
+     "en transito" en el resto del sistema) y la linea se anima */
+  .via.activa .linea { background: var(--ambar); }
+  .via.activa.der .linea::after { border-left-color: var(--ambar); }
+  .via.activa.izq .linea::after { border-right-color: var(--ambar); }
+  .via.activa .linea {
+    background-image: repeating-linear-gradient(90deg, var(--ambar) 0 8px, transparent 8px 14px);
+    background-size: 14px 2px; animation: viajar 700ms linear infinite;
+  }
+  .via.izq.activa .linea { animation-direction: reverse; }
+  @keyframes viajar { to { background-position: 14px 0; } }
+  .via .carga {
+    display: inline-flex; align-items: center; gap: 6px; background: none; border: none;
+    font-family: inherit; cursor: pointer; padding: 2px 4px; border-radius: var(--r-sm);
+    font-size: 0.8rem; color: var(--tinta-3); font-weight: 550; white-space: nowrap;
+  }
+  .via .carga b { font-size: 0.98rem; font-weight: 680; color: var(--tinta); font-variant-numeric: tabular-nums; }
+  .via.activa .carga { color: var(--ambar-tx); }
+  .via.activa .carga b { color: var(--ambar-tx); }
+  .via .carga:hover { background: var(--superficie-3); }
+  .via .carga svg { width: 15px; height: 15px; }
 
   /* ================= GRAFICAS ================= */
   .rango { display: flex; align-items: center; gap: var(--e-3); margin: 0 0 var(--e-4); font-size: 0.8rem; color: var(--tinta-2); flex-wrap: wrap; }
@@ -1171,6 +1230,17 @@
     .reloj { display: none; }
   }
   /* Movil */
+  /* Sin ancho para tres columnas, las plazas se apilan y el carril gira: el
+     viaje pasa a leerse de arriba abajo, pero se sigue leyendo como un viaje */
+  @media (max-width: 860px) {
+    .flujo { grid-template-columns: 1fr; }
+    .flujo-carril { flex-direction: row; gap: var(--e-4); min-width: 0; padding: 0; flex-wrap: wrap; }
+    .via { flex: 1 1 160px; }
+    /* La flecha horizontal deja de significar nada cuando las plazas quedan
+       una encima de la otra: el destino ya va escrito en la etiqueta */
+    .via .linea { display: none; }
+  }
+
   @media (max-width: 720px) {
     .layout { flex-direction: column; }
     aside {
@@ -1203,7 +1273,6 @@
     .det-header h2 { font-size: 1.35rem; }
     .ptabs { display: flex; width: 100%; }
     .ptabs button { flex: 1; padding: 8px 8px; }
-    .kpis { grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: var(--e-2); }
     th, td { padding-left: var(--e-2); padding-right: var(--e-2); }
     #v-dashboard th:nth-child(4), #v-dashboard td:nth-child(4),
     #v-dashboard th:nth-child(5), #v-dashboard td:nth-child(5) { display: none; }
@@ -1316,8 +1385,11 @@
           <span class="txt"><b id="atencionTitulo"></b><span id="atencionSub"></span></span>
           <button class="btn-sec" id="atencionVer" type="button">Ver guias</button>
         </div>
-        <div class="seccion-titulo">Inventario en este momento</div>
-        <div class="kpis" id="kpis"></div>
+        <div class="seccion-titulo">Donde esta la mercancia en este momento</div>
+        <!-- Mapa de flujo: las mismas cifras del inventario, pero colocadas
+             donde ocurren. Un renglon de tarjetas dice "cuanto"; esto dice
+             ademas "donde" y "hacia donde", que es la pregunta real. -->
+        <div class="flujo" id="flujo"></div>
         <div class="rango">
           <span>Actividad de los ultimos</span>
           <div class="rango-btns" id="rangoBtns">
@@ -2156,12 +2228,59 @@
   });
 
   // ---------- Dashboard ----------
-  const ICONOS = {
-    caja: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
-    camion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h11v9H2zM13 10h4l3 3v3h-7z"/><circle cx="6.5" cy="17.5" r="1.7"/><circle cx="16.5" cy="17.5" r="1.7"/></svg>',
-    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
-    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
-  };
+  // ---------- Mapa de flujo entre plazas ----------
+  // Las cifras son las mismas del inventario; lo que cambia es que aqui cada
+  // una esta en el lugar donde ocurre. La pestaña de guias de una plaza
+  // agrupa lo que SALIO de ahi, por eso al abrir un estatus de CDMX se activa
+  // la pestaña MTY (y al reves).
+  const NOMBRE_PLAZA = { MTY: 'Monterrey', CDMX: 'Ciudad de Mexico' };
+
+  function filaPlaza(n, etiqueta, clase, estatus, plaza) {
+    const otra = plaza === 'MTY' ? 'CDMX' : 'MTY';
+    return `<button class="plaza-fila ${clase} ${n ? '' : 'cero'}" type="button"
+      data-tab="${otra}" data-est="${estatus}" title="Ver estas guias">
+      <span class="punto"></span><span class="n">${n}</span><span class="et">${esc(etiqueta)}</span>
+    </button>`;
+  }
+
+  // El destino va en el texto, no solo en la flecha: al apilarse en pantalla
+  // chica las plazas quedan una encima de otra y una flecha horizontal ya no
+  // dice hacia donde. "4 hacia CDMX" se entiende en cualquier ancho.
+  function via(sentido, n, destino, estatusDestino, tabPlaza) {
+    const texto = n === 1 ? 'guia hacia' : 'guias hacia';
+    return `<div class="via ${sentido} ${n ? 'activa' : ''}">
+      <button class="carga" type="button" data-tab="${tabPlaza}" data-est="${estatusDestino}"
+        title="Ver las guias en transito hacia ${esc(destino)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h11v9H2zM13 10h4l3 3v3h-7z"/><circle cx="6.5" cy="17.5" r="1.7"/><circle cx="16.5" cy="17.5" r="1.7"/></svg>
+        <b>${n}</b> ${texto} ${esc(destino)}
+      </button>
+      <span class="linea"></span>
+    </div>`;
+  }
+
+  function nodoPlaza(plaza, p) {
+    return `<div class="plaza-nodo ${plaza.toLowerCase()}">
+      <div class="nombre"><i></i>${esc(NOMBRE_PLAZA[plaza] || plaza)}</div>
+      <div class="plaza-filas">
+        ${filaPlaza(p['EN_BODEGA_' + plaza] || 0, 'en bodega', 'bodega', 'EN_BODEGA_' + plaza, plaza)}
+        ${filaPlaza(p['EN_RUTA_ENTREGA_' + plaza] || 0, 'en reparto', 'reparto', 'EN_RUTA_ENTREGA_' + plaza, plaza)}
+        ${filaPlaza(p['ENTREGADO_' + plaza] || 0, 'entregadas', 'entregado', 'ENTREGADO_' + plaza, plaza)}
+      </div>
+    </div>`;
+  }
+
+  function pintarFlujo(p) {
+    $('flujo').innerHTML =
+      nodoPlaza('MTY', p) +
+      `<div class="flujo-carril">
+        ${via('der', p.EN_TRANSITO_A_CDMX || 0, 'CDMX', 'EN_TRANSITO_A_CDMX', 'MTY')}
+        ${via('izq', p.EN_TRANSITO_A_MTY || 0, 'MTY', 'EN_TRANSITO_A_MTY', 'CDMX')}
+      </div>` +
+      nodoPlaza('CDMX', p);
+    document.querySelectorAll('#flujo [data-est]').forEach((b) =>
+      b.addEventListener('click', () => irAGuias(b.dataset.tab, b.dataset.est))
+    );
+  }
 
   async function cargarDashboard() {
     pintarRango();
@@ -2170,30 +2289,13 @@
       const [r, eventos] = await Promise.all([api('/api/guias/resumen'), api('/api/eventos?limit=10')]);
       resumenCache = r;
       pintarHoy(); // ya hay tiempo de transito y operadores que mostrar
-      const p = r.porEstatus || {};
-      const transito = (p.EN_TRANSITO_A_CDMX || 0) + (p.EN_TRANSITO_A_MTY || 0);
-      const ruta = (p.EN_RUTA_ENTREGA_CDMX || 0) + (p.EN_RUTA_ENTREGA_MTY || 0);
-      const entregadas = (p.ENTREGADO_CDMX || 0) + (p.ENTREGADO_MTY || 0);
-      const kpi = (valor, etiqueta, color, icono, attrs) => `
-        <div class="kpi" ${attrs}>
-          <div><div class="valor">${valor}</div><div class="etiqueta">${etiqueta}</div></div>
-          <div class="chip" style="color:${color}; background:${color}1c;">${ICONOS[icono]}</div>
-        </div>`;
-      $('kpis').innerHTML =
-        kpi(p.EN_BODEGA_MTY || 0, 'En bodega MTY', '#5B5BD6', 'caja', 'data-tab="CDMX" data-est="EN_BODEGA_MTY"') +
-        kpi(p.EN_BODEGA_CDMX || 0, 'En bodega CDMX', '#5B5BD6', 'caja', 'data-tab="MTY" data-est="EN_BODEGA_CDMX"') +
-        kpi(transito, 'En transito', '#B7791F', 'camion', 'data-tab="" data-est=""') +
-        kpi(ruta, 'En ruta de entrega', '#0FB6CC', 'pin', 'data-tab="" data-est=""') +
-        kpi(entregadas, 'Entregadas (total)', '#0C9F68', 'check', 'data-tab="" data-est=""');
-      document.querySelectorAll('#kpis .kpi').forEach((k) =>
-        k.addEventListener('click', () => irAGuias(k.dataset.tab, k.dataset.est))
-      );
+      pintarFlujo(r.porEstatus || {});
       $('tbodyActividad').innerHTML = eventos.length
         ? eventos.map(filaEvento).join('')
         : vacioFila(5, 'reloj', 'Sin movimientos todavia', 'Los escaneos del dia apareceran aqui en cuanto empiece la operacion.');
       activarFilasGuia('#tbodyActividad');
     } catch (e) {
-      $('kpis').innerHTML = `<div class="card vacio">${esc(e.message)}</div>`;
+      $('flujo').innerHTML = `<div class="card vacio">${esc(e.message)}</div>`;
       $('tbodyActividad').innerHTML = '';
     }
   }
