@@ -560,27 +560,108 @@
   .nota { font-size: 0.82rem; color: var(--tinta-2); line-height: 1.55; }
   .solo-cel { display: none; }
 
-  /* Filtros de la lista de guias */
+  /* ---------- Filtros de la lista de guias ---------- */
   .filtros { display: flex; flex-direction: column; gap: var(--e-3); }
   .filtros-fila { display: flex; gap: var(--e-2); flex-wrap: wrap; align-items: center; }
   .filtros-fecha { padding-top: var(--e-3); border-top: 1px solid var(--linea); }
-  .filtros-sep { width: 1px; height: 22px; background: var(--linea); margin: 0 var(--e-1); }
-  .filtro-fecha { display: inline-flex; align-items: center; gap: var(--e-2); margin: 0; font-size: 0.75rem; color: var(--tinta-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
-  input[type=date] {
-    padding: 7px 10px; border: 1px solid var(--linea-fuerte); border-radius: var(--r);
-    font-size: 0.83rem; background: var(--superficie); color: var(--tinta); font-family: inherit;
-    font-variant-numeric: tabular-nums; transition: border-color var(--transicion), box-shadow var(--transicion);
+  .filtros-resumen { margin-left: auto; font-size: 0.82rem; color: var(--tinta-2); }
+  .filtros-resumen b { color: var(--tinta); font-variant-numeric: tabular-nums; font-weight: 650; }
+
+  /* Pastilla: un solo control que dice el rango puesto y abre el calendario */
+  .fecha-control { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+  .pastilla-fecha {
+    display: inline-flex; align-items: center; gap: var(--e-2);
+    padding: 8px 12px; border: 1px solid var(--linea-fuerte); border-radius: 999px;
+    background: var(--superficie); color: var(--tinta); font-size: 0.84rem; font-weight: 600;
+    cursor: pointer; font-family: inherit; box-shadow: var(--e1);
+    transition: all var(--transicion);
   }
-  input[type=date]:hover { border-color: var(--tinta-3); }
-  input[type=date]:focus { outline: none; border-color: var(--azul); box-shadow: var(--anillo); }
-  #fCampo { font-size: 0.8rem; padding: 7px 28px 7px 10px; }
-  .filtros-resumen { margin-left: auto; font-size: 0.8rem; color: var(--tinta-2); font-weight: 500; }
-  .filtros-resumen b { color: var(--tinta); font-variant-numeric: tabular-nums; }
+  .pastilla-fecha svg { width: 15px; height: 15px; color: var(--tinta-3); }
+  .pastilla-fecha .chev { width: 13px; height: 13px; transition: transform var(--transicion); }
+  .pastilla-fecha:hover { border-color: var(--tinta-3); }
+  .fecha-control.abierta .pastilla-fecha { border-color: var(--azul); box-shadow: var(--anillo); }
+  .fecha-control.abierta .pastilla-fecha .chev { transform: rotate(180deg); }
+  /* Con filtro puesto, la pastilla se tiñe: se ve activa de un vistazo */
+  .pastilla-fecha.activa { background: var(--azul-tenue); border-color: var(--azul); color: var(--azul-700); }
+  .pastilla-fecha.activa svg { color: var(--azul); }
+  .limpia-fecha {
+    width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--linea-fuerte);
+    background: var(--superficie); color: var(--tinta-3); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all var(--transicion);
+  }
+  .limpia-fecha svg { width: 12px; height: 12px; }
+  .limpia-fecha:hover { border-color: var(--rojo); color: var(--rojo); background: var(--rojo-bg); }
+
+  /* Panel */
+  .pop-fecha {
+    position: absolute; top: calc(100% + 8px); left: 0; z-index: 70; width: 306px;
+    background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--r-lg);
+    box-shadow: var(--e4); overflow: hidden; display: none;
+  }
+  .fecha-control.abierta .pop-fecha { display: block; animation: subir 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .pop-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: var(--e-3); border-bottom: 1px solid var(--linea); }
+  .pop-presets button {
+    position: relative; text-align: left; padding: 8px 10px; border: none; border-radius: var(--r-sm);
+    background: none; color: var(--tinta-2); font-size: 0.82rem; font-weight: 550;
+    cursor: pointer; font-family: inherit; transition: all var(--transicion);
+  }
+  .pop-presets button:hover { background: var(--superficie-3); color: var(--tinta); }
+  .pop-presets button.activa { background: var(--azul-tenue); color: var(--azul-700); font-weight: 650; }
+  .pop-presets button:last-child { grid-column: 1 / -1; }
+
+  .pop-cal { padding: var(--e-3) var(--e-3) var(--e-2); }
+  .cal-cab { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--e-2); }
+  .cal-mes { font-size: 0.84rem; font-weight: 650; letter-spacing: -0.01em; }
+  .cal-mes::first-letter { text-transform: uppercase; }
+  .cal-nav {
+    width: 26px; height: 26px; border-radius: var(--r-sm); border: 1px solid transparent;
+    background: none; color: var(--tinta-2); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; transition: all var(--transicion);
+  }
+  .cal-nav:hover { background: var(--superficie-3); border-color: var(--linea); color: var(--tinta); }
+  .cal-nav svg { width: 15px; height: 15px; }
+  .cal-dias, .cal-rejilla { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .cal-dias span { text-align: center; font-size: 0.66rem; font-weight: 700; color: var(--tinta-3); padding-bottom: 5px; letter-spacing: 0.04em; }
+  .cal-rejilla { gap: 1px 0; }
+  .cal-dia {
+    position: relative; height: 34px; border: none; background: none; cursor: pointer;
+    font-family: inherit; font-size: 0.82rem; color: var(--tinta); font-variant-numeric: tabular-nums;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cal-dia::before {
+    content: ''; position: absolute; inset: 2px 0; background: transparent; z-index: 0;
+    transition: background var(--transicion);
+  }
+  .cal-dia span { position: relative; z-index: 1; width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; transition: all var(--transicion); }
+  .cal-dia:hover span { background: var(--superficie-3); }
+  .cal-dia.fuera { color: var(--tinta-3); opacity: 0.45; }
+  .cal-dia.futuro { color: var(--tinta-3); opacity: 0.35; cursor: not-allowed; }
+  .cal-dia.futuro:hover span { background: none; }
+  /* El dia de hoy se marca con un aro, no con relleno: el relleno es para lo
+     elegido. La clase lleva prefijo porque .hoy ya es la franja del dashboard. */
+  .cal-dia.es-hoy span { font-weight: 700; box-shadow: inset 0 0 0 1px var(--linea-fuerte); }
+  .cal-dia.en-rango::before { background: var(--azul-tenue); }
+  .cal-dia.inicio::before { left: 50%; border-radius: 99px 0 0 99px; }
+  .cal-dia.fin::before { right: 50%; border-radius: 0 99px 99px 0; }
+  .cal-dia.inicio.fin::before { background: transparent; }
+  .cal-dia.inicio span, .cal-dia.fin span { background: var(--azul); color: #fff; font-weight: 650; }
+  .cal-dia.inicio:hover span, .cal-dia.fin:hover span { background: var(--azul-600); }
+  .cal-pista { margin: var(--e-2) 0 0; font-size: 0.73rem; color: var(--tinta-3); text-align: center; }
+
+  .pop-pie { display: flex; align-items: center; gap: var(--e-2); padding: var(--e-3); border-top: 1px solid var(--linea); background: var(--superficie-2); }
+  .pop-pie-et { font-size: 0.73rem; color: var(--tinta-3); font-weight: 600; }
+  .segmentado { display: inline-flex; background: var(--superficie); border: 1px solid var(--linea-fuerte); border-radius: var(--r); padding: 2px; margin-left: auto; }
+  .segmentado button {
+    border: none; background: none; padding: 5px 11px; border-radius: var(--r-sm);
+    font-size: 0.76rem; font-weight: 600; color: var(--tinta-2); cursor: pointer;
+    font-family: inherit; transition: all var(--transicion);
+  }
+  .segmentado button.activa { background: var(--navy-900); color: #fff; }
 
   @media (max-width: 720px) {
     .filtros-resumen { margin-left: 0; width: 100%; }
-    .filtros-sep { display: none; }
-    #fechaPresets { width: 100%; overflow-x: auto; }
+    .pop-fecha { width: min(306px, calc(100vw - 48px)); }
   }
 
   /* ================= LOGIN ================= */
@@ -1085,20 +1166,47 @@
             <select id="filtroEstatus" style="flex:1; min-width:170px;"></select>
           </div>
           <div class="filtros-fila filtros-fecha">
-            <div class="rango-btns" id="fechaPresets">
-              <button data-rango="hoy">Hoy</button>
-              <button data-rango="ayer">Ayer</button>
-              <button data-rango="7">7 dias</button>
-              <button data-rango="mes">Este mes</button>
-              <button data-rango="" class="activa">Todas</button>
+            <!-- Un solo control: la pastilla dice que rango esta puesto y abre
+                 el calendario. Antes eran cinco botones, dos campos de fecha
+                 nativos y un desplegable compitiendo en la misma fila. -->
+            <div class="fecha-control">
+              <button class="pastilla-fecha" id="btnFecha" type="button" aria-haspopup="dialog" aria-expanded="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+                <span id="btnFechaTexto">Cualquier fecha</span>
+                <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              <button class="limpia-fecha" id="btnFechaLimpiar" type="button" title="Quitar el filtro de fecha" aria-label="Quitar el filtro de fecha" style="display:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+
+              <div class="pop-fecha" id="popFecha" role="dialog" aria-label="Elegir fechas">
+                <div class="pop-presets" id="fechaPresets">
+                  <button data-rango="hoy">Hoy</button>
+                  <button data-rango="ayer">Ayer</button>
+                  <button data-rango="7">Ultimos 7 dias</button>
+                  <button data-rango="30">Ultimos 30 dias</button>
+                  <button data-rango="mes">Este mes</button>
+                  <button data-rango="" class="activa">Cualquier fecha</button>
+                </div>
+                <div class="pop-cal">
+                  <div class="cal-cab">
+                    <button class="cal-nav" id="calPrev" type="button" aria-label="Mes anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+                    <span class="cal-mes" id="calMes"></span>
+                    <button class="cal-nav" id="calNext" type="button" aria-label="Mes siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+                  </div>
+                  <div class="cal-dias"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+                  <div class="cal-rejilla" id="calRejilla"></div>
+                  <p class="cal-pista" id="calPista">Toca un dia, o dos para un rango</p>
+                </div>
+                <div class="pop-pie">
+                  <span class="pop-pie-et">Filtrar por</span>
+                  <div class="segmentado" id="fCampoSeg">
+                    <button data-campo="movimiento" class="activa">Movimiento</button>
+                    <button data-campo="registro">Registro</button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <span class="filtros-sep"></span>
-            <label class="filtro-fecha" for="fDesde">Desde <input type="date" id="fDesde" /></label>
-            <label class="filtro-fecha" for="fHasta">Hasta <input type="date" id="fHasta" /></label>
-            <select id="fCampo" title="Sobre que fecha se filtra">
-              <option value="movimiento">Por ultimo movimiento</option>
-              <option value="registro">Por fecha de registro</option>
-            </select>
             <span class="filtros-resumen" id="fResumen"></span>
           </div>
         </div>
@@ -2195,53 +2303,173 @@
   }
 
   // ---------- Filtro por fecha ----------
-  // Las fechas se calculan en el navegador del usuario y se mandan como
-  // AAAA-MM-DD; el servidor las interpreta en horario de Mexico, para que lo
-  // escaneado por la tarde no aparezca como del dia siguiente.
+  // Un solo control. El estado vive aqui (no en inputs ocultos) y el
+  // calendario se dibuja a mano para que se vea igual en Windows, Mac y
+  // Android: los <input type="date"> nativos rompen la coherencia visual.
+  let fDesde = '';           // AAAA-MM-DD
+  let fHasta = '';
+  let fCampo = 'movimiento'; // movimiento | registro
+  let calMes = new Date();   // mes visible en el calendario
+  let calHover = '';         // dia bajo el cursor, para previsualizar el rango
+
   const isoLocal = (d) => {
     const x = new Date(d);
     return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
   };
+  const HOY_ISO = () => isoLocal(new Date());
+  const fechaLarga = (f) => new Date(f + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
+  const fechaCorta = (f) => new Date(f + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
 
-  function aplicarPreset(rango) {
-    const hoy = new Date();
-    if (rango === 'hoy') { $('fDesde').value = isoLocal(hoy); $('fHasta').value = isoLocal(hoy); }
-    else if (rango === 'ayer') {
-      const a = new Date(hoy); a.setDate(a.getDate() - 1);
-      $('fDesde').value = isoLocal(a); $('fHasta').value = isoLocal(a);
-    } else if (rango === '7') {
-      const a = new Date(hoy); a.setDate(a.getDate() - 6);
-      $('fDesde').value = isoLocal(a); $('fHasta').value = isoLocal(hoy);
-    } else if (rango === 'mes') {
-      $('fDesde').value = isoLocal(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
-      $('fHasta').value = isoLocal(hoy);
-    } else { $('fDesde').value = ''; $('fHasta').value = ''; }
-    document.querySelectorAll('#fechaPresets button').forEach((b) => b.classList.toggle('activa', b.dataset.rango === rango));
+  const PRESETS = {
+    hoy: () => [HOY_ISO(), HOY_ISO()],
+    ayer: () => { const a = new Date(); a.setDate(a.getDate() - 1); return [isoLocal(a), isoLocal(a)]; },
+    7: () => { const a = new Date(); a.setDate(a.getDate() - 6); return [isoLocal(a), HOY_ISO()]; },
+    30: () => { const a = new Date(); a.setDate(a.getDate() - 29); return [isoLocal(a), HOY_ISO()]; },
+    mes: () => { const h = new Date(); return [isoLocal(new Date(h.getFullYear(), h.getMonth(), 1)), HOY_ISO()]; },
+  };
+
+  // Nombre del rango: si coincide con un atajo se dice asi ("Hoy"), que es
+  // como lo piensa la persona, y si no se muestran las fechas.
+  function nombreRango() {
+    if (!fDesde && !fHasta) return 'Cualquier fecha';
+    for (const [clave, fn] of Object.entries(PRESETS)) {
+      const [d, h] = fn();
+      if (d === fDesde && h === fHasta) {
+        return { hoy: 'Hoy', ayer: 'Ayer', 7: 'Ultimos 7 dias', 30: 'Ultimos 30 dias', mes: 'Este mes' }[clave];
+      }
+    }
+    if (fDesde && fHasta && fDesde === fHasta) return fechaLarga(fDesde);
+    if (fDesde && fHasta) return `${fechaCorta(fDesde)} – ${fechaCorta(fHasta)}`;
+    return fDesde ? `Desde ${fechaCorta(fDesde)}` : `Hasta ${fechaCorta(fHasta)}`;
   }
 
-  // Si las fechas se escriben a mano, ningun preset queda marcado
-  function despintarPresets() {
-    document.querySelectorAll('#fechaPresets button').forEach((b) => b.classList.remove('activa'));
+  function pintarPastilla() {
+    const activo = !!(fDesde || fHasta);
+    $('btnFechaTexto').textContent = nombreRango();
+    $('btnFecha').classList.toggle('activa', activo);
+    $('btnFechaLimpiar').style.display = activo ? '' : 'none';
+    document.querySelectorAll('#fechaPresets button').forEach((b) => {
+      const p = PRESETS[b.dataset.rango];
+      const [d, h] = p ? p() : ['', ''];
+      b.classList.toggle('activa', d === fDesde && h === fHasta);
+    });
+    document.querySelectorAll('#fCampoSeg button').forEach((b) => b.classList.toggle('activa', b.dataset.campo === fCampo));
   }
 
+  // La rejilla se construye una sola vez por mes. El rango se pinta aparte,
+  // solo cambiando clases: si se redibujara en cada movimiento del cursor, el
+  // dia bajo el puntero se destruiria y volveria a crearse sin parar.
+  function pintarCalendario() {
+    $('calMes').textContent = calMes.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+    const anio = calMes.getFullYear(), mes = calMes.getMonth();
+    // La semana arranca en lunes, como en Mexico
+    const desplazamiento = (new Date(anio, mes, 1).getDay() + 6) % 7;
+    const diasMes = new Date(anio, mes + 1, 0).getDate();
+    const hoy = HOY_ISO();
+
+    let html = '';
+    for (let d = 1; d <= diasMes; d++) {
+      const iso = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const futuro = iso > hoy;
+      // El primer dia se coloca en la columna que le toca; asi no hacen falta
+      // celdas de relleno, que ademas deformaban el alto de la primera semana
+      const col = d === 1 ? ` style="grid-column-start:${desplazamiento + 1}"` : '';
+      html += `<button type="button" class="cal-dia${iso === hoy ? ' es-hoy' : ''}${futuro ? ' futuro' : ''}" data-iso="${iso}"${col} ${futuro ? 'disabled' : ''}><span>${d}</span></button>`;
+    }
+    $('calRejilla').innerHTML = html;
+
+    $('calRejilla').querySelectorAll('.cal-dia[data-iso]:not(.futuro)').forEach((b) => {
+      b.addEventListener('click', () => elegirDia(b.dataset.iso));
+      b.addEventListener('mouseenter', () => {
+        if (fDesde && !fHasta) { calHover = b.dataset.iso; marcarRango(); }
+      });
+    });
+    marcarRango();
+  }
+
+  function marcarRango() {
+    // Con un solo extremo elegido, el otro se previsualiza con el cursor
+    const previo = fDesde && !fHasta && calHover ? [fDesde, calHover].sort() : null;
+    const ini = previo ? previo[0] : fDesde;
+    const fin = previo ? previo[1] : fHasta;
+    $('calRejilla').querySelectorAll('.cal-dia[data-iso]').forEach((b) => {
+      const iso = b.dataset.iso;
+      b.classList.toggle('en-rango', !!(ini && fin && iso > ini && iso < fin));
+      b.classList.toggle('inicio', !!(ini && iso === ini));
+      b.classList.toggle('fin', !!((fin && iso === fin) || (ini && !fin && iso === ini)));
+    });
+    $('calPista').textContent = fDesde && !fHasta ? 'Elige el dia final del rango' : 'Toca un dia, o dos para un rango';
+  }
+
+  function elegirDia(iso) {
+    if (!fDesde || fHasta) { fDesde = iso; fHasta = ''; calHover = ''; }
+    else if (iso < fDesde) { fHasta = fDesde; fDesde = iso; }
+    else { fHasta = iso; }
+    pintarPastilla();
+    marcarRango();
+    // Se consulta cuando el rango esta completo, para no pedir dos veces
+    if (fDesde && fHasta) { cargarGuias(); cerrarFecha(); }
+  }
+
+  function abrirFecha() {
+    calMes = new Date((fHasta || fDesde || HOY_ISO()) + 'T12:00:00');
+    $('btnFecha').closest('.fecha-control').classList.add('abierta');
+    $('btnFecha').setAttribute('aria-expanded', 'true');
+    pintarCalendario();
+  }
+  function cerrarFecha() {
+    $('btnFecha').closest('.fecha-control').classList.remove('abierta');
+    $('btnFecha').setAttribute('aria-expanded', 'false');
+    calHover = '';
+  }
+  const fechaAbierta = () => $('btnFecha').closest('.fecha-control').classList.contains('abierta');
+
+  $('btnFecha').addEventListener('click', () => (fechaAbierta() ? cerrarFecha() : abrirFecha()));
+  $('btnFechaLimpiar').addEventListener('click', () => {
+    fDesde = fHasta = '';
+    pintarPastilla();
+    cargarGuias();
+  });
+  $('calPrev').addEventListener('click', () => { calMes.setMonth(calMes.getMonth() - 1); pintarCalendario(); });
+  $('calNext').addEventListener('click', () => { calMes.setMonth(calMes.getMonth() + 1); pintarCalendario(); });
   document.querySelectorAll('#fechaPresets button').forEach((b) =>
-    b.addEventListener('click', () => { aplicarPreset(b.dataset.rango); cargarGuias(); })
+    b.addEventListener('click', () => {
+      const p = PRESETS[b.dataset.rango];
+      [fDesde, fHasta] = p ? p() : ['', ''];
+      pintarPastilla();
+      cargarGuias();
+      cerrarFecha();
+    })
   );
-  ['fDesde', 'fHasta'].forEach((id) =>
-    $(id).addEventListener('change', () => { despintarPresets(); cargarGuias(); })
+  document.querySelectorAll('#fCampoSeg button').forEach((b) =>
+    b.addEventListener('click', () => { fCampo = b.dataset.campo; pintarPastilla(); cargarGuias(); })
   );
-  $('fCampo').addEventListener('change', () => cargarGuias());
+  // En fase de captura a proposito: al elegir un dia el calendario se
+  // redibuja, y para cuando el evento llegaria aqui por burbujeo el boton ya
+  // no esta en el DOM, closest() daria null y el panel se cerraria solo.
+  document.addEventListener('click', (e) => {
+    if (fechaAbierta() && !e.target.closest('.fecha-control')) cerrarFecha();
+  }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && fechaAbierta()) cerrarFecha(); });
 
-  function textoRango() {
-    const d = $('fDesde').value, h = $('fHasta').value;
-    const bonita = (f) => new Date(f + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
-    const campo = $('fCampo').value === 'registro' ? 'registradas' : 'con movimiento';
-    if (d && h && d === h) return `${campo} el ${bonita(d)}`;
-    if (d && h) return `${campo} del ${bonita(d)} al ${bonita(h)}`;
-    if (d) return `${campo} desde el ${bonita(d)}`;
-    if (h) return `${campo} hasta el ${bonita(h)}`;
-    return '';
+  // Resumen bajo los filtros, con la concordancia correcta en singular
+  function resumenFiltro(n) {
+    const guias = `<b>${n}</b> gu${n === 1 ? 'ía' : 'ías'}`;
+    if (!fDesde && !fHasta) return guias;
+    const criterio = fCampo === 'registro' ? (n === 1 ? 'registrada' : 'registradas') : 'con movimiento';
+    let cuando;
+    if (fDesde && fHasta && fDesde === fHasta) cuando = `el ${fechaLarga(fDesde)}`;
+    else if (fDesde && fHasta) cuando = `del ${fechaLarga(fDesde)} al ${fechaLarga(fHasta)}`;
+    else if (fDesde) cuando = `desde el ${fechaLarga(fDesde)}`;
+    else cuando = `hasta el ${fechaLarga(fHasta)}`;
+    return `${guias} ${criterio} ${cuando}`;
   }
+  function textoRango() {
+    if (!fDesde && !fHasta) return '';
+    return resumenFiltro(0).replace(/^<b>0<\/b> guías /, '');
+  }
+
+  pintarPastilla();
 
   async function cargarGuias() {
     const params = new URLSearchParams();
@@ -2255,13 +2483,12 @@
       params.set('plaza', plazaTab);
     }
     // El rango de fechas se aplica siempre, se busque o no por numero
-    if ($('fDesde').value) params.set('desde', $('fDesde').value);
-    if ($('fHasta').value) params.set('hasta', $('fHasta').value);
-    if ($('fCampo').value !== 'movimiento') params.set('campoFecha', $('fCampo').value);
+    if (fDesde) params.set('desde', fDesde);
+    if (fHasta) params.set('hasta', fHasta);
+    if (fCampo !== 'movimiento') params.set('campoFecha', fCampo);
     try {
       const data = await api('/api/guias?' + params);
-      const rango = textoRango();
-      $('fResumen').innerHTML = `<b>${data.length}</b> guia${data.length === 1 ? '' : 's'}${rango ? ' ' + esc(rango) : ''}`;
+      $('fResumen').innerHTML = resumenFiltro(data.length);
       $('tbodyGuias').innerHTML = data.length
         ? data.map((g) => `<tr class="clic" data-guia="${esc(g.numero_guia)}">
             <td><b>${esc(g.numero_guia)}</b>${g.complemento ? ` <span class="nota">+ ${esc(g.complemento)}</span>` : ''}<span class="solo-cel">${fmtFecha(g.actualizado_en)}</span></td>
