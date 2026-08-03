@@ -611,9 +611,69 @@
   .det-meta div { font-size: 0.85rem; }
   .det-meta .k { color: var(--tinta-3); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.09em; display: block; margin-bottom: 4px; font-weight: 650; }
   .det-acciones { display: flex; flex-wrap: wrap; gap: var(--e-2); margin-top: var(--e-5); }
-  #barcodeWrap { text-align: center; background: var(--superficie-2); border: 1px solid var(--linea); border-radius: var(--r-md); padding: var(--e-4); }
-  #barcodeWrap svg { max-width: 200px; }
-  #barcodeCompWrap { margin-top: var(--e-3); padding-top: var(--e-3); border-top: 1px solid var(--linea); }
+  /* La etiqueta de codigo de barras.
+     Se queda BLANCA en tema oscuro a proposito: un lector optico necesita
+     barras oscuras sobre fondo claro, asi que invertirla la volveria inutil.
+     Antes JsBarcode pintaba su propio rectangulo blanco solo detras de las
+     barras y el numero quedaba en una franja suelta; contra la tarjeta oscura
+     parecia un error de dibujo. Ahora la etiqueta es una tarjeta blanca
+     completa —como la que se pega en el paquete— y el numero lo escribimos
+     nosotros, no JsBarcode, para que use la tipografia del sistema. */
+  #barcodeWrap { display: flex; flex-direction: column; gap: var(--e-3); flex-shrink: 0; }
+  .etiqueta {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    background: #FFFFFF; border-radius: var(--r-md); padding: var(--e-3) var(--e-4) var(--e-2);
+    border: 1px solid var(--linea-fuerte); box-shadow: var(--e1);
+  }
+  .etiqueta-tit {
+    font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.14em;
+    font-weight: 700; color: #7B879E; align-self: flex-start;
+  }
+  .etiqueta svg { display: block; max-width: 100%; height: auto; }
+  .etiqueta-num {
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.82rem; font-weight: 650; letter-spacing: 0.16em; color: #0C1424;
+    /* El interletrado empuja el texto a la izquierda; se compensa para que
+       quede centrado bajo las barras */
+    text-indent: 0.16em;
+  }
+  /* En oscuro el blanco puro deslumbra: un borde mas marcado y una sombra
+     suave la asientan sin bajarle el contraste a las barras */
+  html[data-tema="oscuro"] .etiqueta {
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  }
+  /* ---------- Configuracion en dos columnas ----------
+     Izquierda: tu cuenta y los enlaces, que son textos cortos. Derecha: la
+     gestion de usuarios, que necesita ancho por la tabla. Antes las cinco
+     tarjetas se apilaban con anchos distintos (520 y 820 px) y dejaban un
+     borde derecho dentado que parecia sin terminar. */
+  #v-config { display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap: var(--e-4); align-items: start; }
+  .cfg-col { display: flex; flex-direction: column; gap: var(--e-4); min-width: 0; }
+  /* min-width:0 es obligatorio: por omision un elemento de rejilla no se
+     encoge por debajo de su contenido, y la tabla de usuarios ensanchaba la
+     columna hasta desbordar la pantalla en el celular */
+  #v-config > .card { margin: 0; min-width: 0; }
+  @media (max-width: 1080px) { #v-config { grid-template-columns: minmax(0, 1fr); } }
+
+  /* El desplegable de rol se cortaba: "Entregas a domicilio" no cabia y la
+     flecha se montaba encima del texto */
+  .sel-rol { width: 100%; min-width: 168px; }
+  #cardUsuarios td, #cardUsuarios th { vertical-align: middle; }
+
+  /* Acciones de fila como iconos: dos botones con texto ("Contraseña",
+     "Eliminar") se comian el ancho de la tabla y quedaban cortados. El titulo
+     y el aria-label dicen a que usuario aplican, asi que no se pierde claridad. */
+  .btn-fila {
+    width: 30px; height: 30px; border-radius: var(--r-sm); cursor: pointer;
+    border: 1px solid var(--linea-fuerte); background: var(--superficie);
+    color: var(--tinta-2); display: inline-flex; align-items: center; justify-content: center;
+    transition: all var(--transicion); margin-left: 4px; vertical-align: middle;
+  }
+  .btn-fila svg { width: 15px; height: 15px; }
+  .btn-fila:hover { border-color: var(--azul); color: var(--azul); background: var(--azul-tenue); }
+  .btn-fila.peligro:hover { border-color: var(--rojo); color: var(--rojo); background: var(--rojo-bg); }
+
   .volver { background: none; border: none; color: var(--tinta-2); font-size: 0.84rem; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: var(--e-4); font-family: inherit; display: inline-flex; align-items: center; gap: 5px; transition: color var(--transicion); }
   .volver:hover { color: var(--azul); }
 
@@ -1602,11 +1662,18 @@
               <button class="btn-peligro" id="btnEliminarGuia" style="display:none;">Eliminar guia</button>
             </div>
           </div>
+          <!-- Etiqueta fisica: se mantiene blanca en los dos temas porque un
+               codigo de barras invertido deja de ser escaneable -->
           <div id="barcodeWrap">
-            <svg id="barcode"></svg>
-            <div id="barcodeCompWrap" style="display:none">
-              <div class="nota" style="margin:10px 0 2px;">Complemento</div>
+            <div class="etiqueta">
+              <span class="etiqueta-tit">Guia</span>
+              <svg id="barcode"></svg>
+              <span class="etiqueta-num" id="barcodeNum"></span>
+            </div>
+            <div class="etiqueta" id="barcodeCompWrap" style="display:none">
+              <span class="etiqueta-tit">Complemento</span>
               <svg id="barcodeComp"></svg>
+              <span class="etiqueta-num" id="barcodeCompNum"></span>
             </div>
           </div>
         </div>
@@ -1656,8 +1723,13 @@
       </section>
 
       <!-- ============ Configuracion ============ -->
+      <!-- Dos columnas: a la izquierda lo tuyo (cuenta, contraseña, enlaces),
+           a la derecha la gestion de usuarios, que necesita mas ancho por la
+           tabla. Antes eran cinco tarjetas de anchos distintos apiladas, y el
+           borde derecho quedaba dentado. -->
       <section id="v-config" style="display:none">
-        <div class="card" style="max-width:520px;">
+        <div class="cfg-col">
+        <div class="card">
           <h2 class="titulo-card">Mi cuenta</h2>
           <p style="margin:0 0 4px;"><b id="cfgUsuario"></b></p>
           <p class="nota" id="cfgRol" style="margin:0;"></p>
@@ -1665,7 +1737,7 @@
           <p class="nota" style="margin-top:10px;">La plaza y el tipo de operacion se eligen en la pantalla de escaneo y quedan guardados en este navegador.</p>
         </div>
 
-        <div class="card" id="cardPassword" style="max-width:520px; display:none;">
+        <div class="card" id="cardPassword" style="display:none;">
           <h2 class="titulo-card">Cambiar mi contraseña</h2>
           <form id="formPassword">
             <label for="pwActual">Contraseña actual</label>
@@ -1679,7 +1751,23 @@
           </form>
         </div>
 
-        <div class="card" id="cardUsuarios" style="max-width:820px; display:none;">
+        <div class="card">
+          <h2 class="titulo-card">Pagina publica de rastreo</h2>
+          <p class="nota">Tus clientes pueden consultar su guia (sin iniciar sesion) en la pagina principal del sitio:<br /><a href="/" target="_blank" rel="noopener">Abrir pagina de rastreo</a></p>
+          <p class="nota">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
+        </div>
+
+        <!-- Esta tarjeta no aparece hasta que se activa el modo eliminacion con
+             el atajo; sin el, nada en pantalla revela que existe. -->
+        <div class="card" id="cardBorrar" style="display:none; border-color: var(--vino-borde);">
+          <h2 class="titulo-card" style="color: var(--vino);">Zona de peligro</h2>
+          <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
+          <div class="msg-form" id="msgBorrar"></div>
+          <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:12px;">Borrar todas las guias</button>
+        </div>
+        </div>
+
+        <div class="card" id="cardUsuarios" style="display:none;">
           <h2 class="titulo-card">Usuarios del sistema</h2>
           <div class="tabla-scroll">
             <table>
@@ -1722,20 +1810,6 @@
           </form>
         </div>
 
-        <div class="card" style="max-width:520px;">
-          <h2 class="titulo-card">Pagina publica de rastreo</h2>
-          <p class="nota">Tus clientes pueden consultar su guia (sin iniciar sesion) en la pagina principal del sitio:<br /><a href="/" target="_blank" rel="noopener">Abrir pagina de rastreo</a></p>
-          <p class="nota">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
-        </div>
-
-        <!-- Esta tarjeta no aparece hasta que se activa el modo eliminacion con
-             el atajo; sin el, nada en pantalla revela que existe. -->
-        <div class="card" id="cardBorrar" style="max-width:520px; display:none; border-color: var(--vino-borde);">
-          <h2 class="titulo-card" style="color: var(--vino);">Zona de peligro</h2>
-          <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
-          <div class="msg-form" id="msgBorrar"></div>
-          <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:12px;">Borrar todas las guias</button>
-        </div>
       </section>
 
     </div>
@@ -1848,6 +1922,10 @@
     COMPLEMENTO: 'Complemento',
     INGRESO: 'Ingreso',
   };
+
+  // Anotaciones de administrador: aparecen en el historial pero no son
+  // escaneos de nadie con una pistola
+  const ACCIONES_NO_ESCANEO = ['ESCANEO_REPETIDO', 'CORRECCION', 'CAMBIO_NUMERO', 'COMPLEMENTO'];
 
   // Color del punto de la linea de tiempo segun el tipo de movimiento
   const CLASE_EVENTO = {
@@ -2186,7 +2264,14 @@
     let ruta = location.hash.replace(/^#\/?/, '') || 'dashboard';
     let vista = ruta;
     let arg = null;
-    if (ruta.startsWith('guia/')) { vista = 'detalle'; arg = decodeURIComponent(ruta.slice(5)); }
+    if (ruta.startsWith('guia/')) {
+      vista = 'detalle';
+      // Una URL mal formada (por ejemplo "#/guia/%%%", que llega de un enlace
+      // roto o de alguien escribiendo a mano) hace que decodeURIComponent
+      // lance y deje el panel a medio pintar. Se toma el texto tal cual.
+      const crudo = ruta.slice(5);
+      try { arg = decodeURIComponent(crudo); } catch { arg = crudo; }
+    }
     if (ruta === 'escanear') { location.hash = '#/escanear-' + plaza.toLowerCase(); return; }
     if (ruta === 'escanear-mty' || ruta === 'escanear-cdmx') {
       const pedida = ruta === 'escanear-mty' ? 'MTY' : 'CDMX';
@@ -3368,7 +3453,13 @@
       $('detBadge').innerHTML = badge(d.estatus);
       $('detCreada').textContent = fmtFecha(d.creado_en);
       $('detActualizada').textContent = fmtFecha(d.actualizado_en);
-      $('detEscaneos').textContent = d.historial.length;
+      // Escaneos reales: no cuenta las notas administrativas (correccion,
+      // cambio de numero, complemento) ni los escaneos que se revirtieron.
+      // Antes decia "4 escaneos" en una guia que solo se habia escaneado dos
+      // veces, porque sumaba todo lo que hubiera en el historial.
+      $('detEscaneos').textContent = d.historial.filter(
+        (ev) => !ACCIONES_NO_ESCANEO.includes(ev.accion) && !ev.revertido
+      ).length;
       $('detCompWrap').style.display = d.complemento ? '' : 'none';
       $('detComplemento').textContent = d.complemento || '';
       $('detAnteriorWrap').style.display = d.numero_anterior ? '' : 'none';
@@ -3378,10 +3469,16 @@
       try {
         if (window.JsBarcode) {
           $('barcodeWrap').style.display = '';
-          JsBarcode('#barcode', d.numero_guia, { format: 'CODE128', height: 52, fontSize: 13, margin: 0 });
+          // displayValue: false — el numero lo escribimos nosotros debajo, con
+          // la tipografia del sistema. lineColor fijo: las barras no siguen el
+          // tema, tienen que ser oscuras sobre la etiqueta blanca.
+          const OPCIONES = { format: 'CODE128', height: 46, displayValue: false, margin: 0, background: '#FFFFFF', lineColor: '#0C1424' };
+          JsBarcode('#barcode', d.numero_guia, OPCIONES);
+          $('barcodeNum').textContent = d.numero_guia;
           if (d.complemento) {
             $('barcodeCompWrap').style.display = '';
-            JsBarcode('#barcodeComp', d.complemento, { format: 'CODE128', height: 52, fontSize: 13, margin: 0 });
+            JsBarcode('#barcodeComp', d.complemento, OPCIONES);
+            $('barcodeCompNum').textContent = d.complemento;
           } else {
             $('barcodeCompWrap').style.display = 'none';
           }
@@ -3650,6 +3747,10 @@
     }
   });
 
+  // Iconos de las acciones por fila de usuario
+  const ICO_LLAVE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.9 12.1L20 3M17 6l2.5 2.5M14 9l2.5 2.5"/></svg>';
+  const ICO_BOTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V5h5v2M6.5 7l1 13h9l1-13"/></svg>';
+
   async function cargarUsuarios() {
     try {
       const usuarios = await api('/api/usuarios');
@@ -3667,12 +3768,12 @@
         <td>${esc(u.nombre)}</td>
         <td>${u.id === usuarioActual.id
           ? esc(nombreRol(u.rol))
-          : `<select class="sel-rol" data-id="${u.id}" data-usuario="${esc(u.usuario)}" style="padding:6px 8px; font-size:0.82rem;">${opcionesRol(u.rol)}</select>`}</td>
+          : `<select class="sel-rol" data-id="${u.id}" data-usuario="${esc(u.usuario)}" style="padding:6px 26px 6px 9px; font-size:0.82rem;">${opcionesRol(u.rol)}</select>`}</td>
         <td><select class="sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}" style="padding:6px 8px; font-size:0.82rem;">${opcionesPlaza(u.plaza)}</select></td>
         <td style="text-align:right; white-space:nowrap;">${u.id === usuarioActual.id
           ? '<span class="nota">(tu)</span>'
-          : `<button class="btn-sec" data-reset="${u.id}" data-usuario="${esc(u.usuario)}">Contraseña</button>
-             <button class="btn-peligro" data-id="${u.id}" data-usuario="${esc(u.usuario)}">Eliminar</button>`}</td></tr>`).join('');
+          : `<button class="btn-fila" data-reset="${u.id}" data-usuario="${esc(u.usuario)}" title="Restablecer la contraseña de ${esc(u.usuario)}" aria-label="Restablecer contraseña de ${esc(u.usuario)}">${ICO_LLAVE}</button>
+             <button class="btn-fila peligro" data-id="${u.id}" data-usuario="${esc(u.usuario)}" title="Eliminar al usuario ${esc(u.usuario)}" aria-label="Eliminar al usuario ${esc(u.usuario)}">${ICO_BOTE}</button>`}</td></tr>`).join('');
       document.querySelectorAll('#tbodyUsuarios .sel-plaza').forEach((s) =>
         s.addEventListener('change', async () => {
           try {
@@ -3696,7 +3797,7 @@
           }
         })
       );
-      document.querySelectorAll('#tbodyUsuarios .btn-peligro').forEach((b) =>
+      document.querySelectorAll('#tbodyUsuarios button[data-id]').forEach((b) =>
         b.addEventListener('click', async () => {
           if (!confirm(`¿Eliminar al usuario "${b.dataset.usuario}"? Esta accion no se puede deshacer.`)) return;
           try {
@@ -3706,7 +3807,7 @@
           } catch (err2) { msgForm('msgUsuarios', err2.message, 'err'); }
         })
       );
-      document.querySelectorAll('#tbodyUsuarios .btn-sec').forEach((b) =>
+      document.querySelectorAll('#tbodyUsuarios button[data-reset]').forEach((b) =>
         b.addEventListener('click', async () => {
           const nueva = prompt(`Nueva contraseña para "${b.dataset.usuario}" (minimo 6 caracteres):`);
           if (nueva === null) return;

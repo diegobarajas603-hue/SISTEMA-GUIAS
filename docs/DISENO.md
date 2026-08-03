@@ -918,3 +918,94 @@ tres filas, las dos vias con su destino escrito, ausencia del renglon de KPI,
 **las cifras del mapa contrastadas contra `/api/guias/resumen`** (que el dibujo
 no se despegue del dato), y que tocar una cifra o una via abra Guias con la
 pestaña y el estatus correctos. Doce suites en verde.
+
+---
+
+## 26. Correcciones y endurecimiento
+
+Ronda de arreglos a partir de un reporte concreto (el codigo de barras se veia
+mal en tema oscuro) mas una auditoria de lo que podia tumbar el sistema.
+
+### 26.1 El codigo de barras en tema oscuro
+
+**El sintoma:** en oscuro aparecia un rectangulo blanco flotando dentro de la
+tarjeta, con el numero en una franja suelta. Parecia un error de dibujo.
+
+**La causa:** JsBarcode pinta su propio rectangulo blanco **solo detras de las
+barras** y escribe el numero en negro encima. Contra una tarjeta oscura, ese
+recorte blanco no tenia ninguna relacion con el resto de la caja.
+
+**Lo que NO se hizo:** invertir el codigo para que combinara con el tema
+oscuro. Un lector optico necesita barras oscuras sobre fondo claro; un codigo
+invertido se ve elegante y **deja de escanear**. La apariencia no manda sobre
+la funcion.
+
+**Lo que se hizo:** convertirla en lo que realmente es —una etiqueta fisica—.
+Tarjeta blanca completa en los dos temas, con su rotulo ("Guia",
+"Complemento"), las barras, y el numero escrito **por nosotros** con la
+tipografia del sistema (`displayValue: false`). En oscuro se le da un borde
+mas marcado y una sombra suave para que el blanco no deslumbre, sin bajarle el
+contraste a las barras.
+
+### 26.2 Tres defectos encontrados en la auditoria
+
+| Defecto | Consecuencia | Arreglo |
+|---|---|---|
+| `decodeURIComponent` sin proteger en el router | Una URL como `#/guia/%%%` lanzaba y dejaba el panel a medio pintar | Se intenta decodificar; si falla se usa el texto crudo |
+| El historial se ordenaba por `id`, no por fecha | Las notas administrativas se escriben con la fecha del momento, asi que la historia se leia salteada en el tiempo | `ORDER BY creado_en DESC, id DESC` |
+| "Escaneos" contaba notas de admin y escaneos revertidos | Una guia escaneada dos veces decia "4 escaneos" | Cuenta solo movimientos reales no revertidos |
+
+### 26.3 Que el sistema no se caiga
+
+- **Rechazos sin atrapar.** Desde Node 15 una promesa rechazada que nadie
+  atrapa **mata el proceso**. Aqui eso significa dejar sin escanear a las dos
+  plazas hasta que el hosting reinicie. Ahora se registra y el servidor sigue
+  vivo: perder una peticion es mucho menos grave que perder el servicio. Una
+  excepcion sin atrapar si sale (con codigo 1) para que el hosting levante una
+  instancia limpia, porque ahi el proceso queda en estado dudoso.
+- **Cuerpos gigantes.** `express.json({ limit: '256kb' })` y un `413` con
+  mensaje claro, en vez de dejar que una peticion enorme se coma la memoria.
+- **WhatsApp colgado.** La llamada a Meta no tenia limite de tiempo: una
+  respuesta que nunca llega dejaba la peticion viva para siempre. Ahora corta a
+  los 10 s y el fallo se registra sin afectar al escaneo ni al panel.
+
+Se comprobo ademas, con datos reales, que **no hay XSS**: se inyecto
+`<script>` y `<img onerror>` en los dos campos de texto libre que existen
+(motivo de la bitacora y nombre de usuario) y ambos se muestran como texto.
+
+### 26.4 Configuracion, reorganizada
+
+Eran cinco tarjetas apiladas con anchos distintos (520 px y 820 px), que
+dejaban un borde derecho dentado, y dos defectos visibles: el desplegable de
+rol cortaba "Entregas a domicilio" con la flecha encima del texto, y el boton
+"Eliminar" quedaba fuera de la tarjeta.
+
+Ahora son **dos columnas**: a la izquierda lo tuyo (cuenta, contraseña,
+enlaces, zona de peligro), a la derecha la gestion de usuarios, que es la que
+necesita ancho. Las acciones por fila pasaron a **botones de icono** (llave y
+bote) con `title` y `aria-label` que dicen a que usuario aplican: dos botones
+con texto se comian el ancho de la tabla.
+
+Detalle que costo un intento: en una rejilla, un elemento no se encoge por
+debajo de su contenido salvo que se le ponga `min-width: 0`. Sin eso la tabla
+de usuarios ensanchaba la columna y desbordaba la pantalla en el celular.
+
+### 26.5 Verificacion
+
+Dos suites nuevas:
+
+- **Caos** (24 comprobaciones): base recien instalada, rutas y guias que no
+  existen, sesion revocada en el servidor, token invalido guardado, la API
+  devolviendo 500 en todo, y respuestas con campos faltantes. En ningun caso
+  la pantalla queda en blanco ni se lanza una excepcion.
+- **Pulido** (33 comprobaciones): la etiqueta blanca y legible en los dos
+  temas, el numero contrastando, el historial cronologico contrastado contra
+  la API, el contador de escaneos, URL mal formadas, configuracion sin cortes
+  en tres anchos, y que los botones de icono de verdad restablezcan la
+  contraseña y borren al usuario.
+
+Ese ultimo detalle atrapo un error mientras se escribia: los `<select>` de rol
+y plaza tambien llevan `data-id`, asi que `[data-id]` enganchaba el manejador
+de borrado a los desplegables. Se acoto a `button[data-id]`.
+
+**Catorce suites en verde.**

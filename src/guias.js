@@ -148,7 +148,11 @@ async function obtenerHistorial(numeroGuia) {
     `SELECT e.accion, e.estatus, e.plaza, e.descripcion, e.revertido, e.usuario,
             COALESCE(u.nombre, e.usuario) AS operador, e.creado_en
        FROM eventos e LEFT JOIN usuarios u ON u.usuario = e.usuario
-      WHERE e.numero_guia = $1 ORDER BY e.id DESC`,
+      -- Por fecha, no por orden de insercion: las notas administrativas
+      -- (correcciones, complementos) se escriben con la fecha del momento,
+      -- asi que ordenar por id dejaba la historia salteada en el tiempo. El
+      -- id solo desempata cuando dos eventos caen en el mismo instante.
+      WHERE e.numero_guia = $1 ORDER BY e.creado_en DESC, e.id DESC`,
     [numeroGuia]
   );
   return rows;
@@ -659,7 +663,7 @@ async function listarEventos({ limit = 50 } = {}) {
     `SELECT e.numero_guia, e.accion, e.estatus, e.plaza, e.descripcion, e.revertido, e.usuario,
             COALESCE(u.nombre, e.usuario) AS operador, e.creado_en
        FROM eventos e LEFT JOIN usuarios u ON u.usuario = e.usuario
-      ORDER BY e.id DESC LIMIT $1`,
+      ORDER BY e.creado_en DESC, e.id DESC LIMIT $1`,
     [limit]
   );
   return rows;

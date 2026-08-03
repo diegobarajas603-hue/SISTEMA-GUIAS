@@ -7,11 +7,30 @@ const auth = require('./auth');
 const { mensajeEstatus } = require('./estatus');
 const { extraerNumeroGuia, enviarMensaje } = require('./whatsapp');
 
+// Red de seguridad del proceso.
+//
+// Desde Node 15, una promesa rechazada que nadie atrapa TUMBA el proceso. En
+// este sistema eso significa que un solo error raro deja sin escanear a toda
+// la operacion, en las dos plazas, hasta que el hosting lo reinicie. Se
+// registra el error y se sigue vivo: perder una peticion es mucho menos grave
+// que perder el servicio.
+process.on('unhandledRejection', (razon) => {
+  console.error('[grave] Promesa rechazada sin atrapar (el servidor sigue vivo):', razon);
+});
+
+// Una excepcion sin atrapar si deja el proceso en un estado dudoso: se
+// registra y se sale para que el hosting levante una instancia limpia.
+process.on('uncaughtException', (e) => {
+  console.error('[fatal] Excepcion sin atrapar, reiniciando:', e);
+  process.exit(1);
+});
+
 const app = express();
 // Detras del proxy del hosting (Railway): req.ip debe ser la IP real del
 // cliente, no la del proxy (la usa el limite de intentos de login)
 app.set('trust proxy', 1);
-app.use(express.json());
+// Un cuerpo enorme no debe poder agotar la memoria del servidor
+app.use(express.json({ limit: '256kb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // La raiz del sitio es la pagina publica de rastreo para clientes; el panel
@@ -379,6 +398,9 @@ app.post('/webhook/whatsapp', async (req, res) => {
 app.use((err, req, res, next) => {
   if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ error: 'El cuerpo de la peticion no es JSON valido' });
+  }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'El cuerpo de la peticion es demasiado grande' });
   }
   console.error('Error no controlado:', err);
   if (!res.headersSent) {
