@@ -281,3 +281,18 @@ si planeas enviar mensajes fuera de la ventana de 24 horas de respuesta.
 - El campo `numeroGuia` se normaliza a mayusculas.
 - El ciclo de ida y vuelta esta soportado: una guia en bodega puede volver a
   salir hacia la otra plaza y todo queda en el mismo historial.
+
+## Alcance de este repositorio
+
+Este repositorio contiene **unicamente** el sistema de guias: Node + Express +
+PostgreSQL, sin ninguna otra aplicacion adentro.
+
+El **control de herramientas** (la aplicacion web Node + React y su version
+anterior en PHP) vivio aqui un tiempo, en las carpetas `HERRAMIENTA/` y
+`herramientas-web/`. Ya no: es un proyecto distinto, con su propia base de
+datos MySQL y su propio despliegue, y ahora vive completo en su repositorio:
+
+**https://github.com/diegobarajas603-hue/control-herramientas**
+
+Se movio con su historial de git, asi que nada se perdio. Si buscas ese codigo,
+esta alla — la version en PHP quedo archivada en `legacy-php/`.
