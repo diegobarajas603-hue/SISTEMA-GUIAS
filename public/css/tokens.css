@@ -1,0 +1,200 @@
+/* ============================================================================
+   FLETES TAURO — TOKENS DE DISEÑO
+   Fuente unica de verdad. Ningun componente define valores propios.
+   ==========================================================================*/
+
+:root {
+  /* ---------- Superficies ---------- */
+  --bg-base:      #08090B;   /* fondo de la aplicacion */
+  --bg-surface:   #0E1013;   /* cards */
+  --bg-elevated:  #15181D;   /* popovers, dropdowns, hover de card */
+  --bg-inset:     #0A0B0E;   /* inputs, zonas hundidas */
+
+  /* ---------- Bordes ---------- */
+  --border-subtle:  rgba(255, 255, 255, 0.06);   /* separadores */
+  --border-default: rgba(255, 255, 255, 0.10);   /* bordes de card */
+  --border-strong:  rgba(255, 255, 255, 0.16);   /* hover / focus */
+
+  /* ---------- Texto ----------
+     Contraste verificado sobre --bg-surface (#0E1013):
+       primary   16.4:1    secondary  7.3:1    tertiary  4.9:1
+     Nota: --text-tertiary se aclaro de #666D78 (3.65:1, reprueba AA) a
+     #7B828D para cumplir el minimo AA 4.5:1 exigido en el brief. */
+  --text-primary:   #EDEEF0;
+  --text-secondary: #9BA1AA;
+  --text-tertiary:  #7B828D;
+  --text-disabled:  #4A5058;   /* solo elementos inactivos, nunca texto legible */
+
+  /* ---------- Acento ---------- */
+  --accent:         #3B82F6;
+  --accent-hover:   #2563EB;
+  --accent-subtle:  rgba(59, 130, 246, 0.10);   /* fondo de estado activo */
+  --accent-border:  rgba(59, 130, 246, 0.35);
+  --accent-ring:    rgba(59, 130, 246, 0.18);   /* ring de focus */
+  --accent-text:    #FFFFFF;
+
+  /* ---------- Semanticos de estatus ----------
+     Cada estatus expone 4 roles:
+       -color   punto, borde, trazo de grafica
+       -text    variante que cumple AA 4.5:1 sobre su propio fondo
+       -bg      fondo al 10%
+       -border  borde al 25% */
+
+  /* En transito — ambar */
+  --st-transito-color:  #D97757;
+  --st-transito-text:   #D97757;                    /* 5.5:1 */
+  --st-transito-bg:     rgba(217, 119, 87, 0.10);
+  --st-transito-border: rgba(217, 119, 87, 0.25);
+
+  /* En bodega — indigo */
+  --st-bodega-color:    #7C6BF0;
+  --st-bodega-text:     #8D7FF2;                    /* aclarado: #7C6BF0 daba 4.31:1 */
+  --st-bodega-bg:       rgba(124, 107, 240, 0.10);
+  --st-bodega-border:   rgba(124, 107, 240, 0.25);
+
+  /* En reparto — cyan */
+  --st-reparto-color:   #22A5C4;
+  --st-reparto-text:    #22A5C4;                    /* 5.8:1 */
+  --st-reparto-bg:      rgba(34, 165, 196, 0.10);
+  --st-reparto-border:  rgba(34, 165, 196, 0.25);
+
+  /* Entregado — verde */
+  --st-entregado-color:  #3FB950;
+  --st-entregado-text:   #3FB950;                   /* 6.6:1 */
+  --st-entregado-bg:     rgba(63, 185, 80, 0.10);
+  --st-entregado-border: rgba(63, 185, 80, 0.25);
+
+  /* Cancelada — ambar oscuro */
+  --st-cancelada-color:  #B08B3E;
+  --st-cancelada-text:   #B08B3E;                   /* 5.4:1 */
+  --st-cancelada-bg:     rgba(176, 139, 62, 0.10);
+  --st-cancelada-border: rgba(176, 139, 62, 0.25);
+
+  /* Eliminada — rojo */
+  --st-eliminada-color:  #E5484D;
+  --st-eliminada-text:   #EC5D62;                   /* aclarado: #E5484D daba 4.46:1 */
+  --st-eliminada-bg:     rgba(229, 72, 77, 0.10);
+  --st-eliminada-border: rgba(229, 72, 77, 0.25);
+
+  /* Neutro — para totales y estados sin color propio */
+  --st-neutro-color:   var(--text-secondary);
+  --st-neutro-text:    var(--text-secondary);
+  --st-neutro-bg:      rgba(255, 255, 255, 0.05);
+  --st-neutro-border:  var(--border-default);
+
+  /* ---------- Tipografia ---------- */
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system,
+               "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono",
+               Menlo, Consolas, monospace;
+
+  /* display — numeros KPI grandes */
+  --t-display-size: 32px;
+  --t-display-line: 36px;
+  --t-display-weight: 600;
+  --t-display-tracking: -0.02em;
+
+  /* h1 — titulo de pagina */
+  --t-h1-size: 20px;
+  --t-h1-line: 28px;
+  --t-h1-weight: 600;
+  --t-h1-tracking: -0.01em;
+
+  /* h2 — titulo de card */
+  --t-h2-size: 15px;
+  --t-h2-line: 20px;
+  --t-h2-weight: 600;
+
+  /* label — encabezados de seccion, labels de KPI */
+  --t-label-size: 11px;
+  --t-label-line: 16px;
+  --t-label-weight: 600;
+  --t-label-tracking: 0.08em;
+
+  /* body */
+  --t-body-size: 14px;
+  --t-body-line: 20px;
+  --t-body-weight: 400;
+
+  /* small — timestamps, metadata */
+  --t-small-size: 12px;
+  --t-small-line: 16px;
+  --t-small-weight: 400;
+
+  /* ---------- Espaciado — escala 4px ---------- */
+  --space-4:  4px;
+  --space-8:  8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+  --space-64: 64px;
+
+  --card-padding:    var(--space-20);   /* padding interno de card */
+  --card-gap:        var(--space-12);   /* gap entre cards */
+  --section-margin:  var(--space-32);   /* margen de seccion */
+
+  /* ---------- Radios ---------- */
+  --radius-sm:   6px;    /* badges pequeños, inputs pequeños */
+  --radius-md:   10px;   /* botones, inputs */
+  --radius-lg:   14px;   /* cards */
+  --radius-xl:   18px;   /* contenedores grandes, modales */
+  --radius-full: 999px;
+
+  /* ---------- Sombras — neutras, nunca de color ---------- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.30), 0 8px 24px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.32), 0 16px 48px rgba(0, 0, 0, 0.32);
+
+  /* Linea de luz superior — el detalle que hace que una card se vea cara */
+  --sheen:        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --sheen-strong: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
+  /* ---------- Capas de interaccion ---------- */
+  --overlay-hover:     rgba(255, 255, 255, 0.04);   /* hover de item de nav */
+  --overlay-row-hover: rgba(255, 255, 255, 0.03);   /* hover de fila de tabla */
+  --overlay-scrim:     rgba(5, 6, 8, 0.72);         /* fondo de modal */
+
+  /* Card destacada — metal, no plastico */
+  --card-featured-from:   #1E4FA8;
+  --card-featured-to:     #17325F;
+  --card-featured-border: var(--accent-border);
+
+  /* Skeleton */
+  --skeleton-from: rgba(255, 255, 255, 0.03);
+  --skeleton-to:   rgba(255, 255, 255, 0.06);
+
+  /* ---------- Alturas de control ----------
+     El espaciado vive en la escala de 4px; las alturas de control siguen las
+     medidas del brief (optica de control, no de layout). */
+  --h-chip:      30px;
+  --h-search:    34px;
+  --h-nav-item:  36px;
+  --h-control:   38px;   /* inputs, botones, pills de config */
+  --h-badge:     22px;
+  --h-row:       44px;   /* fila de tabla de guias */
+  --h-row-lg:    48px;   /* fila de tabla de usuarios */
+  --h-topbar:    56px;
+  --h-scan-pill: 40px;   /* pills grandes del modo escaner */
+
+  --w-sidebar:           240px;
+  --w-sidebar-collapsed: 64px;
+  --w-search:            420px;
+  --icon-sm: 14px;
+  --icon-md: 16px;
+  --icon-lg: 20px;
+
+  /* ---------- Movimiento ---------- */
+  --ease:   cubic-bezier(0.32, 0.72, 0, 1);
+  --t-fast:   120ms;   /* hover, color */
+  --t-normal: 200ms;   /* transform */
+  --t-slow:   320ms;   /* entrada de panel */
+
+  /* ---------- Capas ---------- */
+  --z-sticky:  20;
+  --z-toast:   60;
+  --z-overlay: 80;
+  --z-modal:   90;
+}

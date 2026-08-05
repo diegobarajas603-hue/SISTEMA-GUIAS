@@ -1,0 +1,263 @@
+/* ============================================================================
+   FLETES TAURO — BASE
+   Fuentes, reset, escala tipografica, focus y movimiento.
+   ==========================================================================*/
+
+/* ---------- Fuentes (self-host, sin dependencias externas) ---------- */
+
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2");
+}
+
+/* ---------- Reset ---------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-line);
+  font-weight: var(--t-body-weight);
+  /* Numeros tabulares en toda la app: las columnas de cifras nunca bailan */
+  font-feature-settings: "tnum" 1, "cv05" 1, "ss01" 1;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  font-feature-settings: inherit;
+  font-variant-numeric: inherit;
+  background: none;
+  border: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Escala tipografica ----------
+   Seis niveles. Nada intermedio. */
+
+.t-display {
+  font-size: var(--t-display-size);
+  line-height: var(--t-display-line);
+  font-weight: var(--t-display-weight);
+  letter-spacing: var(--t-display-tracking);
+  color: var(--text-primary);
+}
+
+.t-h1 {
+  font-size: var(--t-h1-size);
+  line-height: var(--t-h1-line);
+  font-weight: var(--t-h1-weight);
+  letter-spacing: var(--t-h1-tracking);
+  color: var(--text-primary);
+}
+
+.t-h2 {
+  font-size: var(--t-h2-size);
+  line-height: var(--t-h2-line);
+  font-weight: var(--t-h2-weight);
+  color: var(--text-primary);
+}
+
+.t-label {
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.t-body {
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-line);
+  font-weight: var(--t-body-weight);
+  color: var(--text-primary);
+}
+
+.t-small {
+  font-size: var(--t-small-size);
+  line-height: var(--t-small-line);
+  font-weight: var(--t-small-weight);
+  color: var(--text-tertiary);
+}
+
+/* Modificadores de color de texto */
+.t-secondary { color: var(--text-secondary); }
+.t-tertiary  { color: var(--text-tertiary); }
+.t-primary   { color: var(--text-primary); }
+
+/* Mono — SOLO numeros de guia y timestamps */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.num-guia {
+  font-family: var(--font-mono);
+  font-size: var(--t-h2-size);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+/* ---------- Focus ----------
+   Visible en TODO elemento interactivo. */
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Scrollbars ---------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+  background-clip: padding-box;
+}
+
+/* ---------- Seleccion ---------- */
+
+::selection {
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+}
+
+/* ---------- Utilidades minimas ---------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.stack   { display: flex; flex-direction: column; }
+.row     { display: flex; align-items: center; }
+.spacer  { flex: 1; }
+
+/* ---------- Movimiento reducido ----------
+   Se desactiva todo transform y toda animacion en loop. */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Los transform decorativos se anulan por completo, no solo se aceleran */
+  .btn:active,
+  .star.is-on,
+  .seg-thumb,
+  .toast,
+  .modal-panel {
+    transform: none !important;
+  }
+}
