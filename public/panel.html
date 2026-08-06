@@ -159,30 +159,34 @@
 
       <!-- ===================================================== Escanear -->
       <section id="v-escanear" style="display:none">
-        <div class="plaza-banner" id="plazaBanner">
-          <span>Estas escaneando en la plaza</span>
-          <b id="plazaBannerNombre"></b>
-        </div>
-        <div class="card">
-          <h2 class="titulo-card">Tipo de operacion</h2>
-          <div class="toggle" id="toggleModo">
-            <button data-modo="bodega">Bodega MTY &harr; CDMX</button>
-            <button data-modo="domicilio">Entrega a domicilio</button>
-            <button data-modo="ocurre">Ocurre (recoge en bodega)</button>
+        <div class="escaner" id="escaner">
+
+          <div class="escaner__bloque">
+            <span class="escaner__label">Plaza</span>
+            <div class="pills" id="pillsPlaza"></div>
           </div>
-          <label class="field" style="margin-top:var(--space-20)">
-            <span class="field__label">Numero de guia (escanea aqui)</span>
-            <input class="input" type="text" id="guia" autocomplete="off"
-                   placeholder="Escanea o escribe el numero de guia"
-                   style="height:52px; font-size:18px" />
-          </label>
-          <p class="nota" style="margin-top:var(--space-8)">El sistema detecta solo si el escaneo es salida, llegada, ruta de entrega o entrega, segun el estado de la guia.</p>
+
+          <div class="escaner__bloque">
+            <span class="escaner__label">Tipo de operacion</span>
+            <div class="pills" id="toggleModo">
+              <button class="pill" data-modo="bodega" aria-pressed="false">Bodega MTY &harr; CDMX</button>
+              <button class="pill" data-modo="domicilio" aria-pressed="false">Entrega a domicilio</button>
+              <button class="pill" data-modo="ocurre" aria-pressed="false">Ocurre (recoge en bodega)</button>
+            </div>
+          </div>
+
+          <div class="captura-wrap">
+            <span class="escaner__listo"><span class="dot"></span>Listo para escanear</span>
+            <input class="captura" type="text" id="guia" autocomplete="off"
+                   autocapitalize="characters" spellcheck="false"
+                   placeholder="Escanea el numero de guia"
+                   aria-label="Numero de guia" />
+          </div>
+
+          <div class="escaner__resultado" id="resultado" aria-live="polite"></div>
+          <div class="recientes" id="log"></div>
+
         </div>
-        <div class="resultado" id="resultado">
-          <h3 id="resTitulo"></h3>
-          <p id="resDetalle"></p>
-        </div>
-        <div id="log"></div>
       </section>
 
       <!-- ======================================================== Guias -->
@@ -442,18 +446,50 @@
   // ---------- Estado persistido ----------
   let plaza = localStorage.getItem('plaza') || 'MTY';
   let modo = localStorage.getItem('modo') || 'bodega';
+  let vistaActual = '';   // la fija el router; el escaner la consulta para el foco
+
+  // La sesion se declara aqui, antes que nada la use: setPlaza() corre al
+  // cargar el script y pinta las pills de plaza, que consultan usuarioActual.
+  let sesionToken = localStorage.getItem('sesionToken') || '';
+  let usuarioActual = null;
+
+  const NOMBRE_PLAZA = { MTY: 'Monterrey', CDMX: 'Ciudad de Mexico' };
 
   function setPlaza(p) {
     plaza = p;
     localStorage.setItem('plaza', p);
-    $('plazaBannerNombre').textContent = p === 'MTY' ? 'Monterrey' : 'Ciudad de Mexico';
     $('plazaPie').querySelector('span:last-child').textContent = p;
+    pintarPillsPlaza();
   }
+
+  // Pills de plaza: un usuario con plaza asignada solo ve la suya, igual que
+  // en el sidebar. El servidor rechaza cualquier escaneo en la otra plaza.
+  function pintarPillsPlaza() {
+    const plazaUsuario = usuarioActual && usuarioActual.plaza;
+    const opciones = plazaUsuario ? [plazaUsuario] : ['MTY', 'CDMX'];
+    $('pillsPlaza').innerHTML = opciones.map((p) =>
+      `<button class="pill" data-plaza="${p}" aria-pressed="${p === plaza}">${NOMBRE_PLAZA[p]} &middot; ${p}</button>`
+    ).join('');
+    $('pillsPlaza').querySelectorAll('[data-plaza]').forEach((b) =>
+      b.addEventListener('click', () => {
+        // Pasa por el router para que la ruta y el titulo queden consistentes
+        location.hash = '#/escanear-' + b.dataset.plaza.toLowerCase();
+        enfocarCaptura();
+      })
+    );
+  }
+
   function pintarToggles() {
-    document.querySelectorAll('#toggleModo button').forEach((b) => b.classList.toggle('activa', b.dataset.modo === modo));
+    document.querySelectorAll('#toggleModo .pill')
+      .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.modo === modo)));
   }
-  document.querySelectorAll('#toggleModo button').forEach((b) =>
-    b.addEventListener('click', () => { modo = b.dataset.modo; localStorage.setItem('modo', modo); pintarToggles(); $('guia').focus(); })
+  document.querySelectorAll('#toggleModo .pill').forEach((b) =>
+    b.addEventListener('click', () => {
+      modo = b.dataset.modo;
+      localStorage.setItem('modo', modo);
+      pintarToggles();
+      enfocarCaptura();
+    })
   );
   setPlaza(plaza);
   pintarToggles();
@@ -494,9 +530,6 @@
   $('btnIrEscanear').addEventListener('click', () => { location.hash = '#/escanear'; });
 
   // ---------- Sesion ----------
-  let sesionToken = localStorage.getItem('sesionToken') || '';
-  let usuarioActual = null;
-
   function pintarUsuario() {
     if (!usuarioActual) return;
     const esAdmin = usuarioActual.rol === 'admin';
@@ -523,6 +556,7 @@
     document.querySelector('[data-ruta="escanear-cdmx"]').style.display =
       !plazaUsuario || plazaUsuario === 'CDMX' ? '' : 'none';
     if (plazaUsuario) setPlaza(plazaUsuario);
+    else pintarPillsPlaza();
   }
 
   function mostrarLogin(mensaje) {
@@ -611,6 +645,7 @@
       setPlaza(pedida);
     }
     if (!VISTAS.includes(vista)) { vista = 'dashboard'; }
+    vistaActual = vista;
 
     const navRuta = vista === 'detalle' ? 'guias' : vista === 'escanear' ? 'escanear-' + plaza.toLowerCase() : vista;
     VISTAS.forEach((v) => ($('v-' + v).style.display = v === vista ? '' : 'none'));
@@ -623,7 +658,7 @@
     if (vista === 'eventos') cargarEventos();
     if (vista === 'bitacora') cargarBitacora();
     if (vista === 'detalle') cargarDetalle(arg);
-    if (vista === 'escanear') setTimeout(() => $('guia').focus(), 50);
+    if (vista === 'escanear') setTimeout(enfocarCaptura, 50);
     if (vista === 'config') cargarConfig();
   }
   window.addEventListener('hashchange', render);
@@ -863,42 +898,92 @@
   }
 
   // ---------- Escanear ----------
-  let timerResultado;
-  function mostrarResultado(tipo, titulo, detalle) {
-    const r = $('resultado');
-    r.className = 'resultado r-' + tipo;
-    $('resTitulo').textContent = titulo;
-    $('resDetalle').textContent = detalle;
-    // El estatus y la lista de movimientos se borran solos a los 30 segundos
-    clearTimeout(timerResultado);
-    timerResultado = setTimeout(() => {
-      r.className = 'resultado';
-      $('log').innerHTML = '';
-    }, 30000);
+  // El input de captura nunca pierde el foco por accidente: la pistola
+  // escribe ahi. Solo se respeta el blur cuando el usuario va a proposito
+  // hacia otro control (relatedTarget) o cuando hay un modal abierto.
+  function enfocarCaptura() {
+    if (vistaActual !== 'escanear') return;
+    if (document.querySelector('.modal-scrim')) return;
+    $('guia').focus();
   }
 
-  function logRow(texto, clase) {
+  $('guia').addEventListener('blur', (e) => {
+    if (e.relatedTarget && e.relatedTarget !== document.body) return;
+    setTimeout(enfocarCaptura, 0);
+  });
+  window.addEventListener('focus', enfocarCaptura);
+  $('escaner').addEventListener('click', (e) => {
+    if (e.target.closest('button, a, input')) return;
+    enfocarCaptura();
+  });
+
+  const TITULO_TIPO = {
+    salida: 'Salida registrada',
+    llegada: 'Llegada registrada',
+    ruta: 'Salio a ruta de entrega',
+    entregado: 'Entrega confirmada',
+    repetido: 'Escaneo repetido',
+  };
+
+  let timerResultado;
+  let timerLimpieza;
+
+  function mostrarResultado(html, kind) {
+    const r = $('resultado');
+    r.innerHTML = html;
+    // Flash de 300 ms de la zona de captura al color del resultado
+    const cap = $('guia');
+    cap.classList.remove('flash', 'sacudir', 'flash--transito', 'flash--bodega',
+                         'flash--reparto', 'flash--entregado', 'flash--neutro', 'flash--error');
+    void cap.offsetWidth;   // reinicia la animacion
+    cap.classList.add(kind === 'error' ? 'sacudir' : 'flash', 'flash--' + kind);
+
+    // La card se autodescarta a los 4 s, al ritmo de su barra de progreso
+    clearTimeout(timerResultado);
+    timerResultado = setTimeout(() => { r.innerHTML = ''; }, 4000);
+
+    // La lista de movimientos se sigue limpiando sola a los 30 s, como antes
+    clearTimeout(timerLimpieza);
+    timerLimpieza = setTimeout(() => { $('log').innerHTML = ''; }, 30000);
+  }
+
+  function cardResultado(numeroGuia, estatus, accion, kind) {
+    return `<div class="resultado-card resultado-card--${kind}">
+      <div class="resultado-card__top">
+        <span class="resultado-card__guia">${esc(numeroGuia)}</span>
+        ${estatus ? badge(estatus, { lg: true }) : ''}
+      </div>
+      <div class="resultado-card__accion">${esc(accion)}</div>
+      <span class="resultado-card__barra"></span>
+    </div>`;
+  }
+
+  function logRow(numeroGuia, texto) {
     const div = document.createElement('div');
-    div.className = 'log-row ' + clase;
-    const hora = new Date().toLocaleTimeString('es-MX', { hour12: false });
-    div.innerHTML = `<span></span><span class="hora">${hora}</span>`;
-    div.firstChild.textContent = texto;
+    div.className = 'reciente';
+    div.innerHTML = `<span class="reciente__guia"></span><span class="reciente__txt"></span>
+                     <span class="reciente__hora">${new Date().toLocaleTimeString('es-MX', { hour12: false })}</span>`;
+    div.children[0].textContent = numeroGuia;
+    div.children[1].textContent = texto;
     $('log').prepend(div);
-    // Solo se conservan los ultimos 4 movimientos en pantalla
-    while ($('log').children.length > 4) $('log').lastChild.remove();
+    // Solo se conservan los ultimos 5 escaneos en pantalla
+    while ($('log').children.length > 5) $('log').lastChild.remove();
   }
 
   async function escanear(numeroGuia) {
     try {
       const data = await api('/api/guias/escanear', { method: 'POST', body: JSON.stringify({ numeroGuia, plaza, modo }) });
-      const titulos = { salida: 'Salida registrada', llegada: 'Llegada registrada', ruta: 'En ruta de entrega', entregado: 'Entregado', repetido: 'Escaneo repetido' };
-      const clases = { salida: 'warn', llegada: 'ok', ruta: 'warn', entregado: 'ok', repetido: 'warn' };
-      mostrarResultado(data.tipo, `${numeroGuia} - ${titulos[data.tipo] || data.tipo}`, data.mensaje);
-      logRow(`${numeroGuia}: ${data.mensaje}`, clases[data.tipo] || 'ok');
+      const estatus = data.guia && data.guia.estatus;
+      const kind = data.tipo === 'repetido' ? 'neutro' : UI.statusKind(estatus);
+      mostrarResultado(
+        cardResultado(numeroGuia, estatus, TITULO_TIPO[data.tipo] || data.mensaje, kind),
+        kind
+      );
+      logRow(numeroGuia, data.mensaje);
       beep(data.tipo === 'repetido' ? 'warn' : 'ok');
     } catch (e) {
-      mostrarResultado('error', `${numeroGuia} - Error`, e.message);
-      logRow(`${numeroGuia}: ${e.message}`, 'err');
+      mostrarResultado(cardResultado(numeroGuia, null, e.message, 'error'), 'error');
+      logRow(numeroGuia, e.message);
       beep('err');
     }
   }

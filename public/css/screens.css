@@ -400,125 +400,302 @@ button.plaza-fila:hover {
 }
 
 /* ============================================================================
-   [PUENTE] ESCANEAR — se reemplaza en el Paso 7
+   MODO ESCANER
+   Se opera a 1-2 metros, en bodega y a veces con guantes: todo crece y el
+   contraste sube. Nada aqui debe requerir puntería.
    ==========================================================================*/
 
-.plaza-banner {
+.escaner {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-12);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm), var(--sheen);
-  padding: var(--space-16) var(--space-20);
-  margin-bottom: var(--card-gap);
+  gap: var(--space-24);
+  padding-top: var(--space-16);
+}
+
+.escaner__bloque {
+  width: 100%;
+  max-width: 640px;
+}
+
+.escaner__label {
+  display: block;
+  margin-bottom: var(--space-8);
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
   color: var(--text-secondary);
-  font-size: var(--t-body-size);
 }
 
-.plaza-banner b {
-  font-size: var(--t-h1-size);
-  letter-spacing: 0.06em;
-  color: var(--text-primary);
-}
+/* ---------- Pills grandes de plaza y de modo ---------- */
 
-.toggle {
+.pills {
   display: flex;
   gap: var(--space-8);
   flex-wrap: wrap;
 }
 
-.toggle button {
+.pill {
   flex: 1;
-  min-width: 140px;
+  min-width: 120px;
   height: var(--h-scan-pill);
-  padding: 0 var(--space-12);
+  padding: 0 var(--space-16);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  background: var(--bg-inset);
+  background: var(--bg-surface);
   color: var(--text-secondary);
-  font-weight: 500;
   font-size: var(--t-body-size);
+  font-weight: 600;
+  white-space: nowrap;
   transition: background-color var(--t-fast) var(--ease),
               border-color var(--t-fast) var(--ease),
               color var(--t-fast) var(--ease);
 }
 
-.toggle button:hover {
+.pill:hover {
   border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
-.toggle button.activa {
+.pill[aria-pressed="true"] {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-text);
   box-shadow: var(--shadow-md);
 }
 
-.resultado {
-  display: none;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-default);
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-sm), var(--sheen);
-  padding: var(--space-20);
-  margin: var(--card-gap) 0;
+/* ---------- Zona de captura ---------- */
+
+.captura-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
 }
 
-.resultado h3 {
-  font-size: var(--t-h2-size);
-  line-height: var(--t-h2-line);
-  font-weight: 600;
+.captura {
+  width: 100%;
+  height: 140px;
+  padding: 0 var(--space-24);
+  background: var(--bg-surface);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 0 0 6px var(--accent-subtle);
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-align: center;
   color: var(--text-primary);
-  margin-bottom: var(--space-4);
+  transition: border-color var(--t-fast) var(--ease),
+              box-shadow var(--t-fast) var(--ease),
+              background-color var(--t-fast) var(--ease);
 }
 
-.resultado p {
-  font-size: 13px;
-  line-height: var(--t-body-line);
+.captura::placeholder {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: normal;
   color: var(--text-secondary);
 }
 
-.r-salida,
-.r-llegada,
-.r-ruta,
-.r-entregado,
-.r-repetido,
-.r-error { display: block; }
+.captura:focus,
+.captura:focus-visible {
+  outline: none;
+}
 
-.r-salida    { border-color: var(--st-transito-border);  background: var(--st-transito-bg); }
-.r-llegada   { border-color: var(--st-bodega-border);    background: var(--st-bodega-bg); }
-.r-ruta      { border-color: var(--st-reparto-border);   background: var(--st-reparto-bg); }
-.r-entregado { border-color: var(--st-entregado-border); background: var(--st-entregado-bg); }
-.r-repetido  { border-color: var(--border-default);      background: var(--bg-elevated); }
-.r-error     { border-color: var(--st-eliminada-border); background: var(--st-eliminada-bg); }
+/* Flash de 300 ms al color del estatus resultante */
+.captura.flash {
+  animation: flash-captura 300ms var(--ease);
+}
 
-.log-row {
+.captura.flash--transito  { --flash: var(--st-transito-color);  --flash-bg: var(--st-transito-bg); }
+.captura.flash--bodega    { --flash: var(--st-bodega-color);    --flash-bg: var(--st-bodega-bg); }
+.captura.flash--reparto   { --flash: var(--st-reparto-color);   --flash-bg: var(--st-reparto-bg); }
+.captura.flash--entregado { --flash: var(--st-entregado-color); --flash-bg: var(--st-entregado-bg); }
+.captura.flash--neutro    { --flash: var(--st-cancelada-color); --flash-bg: var(--st-cancelada-bg); }
+.captura.flash--error     { --flash: var(--st-eliminada-color); --flash-bg: var(--st-eliminada-bg); }
+
+@keyframes flash-captura {
+  0%, 60% {
+    border-color: var(--flash);
+    background-color: var(--flash-bg);
+    box-shadow: 0 0 0 6px var(--flash-bg);
+  }
+  100% {
+    border-color: var(--accent);
+    background-color: var(--bg-surface);
+    box-shadow: 0 0 0 6px var(--accent-subtle);
+  }
+}
+
+/* Error: ademas del flash rojo, sacudida horizontal de 3px */
+.captura.sacudir {
+  animation: flash-captura 300ms var(--ease), sacudir 300ms var(--ease);
+}
+
+@keyframes sacudir {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-3px); }
+  40%      { transform: translateX(3px); }
+  60%      { transform: translateX(-3px); }
+  80%      { transform: translateX(3px); }
+}
+
+/* ---------- Indicador de listo ---------- */
+
+.escaner__listo {
+  position: absolute;
+  right: var(--space-16);
+  top: calc(var(--space-16) * -1 - 4px);
   display: flex;
-  justify-content: space-between;
-  gap: var(--space-12);
-  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.escaner__listo .dot {
+  width: 8px;
+  height: 8px;
+  background: var(--st-entregado-color);
+}
+
+/* ---------- Card de resultado ----------
+   El contenedor necesita ancho propio: dentro de un flex con align-items
+   center no se estira, y la card acabaria midiendo lo que su contenido. */
+
+.escaner__resultado {
+  width: 100%;
+  max-width: 640px;
+}
+
+.resultado-card {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  padding: var(--space-24);
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-left: 3px solid var(--st-neutro-color);
-  border-radius: var(--radius-md);
-  padding: var(--space-12) var(--space-16);
-  margin-bottom: var(--space-8);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md), var(--sheen);
+  overflow: hidden;
+  animation: resultado-entra var(--t-normal) var(--ease);
+}
+
+.resultado-card--transito  { border-color: var(--st-transito-border); }
+.resultado-card--bodega    { border-color: var(--st-bodega-border); }
+.resultado-card--reparto   { border-color: var(--st-reparto-border); }
+.resultado-card--entregado { border-color: var(--st-entregado-border); }
+.resultado-card--error     { border-color: var(--st-eliminada-border); }
+
+@keyframes resultado-entra {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.resultado-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-12);
+}
+
+.resultado-card__guia {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.resultado-card__accion {
+  font-size: 16px;
+  line-height: 22px;
+  color: var(--text-secondary);
+}
+
+/* Barra de progreso del autodescarte */
+.resultado-card__barra {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  animation: consumir 4s linear forwards;
+}
+
+.resultado-card--error .resultado-card__barra { background: var(--st-eliminada-color); }
+
+@keyframes consumir {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* ---------- Ultimos escaneos ---------- */
+
+.recientes {
+  width: 100%;
+  max-width: 640px;
+}
+
+.reciente {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--border-subtle);
   font-size: 13px;
   color: var(--text-secondary);
 }
 
-.log-row.ok   { border-left-color: var(--st-entregado-color); }
-.log-row.warn { border-left-color: var(--st-transito-color); }
-.log-row.err  { border-left-color: var(--st-eliminada-color); }
+.reciente:last-child { border-bottom: 0; }
 
-.log-row .hora {
+/* Opacidad decreciente: lo mas viejo se apaga */
+.reciente:nth-child(1) { opacity: 1; }
+.reciente:nth-child(2) { opacity: 0.8; }
+.reciente:nth-child(3) { opacity: 0.62; }
+.reciente:nth-child(4) { opacity: 0.46; }
+.reciente:nth-child(5) { opacity: 0.32; }
+
+.reciente__guia {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.reciente__txt {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reciente__hora {
   font-family: var(--font-mono);
   font-size: var(--t-label-size);
   color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .captura.flash,
+  .captura.sacudir,
+  .resultado-card { animation: none; }
+  .resultado-card__barra { animation: consumir 4s linear forwards; }
+}
+
+/* Tablet: la zona de captura se adapta sin perder tamaño de toque */
+@media (max-width: 700px) {
+  .captura { height: 120px; font-size: 22px; }
+  .pill { min-width: 100px; }
 }
 
 /* ============================================================================
