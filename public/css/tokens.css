@@ -236,9 +236,11 @@
   --z-overlay: 80;
   --z-modal:   90;
 
-  /* El wordmark de la marca es negro sobre transparente: en oscuro se le
-     invierte la luminancia conservando el tono; en claro va tal cual. */
-  --logo-filter: invert(1) hue-rotate(180deg);
+  /* El logo es un SVG de dos tintas (#0A0A0A y el rojo de marca #C21112).
+     En vez de filtrarlo para el tema oscuro —invert + hue-rotate degradaba
+     el rojo a un rosa lavado— hay una variante donde solo el negro pasa a
+     blanco y el rojo se conserva exacto. */
+  --logo-url: url("/logo-tauro-dark.svg");
 }
 
 /* ============================================================================
@@ -352,6 +354,6 @@
   --avatar-bg:   hsl(var(--avatar-h, 220) 44% 87%);
   --avatar-text: #1B1F26;
 
-  /* El wordmark ya es oscuro: en claro se usa sin tocar */
-  --logo-filter: none;
+  /* En claro se usa el logo original, sin tocar */
+  --logo-url: url("/logo-tauro.svg");
 }
