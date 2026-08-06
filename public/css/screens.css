@@ -522,87 +522,295 @@ button.plaza-fila:hover {
 }
 
 /* ============================================================================
-   [PUENTE] GUIAS — se reemplaza en el Paso 5
+   GUIAS
    ==========================================================================*/
 
-.ptabs {
+.guias-head {
   display: flex;
-  gap: var(--space-8);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
   margin-bottom: var(--card-gap);
-}
-
-.ptabs button {
-  min-width: 96px;
-  height: var(--h-control);
-  padding: 0 var(--space-16);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-inset);
-  color: var(--text-secondary);
-  font-weight: 500;
-  font-size: var(--t-body-size);
-  transition: background-color var(--t-fast) var(--ease),
-              border-color var(--t-fast) var(--ease),
-              color var(--t-fast) var(--ease);
-}
-
-.ptabs button:hover {
-  border-color: var(--border-strong);
-  color: var(--text-primary);
-}
-
-.ptabs button.activa {
-  background: var(--accent-subtle);
-  border-color: var(--accent-border);
-  color: var(--text-primary);
-}
-
-.chips {
-  display: flex;
-  gap: var(--space-8);
   flex-wrap: wrap;
+}
+
+/* ---------- Tarjetas de resumen (mas compactas que las del dashboard) ------ */
+
+.resumen-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-8);
   margin-bottom: var(--card-gap);
 }
 
-.chipf {
-  display: inline-flex;
+.resumen-card {
+  display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-4);
+  padding: 14px;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-8) var(--space-16);
-  font-size: var(--t-label-size);
-  line-height: var(--t-label-line);
-  letter-spacing: var(--t-label-tracking);
-  text-transform: uppercase;
-  color: var(--text-secondary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm), var(--sheen);
   text-align: left;
   transition: border-color var(--t-fast) var(--ease),
               background-color var(--t-fast) var(--ease);
 }
 
-.chipf:hover {
+.resumen-card:hover {
   border-color: var(--border-strong);
 }
 
-.chipf b {
-  display: block;
+.resumen-card.is-active {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+}
+
+.resumen-card__num {
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.resumen-card__txt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* ---------- Barra de filtros: dos filas separadas por un borde ---------- */
+
+.filtros {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm), var(--sheen);
+  margin-bottom: var(--card-gap);
+}
+
+.filtros__fila {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-16);
+  flex-wrap: wrap;
+}
+
+.filtros__fila + .filtros__fila {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.filtros__contador {
+  font-size: var(--t-small-size);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.filtros__contador b {
   font-family: var(--font-mono);
-  font-size: var(--t-h1-size);
   font-weight: 500;
-  letter-spacing: 0;
+  color: var(--text-secondary);
+}
+
+/* ---------- Toggle lista / cuadricula ---------- */
+
+.vista-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.vista-toggle button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-24);
+  height: var(--space-24);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  transition: background-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease);
+}
+
+.vista-toggle button:hover {
+  color: var(--text-secondary);
+}
+
+.vista-toggle button[aria-pressed="true"] {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.vista-toggle svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+/* ---------- Vista lista: tabla real, header sticky ----------
+   La tabla va suelta sobre el fondo de la pagina, no dentro de una card:
+   cualquier ancestro con overflow hidden/auto convierte al contenedor en el
+   contexto de scroll y position:sticky deja de pegarse al viewport. */
+
+.guias-tabla-wrap {
+  padding-bottom: var(--space-8);
+}
+
+.guias-tabla thead th {
+  position: sticky;
+  top: var(--h-topbar);
+  z-index: 1;
+  /* Opaco y del color de la pagina: las filas pasan por debajo sin verse */
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.guias-tabla td {
+  height: var(--h-row);
+}
+
+@media (max-width: 900px) {
+  .guias-tabla-wrap { overflow-x: auto; }
+  .guias-tabla thead th { position: static; }
+}
+
+.celda-acciones {
+  width: 72px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ruta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ruta svg {
+  width: 12px;
+  height: 12px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ---------- Estrella de favorita ---------- */
+
+.star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-24);
+  height: var(--space-24);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  transition: color var(--t-fast) var(--ease);
+}
+
+.star svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.star:hover {
+  color: var(--text-secondary);
+}
+
+.star.is-on {
+  color: var(--star);
+}
+
+.star.is-on svg {
+  fill: currentColor;
+}
+
+/* Micro-escala al activarse */
+.star.just-on svg {
+  animation: star-pop var(--t-normal) var(--ease);
+}
+
+@keyframes star-pop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- Vista cuadricula: card de guia ---------- */
+
+.guias-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-8);
+}
+
+.guia-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-16);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm), var(--sheen);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease),
+              background-color var(--t-fast) var(--ease);
+}
+
+.guia-card:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+}
+
+.guia-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.guia-card__num {
+  font-family: var(--font-mono);
+  font-size: var(--t-h2-size);
+  font-weight: 500;
+  letter-spacing: 0.02em;
   color: var(--text-primary);
 }
 
-.chipf.activo {
-  background: var(--accent-subtle);
-  border-color: var(--accent-border);
-  color: var(--text-primary);
+.guia-card__ruta {
+  font-size: var(--t-small-size);
+}
+
+.guia-card__pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+}
+
+.guia-card__tiempo {
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+  white-space: nowrap;
 }
 
 /* ============================================================================
-   [PUENTE] DETALLE DE GUIA — se reemplaza en el Paso 5
+   DETALLE DE GUIA
    ==========================================================================*/
 
 .volver {
@@ -630,6 +838,13 @@ button.plaza-fila:hover {
   align-items: flex-start;
 }
 
+.det-titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-bottom: var(--space-4);
+}
+
 .det-header h2 {
   font-family: var(--font-mono);
   font-size: var(--t-h1-size);
@@ -637,7 +852,6 @@ button.plaza-fila:hover {
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--text-primary);
-  margin-bottom: var(--space-4);
 }
 
 .det-ruta {
@@ -759,54 +973,15 @@ button.plaza-fila:hover {
   margin-top: 2px;
 }
 
-/* Timeline */
-.timeline li {
-  position: relative;
-  padding: 0 0 var(--space-20) var(--space-24);
-  border-left: 1px solid var(--border-default);
-  margin-left: 7px;
-}
-
-.timeline li:last-child {
-  border-left-color: transparent;
-  padding-bottom: 0;
-}
-
-.timeline li::before {
-  content: '';
-  position: absolute;
-  left: -5px;
-  top: 4px;
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-}
-
-.timeline li.e-salida::before     { background: var(--st-transito-color);  border-color: var(--st-transito-color); }
-.timeline li.e-llegada::before    { background: var(--st-bodega-color);    border-color: var(--st-bodega-color); }
-.timeline li.e-ruta::before       { background: var(--st-reparto-color);   border-color: var(--st-reparto-color); }
-.timeline li.e-entrega::before    { background: var(--st-entregado-color); border-color: var(--st-entregado-color); }
-.timeline li.e-correccion::before { background: var(--st-eliminada-color); border-color: var(--st-eliminada-color); }
-
-.timeline .desc {
-  font-size: 13px;
-  color: var(--text-primary);
-}
-
-.timeline .meta {
-  font-family: var(--font-mono);
-  font-size: var(--t-label-size);
-  color: var(--text-tertiary);
-  margin-top: 2px;
-}
+/* El timeline del detalle es el mismo componente que el de Eventos
+   (.ev-timeline / .ev-item), definido una sola vez mas abajo. */
 
 .ev-revertido { opacity: 0.5; }
+.ev-revertido .ev-item__desc,
 .ev-revertido .desc { text-decoration: line-through; }
 
 /* ============================================================================
-   [PUENTE] EVENTOS — se reemplaza en el Paso 5
+   EVENTOS — acordeon por guia con timeline
    ==========================================================================*/
 
 .grupo {
@@ -825,7 +1000,7 @@ button.plaza-fila:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-12);
+  gap: var(--space-16);
   width: 100%;
   padding: var(--space-16);
   text-align: left;
@@ -834,19 +1009,28 @@ button.plaza-fila:hover {
 
 .grupo-head:hover { background: var(--overlay-row-hover); }
 
+.grupo-head .izq { min-width: 0; }
+
+.grupo-head .num-fila {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+}
+
 .grupo-head .num {
   font-family: var(--font-mono);
   font-size: var(--t-h2-size);
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--text-primary);
-  margin-right: var(--space-8);
 }
 
 .grupo-head .ultimo {
   display: block;
   margin-top: var(--space-4);
   font-size: 13px;
+  line-height: var(--t-body-line);
   color: var(--text-secondary);
 }
 
@@ -862,15 +1046,21 @@ button.plaza-fila:hover {
   border: 1px solid var(--border-default);
   color: var(--text-secondary);
   border-radius: var(--radius-full);
-  padding: var(--space-4) var(--space-8);
+  padding: var(--space-4) 10px;
   font-family: var(--font-mono);
   font-size: var(--t-label-size);
   white-space: nowrap;
 }
 
 .grupo-head .chev {
+  display: flex;
   color: var(--text-tertiary);
   transition: transform var(--t-normal) var(--ease);
+}
+
+.grupo-head .chev svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 .grupo.abierto .chev { transform: rotate(180deg); }
@@ -878,7 +1068,7 @@ button.plaza-fila:hover {
 .grupo-body {
   display: none;
   border-top: 1px solid var(--border-subtle);
-  padding: 0 var(--space-16) var(--space-16);
+  padding: var(--space-16);
 }
 
 .grupo.abierto .grupo-body { display: block; }
@@ -893,6 +1083,100 @@ button.plaza-fila:hover {
 }
 
 .grupo-body .ver-detalle:hover { text-decoration: underline; }
+
+/* ---------- Timeline de eventos ----------
+   Linea de 1px a 7px del borde; nodos de 8px centrados sobre ella. */
+
+.ev-timeline {
+  position: relative;
+  padding-left: var(--space-24);
+}
+
+.ev-timeline::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--border-default);
+}
+
+.ev-item {
+  position: relative;
+  padding-bottom: var(--space-16);
+  --nodo-color: var(--st-neutro-color);
+  --nodo-halo: var(--st-neutro-halo);
+  animation: ev-in var(--t-normal) var(--ease) backwards;
+}
+
+.ev-item:last-child { padding-bottom: 0; }
+
+.ev-item--transito  { --nodo-color: var(--st-transito-color);  --nodo-halo: var(--st-transito-halo); }
+.ev-item--bodega    { --nodo-color: var(--st-bodega-color);    --nodo-halo: var(--st-bodega-halo); }
+.ev-item--reparto   { --nodo-color: var(--st-reparto-color);   --nodo-halo: var(--st-reparto-halo); }
+.ev-item--entregado { --nodo-color: var(--st-entregado-color); --nodo-halo: var(--st-entregado-halo); }
+.ev-item--eliminada { --nodo-color: var(--st-eliminada-color); --nodo-halo: var(--st-eliminada-halo); }
+
+/* Nodo: los anteriores hundidos, el mas reciente relleno y con halo */
+.ev-item::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--space-24) * -1 + 3px);
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+}
+
+.ev-item.is-ultimo::before {
+  background: var(--nodo-color);
+  border-color: transparent;
+  box-shadow: 0 0 0 4px var(--nodo-halo);
+}
+
+.ev-item__desc {
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--text-primary);
+}
+
+.ev-item__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.ev-item__hora {
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+}
+
+.ev-item__plaza {
+  display: inline-flex;
+  align-items: center;
+  height: var(--t-label-line);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+}
+
+@keyframes ev-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ev-item { animation: none; }
+  .star.just-on svg { animation: none; }
+}
 
 /* ============================================================================
    [PUENTE] CONFIGURACION — se reemplaza en el Paso 6

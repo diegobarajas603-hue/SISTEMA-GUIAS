@@ -82,6 +82,18 @@
   --st-neutro-bg:      rgba(255, 255, 255, 0.05);
   --st-neutro-border:  var(--border-default);
 
+  /* Halos al 15% — nodo mas reciente del timeline */
+  --st-transito-halo:  rgba(217, 119, 87, 0.15);
+  --st-bodega-halo:    rgba(124, 107, 240, 0.15);
+  --st-reparto-halo:   rgba(34, 165, 196, 0.15);
+  --st-entregado-halo: rgba(63, 185, 80, 0.15);
+  --st-cancelada-halo: rgba(176, 139, 62, 0.15);
+  --st-eliminada-halo: rgba(229, 72, 77, 0.15);
+  --st-neutro-halo:    rgba(255, 255, 255, 0.08);
+
+  /* Favorita */
+  --star: #E3B341;
+
   /* ---------- Tipografia ---------- */
   --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system,
                "Segoe UI", Roboto, sans-serif;

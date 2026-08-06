@@ -183,25 +183,47 @@
 
       <!-- ======================================================== Guias -->
       <section id="v-guias" style="display:none">
-        <div class="ptabs">
-          <button data-ptab="MTY">MTY</button>
-          <button data-ptab="CDMX">CDMX</button>
-          <button data-ptab="">Todas</button>
-        </div>
-        <div class="chips" id="chipsPlaza"></div>
-        <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
-          <input class="input" type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" style="flex:2; min-width:200px;" />
-          <select class="select" id="filtroEstatus" style="flex:1; min-width:190px;"></select>
-          <span id="avisoDetenidas"></span>
-        </div>
-        <div class="card card--flush">
-          <div class="tabla-scroll">
-            <table>
-              <thead><tr><th>Guia</th><th>Ruta</th><th>Estatus</th><th>Creada</th><th>Actualizada</th></tr></thead>
-              <tbody id="tbodyGuias"></tbody>
-            </table>
+        <div class="guias-head">
+          <div class="seg" id="segPlaza">
+            <span class="seg__thumb"></span>
+            <button class="seg__option" data-value="MTY" aria-selected="true">MTY</button>
+            <button class="seg__option" data-value="CDMX" aria-selected="false">CDMX</button>
+            <button class="seg__option" data-value="" aria-selected="false">Todas</button>
           </div>
         </div>
+
+        <div class="resumen-cards" id="resumenCards"></div>
+
+        <div class="filtros">
+          <div class="filtros__fila">
+            <span class="input-wrap" style="flex:2; min-width:200px;">
+              <svg class="input-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+              <input class="input" type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" />
+            </span>
+            <select class="select" id="filtroEstatus" style="flex:1; min-width:200px; max-width:260px;"></select>
+          </div>
+          <div class="filtros__fila">
+            <button class="chip" id="chipHoy" aria-pressed="false">Hoy</button>
+            <button class="chip" id="chip7d" aria-pressed="false">7 dias</button>
+            <button class="chip" id="chipFav" aria-pressed="false">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" style="width:12px;height:12px"><path d="M8 2l1.8 3.7 4.1.6-3 2.9.7 4.1L8 11.4 4.4 13.3l.7-4.1-3-2.9 4.1-.6z"/></svg>
+              Favoritas
+            </button>
+            <span id="avisoDetenidas"></span>
+            <span class="spacer"></span>
+            <span class="filtros__contador" id="contadorGuias"></span>
+            <div class="vista-toggle" id="vistaToggle" role="group" aria-label="Vista">
+              <button data-vista="lista" aria-pressed="true" title="Vista de lista" aria-label="Vista de lista">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+              </button>
+              <button data-vista="grid" aria-pressed="false" title="Vista de tarjetas" aria-label="Vista de tarjetas">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="guiasContenido"></div>
       </section>
 
       <!-- ============================================== Detalle de guia -->
@@ -209,7 +231,10 @@
         <button class="volver" onclick="history.back()">&larr; Volver</button>
         <div class="card det-header">
           <div>
-            <h2 id="detNumero"></h2>
+            <div class="det-titulo">
+              <h2 id="detNumero"></h2>
+              <span id="detFavorita"></span>
+            </div>
             <div class="det-ruta" id="detRuta"></div>
             <div class="det-meta">
               <div><span class="k">Estatus</span><span id="detBadge"></span></div>
@@ -237,7 +262,7 @@
           </div>
           <div class="card">
             <h2 class="titulo-card">Linea de tiempo</h2>
-            <ul class="timeline" id="detTimeline"></ul>
+            <div id="detTimeline"></div>
           </div>
         </div>
       </section>
@@ -883,13 +908,13 @@
   function setPlazaTab(p) {
     plazaTab = p;
     localStorage.setItem('plazaTab', p);
-    document.querySelectorAll('.ptabs button').forEach((b) => b.classList.toggle('activa', b.dataset.ptab === p));
+    if (segPlaza) segPlaza.seleccionar(p);
     pintarFiltroEstatus();
     if (estatusPendiente !== null) {
       $('filtroEstatus').value = estatusPendiente;
       estatusPendiente = null;
     }
-    cargarChipsPlaza();
+    cargarResumenCards();
     cargarGuias();
   }
 
@@ -901,25 +926,69 @@
     if (location.hash === '#/guias') setPlazaTab(tab);
     else location.hash = '#/guias';
   }
-  document.querySelectorAll('.ptabs button').forEach((b) => b.addEventListener('click', () => setPlazaTab(b.dataset.ptab)));
+  const segPlaza = UI.segmented($('segPlaza'), (v) => setPlazaTab(v));
 
-  async function cargarChipsPlaza() {
-    if (!plazaTab) { $('chipsPlaza').innerHTML = ''; return; }
+  // ---------- Favoritas (solo en este navegador, no toca el backend) ----------
+  function favoritas() {
+    try { return new Set(JSON.parse(localStorage.getItem('favoritas') || '[]')); }
+    catch { return new Set(); }
+  }
+  function esFavorita(num) { return favoritas().has(num); }
+  function toggleFavorita(num) {
+    const f = favoritas();
+    const activada = !f.has(num);
+    if (activada) f.add(num); else f.delete(num);
+    localStorage.setItem('favoritas', JSON.stringify([...f]));
+    return activada;
+  }
+
+  const SVG_ESTRELLA = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 2l1.8 3.7 4.1.6-3 2.9.7 4.1L8 11.4 4.4 13.3l.7-4.1-3-2.9 4.1-.6z"/></svg>';
+
+  function botonEstrella(num) {
+    const on = esFavorita(num) ? ' is-on' : '';
+    return `<button class="star${on}" data-fav="${esc(num)}" title="Marcar como favorita"
+              aria-label="Marcar ${esc(num)} como favorita" aria-pressed="${esFavorita(num)}">${SVG_ESTRELLA}</button>`;
+  }
+
+  function activarEstrellas(cont) {
+    cont.querySelectorAll('[data-fav]').forEach((b) =>
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const activada = toggleFavorita(b.dataset.fav);
+        b.classList.toggle('is-on', activada);
+        b.setAttribute('aria-pressed', String(activada));
+        if (activada) {
+          b.classList.add('just-on');
+          setTimeout(() => b.classList.remove('just-on'), 220);
+        }
+        // Si el listado esta filtrado a favoritas, la fila debe salir
+        if (filtroFav && !activada) cargarGuias();
+      })
+    );
+  }
+
+  // ---------- Tarjetas de resumen de la pestaña ----------
+  async function cargarResumenCards() {
+    if (!plazaTab) { $('resumenCards').innerHTML = ''; return; }
     try {
       const r = await api('/api/guias/resumen');
       const p = r.porEstatus || {};
-      $('chipsPlaza').innerHTML = pasosPlaza(plazaTab).map(([est, nom]) => {
-        const activo = $('filtroEstatus').value === est ? 'activo' : '';
-        return `<button class="chipf ${activo}" data-est="${est}">${nom}<b>${p[est] || 0}</b></button>`;
+      $('resumenCards').innerHTML = pasosPlaza(plazaTab).map(([est, nom]) => {
+        const activo = $('filtroEstatus').value === est ? ' is-active' : '';
+        return `<button class="resumen-card${activo}" data-est="${est}">
+          <span class="resumen-card__num">${p[est] || 0}</span>
+          <span class="resumen-card__txt"><span class="dot dot--${UI.statusKind(est)}"></span>${esc(nom)}</span>
+        </button>`;
       }).join('');
-      document.querySelectorAll('#chipsPlaza .chipf').forEach((c) =>
+      $('resumenCards').querySelectorAll('.resumen-card').forEach((c) =>
         c.addEventListener('click', () => {
           $('filtroEstatus').value = $('filtroEstatus').value === c.dataset.est ? '' : c.dataset.est;
-          document.querySelectorAll('#chipsPlaza .chipf').forEach((x) => x.classList.toggle('activo', x.dataset.est === $('filtroEstatus').value));
+          $('resumenCards').querySelectorAll('.resumen-card')
+            .forEach((x) => x.classList.toggle('is-active', x.dataset.est === $('filtroEstatus').value));
           cargarGuias();
         })
       );
-    } catch { $('chipsPlaza').innerHTML = ''; }
+    } catch { $('resumenCards').innerHTML = ''; }
   }
 
   // Aviso de que el listado esta acotado a las guias detenidas
@@ -936,6 +1005,129 @@
     });
   }
 
+  // ---------- Filtros de cliente: fecha y favoritas ----------
+  let filtroFecha = '';   // '' | 'hoy' | '7d'
+  let filtroFav = false;
+  let vistaGuias = localStorage.getItem('vistaGuias') || 'lista';
+
+  function pintarChipsFiltro() {
+    $('chipHoy').setAttribute('aria-pressed', String(filtroFecha === 'hoy'));
+    $('chip7d').setAttribute('aria-pressed', String(filtroFecha === '7d'));
+    $('chipFav').setAttribute('aria-pressed', String(filtroFav));
+  }
+
+  $('chipHoy').addEventListener('click', () => {
+    filtroFecha = filtroFecha === 'hoy' ? '' : 'hoy';
+    pintarChipsFiltro();
+    cargarGuias();
+  });
+  $('chip7d').addEventListener('click', () => {
+    filtroFecha = filtroFecha === '7d' ? '' : '7d';
+    pintarChipsFiltro();
+    cargarGuias();
+  });
+  $('chipFav').addEventListener('click', () => {
+    filtroFav = !filtroFav;
+    pintarChipsFiltro();
+    cargarGuias();
+  });
+
+  $('vistaToggle').querySelectorAll('button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.vista === vistaGuias));
+    b.addEventListener('click', () => {
+      vistaGuias = b.dataset.vista;
+      localStorage.setItem('vistaGuias', vistaGuias);
+      $('vistaToggle').querySelectorAll('button')
+        .forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.vista === vistaGuias)));
+      pintarGuias(guiasCache);
+    });
+  });
+
+  function filtrarCliente(data) {
+    let out = data;
+    if (soloDetenidas) {
+      const limite = Date.now() - HORAS_DETENIDA * 3600 * 1000;
+      out = out.filter((g) => esDetenida(g, limite));
+    }
+    if (filtroFecha) {
+      const dias = filtroFecha === 'hoy' ? 1 : 7;
+      const desde = Date.now() - dias * 24 * 3600 * 1000;
+      out = out.filter((g) => new Date(g.actualizado_en).getTime() >= desde);
+    }
+    if (filtroFav) {
+      const f = favoritas();
+      out = out.filter((g) => f.has(g.numero_guia));
+    }
+    return out;
+  }
+
+  // ---------- Render de guias: lista (por defecto) y cuadricula ----------
+  const SVG_FLECHA_RUTA = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6h9M7 3l3 3-3 3"/></svg>';
+
+  const rutaHtml = (g) =>
+    `<span class="ruta">${esc(g.origen)} ${SVG_FLECHA_RUTA} ${esc(g.destino)}</span>`;
+
+  function vistaLista(data) {
+    return `<div class="guias-tabla-wrap">
+      <table class="guias-tabla">
+        <thead><tr>
+          <th>Guia</th><th>Ruta</th><th>Estatus</th>
+          <th>Ultimo movimiento</th><th>Tiempo</th><th></th>
+        </tr></thead>
+        <tbody>${data.map((g) => `<tr class="clic" data-guia="${esc(g.numero_guia)}">
+          <td><span class="mono t-primary">${esc(g.numero_guia)}</span></td>
+          <td>${rutaHtml(g)}</td>
+          <td>${badge(g.estatus)}</td>
+          <td><span class="mono t-tertiary">${fmtFecha(g.actualizado_en)}</span></td>
+          <td><span class="mono t-tertiary">${fmtRelativo(g.actualizado_en)}</span></td>
+          <td class="celda-acciones">${botonEstrella(g.numero_guia)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+  }
+
+  function vistaGrid(data) {
+    return `<div class="guias-grid">${data.map((g) => `
+      <div class="guia-card clic" data-guia="${esc(g.numero_guia)}">
+        <div class="guia-card__top">
+          <span class="guia-card__num">${esc(g.numero_guia)}</span>
+          ${botonEstrella(g.numero_guia)}
+        </div>
+        <div class="guia-card__ruta">${rutaHtml(g)}</div>
+        <div class="guia-card__pie">
+          ${badge(g.estatus)}
+          <span class="guia-card__tiempo">${fmtRelativo(g.actualizado_en)}</span>
+        </div>
+      </div>`).join('')}</div>`;
+  }
+
+  let guiasCache = [];
+
+  function pintarGuias(data) {
+    guiasCache = data;
+    const cont = $('guiasContenido');
+    const n = data.length;
+    $('contadorGuias').innerHTML = n ? `<b>${n}</b> guia${n === 1 ? '' : 's'}` : '';
+
+    if (!n) {
+      cont.innerHTML = `<div class="card">${UI.emptyState({
+        icono: 'busqueda',
+        titulo: soloDetenidas ? 'Ninguna guia detenida' : filtroFav ? 'Sin favoritas' : 'Sin guias',
+        descripcion: soloDetenidas
+          ? `Ninguna guia en transito lleva mas de ${HORAS_DETENIDA} h sin escaneo. Todo va en movimiento.`
+          : filtroFav
+          ? 'Marca una guia con la estrella para tenerla a la mano aqui.'
+          : 'No hay guias que coincidan con los filtros activos.',
+      })}</div>`;
+      return;
+    }
+
+    cont.innerHTML = vistaGuias === 'grid' ? vistaGrid(data) : vistaLista(data);
+    cont.querySelectorAll('.clic').forEach((el) =>
+      el.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(el.dataset.guia)))
+    );
+    activarEstrellas(cont);
+  }
+
   async function cargarGuias() {
     const params = new URLSearchParams();
     const buscar = $('buscar').value.trim();
@@ -948,38 +1140,45 @@
       params.set('plaza', plazaTab);
     }
     pintarAvisoDetenidas();
-    $('tbodyGuias').innerHTML = UI.skeletonRows(6, 5);
+    pintarChipsFiltro();
+    $('guiasContenido').innerHTML =
+      `<div class="card card--flush"><div class="tabla-scroll"><table><tbody>${UI.skeletonRows(6, 5)}</tbody></table></div></div>`;
     try {
-      let data = await api('/api/guias?' + params);
-      if (soloDetenidas) {
-        const limite = Date.now() - HORAS_DETENIDA * 3600 * 1000;
-        data = data.filter((g) => esDetenida(g, limite));
-      }
-      $('tbodyGuias').innerHTML = data.length
-        ? data.map((g) => `<tr class="clic" data-guia="${esc(g.numero_guia)}">
-            <td><span class="mono t-primary">${esc(g.numero_guia)}</span></td>
-            <td>${esc(g.origen)} &rarr; ${esc(g.destino)}</td>
-            <td>${badge(g.estatus)}</td>
-            <td><span class="mono t-tertiary">${fmtFecha(g.creado_en)}</span></td>
-            <td><span class="mono t-tertiary">${fmtFecha(g.actualizado_en)}</span></td></tr>`).join('')
-        : `<tr><td colspan="5">${UI.emptyState({
-            icono: 'busqueda',
-            titulo: soloDetenidas ? 'Ninguna guia detenida' : 'Sin guias',
-            descripcion: soloDetenidas
-              ? `Ninguna guia en transito lleva mas de ${HORAS_DETENIDA} h sin escaneo. Todo va en movimiento.`
-              : 'No hay guias que coincidan con los filtros activos.',
-          })}</td></tr>`;
-      activarFilasGuia('#tbodyGuias');
+      const data = filtrarCliente(await api('/api/guias?' + params));
+      pintarGuias(data);
     } catch (e) {
-      $('tbodyGuias').innerHTML = `<tr><td colspan="5">${UI.errorState(e.message)}</td></tr>`;
+      $('guiasContenido').innerHTML = `<div class="card">${UI.errorState(e.message)}</div>`;
+      $('contadorGuias').innerHTML = '';
     }
   }
+
   let timerBuscar;
   $('buscar').addEventListener('input', () => { clearTimeout(timerBuscar); timerBuscar = setTimeout(cargarGuias, 250); });
   $('filtroEstatus').addEventListener('change', () => {
-    document.querySelectorAll('#chipsPlaza .chipf').forEach((x) => x.classList.toggle('activo', x.dataset.est === $('filtroEstatus').value));
+    $('resumenCards').querySelectorAll('.resumen-card')
+      .forEach((x) => x.classList.toggle('is-active', x.dataset.est === $('filtroEstatus').value));
     cargarGuias();
   });
+
+  // ---------- Timeline de eventos ----------
+  // Un solo componente para el detalle de la guia y para el acordeon de
+  // Eventos. Los eventos llegan del mas reciente al mas antiguo: el primero
+  // es el nodo relleno con halo, el resto van hundidos.
+  function timelineHtml(historial) {
+    if (!historial.length) return '';
+    return `<div class="ev-timeline">${historial.map((ev, i) => {
+      const clase = 'ev-item--' + UI.statusKind(ev.estatus);
+      return `<div class="ev-item ${clase} ${i === 0 && !ev.revertido ? 'is-ultimo' : ''} ${ev.revertido ? 'ev-revertido' : ''}"
+                   style="animation-delay:${Math.min(i, 12) * 30}ms">
+        <div class="ev-item__desc">${esc(ev.descripcion || ACCION_TXT[ev.accion] || ev.accion)}</div>
+        <div class="ev-item__meta">
+          <span class="ev-item__hora">${fmtFecha(ev.creado_en)}</span>
+          ${ev.plaza ? `<span class="ev-item__plaza">${esc(ev.plaza)}</span>` : ''}
+          ${ev.revertido ? '<span class="ev-item__plaza">revertido</span>' : ''}
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  }
 
   // ---------- Detalle ----------
   const PASOS = [
@@ -1027,7 +1226,9 @@
       $('btnRevertir').style.display =
         usuarioActual && usuarioActual.rol === 'admin' && d.historial.length ? '' : 'none';
       $('detNumero').textContent = d.numero_guia;
-      $('detRuta').innerHTML = `${esc(d.origen)} &#8644; ${esc(d.destino)}`;
+      $('detFavorita').innerHTML = botonEstrella(d.numero_guia);
+      activarEstrellas($('detFavorita'));
+      $('detRuta').innerHTML = rutaHtml(d);
       $('detBadge').innerHTML = badge(d.estatus);
       $('detCreada').textContent = fmtFecha(d.creado_en);
       $('detActualizada').textContent = fmtFecha(d.actualizado_en);
@@ -1067,12 +1268,7 @@
             <td>${esc(ev.descripcion || '')}</td></tr>`).join('')
         : '<tr><td colspan="4" class="vacio">Sin eventos</td></tr>';
 
-      $('detTimeline').innerHTML = d.historial.map((ev) => {
-        const clase = { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-entrega', CORRECCION: 'e-correccion' }[ev.accion] || '';
-        return `<li class="${clase} ${ev.revertido ? 'ev-revertido' : ''}">
-          <div class="desc">${esc(ev.descripcion || ev.accion)}</div>
-          <div class="meta">${ev.plaza ? 'Plaza ' + esc(ev.plaza) + ' - ' : ''}${fmtFecha(ev.creado_en)}${ev.revertido ? ' - revertido' : ''}</div></li>`;
-      }).join('');
+      $('detTimeline').innerHTML = timelineHtml(d.historial);
     } catch (e) {
       guiaDetalleActual = null;
       $('btnRevertir').style.display = 'none';
@@ -1116,32 +1312,40 @@
       return;
     }
     $('resumenEventos').textContent = `${grupos.size} guias con movimientos recientes`;
+
+    const SVG_CHEV = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>';
+
     $('gruposEventos').innerHTML = [...grupos.entries()].map(([num, evs]) => `
       <div class="grupo" data-guia="${esc(num)}">
-        <button class="grupo-head">
-          <div>
-            <span class="num">${esc(num)}</span>${badge(evs[0].estatus)}
-            <span class="ultimo">Ultimo movimiento: ${esc(evs[0].descripcion || evs[0].accion)} - ${fmtRelativo(evs[0].creado_en)}</span>
+        <button class="grupo-head" aria-expanded="false">
+          <div class="izq">
+            <div class="num-fila">
+              <span class="num">${esc(num)}</span>${badge(evs[0].estatus)}
+            </div>
+            <span class="ultimo">${esc(evs[0].descripcion || ACCION_TXT[evs[0].accion] || evs[0].accion)} &middot; ${fmtRelativo(evs[0].creado_en)}</span>
           </div>
-          <div class="der"><span class="conteo">${evs.length} evento${evs.length === 1 ? '' : 's'}</span><span class="chev">&#9662;</span></div>
+          <div class="der">
+            <span class="conteo">${evs.length} evento${evs.length === 1 ? '' : 's'}</span>
+            <span class="chev">${SVG_CHEV}</span>
+          </div>
         </button>
         <div class="grupo-body">
-          <div class="tabla-scroll">
-            <table>
-              <thead><tr><th>Fecha y hora</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
-              <tbody>${evs.map((ev) => `<tr class="${ev.revertido ? 'ev-revertido' : ''}">
-                <td><span class="mono t-tertiary">${fmtFecha(ev.creado_en)}</span></td>
-                <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}${tagRevertido(ev)}</td>
-                <td>${esc(ev.plaza || '-')}</td>
-                <td>${esc(ev.descripcion || '')}</td></tr>`).join('')}</tbody>
-            </table>
-          </div>
+          <div class="grupo-timeline"></div>
           <button class="ver-detalle">Ver detalle completo de la guia &rarr;</button>
         </div>
       </div>`).join('');
 
+    // El timeline se pinta al abrir: evita construir cientos de nodos de golpe
+    // y deja que el stagger de entrada se vea cuando el usuario lo despliega.
     document.querySelectorAll('#gruposEventos .grupo-head').forEach((b) =>
-      b.addEventListener('click', () => b.closest('.grupo').classList.toggle('abierto'))
+      b.addEventListener('click', () => {
+        const grupo = b.closest('.grupo');
+        const abierto = grupo.classList.toggle('abierto');
+        b.setAttribute('aria-expanded', String(abierto));
+        if (!abierto) return;
+        const cont = grupo.querySelector('.grupo-timeline');
+        cont.innerHTML = timelineHtml(grupos.get(grupo.dataset.guia) || []);
+      })
     );
     document.querySelectorAll('#gruposEventos .ver-detalle').forEach((b) =>
       b.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(b.closest('.grupo').dataset.guia)))
