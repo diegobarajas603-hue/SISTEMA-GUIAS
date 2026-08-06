@@ -71,7 +71,7 @@
   width: 148px;
   max-width: 100%;
   height: auto;
-  filter: invert(1) hue-rotate(180deg);
+  filter: var(--logo-filter);
 }
 
 .marca span {
@@ -477,7 +477,7 @@
   width: 168px;
   max-width: 100%;
   height: auto;
-  filter: invert(1) hue-rotate(180deg);
+  filter: var(--logo-filter);
 }
 
 .login-card__titulo {

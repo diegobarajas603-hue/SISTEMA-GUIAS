@@ -11,6 +11,15 @@
 <link rel="stylesheet" href="/css/components.css" />
 <link rel="stylesheet" href="/css/layout.css" />
 <link rel="stylesheet" href="/css/screens.css" />
+<script>
+  // Se aplica antes de pintar para que el tema guardado no parpadee.
+  // Por defecto oscuro; si nunca se eligio, se respeta el sistema operativo.
+  (function () {
+    var t = localStorage.getItem('tema');
+    if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'claro' : 'oscuro';
+    if (t === 'claro') document.documentElement.setAttribute('data-tema', 'claro');
+  })();
+</script>
 </head>
 <body>
 
@@ -129,6 +138,9 @@
         <button class="btn btn--ghost btn--icon" id="btnPendientes" type="button" title="Guias detenidas" aria-label="Guias detenidas">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a5 5 0 0 0-5 5v3l-1.5 2.5h13L15 11V8a5 5 0 0 0-5-5z"/><path d="M8 16a2 2 0 0 0 4 0"/></svg>
           <span class="btn__dot" id="puntoPendientes" style="display:none"></span>
+        </button>
+        <button class="btn btn--ghost btn--icon" id="btnTema" type="button" title="Cambiar a tema claro" aria-label="Cambiar a tema claro">
+          <svg id="icoTema" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></svg>
         </button>
         <button class="btn btn--ghost btn--icon" id="btnColapsar" type="button" title="Colapsar barra lateral" aria-label="Colapsar barra lateral">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M8 3.5v13"/></svg>
@@ -514,6 +526,36 @@
   }
   window.addEventListener('resize', () => moverIndicador(true));
 
+  // ---------- Shell: tema claro / oscuro ----------
+  // El tema se aplica en el <head> para que no parpadee; aqui solo se
+  // sincroniza el boton y se persiste el cambio.
+  const ICO_LUNA = '<path d="M16.5 11.5A7 7 0 0 1 8.5 3.5a7 7 0 1 0 8 8z"/>';
+  const ICO_SOL = '<circle cx="10" cy="10" r="3.5"/><path d="M10 2v1.5M10 16.5V18M18 10h-1.5M3.5 10H2M15.7 4.3l-1 1M5.3 14.7l-1 1M15.7 15.7l-1-1M5.3 5.3l-1-1"/>';
+
+  function temaActual() {
+    return document.documentElement.getAttribute('data-tema') === 'claro' ? 'claro' : 'oscuro';
+  }
+
+  function pintarBotonTema() {
+    const claro = temaActual() === 'claro';
+    // El icono muestra a donde vas, no donde estas
+    $('icoTema').innerHTML = claro ? ICO_LUNA : ICO_SOL;
+    const etiqueta = claro ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro';
+    $('btnTema').title = etiqueta;
+    $('btnTema').setAttribute('aria-label', etiqueta);
+  }
+
+  $('btnTema').addEventListener('click', () => {
+    const claro = temaActual() === 'claro';
+    if (claro) document.documentElement.removeAttribute('data-tema');
+    else document.documentElement.setAttribute('data-tema', 'claro');
+    localStorage.setItem('tema', claro ? 'oscuro' : 'claro');
+    pintarBotonTema();
+    // El codigo de barras se dibuja con colores fijos: hay que repintarlo
+    if (vistaActual === 'detalle' && guiaDetalleActual) cargarDetalle(guiaDetalleActual);
+  });
+  pintarBotonTema();
+
   // ---------- Shell: reloj ----------
   // 24 h: en operacion logistica "18:40" se lee mas rapido y sin ambiguedad
   // que "6:40 p.m.", y ocupa menos.
@@ -549,6 +591,10 @@
     $('cardPassword').style.display = esAdmin ? '' : 'none';
     $('cardBorrar').style.display = esAdmin ? '' : 'none';
     $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
+
+    // La bitacora es de administradores: se oculta del menu y la ruta se
+    // bloquea en el router, por si alguien escribe #/bitacora a mano.
+    document.querySelector('[data-ruta="bitacora"]').style.display = esAdmin ? '' : 'none';
 
     // Un usuario con plaza asignada solo ve el boton de escanear de su plaza
     document.querySelector('[data-ruta="escanear-mty"]').style.display =
@@ -645,6 +691,13 @@
       setPlaza(pedida);
     }
     if (!VISTAS.includes(vista)) { vista = 'dashboard'; }
+
+    // La bitacora es solo para administradores
+    if (vista === 'bitacora' && usuarioActual && usuarioActual.rol !== 'admin') {
+      UI.toast({ tipo: 'warn', titulo: 'Solo administradores', descripcion: 'La bitacora de correcciones esta reservada al rol de administrador.' });
+      location.hash = '#/dashboard';
+      return;
+    }
     vistaActual = vista;
 
     const navRuta = vista === 'detalle' ? 'guias' : vista === 'escanear' ? 'escanear-' + plaza.toLowerCase() : vista;
@@ -1386,9 +1439,13 @@
       // Codigo de barras (si la libreria cargo)
       try {
         if (window.JsBarcode) {
+          // Los colores salen de los tokens vigentes: el codigo de barras
+          // tiene que seguir al tema, no quedarse en el oscuro
+          const cs = getComputedStyle(document.documentElement);
           JsBarcode('#barcode', d.numero_guia, {
             format: 'CODE128', height: 52, fontSize: 13, margin: 0,
-            background: '#0A0B0E', lineColor: '#EDEEF0',
+            background: cs.getPropertyValue('--bg-inset').trim(),
+            lineColor: cs.getPropertyValue('--text-primary').trim(),
           });
           $('barcodeWrap').style.display = '';
         } else $('barcodeWrap').style.display = 'none';

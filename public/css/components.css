@@ -525,9 +525,10 @@
   font-size: var(--t-label-size);
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--text-primary);
-  /* --avatar-h lo calcula ui.js a partir del nombre */
-  background: hsl(var(--avatar-h, 220) 30% 26%);
+  /* --avatar-h lo calcula ui.js a partir del nombre; el tema define la
+     luminosidad del fondo y el color de las iniciales */
+  color: var(--avatar-text);
+  background: var(--avatar-bg);
   border: 1px solid var(--border-on-solid);
   flex-shrink: 0;
   text-transform: uppercase;

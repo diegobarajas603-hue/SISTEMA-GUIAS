@@ -4,6 +4,8 @@
    ==========================================================================*/
 
 :root {
+  color-scheme: dark;
+
   /* ---------- Superficies ---------- */
   --bg-base:      #08090B;   /* fondo de la aplicacion */
   --bg-surface:   #0E1013;   /* cards */
@@ -100,6 +102,10 @@
   --st-cancelada-halo: rgba(176, 139, 62, 0.15);
   --st-eliminada-halo: rgba(229, 72, 77, 0.15);
   --st-neutro-halo:    rgba(255, 255, 255, 0.08);
+
+  /* Avatar de iniciales: la tinta la da el nombre, la luminosidad el tema */
+  --avatar-bg:   hsl(var(--avatar-h, 220) 30% 26%);
+  --avatar-text: var(--text-primary);
 
   /* Favorita */
   --star: #E3B341;
@@ -229,4 +235,123 @@
   --z-toast:   60;
   --z-overlay: 80;
   --z-modal:   90;
+
+  /* El wordmark de la marca es negro sobre transparente: en oscuro se le
+     invierte la luminancia conservando el tono; en claro va tal cual. */
+  --logo-filter: invert(1) hue-rotate(180deg);
+}
+
+/* ============================================================================
+   TEMA CLARO
+   Se activa con data-tema="claro" en <html>. Solo redefine tokens: ningun
+   componente sabe en que tema esta.
+
+   Los colores de estatus se oscurecen para el texto, porque los tonos del
+   tema oscuro sobre un fondo claro se caen a 2.8:1. Contraste verificado
+   sobre el propio fondo teñido de cada estatus.
+   ==========================================================================*/
+
+:root[data-tema="claro"] {
+  color-scheme: light;
+
+  /* ---------- Superficies ---------- */
+  --bg-base:      #F6F7F9;
+  --bg-surface:   #FFFFFF;
+  --bg-elevated:  #FFFFFF;
+  --bg-inset:     #F1F3F5;
+
+  /* ---------- Bordes: lineas oscuras sobre claro ---------- */
+  --border-subtle:  rgba(16, 20, 26, 0.07);
+  --border-default: rgba(16, 20, 26, 0.12);
+  --border-strong:  rgba(16, 20, 26, 0.22);
+
+  /* ---------- Texto (contraste sobre #FFFFFF) ---------- */
+  --text-primary:   #14161A;   /* 17.6:1 sobre --bg-base */
+  --text-secondary: #5A616B;   /*  5.8:1 */
+  --text-tertiary:  #646B75;   /*  4.9:1 — #6E757F daba 4.34:1 sobre #F6F7F9 */
+  --text-disabled:  #9AA1AA;
+
+  /* ---------- Acento ----------
+     En claro, #3B82F6 sobre blanco da 3.8:1 y reprueba: el acento sube un
+     paso a #2563EB, que da 5.2:1 y sirve igual para texto y para relleno. */
+  --accent:             #2563EB;
+  --accent-hover:       #1D4ED8;
+  --accent-solid:       #2563EB;
+  --accent-solid-hover: #1D4ED8;
+  --accent-subtle:  rgba(37, 99, 235, 0.08);
+  --accent-border:  rgba(37, 99, 235, 0.30);
+  --accent-ring:    rgba(37, 99, 235, 0.18);
+
+  /* ---------- Semanticos de estatus ---------- */
+  --st-transito-color:  #C2632F;
+  --st-transito-text:   #9C4A26;                   /* 5.5:1 */
+  --st-transito-bg:     rgba(194, 99, 47, 0.10);
+  --st-transito-border: rgba(194, 99, 47, 0.28);
+  --st-transito-halo:   rgba(194, 99, 47, 0.18);
+
+  --st-bodega-color:    #5B4BD6;
+  --st-bodega-text:     #4C3DBF;                   /* 7.0:1 */
+  --st-bodega-bg:       rgba(91, 75, 214, 0.09);
+  --st-bodega-border:   rgba(91, 75, 214, 0.28);
+  --st-bodega-halo:     rgba(91, 75, 214, 0.18);
+
+  --st-reparto-color:   #12809B;
+  --st-reparto-text:    #0E6C83;                   /* 5.4:1 */
+  --st-reparto-bg:      rgba(18, 128, 155, 0.09);
+  --st-reparto-border:  rgba(18, 128, 155, 0.28);
+  --st-reparto-halo:    rgba(18, 128, 155, 0.18);
+
+  --st-entregado-color:  #1B8434;
+  --st-entregado-text:   #15702A;                  /* 5.6:1 */
+  --st-entregado-bg:     rgba(27, 132, 52, 0.09);
+  --st-entregado-border: rgba(27, 132, 52, 0.28);
+  --st-entregado-halo:   rgba(27, 132, 52, 0.18);
+
+  --st-cancelada-color:  #8D6C24;
+  --st-cancelada-text:   #7A5E1F;                  /* 5.5:1 */
+  --st-cancelada-bg:     rgba(141, 108, 36, 0.09);
+  --st-cancelada-border: rgba(141, 108, 36, 0.28);
+  --st-cancelada-halo:   rgba(141, 108, 36, 0.18);
+
+  --st-eliminada-color:  #CC2F35;
+  --st-eliminada-text:   #B0272C;                  /* 6.0:1 */
+  --st-eliminada-solid:  #C22128;
+  --st-eliminada-bg:     rgba(204, 47, 53, 0.08);
+  --st-eliminada-border: rgba(204, 47, 53, 0.28);
+  --st-eliminada-halo:   rgba(204, 47, 53, 0.16);
+
+  --st-neutro-bg:     rgba(16, 20, 26, 0.05);
+  --st-neutro-halo:   rgba(16, 20, 26, 0.10);
+
+  /* ---------- Capas de interaccion: veladuras oscuras ---------- */
+  --overlay-hover:     rgba(16, 20, 26, 0.05);
+  --overlay-row-hover: rgba(16, 20, 26, 0.035);
+  --overlay-scrim:     rgba(16, 20, 26, 0.40);
+
+  /* ---------- Sombras: mas suaves, la luz viene de arriba ---------- */
+  --shadow-sm: 0 1px 2px rgba(16, 20, 26, 0.06);
+  --shadow-md: 0 1px 3px rgba(16, 20, 26, 0.08), 0 6px 16px rgba(16, 20, 26, 0.06);
+  --shadow-lg: 0 2px 6px rgba(16, 20, 26, 0.10), 0 16px 40px rgba(16, 20, 26, 0.12);
+
+  /* En claro la linea de luz superior no aporta: la card ya es la parte
+     iluminada. Se cambia por un hairline que define el borde de arriba. */
+  --sheen:        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --sheen-strong: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+  --skeleton-from: rgba(16, 20, 26, 0.05);
+  --skeleton-to:   rgba(16, 20, 26, 0.09);
+
+  --alerta-bg:     rgba(194, 99, 47, 0.07);
+  --alerta-border: rgba(194, 99, 47, 0.26);
+  --alerta-ico-bg: rgba(194, 99, 47, 0.14);
+
+  --border-on-solid: rgba(255, 255, 255, 0.16);
+  --star: #C68A12;
+
+  /* Avatar: en claro el fondo va claro y las iniciales oscuras */
+  --avatar-bg:   hsl(var(--avatar-h, 220) 44% 87%);
+  --avatar-text: #1B1F26;
+
+  /* El wordmark ya es oscuro: en claro se usa sin tocar */
+  --logo-filter: none;
 }
