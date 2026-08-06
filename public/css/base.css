@@ -252,12 +252,13 @@ a:hover {
     scroll-behavior: auto !important;
   }
 
-  /* Los transform decorativos se anulan por completo, no solo se aceleran */
-  .btn:active,
-  .star.is-on,
-  .seg-thumb,
-  .toast,
-  .modal-panel {
+  /* Solo se anulan los transform puramente decorativos.
+     Ojo: no se toca .seg__thumb ni .flecha__punta, porque ahi el transform
+     no es adorno sino la posicion del elemento; anularlo dejaria el pill del
+     segmented control pegado a la izquierda y la punta de flecha al reves.
+     Las animaciones de entrada ya quedan neutralizadas por la regla de
+     arriba, que aplica su fotograma final de inmediato. */
+  .btn:active {
     transform: none !important;
   }
 }

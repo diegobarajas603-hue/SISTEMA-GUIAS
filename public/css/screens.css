@@ -1,19 +1,12 @@
 /* ============================================================================
    FLETES TAURO — PANTALLAS
 
-   Estado: PUENTE DE MIGRACION.
-   Los estilos de pantalla del panel anterior, portados a los tokens oscuros
-   para que nada quede ilegible mientras cada pantalla se rediseña en su paso:
-     Paso 4 → Dashboard      Paso 6 → Bitacora y Configuracion
-     Paso 5 → Guias, Detalle y Eventos    Paso 7 → Escaner
-   Cada bloque marcado [PUENTE] desaparece cuando su paso lo reemplaza.
+   Estilos por pantalla. Todo valor sale de tokens.css.
+   La migracion desde el panel anterior termino: ya no queda ningun bloque
+   puente ni ninguna clase del diseño viejo.
    ==========================================================================*/
 
 /* ---------- Comunes ---------- */
-
-.seccion + .seccion {
-  margin-top: var(--section-margin);
-}
 
 .nota {
   font-size: 13px;
@@ -29,17 +22,6 @@
   text-transform: uppercase;
   color: var(--text-secondary);
   margin-bottom: var(--space-16);
-}
-
-.card + .card,
-.grid-cards > * {
-  margin-top: 0;
-}
-
-.pila {
-  display: flex;
-  flex-direction: column;
-  gap: var(--card-gap);
 }
 
 /* ---------- Tablas ---------- */
@@ -119,8 +101,8 @@ tbody tr.clic:hover {
   margin-top: var(--space-4);
 }
 
-.card--featured .kpi-valor { color: #fff; }
-.card--featured .kpi-etiqueta { color: rgba(255, 255, 255, 0.72); }
+.card--featured .kpi-valor { color: var(--text-on-solid); }
+.card--featured .kpi-etiqueta { color: var(--text-on-solid-muted); }
 
 /* ============================================================================
    DASHBOARD — banner de alerta
@@ -133,8 +115,8 @@ tbody tr.clic:hover {
   gap: var(--space-16);
   padding: var(--space-16) var(--space-20);
   margin-bottom: var(--card-gap);
-  background: rgba(217, 119, 87, 0.07);
-  border: 1px solid rgba(217, 119, 87, 0.22);
+  background: var(--alerta-bg);
+  border: 1px solid var(--alerta-border);
   border-radius: var(--radius-lg);
   overflow: hidden;   /* la barra izquierda respeta el radio de la tarjeta */
 }
@@ -158,7 +140,7 @@ tbody tr.clic:hover {
   height: var(--space-32);
   flex-shrink: 0;
   border-radius: var(--radius-md);
-  background: rgba(217, 119, 87, 0.14);
+  background: var(--alerta-ico-bg);
   color: var(--st-transito-color);
 }
 
@@ -459,9 +441,10 @@ button.plaza-fila:hover {
   color: var(--text-primary);
 }
 
+/* Relleno con texto blanco: --accent-solid para cumplir AA */
 .pill[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
   color: var(--accent-text);
   box-shadow: var(--shadow-md);
 }
@@ -1123,10 +1106,11 @@ button.plaza-fila:hover {
   font-weight: 600;
 }
 
+/* Relleno con texto blanco: --accent-solid para cumplir AA */
 .paso.hecho .circulo,
 .paso.actual .circulo {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
   color: var(--accent-text);
 }
 
@@ -1648,7 +1632,7 @@ button.plaza-fila:hover {
 }
 
 /* ============================================================================
-   [PUENTE] CONFIGURACION anterior — alias que aun usan formularios
+   MENSAJES DE FORMULARIO
    ==========================================================================*/
 
 .msg-form {
@@ -1675,47 +1659,6 @@ button.plaza-fila:hover {
 }
 
 /* Alias de los botones del panel anterior sobre los primitivos nuevos */
-.btn-peligro {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-4);
-  height: var(--h-chip);
-  padding: 0 var(--space-12);
-  border-radius: var(--radius-md);
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-tertiary);
-  font-size: var(--t-small-size);
-  font-weight: 500;
-  transition: background-color var(--t-fast) var(--ease),
-              color var(--t-fast) var(--ease);
-}
-
-.btn-peligro:hover {
-  background: var(--st-eliminada-bg);
-  color: var(--st-eliminada-text);
-}
-
-.btn-sec {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-4);
-  height: var(--h-chip);
-  padding: 0 var(--space-12);
-  border-radius: var(--radius-md);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  color: var(--text-secondary);
-  font-size: var(--t-small-size);
-  font-weight: 500;
-  transition: border-color var(--t-fast) var(--ease),
-              color var(--t-fast) var(--ease);
-}
-
-.btn-sec:hover {
-  border-color: var(--border-strong);
-  color: var(--text-primary);
-}
 
 .zona-peligro {
   border-color: var(--st-eliminada-border);

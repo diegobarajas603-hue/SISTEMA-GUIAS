@@ -714,7 +714,28 @@
   // Umbral para considerar detenida una guia en transito (sin movimiento)
   const HORAS_DETENIDA = 24;
 
+  // Esqueletos con la forma real del contenido, no un spinner generico
+  function esqueletoDashboard() {
+    $('kpis').innerHTML = Array.from({ length: 6 }, () =>
+      `<div class="card">
+         ${UI.skeleton('skeleton--num', 'width:56%')}
+         <div style="margin-top:var(--space-8)">${UI.skeleton('skeleton--label', 'width:82%')}</div>
+       </div>`).join('');
+    $('flujo').innerHTML = `
+      <div class="plaza-col">${UI.skeleton('skeleton--text', 'width:60%;margin-bottom:var(--space-16)')}
+        ${UI.skeleton('skeleton--text', 'width:90%;margin-bottom:var(--space-12)')}
+        ${UI.skeleton('skeleton--text', 'width:75%;margin-bottom:var(--space-12)')}
+        ${UI.skeleton('skeleton--text', 'width:85%')}</div>
+      <div class="transitos">${UI.skeleton('skeleton--text', 'width:100%')}</div>
+      <div class="plaza-col">${UI.skeleton('skeleton--text', 'width:60%;margin-bottom:var(--space-16)')}
+        ${UI.skeleton('skeleton--text', 'width:88%;margin-bottom:var(--space-12)')}
+        ${UI.skeleton('skeleton--text', 'width:70%;margin-bottom:var(--space-12)')}
+        ${UI.skeleton('skeleton--text', 'width:92%')}</div>`;
+    $('tbodyActividad').innerHTML = UI.skeletonRows(6, 5);
+  }
+
   async function cargarDashboard() {
+    esqueletoDashboard();
     try {
       const r = await api('/api/guias/resumen');
       const p = r.porEstatus || {};
@@ -751,12 +772,16 @@
       const eventos = await api('/api/eventos?limit=10');
       $('tbodyActividad').innerHTML = eventos.length
         ? eventos.map(filaEvento).join('')
-        : `<tr><td colspan="5" class="vacio">Sin actividad todavia</td></tr>`;
+        : `<tr><td colspan="5">${UI.emptyState({
+            titulo: 'Sin actividad todavia',
+            descripcion: 'Los escaneos apareceran aqui en cuanto empiece el movimiento del dia.',
+          })}</td></tr>`;
       activarFilasGuia('#tbodyActividad');
 
       revisarDetenidas();
     } catch (e) {
-      $('kpis').innerHTML = `<div class="card">${UI.errorState(e.message)}</div>`;
+      UI.montarError($('kpis'), e.message, cargarDashboard);
+      $('flujo').innerHTML = '';
       $('tbodyActividad').innerHTML = '';
     }
   }
@@ -1268,7 +1293,7 @@
       const data = filtrarCliente(await api('/api/guias?' + params));
       pintarGuias(data);
     } catch (e) {
-      $('guiasContenido').innerHTML = `<div class="card">${UI.errorState(e.message)}</div>`;
+      UI.montarError($('guiasContenido'), e.message, cargarGuias);
       $('contadorGuias').innerHTML = '';
     }
   }
@@ -1341,6 +1366,9 @@
   });
 
   async function cargarDetalle(numeroGuia) {
+    $('tbodyDetEventos').innerHTML = UI.skeletonRows(4, 4);
+    $('detTimeline').innerHTML = Array.from({ length: 4 }, () =>
+      `<div style="margin-bottom:var(--space-16)">${UI.skeleton('skeleton--text', 'width:78%')}</div>`).join('');
     try {
       const d = await api('/api/guias/' + encodeURIComponent(numeroGuia));
       guiaDetalleActual = d.numero_guia;
@@ -1387,7 +1415,10 @@
             <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}${tagRevertido(ev)}</td>
             <td>${esc(ev.plaza || '-')}</td>
             <td>${esc(ev.descripcion || '')}</td></tr>`).join('')
-        : '<tr><td colspan="4" class="vacio">Sin eventos</td></tr>';
+        : `<tr><td colspan="4">${UI.emptyState({
+            titulo: 'Sin eventos',
+            descripcion: 'Esta guia todavia no tiene movimientos registrados.',
+          })}</td></tr>`;
 
       $('detTimeline').innerHTML = timelineHtml(d.historial);
     } catch (e) {
@@ -1399,7 +1430,8 @@
       $('detCreada').textContent = $('detActualizada').textContent = $('detEscaneos').textContent = '-';
       $('stepper').innerHTML = '';
       $('barcodeWrap').style.display = 'none';
-      $('tbodyDetEventos').innerHTML = `<tr><td colspan="4">${UI.errorState(e.message)}</td></tr>`;
+      UI.montarError($('tbodyDetEventos'), e.message, () => cargarDetalle(numeroGuia),
+                     (h) => `<tr><td colspan="4">${h}</td></tr>`);
       $('detTimeline').innerHTML = '';
     }
   }
@@ -1408,11 +1440,16 @@
   let eventosCache = [];
 
   async function cargarEventos() {
+    $('gruposEventos').innerHTML = Array.from({ length: 5 }, () =>
+      `<div class="grupo" style="padding:var(--space-16)">
+         ${UI.skeleton('skeleton--text', 'width:34%')}
+         <div style="margin-top:var(--space-8)">${UI.skeleton('skeleton--text', 'width:62%')}</div>
+       </div>`).join('');
     try {
       eventosCache = await api('/api/eventos?limit=300');
       pintarGruposEventos();
     } catch (e) {
-      $('gruposEventos').innerHTML = `<div class="card">${UI.errorState(e.message)}</div>`;
+      UI.montarError($('gruposEventos'), e.message, cargarEventos);
       $('resumenEventos').textContent = '';
     }
   }
@@ -1573,7 +1610,7 @@
       );
     } catch (e) {
       $('bitaKpis').innerHTML = '';
-      $('bitacoraLista').innerHTML = `<div class="card">${UI.errorState(e.message)}</div>`;
+      UI.montarError($('bitacoraLista'), e.message, cargarBitacora);
     }
   }
 
@@ -1608,6 +1645,7 @@
   });
 
   async function cargarUsuarios() {
+    $('tbodyUsuarios').innerHTML = UI.skeletonRows(3, 4);
     try {
       const usuarios = await api('/api/usuarios');
       const opcionesPlaza = (sel) =>
@@ -1681,7 +1719,8 @@
         })
       );
     } catch (e) {
-      $('tbodyUsuarios').innerHTML = `<tr><td colspan="5">${UI.errorState(e.message)}</td></tr>`;
+      UI.montarError($('tbodyUsuarios'), e.message, cargarUsuarios,
+                     (h) => `<tr><td colspan="4">${h}</td></tr>`);
     }
   }
 

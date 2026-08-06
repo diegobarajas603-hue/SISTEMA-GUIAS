@@ -53,7 +53,7 @@
 }
 
 .card--featured .kpi-label {
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--text-on-solid-muted);
 }
 
 /* Encabezado de card separado del cuerpo por un borde a ancho completo */
@@ -173,15 +173,15 @@
   flex-shrink: 0;
 }
 
-/* Primario */
+/* Primario — relleno, asi que usa --accent-solid para que el blanco pase AA */
 .btn--primary {
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--accent-text);
   box-shadow: var(--shadow-sm);
 }
 
 .btn--primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--accent-solid-hover);
 }
 
 /* Secundario */
@@ -217,15 +217,16 @@
   color: var(--st-eliminada-text);
 }
 
-/* Destructivo solido — solo dentro de un modal de confirmacion */
+/* Destructivo solido — solo dentro de un modal de confirmacion.
+   Relleno con texto blanco: el rojo puro daba 3.9:1, el solido da 5.1:1. */
 .btn--danger {
-  background: var(--st-eliminada-color);
+  background: var(--st-eliminada-solid);
   color: var(--accent-text);
   box-shadow: var(--shadow-sm);
 }
 
 .btn--danger:hover:not(:disabled) {
-  background: var(--st-eliminada-text);
+  background: var(--st-eliminada-color);
 }
 
 /* Tamaños */
@@ -527,7 +528,7 @@
   color: var(--text-primary);
   /* --avatar-h lo calcula ui.js a partir del nombre */
   background: hsl(var(--avatar-h, 220) 30% 26%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-on-solid);
   flex-shrink: 0;
   text-transform: uppercase;
 }

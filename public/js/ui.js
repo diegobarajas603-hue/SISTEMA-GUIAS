@@ -139,8 +139,15 @@
     function mover() {
       const activo = contenedor.querySelector('.seg__option[aria-selected="true"]');
       if (!activo || !thumb) return;
-      thumb.style.setProperty('--seg-w', activo.offsetWidth + 'px');
-      thumb.style.setProperty('--seg-x', activo.offsetLeft - 3 + 'px');
+      // El thumb esta en position absolute con left:0, o sea en el origen de
+      // la caja de padding del contenedor. Los rects son de caja de borde, asi
+      // que hay que descontar el borde para que el pill caiga exacto sobre la
+      // opcion; con offsetLeft quedaba corrido por el ancho del borde.
+      const rCont = contenedor.getBoundingClientRect();
+      const rAct = activo.getBoundingClientRect();
+      const borde = parseFloat(getComputedStyle(contenedor).borderLeftWidth) || 0;
+      thumb.style.setProperty('--seg-w', rAct.width + 'px');
+      thumb.style.setProperty('--seg-x', rAct.left - rCont.left - borde + 'px');
     }
 
     function seleccionar(valor, avisar) {
@@ -217,15 +224,23 @@
     </div>`;
   }
 
-  function errorState(mensaje, onReintentar) {
-    const html = emptyState({
+  function errorState(mensaje, conReintento) {
+    return emptyState({
       icono: 'error',
       error: true,
       titulo: 'No se pudo cargar',
       descripcion: mensaje,
-      accion: onReintentar ? 'Reintentar' : null,
+      accion: conReintento ? 'Reintentar' : null,
     });
-    return html;
+  }
+
+  /** Pinta el error dentro de un contenedor y deja el boton Reintentar
+      conectado. Sin esto el boton se dibuja pero no hace nada. */
+  function montarError(el, mensaje, onReintentar, envoltura) {
+    const html = errorState(mensaje, !!onReintentar);
+    el.innerHTML = envoltura ? envoltura(html) : `<div class="card">${html}</div>`;
+    const b = el.querySelector('[data-empty-action]');
+    if (b && onReintentar) b.addEventListener('click', onReintentar);
   }
 
   /* ---------- Toast ---------- */
@@ -399,6 +414,7 @@
     skeletonRows,
     emptyState,
     errorState,
+    montarError,
     toast,
     confirmar,
     pedir,
