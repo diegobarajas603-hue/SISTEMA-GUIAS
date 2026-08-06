@@ -169,6 +169,146 @@ tbody tr.clic:hover {
 }
 
 /* ============================================================================
+   DASHBOARD — Graficas comparativas MTY / CDMX
+   ==========================================================================*/
+
+.graficas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: var(--card-gap);
+  margin-bottom: var(--card-gap);
+}
+
+.grafica__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-16);
+}
+
+.grafica__sub {
+  font-size: var(--t-small-size);
+  color: var(--text-tertiary);
+}
+
+/* Leyenda: para dos series siempre esta, y ademas cada barra lleva su
+   numero, para que la identidad nunca dependa solo del color. */
+.leyenda {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+}
+
+.leyenda-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--t-small-size);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.leyenda-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: var(--tinta, var(--text-tertiary));
+}
+
+.grafica svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* Rejilla: solo horizontal y punteada; los ejes no llevan linea */
+.g-rejilla {
+  stroke: var(--border-subtle);
+  stroke-dasharray: 2 4;
+  stroke-width: 1;
+}
+
+.g-eje {
+  font-size: 11px;
+  fill: var(--text-tertiary);
+}
+
+.g-valor {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  fill: var(--text-secondary);
+}
+
+.g-barra {
+  cursor: default;
+}
+
+/* Porcentaje dentro de un segmento: necesita su propia tinta, la del
+   texto normal no contrasta contra un relleno saturado. */
+.g-pct {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  fill: var(--ink-on-status);
+}
+
+.g-vacio {
+  font-size: 13px;
+  fill: var(--text-tertiary);
+}
+
+/* Tooltip compartido por las dos graficas */
+.g-tooltip {
+  position: fixed;
+  z-index: var(--z-toast);
+  pointer-events: none;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease);
+}
+
+.g-tooltip.is-on { opacity: 1; }
+
+.g-tooltip__titulo {
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-4);
+}
+
+.g-tooltip__fila {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.g-tooltip__fila i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: var(--tinta, var(--text-tertiary));
+}
+
+.g-tooltip__fila b {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  margin-left: auto;
+}
+
+/* ============================================================================
    DASHBOARD — Donde esta la mercancia
    ==========================================================================*/
 

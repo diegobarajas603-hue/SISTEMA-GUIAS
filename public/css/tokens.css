@@ -107,6 +107,19 @@
   --avatar-bg:   hsl(var(--avatar-h, 220) 30% 26%);
   --avatar-text: var(--text-primary);
 
+  /* ---------- Plazas como categorias de grafica ----------
+     Dos identidades, no dos estados: no pueden usar los colores de estatus,
+     que estan reservados. Par validado en las seis comprobaciones sobre las
+     dos superficies: separacion CVD 16.2 (protan) y 27.1 en vision normal,
+     y contraste sobre el fondo por encima de 3:1 en ambos temas. */
+  --plaza-mty:  #3B82F6;
+  --plaza-cdmx: #D9538F;
+
+  /* Tinta para texto encima de un relleno de estatus. En oscuro los
+     estatus son brillantes y pide tinta oscura; en claro es al reves.
+     Verificado contra los cuatro rellenos en los dos temas. */
+  --ink-on-status: #0E1013;
+
   /* Favorita */
   --star: #E3B341;
 
@@ -285,11 +298,11 @@
   --accent-ring:    rgba(37, 99, 235, 0.18);
 
   /* ---------- Semanticos de estatus ---------- */
-  --st-transito-color:  #C2632F;
+  --st-transito-color:  #B25728;   /* #C2632F daba 4.10:1 con blanco encima */
   --st-transito-text:   #9C4A26;                   /* 5.5:1 */
-  --st-transito-bg:     rgba(194, 99, 47, 0.10);
-  --st-transito-border: rgba(194, 99, 47, 0.28);
-  --st-transito-halo:   rgba(194, 99, 47, 0.18);
+  --st-transito-bg:     rgba(178, 87, 40, 0.10);
+  --st-transito-border: rgba(178, 87, 40, 0.28);
+  --st-transito-halo:   rgba(178, 87, 40, 0.18);
 
   --st-bodega-color:    #5B4BD6;
   --st-bodega-text:     #4C3DBF;                   /* 7.0:1 */
@@ -353,6 +366,8 @@
   /* Avatar: en claro el fondo va claro y las iniciales oscuras */
   --avatar-bg:   hsl(var(--avatar-h, 220) 44% 87%);
   --avatar-text: #1B1F26;
+
+  --ink-on-status: #FFFFFF;
 
   /* En claro se usa el logo original, sin tocar */
   --logo-url: url("/logo-tauro.svg");

@@ -156,13 +156,28 @@
           <h2 class="titulo-card">Donde esta la mercancia</h2>
           <div class="flujo" id="flujo"></div>
         </div>
-        <div class="card">
-          <h2 class="titulo-card">Actividad reciente</h2>
-          <div class="tabla-scroll">
-            <table>
-              <thead><tr><th>Fecha y hora</th><th>Guia</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
-              <tbody id="tbodyActividad"></tbody>
-            </table>
+
+        <div class="graficas">
+          <div class="card grafica">
+            <div class="grafica__head">
+              <div>
+                <h2 class="titulo-card" style="margin-bottom:2px">Guias por etapa</h2>
+                <span class="grafica__sub">Cuantas hay en cada etapa, plaza contra plaza</span>
+              </div>
+              <div class="leyenda" id="leyendaEtapa"></div>
+            </div>
+            <div id="graficaEtapa"></div>
+          </div>
+
+          <div class="card grafica">
+            <div class="grafica__head">
+              <div>
+                <h2 class="titulo-card" style="margin-bottom:2px">Composicion de cada plaza</h2>
+                <span class="grafica__sub">Como se reparte el total de cada plaza</span>
+              </div>
+              <div class="leyenda" id="leyendaMezcla"></div>
+            </div>
+            <div id="graficaMezcla"></div>
           </div>
         </div>
       </section>
@@ -765,6 +780,181 @@
   // Umbral para considerar detenida una guia en transito (sin movimiento)
   const HORAS_DETENIDA = 24;
 
+  // ---------- Graficas comparativas MTY / CDMX ----------
+  // Se arman con los conteos que ya devuelve /api/guias/resumen: comparar
+  // plazas no necesita serie de tiempo, asi que no hay endpoint nuevo.
+  const ETAPAS = [
+    ['EN_TRANSITO_A_', 'En transito'],
+    ['EN_BODEGA_', 'En bodega'],
+    ['EN_RUTA_ENTREGA_', 'En reparto'],
+    ['ENTREGADO_', 'Entregadas'],
+  ];
+  const PLAZAS_G = [
+    { id: 'MTY', nombre: 'MTY', tinta: 'var(--plaza-mty)' },
+    { id: 'CDMX', nombre: 'CDMX', tinta: 'var(--plaza-cdmx)' },
+  ];
+
+  const svgEsc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  // Barra con las esquinas superiores redondeadas, anclada a la base
+  function barraPath(x, y, w, h, r) {
+    if (h <= 0) return '';
+    const rr = Math.min(r, h, w / 2);
+    return `M${x},${y + h}L${x},${y + rr}Q${x},${y} ${x + rr},${y}` +
+           `L${x + w - rr},${y}Q${x + w},${y} ${x + w},${y + rr}L${x + w},${y + h}Z`;
+  }
+
+  function leyenda(items) {
+    return items.map((i) =>
+      `<span class="leyenda-item" style="--tinta:${i.tinta}"><i></i>${esc(i.nombre)}</span>`).join('');
+  }
+
+  // ---- Tooltip compartido ----
+  let tipEl;
+  function tooltip() {
+    if (!tipEl) {
+      tipEl = document.createElement('div');
+      tipEl.className = 'g-tooltip';
+      document.body.appendChild(tipEl);
+    }
+    return tipEl;
+  }
+  function mostrarTip(e, titulo, filas) {
+    const t = tooltip();
+    t.innerHTML = `<div class="g-tooltip__titulo">${esc(titulo)}</div>` +
+      filas.map((f) => `<div class="g-tooltip__fila" style="--tinta:${f.tinta}"><i></i>${esc(f.nombre)}<b>${f.valor}</b></div>`).join('');
+    t.classList.add('is-on');
+    moverTip(e);
+  }
+  function moverTip(e) {
+    const t = tooltip();
+    const r = t.getBoundingClientRect();
+    let x = e.clientX + 14;
+    let y = e.clientY - r.height - 10;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+    if (y < 8) y = e.clientY + 16;
+    t.style.left = x + 'px';
+    t.style.top = y + 'px';
+  }
+  function ocultarTip() { if (tipEl) tipEl.classList.remove('is-on'); }
+
+  function cablearTip(cont, datos) {
+    cont.querySelectorAll('[data-tip]').forEach((el) => {
+      const d = datos[Number(el.dataset.tip)];
+      el.addEventListener('mouseenter', (e) => mostrarTip(e, d.titulo, d.filas));
+      el.addEventListener('mousemove', moverTip);
+      el.addEventListener('mouseleave', ocultarTip);
+    });
+  }
+
+  // ---- Grafica 1: barras agrupadas por etapa ----
+  function pintarGraficaEtapa(p) {
+    $('leyendaEtapa').innerHTML = leyenda(PLAZAS_G);
+
+    const series = PLAZAS_G.map((pl) => ETAPAS.map(([pre]) => p[pre + pl.id] || 0));
+    const maxDato = Math.max(1, ...series.flat());
+    // Techo en un numero redondo, para que la escala se lea
+    const paso = Math.max(1, Math.ceil(maxDato / 4 / 5) * 5);
+    const tope = paso * 4;
+
+    const W = 520, H = 250, ML = 34, MR = 6, MT = 22, MB = 34;
+    const px0 = ML, px1 = W - MR, py0 = MT, py1 = H - MB;
+    const plotW = px1 - px0, plotH = py1 - py0;
+    const grupoW = plotW / ETAPAS.length;
+    const barraW = 38, hueco = 4;
+    const anchoPar = barraW * 2 + hueco;
+    const escala = (v) => (v / tope) * plotH;
+
+    let svg = '';
+    // Rejilla horizontal punteada y etiquetas del eje
+    for (let i = 0; i <= 4; i++) {
+      const y = py1 - (plotH / 4) * i;
+      svg += `<line class="g-rejilla" x1="${px0}" y1="${y}" x2="${px1}" y2="${y}"/>`;
+      svg += `<text class="g-eje" x="${px0 - 8}" y="${y + 4}" text-anchor="end">${paso * i}</text>`;
+    }
+
+    const datos = [];
+    ETAPAS.forEach(([pre, nombre], gi) => {
+      const cx = px0 + grupoW * gi + grupoW / 2;
+      svg += `<text class="g-eje" x="${cx}" y="${py1 + 20}" text-anchor="middle">${svgEsc(nombre)}</text>`;
+      PLAZAS_G.forEach((pl, si) => {
+        const v = p[pre + pl.id] || 0;
+        const h = escala(v);
+        const x = cx - anchoPar / 2 + si * (barraW + hueco);
+        const y = py1 - h;
+        const idx = datos.push({
+          titulo: nombre,
+          filas: PLAZAS_G.map((q) => ({ nombre: q.nombre, tinta: q.tinta, valor: p[pre + q.id] || 0 })),
+        }) - 1;
+        if (h > 0) svg += `<path class="g-barra" data-tip="${idx}" d="${barraPath(x, y, barraW, h, 4)}" fill="${pl.tinta}"/>`;
+        else svg += `<rect class="g-barra" data-tip="${idx}" x="${x}" y="${py1 - 2}" width="${barraW}" height="2" fill="${pl.tinta}" opacity="0.28"/>`;
+        svg += `<text class="g-valor" x="${x + barraW / 2}" y="${y - 6}" text-anchor="middle">${v}</text>`;
+      });
+    });
+
+    $('graficaEtapa').innerHTML =
+      `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Guias por etapa en MTY y CDMX">${svg}</svg>`;
+    cablearTip($('graficaEtapa'), datos);
+  }
+
+  // ---- Grafica 2: composicion de cada plaza (barras 100% apiladas) ----
+  function pintarGraficaMezcla(p) {
+    $('leyendaMezcla').innerHTML = leyenda(
+      ETAPAS.map(([pre, nombre]) => ({ nombre, tinta: `var(--st-${UI.statusKind(pre + 'MTY')}-color)` }))
+    );
+
+    const W = 520, H = 168, ALTO = 34, HUECO = 2;
+    let svg = '';
+    const datos = [];
+    let vacio = true;
+
+    PLAZAS_G.forEach((pl, fi) => {
+      const valores = ETAPAS.map(([pre, nombre]) => ({
+        nombre, valor: p[pre + pl.id] || 0, tinta: `var(--st-${UI.statusKind(pre + pl.id)}-color)`,
+      }));
+      const total = valores.reduce((a, v) => a + v.valor, 0);
+      const yEtiqueta = 16 + fi * 84;
+      const y = yEtiqueta + 14;
+
+      svg += `<text class="g-eje" x="0" y="${yEtiqueta}">${pl.nombre}</text>`;
+      svg += `<text class="g-valor" x="${W}" y="${yEtiqueta}" text-anchor="end">${total} guia${total === 1 ? '' : 's'}</text>`;
+
+      if (!total) {
+        svg += `<rect x="0" y="${y}" width="${W}" height="${ALTO}" rx="4" fill="var(--bg-inset)"/>`;
+        svg += `<text class="g-vacio" x="${W / 2}" y="${y + ALTO / 2 + 4}" text-anchor="middle">Sin guias en esta plaza</text>`;
+        return;
+      }
+      vacio = false;
+
+      // El hueco entre segmentos se descuenta del ancho disponible
+      const conValor = valores.filter((v) => v.valor > 0);
+      const util = W - HUECO * Math.max(0, conValor.length - 1);
+      let x = 0;
+      conValor.forEach((v, i) => {
+        const w = (v.valor / total) * util;
+        const pct = Math.round((v.valor / total) * 100);
+        const primero = i === 0, ultimo = i === conValor.length - 1;
+        const r = 4;
+        // Solo se redondean los extremos de la barra completa
+        svg += `<path class="g-barra" data-tip="${datos.length}" fill="${v.tinta}" d="${
+          `M${x + (primero ? r : 0)},${y}` +
+          `L${x + w - (ultimo ? r : 0)},${y}` +
+          (ultimo ? `Q${x + w},${y} ${x + w},${y + r}L${x + w},${y + ALTO - r}Q${x + w},${y + ALTO} ${x + w - r},${y + ALTO}` : `L${x + w},${y}L${x + w},${y + ALTO}`) +
+          `L${x + (primero ? r : 0)},${y + ALTO}` +
+          (primero ? `Q${x},${y + ALTO} ${x},${y + ALTO - r}L${x},${y + r}Q${x},${y} ${x + r},${y}` : `L${x},${y + ALTO}L${x},${y}`) + 'Z'
+        }"/>`;
+        datos.push({ titulo: `${pl.nombre} · ${v.nombre}`, filas: [{ nombre: 'Guias', tinta: v.tinta, valor: `${v.valor} (${pct}%)` }] });
+        // La etiqueta solo entra si el segmento le da el ancho
+        if (w > 42) svg += `<text class="g-pct" x="${x + w / 2}" y="${y + ALTO / 2 + 4}" text-anchor="middle">${pct}%</text>`;
+        x += w + HUECO;
+      });
+    });
+
+    $('graficaMezcla').innerHTML =
+      `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Composicion de guias por plaza">${svg}</svg>`;
+    if (!vacio) cablearTip($('graficaMezcla'), datos);
+  }
+
   // Esqueletos con la forma real del contenido, no un spinner generico
   function esqueletoDashboard() {
     $('kpis').innerHTML = Array.from({ length: 6 }, () =>
@@ -782,7 +972,10 @@
         ${UI.skeleton('skeleton--text', 'width:88%;margin-bottom:var(--space-12)')}
         ${UI.skeleton('skeleton--text', 'width:70%;margin-bottom:var(--space-12)')}
         ${UI.skeleton('skeleton--text', 'width:92%')}</div>`;
-    $('tbodyActividad').innerHTML = UI.skeletonRows(6, 5);
+    $('graficaEtapa').innerHTML = UI.skeleton('skeleton--row', 'height:220px');
+    $('graficaMezcla').innerHTML = UI.skeleton('skeleton--row', 'height:150px');
+    $('leyendaEtapa').innerHTML = '';
+    $('leyendaMezcla').innerHTML = '';
   }
 
   async function cargarDashboard() {
@@ -819,21 +1012,15 @@
       );
 
       pintarFlujo(p);
-
-      const eventos = await api('/api/eventos?limit=10');
-      $('tbodyActividad').innerHTML = eventos.length
-        ? eventos.map(filaEvento).join('')
-        : `<tr><td colspan="5">${UI.emptyState({
-            titulo: 'Sin actividad todavia',
-            descripcion: 'Los escaneos apareceran aqui en cuanto empiece el movimiento del dia.',
-          })}</td></tr>`;
-      activarFilasGuia('#tbodyActividad');
+      pintarGraficaEtapa(p);
+      pintarGraficaMezcla(p);
 
       revisarDetenidas();
     } catch (e) {
       UI.montarError($('kpis'), e.message, cargarDashboard);
       $('flujo').innerHTML = '';
-      $('tbodyActividad').innerHTML = '';
+      $('graficaEtapa').innerHTML = '';
+      $('graficaMezcla').innerHTML = '';
     }
   }
 
@@ -958,20 +1145,7 @@
   // Etiqueta para escaneos que un administrador revirtio
   const tagRevertido = (ev) => (ev.revertido ? ' <span class="t-small">(revertido)</span>' : '');
 
-  function filaEvento(ev) {
-    return `<tr class="clic ${ev.revertido ? 'ev-revertido' : ''}" data-guia="${esc(ev.numero_guia)}">
-      <td title="${fmtFecha(ev.creado_en)}"><span class="mono t-tertiary">${fmtRelativo(ev.creado_en)}</span></td>
-      <td><span class="mono t-primary">${esc(ev.numero_guia)}</span></td>
-      <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}${tagRevertido(ev)}</td>
-      <td>${esc(ev.plaza || '-')}</td>
-      <td>${esc(ev.descripcion || '')}</td></tr>`;
-  }
 
-  function activarFilasGuia(selector) {
-    document.querySelectorAll(selector + ' tr.clic').forEach((tr) =>
-      tr.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(tr.dataset.guia)))
-    );
-  }
 
   // ---------- Escanear ----------
   // El input de captura nunca pierde el foco por accidente: la pistola
