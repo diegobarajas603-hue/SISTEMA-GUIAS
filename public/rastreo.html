@@ -31,12 +31,12 @@
 
   /* Tarjeta del estatus: es la respuesta que vino a buscar el cliente, asi
      que se muestra mas grande y con mas aire que el resto. */
-  #resultado { display: none; border-top: 5px solid #d92027; padding: 26px 22px; }
+  #resultado { display: none; border-top: 5px solid #d92027; padding: 18px 20px 15px; }
   #resultado.aparece { animation: aparecer 0.45s cubic-bezier(0.4, 0, 0.2, 1) both; }
   @keyframes aparecer { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-  .guia-num { margin: 0 0 8px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9a9a9a; font-variant-numeric: tabular-nums; }
-  .estatus-grande { font-size: 1.65rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 8px; color: #1a1a1a; }
+  .guia-num { margin: 0 0 5px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9a9a9a; font-variant-numeric: tabular-nums; }
+  .estatus-grande { font-size: 1.65rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 6px; color: #1a1a1a; }
   /* Punto de color: da el estado de un vistazo, antes de leer el texto */
   .estatus-grande::before {
     content: ''; display: inline-block; width: 13px; height: 13px; border-radius: 50%;
@@ -47,8 +47,8 @@
   .estatus-grande.e-bodega::before { background: #1e7d32; }
   @keyframes latir { 0%, 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0.18); } 50% { box-shadow: 0 0 0 7px rgba(0,0,0,0); } }
 
-  .mensaje { margin: 0; color: #4b4b4b; font-size: 1rem; line-height: 1.55; }
-  .actualizado { margin: 14px 0 0; font-size: 0.8rem; color: #9a9a9a; }
+  .mensaje { margin: 0; color: #4b4b4b; font-size: 1rem; line-height: 1.45; }
+  .actualizado { margin: 9px 0 0; font-size: 0.8rem; color: #9a9a9a; }
 
   @media (prefers-reduced-motion: reduce) {
     .marca, .marca img, .marca p { transition: none; }
@@ -57,7 +57,7 @@
   }
 
   /* Barra de progreso del envio */
-  .stepper { display: flex; margin: 22px 0 8px; }
+  .stepper { display: flex; margin: 14px 0 4px; }
   .paso { flex: 1; text-align: center; position: relative; }
   .paso::before { content: ''; position: absolute; top: 17px; left: -50%; width: 100%; height: 5px; border-radius: 99px; background: #e4e4e7; z-index: 0; }
   .paso:first-child::before { display: none; }
@@ -73,7 +73,7 @@
   .paso.hecho .circulo { background: linear-gradient(135deg, #27963e, #1e7d32); color: #fff; box-shadow: 0 2px 6px rgba(30,125,50,0.35); }
   .paso.actual .circulo { background: linear-gradient(135deg, #27963e, #1e7d32); color: #fff; animation: pulso 1.8s ease-in-out infinite; }
   @keyframes pulso { 0%, 100% { box-shadow: 0 0 0 4px rgba(30,125,50,0.25); } 50% { box-shadow: 0 0 0 10px rgba(30,125,50,0.08); } }
-  .paso .nombre { font-size: 0.76rem; font-weight: 600; color: #52525b; line-height: 1.2; }
+  .paso .nombre { font-size: 0.78rem; font-weight: 700; color: #3f3f46; line-height: 1.2; }
   .paso.hecho .nombre, .paso.actual .nombre { color: #1a1a1a; }
 
   .error { display: none; background: #fdecec; border: 1.5px solid #d92027; color: #a31419; border-radius: 4px; padding: 14px 16px; margin-bottom: 14px; }
