@@ -29,8 +29,19 @@
    SIDEBAR — 240px, colapsable a 64px
    ==========================================================================*/
 
+/* El sidebar se queda quieto y solo se desplaza el contenido.
+   Antes era un hijo de flex sin alto propio, asi que se estiraba hasta el
+   alto del documento: en una lista larga de guias el pie —la plaza, el
+   usuario y cerrar sesion— quedaba al final de la pagina y habia que bajar
+   hasta abajo para alcanzarlo. Con sticky y 100vh el pie esta siempre a la
+   vista, y si el menu no cabe se desplaza por dentro (.sidebar__nav ya
+   lleva overflow-y). */
 .sidebar {
-  position: relative;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  height: 100dvh;   /* en moviles descuenta la barra del navegador */
   width: var(--w-sidebar);
   flex-shrink: 0;
   background: var(--bg-base);
