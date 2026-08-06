@@ -527,10 +527,24 @@ button.plaza-fila:hover {
    contraste sube. Nada aqui debe requerir puntería.
    ==========================================================================*/
 
-/* El escaner conserva el azul del sistema. La pill activa toma su degradado
-   de los mismos tokens que la card destacada del dashboard, para que sea
-   literalmente el mismo azul y no una version parecida. */
+/* El visor y la confirmacion del escaneo van en verde: es el color con el
+   que el operador ve que el paquete quedo registrado. Los botones de plaza
+   y de operacion se quedan en el azul del sistema, porque son una eleccion
+   previa al escaneo y no un resultado.
+
+   El acento verde se redefine solo dentro de .escaner y hereda a la caja de
+   captura, el marco de mira, el icono y la barra del resultado. Las pills
+   activas no lo usan: tienen su propio degradado en --pill-activa-*. */
 .escaner {
+  --accent:             var(--st-entregado-color);
+  --accent-hover:       var(--st-entregado-text);
+  --accent-solid:       #1A7F37;              /* texto blanco encima: 5.1:1 */
+  --accent-solid-hover: #14682C;
+  --accent-subtle:      var(--st-entregado-bg);
+  --accent-border:      var(--st-entregado-border);
+  --accent-ring:        var(--st-entregado-halo);
+
+  /* Los botones conservan el azul de la card destacada del dashboard */
   --pill-activa-from:  var(--card-featured-from);   /* blanco encima: 7.7:1 */
   --pill-activa-to:    var(--card-featured-to);
   --pill-activa-borde: var(--card-featured-border);
@@ -1277,8 +1291,18 @@ button.plaza-fila:hover {
   align-items: start;
 }
 
-/* Stepper */
+/* Stepper del detalle.
+   El progreso del envio va en verde, no en el azul del sistema: marca un
+   avance ya cumplido, no una seleccion del usuario. La linea usa un verde
+   mas brillante que los circulos porque no lleva texto encima: como grafico
+   le basta 3:1 (da 3.3:1 sobre blanco y 5.8:1 sobre el fondo oscuro),
+   mientras que los circulos, que llevan el numero en blanco, se quedan en
+   el verde mas profundo para cumplir 5.1:1. */
 .stepper {
+  --accent:        var(--verde-linea);
+  --accent-solid:  #1A7F37;                 /* numero blanco encima: 5.1:1 */
+  --accent-subtle: var(--st-entregado-bg);
+
   display: flex;
   overflow-x: auto;
   padding-top: var(--space-4);

@@ -99,6 +99,11 @@
   --st-bodega-halo:    rgba(124, 107, 240, 0.15);
   --st-reparto-halo:   rgba(34, 165, 196, 0.15);
   --st-entregado-halo: rgba(63, 185, 80, 0.15);
+
+  /* Verde brillante de la linea de progreso del envio. Es un grafico sin
+     texto encima, asi que le aplica el minimo de 3:1 y lo cumple en los dos
+     temas (5.8:1 sobre el fondo oscuro, 3.3:1 sobre blanco). */
+  --verde-linea: #16A34A;
   --st-cancelada-halo: rgba(176, 139, 62, 0.15);
   --st-eliminada-halo: rgba(229, 72, 77, 0.15);
   --st-neutro-halo:    rgba(255, 255, 255, 0.08);
