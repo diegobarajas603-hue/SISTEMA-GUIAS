@@ -527,25 +527,13 @@ button.plaza-fila:hover {
    contraste sube. Nada aqui debe requerir puntería.
    ==========================================================================*/
 
-/* El modo escaner trabaja en verde, no en el azul del resto del panel: es
-   el color con el que el operador confirma que el paquete quedo registrado
-   y el que da confianza en una operacion que se repite cientos de veces al
-   dia. Se redefine el acento solo dentro de .escaner, asi que hereda a las
-   pills, la caja de captura y la barra del resultado sin tocar el sistema. */
+/* El escaner conserva el azul del sistema. La pill activa toma su degradado
+   de los mismos tokens que la card destacada del dashboard, para que sea
+   literalmente el mismo azul y no una version parecida. */
 .escaner {
-  --accent:             var(--st-entregado-color);
-  --accent-hover:       var(--st-entregado-text);
-  --accent-solid:       #1A7F37;              /* texto blanco encima: 5.1:1 */
-  --accent-solid-hover: #14682C;
-  --accent-subtle:      var(--st-entregado-bg);
-  --accent-border:      var(--st-entregado-border);
-  --accent-ring:        var(--st-entregado-halo);
-
-  /* Degradado de la pill activa, equivalente verde del que usa la card
-     destacada del dashboard (#1E4FA8 -> #17325F). */
-  --pill-activa-from:  #1C8340;                  /* blanco encima: 4.8:1 */
-  --pill-activa-to:    #10502A;
-  --pill-activa-borde: rgba(28, 131, 64, 0.55);
+  --pill-activa-from:  var(--card-featured-from);   /* blanco encima: 7.7:1 */
+  --pill-activa-to:    var(--card-featured-to);
+  --pill-activa-borde: var(--card-featured-border);
 
   display: flex;
   flex-direction: column;
@@ -610,9 +598,8 @@ button.plaza-fila:hover {
 
 /* La pill activa del escaner recibe el mismo tratamiento que la card
    destacada del dashboard: degradado a 160 grados y brillo en el borde
-   superior. Asi el verde tiene el cuerpo del azul del sistema en vez de
-   verse como un relleno plano. El tono mas claro del degradado da 4.8:1
-   con texto blanco, de modo que toda la superficie cumple AA. */
+   superior, en vez de un relleno plano. El tono mas claro del degradado da
+   7.7:1 con texto blanco, de modo que toda la superficie cumple AA. */
 .escaner .pill[aria-pressed="true"] {
   background: linear-gradient(160deg, var(--pill-activa-from) 0%, var(--pill-activa-to) 100%);
   border-color: var(--pill-activa-borde);
