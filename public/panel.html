@@ -137,6 +137,11 @@
       <!-- ==================================================== Dashboard -->
       <section id="v-dashboard" style="display:none">
         <div class="kpis" id="kpis"></div>
+        <div id="alertaDetenidas"></div>
+        <div class="card">
+          <h2 class="titulo-card">Donde esta la mercancia</h2>
+          <div class="flujo" id="flujo"></div>
+        </div>
         <div class="card">
           <h2 class="titulo-card">Actividad reciente</h2>
           <div class="tabla-scroll">
@@ -184,9 +189,10 @@
           <button data-ptab="">Todas</button>
         </div>
         <div class="chips" id="chipsPlaza"></div>
-        <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap;">
+        <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
           <input class="input" type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" style="flex:2; min-width:200px;" />
           <select class="select" id="filtroEstatus" style="flex:1; min-width:190px;"></select>
+          <span id="avisoDetenidas"></span>
         </div>
         <div class="card card--flush">
           <div class="tabla-scroll">
@@ -644,6 +650,8 @@
         })
       );
 
+      pintarFlujo(p);
+
       const eventos = await api('/api/eventos?limit=10');
       $('tbodyActividad').innerHTML = eventos.length
         ? eventos.map(filaEvento).join('')
@@ -657,21 +665,114 @@
     }
   }
 
+  // ---------- Donde esta la mercancia ----------
+  // Una plaza agrupa lo que esta fisicamente ahi (en su bodega, en reparto o
+  // ya entregado); las flechas son lo que va en camino entre plazas.
+  // La pestaña de Guias, en cambio, agrupa por plaza de ORIGEN: una guia en
+  // bodega MTY salio de CDMX, por eso el tab es la plaza contraria.
+  const tabDeEstatus = (est) => (est.endsWith('_MTY') ? 'CDMX' : 'MTY');
+
+  function filaFlujo(estatus, texto, total) {
+    return `<button class="plaza-fila" data-est="${estatus}" title="Ver estas guias">
+      <span class="dot dot--${UI.statusKind(estatus)}"></span>
+      <span class="plaza-fila__num">${total}</span>
+      <span class="plaza-fila__txt">${texto}</span>
+    </button>`;
+  }
+
+  function columnaPlaza(plaza, nombre, p) {
+    const bodega = p['EN_BODEGA_' + plaza] || 0;
+    const reparto = p['EN_RUTA_ENTREGA_' + plaza] || 0;
+    const entregadas = p['ENTREGADO_' + plaza] || 0;
+    return `<div class="plaza-col">
+      <div class="plaza-col__head">
+        <span class="dot dot--accent"></span>
+        <span class="plaza-col__nombre">${nombre}</span>
+      </div>
+      ${filaFlujo('EN_BODEGA_' + plaza, 'En bodega', bodega)}
+      ${filaFlujo('EN_RUTA_ENTREGA_' + plaza, 'En reparto', reparto)}
+      ${filaFlujo('ENTREGADO_' + plaza, 'Entregadas', entregadas)}
+      <div class="plaza-fila plaza-fila--total">
+        <span class="plaza-fila__num">${bodega + reparto + entregadas}</span>
+        <span class="plaza-fila__txt">En la plaza</span>
+      </div>
+    </div>`;
+  }
+
+  function flechaTransito(estatus, ruta, dir, total) {
+    const punta = dir === 'der' ? 'flecha--der' : 'flecha--izq';
+    return `<div class="flecha ${punta} ${total > 0 ? 'is-activa' : ''}" data-est="${estatus}">
+      <span class="flecha__ruta">${ruta}</span>
+      <span class="flecha__linea"><span class="flecha__luz"></span></span>
+      <svg class="flecha__punta" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5L7.5 5L4 8.5"/></svg>
+      <span class="flecha__chip">${total}</span>
+    </div>`;
+  }
+
+  function pintarFlujo(p) {
+    const aCDMX = p.EN_TRANSITO_A_CDMX || 0;
+    const aMTY = p.EN_TRANSITO_A_MTY || 0;
+    $('flujo').innerHTML =
+      columnaPlaza('MTY', 'Monterrey', p) +
+      `<div class="transitos">
+        ${flechaTransito('EN_TRANSITO_A_CDMX', 'MTY &rarr; CDMX', 'der', aCDMX)}
+        ${flechaTransito('EN_TRANSITO_A_MTY', 'CDMX &rarr; MTY', 'izq', aMTY)}
+      </div>` +
+      columnaPlaza('CDMX', 'Ciudad de Mexico', p);
+
+    $('flujo').querySelectorAll('[data-est]').forEach((el) =>
+      el.addEventListener('click', () => irAGuias(tabDeEstatus(el.dataset.est), el.dataset.est))
+    );
+  }
+
+  // ---------- Guias detenidas ----------
   // Guias en transito sin movimiento en mas de HORAS_DETENIDA horas.
   // Se deriva en el cliente de /api/guias; no requiere endpoint nuevo.
   let detenidas = [];
+
+  function esDetenida(g, limite) {
+    return g.estatus.startsWith('EN_TRANSITO') && new Date(g.actualizado_en).getTime() < limite;
+  }
+
   async function revisarDetenidas() {
     try {
       const guias = await api('/api/guias');
       const limite = Date.now() - HORAS_DETENIDA * 3600 * 1000;
-      detenidas = guias.filter(
-        (g) => g.estatus.startsWith('EN_TRANSITO') && new Date(g.actualizado_en).getTime() < limite
-      );
+      detenidas = guias.filter((g) => esDetenida(g, limite));
       $('puntoPendientes').style.display = detenidas.length ? '' : 'none';
       $('btnPendientes').title = detenidas.length
         ? `${detenidas.length} guia(s) detenida(s) mas de ${HORAS_DETENIDA} h`
         : 'Sin guias detenidas';
+      pintarAlertaDetenidas();
     } catch {}
+  }
+
+  function pintarAlertaDetenidas() {
+    if (!detenidas.length) { $('alertaDetenidas').innerHTML = ''; return; }
+    const n = detenidas.length;
+    $('alertaDetenidas').innerHTML = `
+      <div class="alerta">
+        <span class="alerta__ico">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 2.5l7.5 13h-15z"/><path d="M10 8v3.5M10 13.5h.01"/>
+          </svg>
+        </span>
+        <div class="alerta__cuerpo">
+          <div class="alerta__titulo">${n} guia${n === 1 ? '' : 's'} detenida${n === 1 ? '' : 's'}</div>
+          <div class="alerta__desc">En transito sin ningun escaneo desde hace mas de ${HORAS_DETENIDA} h.</div>
+        </div>
+        <button class="btn btn--secondary" id="btnVerDetenidas">Ver guias</button>
+      </div>`;
+    $('btnVerDetenidas').addEventListener('click', irADetenidas);
+  }
+
+  function irADetenidas() {
+    soloDetenidas = true;
+    plazaTab = '';
+    localStorage.setItem('plazaTab', '');
+    estatusPendiente = '';
+    if (location.hash === '#/guias') setPlazaTab('');
+    else location.hash = '#/guias';
   }
 
   $('btnPendientes').addEventListener('click', () => {
@@ -679,11 +780,7 @@
       UI.toast({ tipo: 'ok', titulo: 'Todo en movimiento', descripcion: `Ninguna guia lleva mas de ${HORAS_DETENIDA} h detenida.` });
       return;
     }
-    UI.toast({
-      tipo: 'warn',
-      titulo: `${detenidas.length} guia(s) detenida(s)`,
-      descripcion: `Sin movimiento en mas de ${HORAS_DETENIDA} h. La primera es ${detenidas[0].numero_guia}.`,
-    });
+    irADetenidas();
   });
 
   // Etiqueta para escaneos que un administrador revirtio
@@ -781,6 +878,7 @@
   }
 
   let estatusPendiente = null; // filtro que viene de un clic en el dashboard
+  let soloDetenidas = false;   // filtro de "detenidas +24 h", se aplica en cliente
 
   function setPlazaTab(p) {
     plazaTab = p;
@@ -796,6 +894,7 @@
   }
 
   function irAGuias(tab, estatus) {
+    soloDetenidas = false;
     plazaTab = tab;
     localStorage.setItem('plazaTab', tab);
     estatusPendiente = estatus || '';
@@ -823,6 +922,20 @@
     } catch { $('chipsPlaza').innerHTML = ''; }
   }
 
+  // Aviso de que el listado esta acotado a las guias detenidas
+  function pintarAvisoDetenidas() {
+    const cont = $('avisoDetenidas');
+    if (!soloDetenidas) { cont.innerHTML = ''; return; }
+    cont.innerHTML = `<button class="chip is-active" id="chipDetenidas">
+      Detenidas +${HORAS_DETENIDA} h <span class="chip__count">quitar &times;</span>
+    </button>`;
+    $('chipDetenidas').addEventListener('click', () => {
+      soloDetenidas = false;
+      pintarAvisoDetenidas();
+      cargarGuias();
+    });
+  }
+
   async function cargarGuias() {
     const params = new URLSearchParams();
     const buscar = $('buscar').value.trim();
@@ -834,9 +947,14 @@
     } else if (plazaTab) {
       params.set('plaza', plazaTab);
     }
+    pintarAvisoDetenidas();
     $('tbodyGuias').innerHTML = UI.skeletonRows(6, 5);
     try {
-      const data = await api('/api/guias?' + params);
+      let data = await api('/api/guias?' + params);
+      if (soloDetenidas) {
+        const limite = Date.now() - HORAS_DETENIDA * 3600 * 1000;
+        data = data.filter((g) => esDetenida(g, limite));
+      }
       $('tbodyGuias').innerHTML = data.length
         ? data.map((g) => `<tr class="clic" data-guia="${esc(g.numero_guia)}">
             <td><span class="mono t-primary">${esc(g.numero_guia)}</span></td>
@@ -844,7 +962,13 @@
             <td>${badge(g.estatus)}</td>
             <td><span class="mono t-tertiary">${fmtFecha(g.creado_en)}</span></td>
             <td><span class="mono t-tertiary">${fmtFecha(g.actualizado_en)}</span></td></tr>`).join('')
-        : `<tr><td colspan="5">${UI.emptyState({ icono: 'busqueda', titulo: 'Sin guias', descripcion: 'No hay guias que coincidan con los filtros activos.' })}</td></tr>`;
+        : `<tr><td colspan="5">${UI.emptyState({
+            icono: 'busqueda',
+            titulo: soloDetenidas ? 'Ninguna guia detenida' : 'Sin guias',
+            descripcion: soloDetenidas
+              ? `Ninguna guia en transito lleva mas de ${HORAS_DETENIDA} h sin escaneo. Todo va en movimiento.`
+              : 'No hay guias que coincidan con los filtros activos.',
+          })}</td></tr>`;
       activarFilasGuia('#tbodyGuias');
     } catch (e) {
       $('tbodyGuias').innerHTML = `<tr><td colspan="5">${UI.errorState(e.message)}</td></tr>`;

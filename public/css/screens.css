@@ -123,6 +123,283 @@ tbody tr.clic:hover {
 .card--featured .kpi-etiqueta { color: rgba(255, 255, 255, 0.72); }
 
 /* ============================================================================
+   DASHBOARD — banner de alerta
+   ==========================================================================*/
+
+.alerta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-16) var(--space-20);
+  margin-bottom: var(--card-gap);
+  background: rgba(217, 119, 87, 0.07);
+  border: 1px solid rgba(217, 119, 87, 0.22);
+  border-radius: var(--radius-lg);
+  overflow: hidden;   /* la barra izquierda respeta el radio de la tarjeta */
+}
+
+/* Barra izquierda de 3px a lo alto */
+.alerta::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--st-transito-color);
+}
+
+.alerta__ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-32);
+  height: var(--space-32);
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: rgba(217, 119, 87, 0.14);
+  color: var(--st-transito-color);
+}
+
+.alerta__ico svg {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
+
+.alerta__cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+
+.alerta__titulo {
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-line);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.alerta__desc {
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ============================================================================
+   DASHBOARD — Donde esta la mercancia
+   ==========================================================================*/
+
+.flujo {
+  display: grid;
+  grid-template-columns: 1fr 200px 1fr;
+  gap: var(--space-16);
+  align-items: stretch;
+}
+
+/* ---------- Columna de plaza ---------- */
+
+.plaza-col {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-16);
+}
+
+.plaza-col__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding-bottom: var(--space-12);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.plaza-col__nombre {
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.plaza-fila {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-8);
+  margin: 0 calc(var(--space-8) * -1);
+  border-radius: var(--radius-sm);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+button.plaza-fila:hover {
+  background: var(--overlay-hover);
+}
+
+.plaza-fila:last-child {
+  border-bottom: 0;
+}
+
+.plaza-fila .dot {
+  align-self: center;
+}
+
+.plaza-fila__num {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 2.5ch;
+  text-align: right;
+}
+
+.plaza-fila__txt {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Fila de total: separada del resto */
+.plaza-fila--total {
+  margin-top: var(--space-4);
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--border-default);
+  border-bottom: 0;
+}
+
+.plaza-fila--total .plaza-fila__txt {
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Columna central: las dos flechas de transito ---------- */
+
+.transitos {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-32);
+}
+
+.flecha {
+  position: relative;
+  height: var(--space-48);
+  display: flex;
+  align-items: center;
+  --flecha-color: var(--text-tertiary);
+}
+
+.flecha.is-activa {
+  --flecha-color: var(--st-transito-color);
+}
+
+/* Linea de 1px que se desvanece en los extremos */
+.flecha__linea {
+  position: relative;
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--flecha-color) 22%, var(--flecha-color) 78%, transparent 100%);
+  opacity: 0.55;
+}
+
+.flecha.is-activa .flecha__linea {
+  opacity: 1;
+}
+
+.flecha__punta {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  color: var(--flecha-color);
+}
+
+.flecha--der .flecha__punta { right: 0; }
+.flecha--izq .flecha__punta { left: 0; transform: rotate(180deg); }
+
+.flecha__chip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: var(--t-small-size);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.flecha.is-activa .flecha__chip {
+  color: var(--st-transito-text);
+  border-color: var(--st-transito-border);
+}
+
+.flecha__ruta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  text-align: center;
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* Punto de luz que recorre la linea.
+   Unico loop permitido en toda la aplicacion. */
+.flecha__luz {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: var(--radius-full);
+  background: var(--st-transito-color);
+  opacity: 0;
+}
+
+.flecha.is-activa .flecha__luz {
+  animation: recorrer 4s var(--ease) infinite;
+}
+
+.flecha--izq .flecha__luz {
+  animation-direction: reverse;
+}
+
+@keyframes recorrer {
+  0%        { transform: translateX(0);     opacity: 0; }
+  18%       { opacity: 0.5; }
+  82%       { opacity: 0.5; }
+  100%      { transform: translateX(200px); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flecha.is-activa .flecha__luz { animation: none; }
+}
+
+@media (max-width: 900px) {
+  .flujo { grid-template-columns: 1fr; }
+  .transitos { gap: var(--space-16); }
+}
+
+/* ============================================================================
    [PUENTE] ESCANEAR — se reemplaza en el Paso 7
    ==========================================================================*/
 
