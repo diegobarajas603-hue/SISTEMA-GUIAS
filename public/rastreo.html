@@ -4,192 +4,851 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Rastrea tu envío - Fletes Tauro</title>
+<link rel="icon" href="/logo-tauro.svg" type="image/svg+xml" />
 <style>
+  :root {
+    --rojo: #D1131E;
+    --rojo-hover: #B00F19;
+    --verde: #16A34A;
+    --verde-fuerte: #15803D;
+    --verde-tinte: #F0FDF4;
+    --verde-borde: #BBF7D0;
+    --ambar: #B45309;
+    --azul: #1D4ED8;
+
+    --tinta: #111827;
+    --tinta-2: #4B5563;
+    --tinta-3: #9CA3AF;
+    --linea: #E5E7EB;
+    --linea-suave: #F1F3F5;
+    --papel: #FFFFFF;
+    --fondo: #F7F8FA;
+
+    --sombra: 0 1px 2px rgba(17,24,39,0.04), 0 8px 24px -12px rgba(17,24,39,0.10);
+    --sombra-alta: 0 2px 4px rgba(17,24,39,0.05), 0 16px 40px -16px rgba(17,24,39,0.16);
+    --radio: 14px;
+  }
+
   * { box-sizing: border-box; }
-  body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #1a1a1a; margin: 0; padding: 0; }
-  .banda { height: 6px; background: #d92027; }
-  .wrap { max-width: 560px; margin: 0 auto; padding: 26px 16px; }
 
-  /* La marca entra en grande: es lo primero que ve el cliente. Al mostrarse
-     un resultado el body pasa a .compacto y el logo se encoge para cederle
-     el protagonismo al estatus de la guia, sin desaparecer del todo. */
-  .marca { text-align: center; margin-bottom: 22px; transition: margin-bottom 0.45s cubic-bezier(0.4, 0, 0.2, 1); }
-  .marca img { width: 300px; max-width: 85%; transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1); }
-  .marca p { margin: 8px 0 0; color: #6b6b6b; font-size: 0.95rem; transition: opacity 0.3s, max-height 0.45s, margin 0.45s; max-height: 40px; overflow: hidden; }
-
-  body.compacto .marca { margin-bottom: 16px; }
-  body.compacto .marca img { width: 120px; }
-  body.compacto .marca p { opacity: 0; max-height: 0; margin-top: 0; }
-
-  .card { background: #fff; border-radius: 14px; padding: 20px; border: 1px solid #ececee; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.05); margin-bottom: 14px; }
-  .buscador { display: flex; gap: 8px; }
-  /* min-width:0 deja que el campo se encoja de verdad dentro del flex; sin
-     eso conserva el ancho de su placeholder y empuja al boton fuera de la
-     pantalla en celulares angostos. */
-  input[type=text] { flex: 1; min-width: 0; padding: 13px 14px; font-size: 1.05rem; border-radius: 10px; border: 1.5px solid #cfcfcf; color: #1a1a1a; }
-  input[type=text]:focus { outline: none; border-color: #d92027; box-shadow: 0 0 0 3px rgba(217,32,39,0.12); }
-  button { padding: 13px 24px; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 10px; border: none; background: #d92027; color: #fff; cursor: pointer; }
-  button:hover { background: #b31a20; }
-  button:disabled { background: #e58a8d; cursor: wait; }
-
-  /* Tarjeta del estatus: es la respuesta que vino a buscar el cliente, asi
-     que se muestra mas grande y con mas aire que el resto. */
-  #resultado { display: none; border-top: 5px solid #d92027; padding: 18px 20px 15px; }
-  #resultado.aparece { animation: aparecer 0.45s cubic-bezier(0.4, 0, 0.2, 1) both; }
-  @keyframes aparecer { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-
-  .guia-num { margin: 0 0 5px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9a9a9a; font-variant-numeric: tabular-nums; }
-  .estatus-grande { font-size: 1.65rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 6px; color: #1a1a1a; }
-  /* Punto de color: da el estado de un vistazo, antes de leer el texto */
-  .estatus-grande::before {
-    content: ''; display: inline-block; width: 13px; height: 13px; border-radius: 50%;
-    margin-right: 11px; vertical-align: middle; background: #9a9a9a;
-  }
-  .estatus-grande.e-transito::before { background: #e0a400; animation: latir 1.8s ease-in-out infinite; }
-  .estatus-grande.e-ruta::before { background: #2563eb; animation: latir 1.8s ease-in-out infinite; }
-  .estatus-grande.e-bodega::before { background: #1e7d32; }
-  @keyframes latir { 0%, 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0.18); } 50% { box-shadow: 0 0 0 7px rgba(0,0,0,0); } }
-
-  .mensaje { margin: 0; color: #4b4b4b; font-size: 1rem; line-height: 1.45; }
-  .actualizado { margin: 9px 0 0; font-size: 0.8rem; color: #9a9a9a; }
-
-  @media (prefers-reduced-motion: reduce) {
-    .marca, .marca img, .marca p { transition: none; }
-    #resultado.aparece { animation: none; }
-    .estatus-grande::before, .paso.cargando::before, .paso.actual .circulo { animation: none; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--tinta);
+    background: var(--fondo);
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* Linea de tiempo del envio. Cada etapa es un nodo con su icono (camion,
-     paquete, ubicacion y casa) unido por una linea fina: continua en verde
-     donde el envio ya paso y punteada en gris donde falta. */
-  .stepper { display: flex; margin: 16px 0 2px; }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+  :focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; border-radius: 6px; }
+
+  /* ---------- Barra superior ---------- */
+
+  .barra {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 28px;
+    background: var(--papel);
+    border-bottom: 1px solid var(--linea);
+  }
+
+  .barra__marca { display: flex; align-items: center; gap: 12px; margin-right: auto; }
+  .barra__marca img { height: 42px; }
+
+  .barra__lema {
+    display: block;
+    font-size: 0.58rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--tinta-3);
+    margin-top: 2px;
+  }
+
+  .barra__acciones { display: flex; align-items: center; gap: 10px; }
+
+  .btn-texto {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: var(--tinta-2);
+    transition: background-color 0.15s, color 0.15s;
+  }
+
+  .btn-texto:hover { background: var(--linea-suave); color: var(--tinta); }
+  .btn-texto svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .btn-texto .chevron { transition: transform 0.2s; }
+  .btn-texto[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+
+  .btn-wa-barra {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: 999px;
+    background: var(--rojo);
+    color: #fff;
+    font-size: 0.92rem;
+    font-weight: 600;
+    box-shadow: 0 2px 10px -2px rgba(209,19,30,0.45);
+    transition: background-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  }
+
+  .btn-wa-barra:hover {
+    background: var(--rojo-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px -4px rgba(209,19,30,0.5);
+  }
+
+  .btn-wa-barra svg { width: 18px; height: 18px; fill: currentColor; }
+
+  /* Menu de ayuda */
+  .ayuda-wrap { position: relative; }
+
+  .ayuda {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: min(330px, calc(100vw - 32px));
+    padding: 8px;
+    background: var(--papel);
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra-alta);
+    animation: surgir 0.18s ease;
+  }
+
+  .ayuda[hidden] { display: none; }
+
+  .ayuda__item {
+    display: block;
+    width: 100%;
+    padding: 11px 12px;
+    border-radius: 10px;
+    text-align: left;
+    transition: background-color 0.15s;
+  }
+
+  .ayuda__item:hover { background: var(--linea-suave); }
+  .ayuda__item b { display: block; font-size: 0.92rem; font-weight: 600; }
+  .ayuda__item span { display: block; margin-top: 2px; font-size: 0.82rem; color: var(--tinta-2); line-height: 1.45; }
+
+  /* ---------- Encabezado ---------- */
+
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 52px 20px 0;
+    text-align: center;
+  }
+
+  /* Ondas de fondo: la marca sin cargar una imagen */
+  .hero::before,
+  .hero::after {
+    content: '';
+    position: absolute;
+    top: -40%;
+    width: 46%;
+    height: 200%;
+    pointer-events: none;
+    background-image: repeating-radial-gradient(circle at 50% 50%, rgba(209,19,30,0.10) 0 1px, transparent 1px 22px);
+  }
+
+  .hero::before { left: -14%; }
+  .hero::after  { right: -14%; }
+
+  .hero__titulo {
+    position: relative;
+    margin: 0;
+    font-size: clamp(2rem, 5vw, 3.1rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+
+  .hero__titulo em { font-style: normal; color: var(--rojo); }
+
+  .hero__sub {
+    position: relative;
+    margin: 12px 0 0;
+    font-size: 1rem;
+    color: var(--tinta-2);
+  }
+
+  /* ---------- Buscador ---------- */
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 20px 44px; }
+
+  .buscador {
+    position: relative;
+    max-width: 790px;
+    margin: 28px auto 0;
+    padding: 22px;
+    background: var(--papel);
+    border: 1px solid var(--linea);
+    border-radius: 18px;
+    box-shadow: var(--sombra);
+  }
+
+  .buscador__fila { display: flex; gap: 12px; }
+
+  .campo { position: relative; flex: 1; min-width: 0; }
+
+  .campo svg {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    width: 19px;
+    height: 19px;
+    margin-top: -9.5px;
+    color: var(--tinta-3);
+    pointer-events: none;
+  }
+
+  .campo input {
+    width: 100%;
+    height: 54px;
+    padding: 0 16px 0 46px;
+    font-size: 1.02rem;
+    color: var(--tinta);
+    background: var(--papel);
+    border: 1.5px solid var(--linea);
+    border-radius: 12px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .campo input::placeholder { color: var(--tinta-3); }
+
+  .campo input:focus {
+    outline: none;
+    border-color: var(--rojo);
+    box-shadow: 0 0 0 4px rgba(209,19,30,0.10);
+  }
+
+  .btn-rastrear {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    height: 54px;
+    padding: 0 26px;
+    border-radius: 12px;
+    background: var(--rojo);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 2px 10px -2px rgba(209,19,30,0.45);
+    transition: background-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  }
+
+  .btn-rastrear:hover:not(:disabled) {
+    background: var(--rojo-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -6px rgba(209,19,30,0.55);
+  }
+
+  .btn-rastrear:disabled { background: #E38C92; cursor: wait; transform: none; box-shadow: none; }
+  .btn-rastrear svg { width: 17px; height: 17px; transition: transform 0.2s; }
+  .btn-rastrear:hover:not(:disabled) svg { transform: translateX(3px); }
+
+  .buscador__nota {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin: 14px 0 0;
+    font-size: 0.82rem;
+    color: var(--tinta-3);
+  }
+
+  .buscador__nota svg { width: 15px; height: 15px; }
+
+  .error {
+    display: none;
+    max-width: 790px;
+    margin: 16px auto 0;
+    padding: 14px 18px;
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    border-radius: 12px;
+    color: #991B1B;
+    font-size: 0.94rem;
+    text-align: center;
+  }
+
+  /* ---------- Resultado ---------- */
+
+  .resultados {
+    display: none;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 22px;
+    margin-top: 26px;
+    animation: surgir 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .resultados.visible { display: grid; }
+
+  @keyframes surgir {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .tarjeta {
+    padding: 26px;
+    background: var(--papel);
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra);
+  }
+
+  /* La franja superior toma el color del estatus */
+  .tarjeta--estatus { border-top: 4px solid var(--verde); }
+  .tarjeta--estatus.e-transito { border-top-color: var(--ambar); }
+  .tarjeta--estatus.e-ruta     { border-top-color: var(--azul); }
+
+  .guia-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+
+  .guia-cab__k {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tinta-3);
+  }
+
+  .guia-cab__num {
+    margin: 3px 0 0;
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .btn-copiar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border: 1px solid var(--linea);
+    border-radius: 10px;
+    color: var(--tinta-2);
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  }
+
+  .btn-copiar:hover { background: var(--linea-suave); color: var(--tinta); }
+  .btn-copiar.ok { border-color: var(--verde-borde); background: var(--verde-tinte); color: var(--verde-fuerte); }
+  .btn-copiar svg { width: 17px; height: 17px; }
+
+  /* Bloque grande del estatus */
+  .estatus {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-top: 20px;
+    padding: 20px;
+    background: var(--verde-tinte);
+    border: 1px solid var(--verde-borde);
+    border-radius: var(--radio);
+  }
+
+  .estatus__ico {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 62px;
+    height: 62px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #DCFCE7;
+    color: var(--verde-fuerte);
+  }
+
+  /* Los iconos solidos toman el color del bloque; los de trazo ya traen
+     stroke="currentColor" y rellenarlos los convertiria en una mancha. */
+  .estatus__ico svg { width: 32px; height: 32px; }
+  .estatus__ico svg:not([stroke]) { fill: currentColor; }
+
+  .estatus__nombre {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    color: var(--verde-fuerte);
+  }
+
+  .estatus__desc { margin: 5px 0 0; font-size: 0.95rem; line-height: 1.5; color: var(--tinta-2); }
+
+  .estatus__fecha {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 10px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: #DCFCE7;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--verde-fuerte);
+  }
+
+  .estatus__fecha svg { width: 14px; height: 14px; }
+
+  /* En transito y en reparto tienen su propio color, no el verde de entregado */
+  .e-transito .estatus { background: #FFFBEB; border-color: #FDE68A; }
+  .e-transito .estatus__ico { background: #FEF3C7; color: var(--ambar); }
+  .e-transito .estatus__nombre { color: var(--ambar); }
+  .e-transito .estatus__fecha { background: #FEF3C7; color: var(--ambar); }
+
+  .e-ruta .estatus { background: #EFF6FF; border-color: #BFDBFE; }
+  .e-ruta .estatus__ico { background: #DBEAFE; color: var(--azul); }
+  .e-ruta .estatus__nombre { color: var(--azul); }
+  .e-ruta .estatus__fecha { background: #DBEAFE; color: var(--azul); }
+
+  /* ---------- Linea de tiempo de etapas ---------- */
+
+  .stepper { display: flex; margin: 26px 0 0; }
   .paso { flex: 1; text-align: center; position: relative; }
+
   .paso::before {
-    content: ''; position: absolute; top: 17px; left: -50%; width: 100%; height: 2px; z-index: 0;
-    background-image: repeating-linear-gradient(90deg, #d8d8dc 0 4px, transparent 4px 9px);
+    content: '';
+    position: absolute;
+    top: 21px;
+    left: -50%;
+    width: 100%;
+    height: 2px;
+    z-index: 0;
+    background-image: repeating-linear-gradient(90deg, #D8D8DC 0 4px, transparent 4px 9px);
   }
+
   .paso:first-child::before { display: none; }
-  .paso.hecho::before, .paso.actual::before { background-image: none; background-color: #1e7d32; }
-  /* Tramo hacia el siguiente proceso: los puntos avanzan hacia esa etapa */
+  .paso.hecho::before, .paso.actual::before { background-image: none; background-color: var(--verde); }
+
   .paso.cargando::before {
-    background-image: repeating-linear-gradient(90deg, #1e7d32 0 4px, transparent 4px 9px);
+    background-image: repeating-linear-gradient(90deg, var(--verde) 0 4px, transparent 4px 9px);
     animation: fluir 1.6s linear infinite;
   }
+
   @keyframes fluir { from { background-position: 0 0; } to { background-position: 9px 0; } }
 
   .paso .circulo {
-    position: relative; z-index: 1; width: 36px; height: 36px; margin: 0 auto 9px;
-    border-radius: 50%; background: #fff; border: 1.5px solid #e2e2e6;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.3s, border-color 0.3s;
+    position: relative;
+    z-index: 1;
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 9px;
+    border-radius: 50%;
+    background: var(--papel);
+    border: 1.5px solid var(--linea);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s, border-color 0.3s;
   }
-  .paso .circulo svg { width: 18px; height: 18px; fill: #c2c2c8; transition: fill 0.3s; }
-  .paso.hecho .circulo, .paso.actual .circulo { background: #1e7d32; border-color: #1e7d32; }
-  .paso.hecho .circulo svg, .paso.actual .circulo svg { fill: #fff; }
+
+  .paso .circulo svg { width: 21px; height: 21px; fill: #C2C2C8; transition: fill 0.3s; }
+  .paso.hecho .circulo { background: var(--verde-tinte); border-color: var(--verde-borde); }
+  .paso.hecho .circulo svg { fill: var(--verde-fuerte); }
+  .paso.actual .circulo { background: var(--verde); border-color: var(--verde); }
+  .paso.actual .circulo svg { fill: #fff; }
   .paso.actual .circulo { animation: pulso 2s ease-in-out infinite; }
-  @keyframes pulso { 0%, 100% { box-shadow: 0 0 0 0 rgba(30,125,50,0.30); } 50% { box-shadow: 0 0 0 8px rgba(30,125,50,0); } }
-  .paso .nombre { font-size: 0.72rem; font-weight: 600; color: #8a8a92; line-height: 1.25; }
-  .paso.hecho .nombre, .paso.actual .nombre { color: #1a1a1a; font-weight: 700; }
 
-  .error { display: none; background: #fdecec; border: 1.5px solid #d92027; color: #a31419; border-radius: 4px; padding: 14px 16px; margin-bottom: 14px; }
+  @keyframes pulso {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.30); }
+    50%      { box-shadow: 0 0 0 9px rgba(22,163,74,0); }
+  }
 
-  h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; color: #8a8a8a; margin: 0 0 12px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
-  .timeline { list-style: none; margin: 0; padding: 0; }
-  .timeline li { position: relative; padding: 0 0 18px 26px; border-left: 2px solid #e5e5e5; margin-left: 8px; }
-  .timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
-  .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #cfcfcf; }
-  .timeline li.e-salida::before, .timeline li.e-llegada::before, .timeline li.e-ruta::before { background: #1e7d32; }
-  .timeline .desc { font-size: 0.95rem; color: #1a1a1a; }
-  .timeline .fecha { font-size: 0.78rem; color: #9a9a9a; margin-top: 2px; }
+  .paso .nombre { font-size: 0.76rem; font-weight: 600; color: var(--tinta-3); line-height: 1.25; }
+  .paso.hecho .nombre, .paso.actual .nombre { color: var(--tinta); font-weight: 700; }
 
-  .pie { text-align: center; font-size: 0.8rem; color: #9a9a9a; margin-top: 20px; }
+  .actualizado {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 22px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--linea-suave);
+    font-size: 0.84rem;
+    color: var(--tinta-3);
+  }
 
-  .btn-wa { position: fixed; right: 18px; bottom: 18px; width: 58px; height: 58px; border-radius: 50%; background: #25d366; box-shadow: 0 3px 10px rgba(0,0,0,0.25); display: none; align-items: center; justify-content: center; z-index: 10; }
-  .btn-wa:hover { background: #1fb857; }
-  .btn-wa svg { width: 32px; height: 32px; fill: #fff; }
+  .actualizado svg { width: 15px; height: 15px; flex-shrink: 0; }
 
-  /* En celulares angostos el buscador se apila: el campo y el boton a lo
-     ancho, en vez de competir por el mismo renglon. */
-  @media (max-width: 420px) {
-    .buscador { flex-direction: column; }
-    button { width: 100%; }
+  /* ---------- Historial ---------- */
+
+  .titulo-bloque {
+    margin: 0 0 18px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tinta-2);
+  }
+
+  .historial { list-style: none; margin: 0; padding: 0; }
+
+  .historial li {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 0 0 14px 26px;
+  }
+
+  .historial li:last-child { padding-bottom: 0; }
+
+  /* Nodo y linea vertical que unen los eventos */
+  .historial li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 17px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--linea);
+  }
+
+  .historial li:first-child::before { background: var(--verde); }
+
+  .historial li::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 28px;
+    bottom: 2px;
+    width: 1px;
+    background: var(--linea);
+  }
+
+  .historial li:last-child::after { display: none; }
+
+  .evento {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    padding: 13px 15px;
+    border: 1px solid var(--linea);
+    border-radius: 12px;
+    background: var(--papel);
+  }
+
+  .historial li:first-child .evento { background: var(--verde-tinte); border-color: var(--verde-borde); }
+
+  .evento__ico {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    color: var(--tinta-2);
+  }
+
+  .historial li:first-child .evento__ico { color: var(--verde-fuerte); }
+  .evento__ico svg { width: 21px; height: 21px; }
+  .evento__ico svg:not([stroke]) { fill: currentColor; }
+  .evento__desc { font-size: 0.94rem; font-weight: 600; line-height: 1.4; }
+  .evento__fecha { margin-top: 3px; font-size: 0.8rem; color: var(--tinta-3); }
+
+  /* ---------- Argumentos de confianza ---------- */
+
+  .ventajas {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 28px;
+    margin-top: 26px;
+    padding: 28px 30px;
+    background: var(--papel);
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+  }
+
+  .ventaja { display: flex; align-items: flex-start; gap: 14px; }
+  .ventaja svg { width: 24px; height: 24px; flex-shrink: 0; color: var(--rojo); }
+  .ventaja b { display: block; font-size: 0.94rem; font-weight: 700; }
+  .ventaja span { display: block; margin-top: 3px; font-size: 0.86rem; line-height: 1.5; color: var(--tinta-2); }
+
+  /* ---------- WhatsApp flotante ---------- */
+
+  .wa {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .wa__globo {
+    padding: 10px 16px;
+    background: var(--papel);
+    border: 1px solid var(--linea);
+    border-radius: 999px;
+    box-shadow: var(--sombra);
+    font-size: 0.88rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .wa__boton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: #22C55E;
+    box-shadow: 0 8px 22px -6px rgba(34,197,94,0.6);
+    transition: transform 0.15s, background-color 0.15s;
+  }
+
+  .wa__boton:hover { background: #16A34A; transform: translateY(-2px); }
+  .wa__boton svg { width: 31px; height: 31px; fill: #fff; }
+
+  /* ---------- Adaptacion a pantallas chicas ---------- */
+
+  @media (max-width: 940px) {
+    .resultados { grid-template-columns: minmax(0, 1fr); }
+    .ventajas { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  }
+
+  @media (max-width: 640px) {
+    .barra { padding: 10px 16px; }
+    .barra__marca img { height: 34px; }
+    .barra__lema { display: none; }
+    .btn-texto span { display: none; }
+    .btn-wa-barra { padding: 10px 14px; }
+    .hero { padding-top: 34px; }
+    .buscador__fila { flex-direction: column; }
+    .btn-rastrear { justify-content: center; }
+    .tarjeta { padding: 20px; }
+    .estatus { flex-direction: column; align-items: flex-start; gap: 14px; }
     .paso .nombre { font-size: 0.68rem; }
+    .wa__globo { display: none; }
+    /* Sitio para que el boton flotante no tape el final del contenido */
+    .wrap { padding-bottom: 96px; }
   }
 
-  /* Con un resultado en pantalla, el estatus y el historial se acomodan en
-     dos columnas: en una laptop sobra ancho y falta alto, asi que el envio
-     completo cabe sin scroll. En movil siguen uno debajo del otro. */
-  @media (min-width: 900px) {
-    body.compacto .wrap { max-width: 920px; padding-top: 18px; }
-    body.compacto .resultados {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start;
-    }
-    body.compacto .resultados .card { margin-bottom: 0; }
-    body.compacto .pie { margin-top: 14px; }
+  @media (prefers-reduced-motion: reduce) {
+    .resultados, .ayuda { animation: none; }
+    .paso.cargando::before, .paso.actual .circulo { animation: none; }
+    .btn-rastrear svg, .btn-texto .chevron { transition: none; }
   }
-
-  /* Un historial largo no debe estirar la pagina: a partir de cierto alto
-     se desplaza dentro de su propia tarjeta. */
-  .timeline { max-height: 232px; overflow-y: auto; }
 </style>
 </head>
 <body>
-<div class="banda"></div>
-<div class="wrap">
 
-  <div class="marca">
-    <img src="/logo-tauro.svg" alt="Fletes Tauro" />
-    <p>Rastrea tu envío Monterrey &harr; Ciudad de México</p>
-  </div>
+<header class="barra">
+  <a class="barra__marca" href="/" aria-label="Fletes Tauro, inicio">
+    <span>
+      <img src="/logo-tauro.svg" alt="Fletes Tauro" />
+      <span class="barra__lema">Carga consolidada a domicilio</span>
+    </span>
+  </a>
 
-  <div class="card">
-    <div class="buscador">
-      <input type="text" id="guia" placeholder="Escribe tu número de guía" autocomplete="off" autofocus />
-      <button id="btnBuscar" onclick="rastrear()">Rastrear</button>
+  <div class="barra__acciones">
+    <div class="ayuda-wrap">
+      <button class="btn-texto" id="btnAyuda" type="button" aria-expanded="false" aria-haspopup="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9.5"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.4v.4"/><path d="M12 16.8h.01"/>
+        </svg>
+        <span>Ayuda</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9.5l6 6 6-6"/></svg>
+      </button>
+
+      <div class="ayuda" id="menuAyuda" hidden role="menu">
+        <button class="ayuda__item" type="button" role="menuitem" data-ayuda="donde">
+          <b>¿Dónde encuentro mi número de guía?</b>
+          <span>Está impreso en el comprobante que te entregamos al recibir el paquete, y empieza con AN o BN.</span>
+        </button>
+        <button class="ayuda__item" type="button" role="menuitem" data-ayuda="etapas">
+          <b>¿Qué significa cada etapa?</b>
+          <span>En camino, en bodega, en reparto y entregado. Cada escaneo del paquete avanza una etapa.</span>
+        </button>
+        <a class="ayuda__item" role="menuitem" id="ayudaWa" href="#" target="_blank" rel="noopener">
+          <b>Hablar con una persona</b>
+          <span>Te respondemos por WhatsApp en horario de oficina.</span>
+        </a>
+      </div>
     </div>
+
+    <a class="btn-wa-barra" id="btnContacto" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 32 32"><path d="M16 2.7C8.7 2.7 2.8 8.6 2.8 15.9c0 2.3.6 4.6 1.8 6.6L2.7 29.3l7-1.8c1.9 1 4.1 1.6 6.3 1.6 7.3 0 13.2-5.9 13.2-13.2S23.3 2.7 16 2.7zm0 24.1c-2 0-3.9-.5-5.6-1.5l-.4-.2-4.2 1.1 1.1-4-.3-.4c-1.1-1.8-1.7-3.9-1.7-6 0-6.1 5-11 11.1-11s11.1 4.9 11.1 11-5 11-11.1 11zm6.1-8.2c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.7.2-.2.3-.8 1.1-1 1.3-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.7-1.7-1-.9-1.7-2-1.9-2.3-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.6.1-.2 0-.4 0-.6-.1-.2-.7-1.8-1-2.4-.3-.6-.5-.5-.7-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.7 5.9 5.2.8.4 1.5.6 2 .7.8.3 1.6.2 2.2.1.7-.1 2-.8 2.3-1.6.3-.8.3-1.5.2-1.6-.1-.2-.3-.2-.6-.4z"/></svg>
+      Contáctanos
+    </a>
+  </div>
+</header>
+
+<section class="hero">
+  <h1 class="hero__titulo">Rastrea tu <em>envío</em></h1>
+  <p class="hero__sub">Ingresa tu número de guía para consultar su estado en tiempo real.</p>
+</section>
+
+<main class="wrap">
+
+  <div class="buscador">
+    <div class="buscador__fila">
+      <span class="campo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+        <input type="text" id="guia" placeholder="Escribe tu número de guía" autocomplete="off"
+               autocapitalize="characters" spellcheck="false" autofocus aria-label="Número de guía" />
+      </span>
+      <button class="btn-rastrear" id="btnBuscar" type="button" onclick="rastrear()">
+        Rastrear
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+    <p class="buscador__nota">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l7.5 3v6c0 4.6-3.1 8.6-7.5 10-4.4-1.4-7.5-5.4-7.5-10v-6z"/></svg>
+      Información segura y actualizada en tiempo real.
+    </p>
   </div>
 
-  <div class="error" id="error"></div>
+  <div class="error" id="error" role="alert"></div>
 
-  <div class="resultados">
-  <div class="card" id="resultado">
-    <p class="guia-num" id="resGuia"></p>
-    <p class="estatus-grande" id="resEstatus"></p>
-    <p class="mensaje" id="resMensaje"></p>
-    <div class="stepper" id="stepper"></div>
-    <p class="actualizado" id="resActualizado"></p>
+  <div class="resultados" id="resultados">
+
+    <section class="tarjeta tarjeta--estatus" id="tarjetaEstatus">
+      <div class="guia-cab">
+        <div>
+          <span class="guia-cab__k">Guía</span>
+          <p class="guia-cab__num" id="resGuia"></p>
+        </div>
+        <button class="btn-copiar" id="btnCopiar" type="button" title="Copiar número de guía" aria-label="Copiar número de guía">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="estatus">
+        <span class="estatus__ico" id="resIcono"></span>
+        <div>
+          <p class="estatus__nombre" id="resEstatus"></p>
+          <p class="estatus__desc" id="resMensaje"></p>
+          <span class="estatus__fecha" id="resFecha">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+            <span id="resFechaTexto"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="stepper" id="stepper"></div>
+
+      <p class="actualizado">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg>
+        <span id="resActualizado"></span>
+      </p>
+    </section>
+
+    <section class="tarjeta" id="cardHistorial">
+      <h2 class="titulo-bloque">Historial del envío</h2>
+      <ul class="historial" id="historial"></ul>
+    </section>
+
   </div>
 
-  <div class="card" id="cardHistorial" style="display:none">
-    <h2>Historial del envío</h2>
-    <ul class="timeline" id="historial"></ul>
-  </div>
-  </div>
+  <section class="ventajas">
+    <div class="ventaja">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l7.5 3v6c0 4.6-3.1 8.6-7.5 10-4.4-1.4-7.5-5.4-7.5-10v-6z"/><path d="M9 12l2 2 4-4"/></svg>
+      <div>
+        <b>Seguridad garantizada</b>
+        <span>Tu información está protegida y solo se consulta con el número de guía.</span>
+      </div>
+    </div>
+    <div class="ventaja">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 6.5V12l3.5 2"/></svg>
+      <div>
+        <b>Actualización en tiempo real</b>
+        <span>Cada escaneo del paquete se refleja aquí en el momento.</span>
+      </div>
+    </div>
+    <div class="ventaja">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2.5" y="13.5" width="4" height="6" rx="1.5"/><rect x="17.5" y="13.5" width="4" height="6" rx="1.5"/><path d="M19.5 19.5V21a2 2 0 0 1-2 2H13"/></svg>
+      <div>
+        <b>Atención personalizada</b>
+        <span>Escríbenos por WhatsApp y te ayudamos con tu envío.</span>
+      </div>
+    </div>
+  </section>
 
-  <p class="pie">Si tienes dudas sobre tu envío, contáctanos por WhatsApp.</p>
+</main>
+
+<div class="wa">
+  <span class="wa__globo">Escríbenos por WhatsApp</span>
+  <a class="wa__boton" id="btnWa" href="#" target="_blank" rel="noopener" title="Escríbenos por WhatsApp" aria-label="Escríbenos por WhatsApp">
+    <svg viewBox="0 0 32 32"><path d="M16 2.7C8.7 2.7 2.8 8.6 2.8 15.9c0 2.3.6 4.6 1.8 6.6L2.7 29.3l7-1.8c1.9 1 4.1 1.6 6.3 1.6 7.3 0 13.2-5.9 13.2-13.2S23.3 2.7 16 2.7zm0 24.1c-2 0-3.9-.5-5.6-1.5l-.4-.2-4.2 1.1 1.1-4-.3-.4c-1.1-1.8-1.7-3.9-1.7-6 0-6.1 5-11 11.1-11s11.1 4.9 11.1 11-5 11-11.1 11zm6.1-8.2c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.7.2-.2.3-.8 1.1-1 1.3-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.7-1.7-1-.9-1.7-2-1.9-2.3-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.6.1-.2 0-.4 0-.6-.1-.2-.7-1.8-1-2.4-.3-.6-.5-.5-.7-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.7 5.9 5.2.8.4 1.5.6 2 .7.8.3 1.6.2 2.2.1.7-.1 2-.8 2.3-1.6.3-.8.3-1.5.2-1.6-.1-.2-.3-.2-.6-.4z"/></svg>
+  </a>
 </div>
-
-<a class="btn-wa" id="btnWa" href="#" target="_blank" rel="noopener" title="Escríbenos por WhatsApp" aria-label="Escríbenos por WhatsApp">
-  <svg viewBox="0 0 32 32"><path d="M16 2.7C8.7 2.7 2.8 8.6 2.8 15.9c0 2.3.6 4.6 1.8 6.6L2.7 29.3l7-1.8c1.9 1 4.1 1.6 6.3 1.6 7.3 0 13.2-5.9 13.2-13.2S23.3 2.7 16 2.7zm0 24.1c-2 0-3.9-.5-5.6-1.5l-.4-.2-4.2 1.1 1.1-4-.3-.4c-1.1-1.8-1.7-3.9-1.7-6 0-6.1 5-11 11.1-11s11.1 4.9 11.1 11-5 11-11.1 11zm6.1-8.2c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.7.2-.2.3-.8 1.1-1 1.3-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.7-1.7-1-.9-1.7-2-1.9-2.3-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.6.1-.2 0-.4 0-.6-.1-.2-.7-1.8-1-2.4-.3-.6-.5-.5-.7-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.7 5.9 5.2.8.4 1.5.6 2 .7.8.3 1.6.2 2.2.1.7-.1 2-.8 2.3-1.6.3-.8.3-1.5.2-1.6-.1-.2-.3-.2-.6-.4z"/></svg>
-</a>
 
 <script>
   const $ = (id) => document.getElementById(id);
 
   // Numero de WhatsApp para dudas de clientes (formato internacional, sin
-  // espacios ni signos; ej. Mexico: 5281XXXXXXXX). Si se deja vacio, el
-  // boton flotante no se muestra.
+  // espacios ni signos; ej. Mexico: 5281XXXXXXXX). Si se deja vacio, los
+  // accesos a WhatsApp no se muestran.
   const WHATSAPP_NUMERO = '528116362186';
 
-  function actualizarBotonWa(numeroGuia) {
-    if (!WHATSAPP_NUMERO) return;
+  function actualizarWhatsApp(numeroGuia) {
+    if (!WHATSAPP_NUMERO) {
+      document.querySelector('.wa').style.display = 'none';
+      $('btnContacto').style.display = 'none';
+      return;
+    }
     const texto = numeroGuia
       ? `Hola, tengo una duda sobre mi envio ${numeroGuia}.`
       : 'Hola, tengo una duda sobre mi envio.';
-    $('btnWa').href = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`;
-    $('btnWa').style.display = 'flex';
+    const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`;
+    for (const id of ['btnWa', 'btnContacto', 'ayudaWa']) $(id).href = url;
   }
-  actualizarBotonWa(null);
+  actualizarWhatsApp(null);
+
+  // ---------- Menu de ayuda ----------
+
+  function cerrarAyuda() {
+    $('menuAyuda').hidden = true;
+    $('btnAyuda').setAttribute('aria-expanded', 'false');
+  }
+
+  $('btnAyuda').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const abierto = !$('menuAyuda').hidden;
+    if (abierto) return cerrarAyuda();
+    $('menuAyuda').hidden = false;
+    $('btnAyuda').setAttribute('aria-expanded', 'true');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!$('menuAyuda').hidden && !e.target.closest('.ayuda-wrap')) cerrarAyuda();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('menuAyuda').hidden) { cerrarAyuda(); $('btnAyuda').focus(); }
+  });
+
+  // Las dos primeras respuestas llevan al campo de busqueda: la duda casi
+  // siempre termina en "entonces escribo mi numero aqui"
+  document.querySelectorAll('[data-ayuda]').forEach((b) =>
+    b.addEventListener('click', () => { cerrarAyuda(); $('guia').focus(); })
+  );
+
+  // ---------- Estatus ----------
 
   const ETIQUETAS = {
     EN_TRANSITO_A_CDMX: 'En tránsito a CDMX',
@@ -209,19 +868,23 @@
     EN_BODEGA_MTY: 'Tu envío llegó a bodega MTY y está listo.',
     EN_RUTA_ENTREGA_CDMX: 'Tu paquete está en ruta de entrega en CDMX.',
     EN_RUTA_ENTREGA_MTY: 'Tu paquete está en ruta de entrega en MTY.',
-    ENTREGADO_CDMX: 'Tu envío fue entregado. Gracias por tu preferencia.',
-    ENTREGADO_MTY: 'Tu envío fue entregado. Gracias por tu preferencia.',
+    ENTREGADO_CDMX: 'Tu envío fue entregado exitosamente.',
+    ENTREGADO_MTY: 'Tu envío fue entregado exitosamente.',
   };
 
   function claseEstatus(estatus) {
-    if (estatus.startsWith('EN_BODEGA') || estatus.startsWith('ENTREGADO')) return 'e-bodega';
+    if (estatus.startsWith('ENTREGADO')) return 'e-entregado';
+    if (estatus.startsWith('EN_BODEGA')) return 'e-entregado';
     if (estatus.startsWith('EN_RUTA_ENTREGA')) return 'e-ruta';
     return 'e-transito';
   }
 
-  // Iconos de la linea de tiempo. Van en el HTML y no como archivos aparte
-  // para que el estatus se pinte de una sola vez, sin peticiones extra.
-  const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+  // Iconos. Van en el HTML y no como archivos aparte para que el resultado se
+  // pinte de una sola vez, sin peticiones extra.
+  const svg = (d, trazo) => trazo
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`
+    : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+
   const ICONOS = {
     // Camion de reparto: el envio viaja entre plazas
     camion: svg('M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z'),
@@ -231,7 +894,18 @@
     ubicacion: svg('M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'),
     // Casa: el envio llego a su destino
     casa: svg('M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z'),
+    // Salida de bodega
+    salida: svg('M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5M10 17l5-5-5-5M15 12H3', true),
+    // Palomita grande del bloque de estatus
+    palomita: svg('M5 13l4.5 4.5L19 7', true),
   };
+
+  function iconoDeEstatus(estatus) {
+    if (estatus.startsWith('ENTREGADO')) return ICONOS.palomita;
+    if (estatus.startsWith('EN_RUTA_ENTREGA')) return ICONOS.ubicacion;
+    if (estatus.startsWith('EN_BODEGA')) return ICONOS.caja;
+    return ICONOS.camion;
+  }
 
   // Linea de tiempo: 4 etapas del envio. El indice "actual" indica cuantas
   // ya se completaron (esa es la etapa en curso).
@@ -262,10 +936,13 @@
     }).join('');
   }
 
+  // ---------- Historial ----------
+
   const EVENTOS = [
     [/^Salio de bodega (MTY|CDMX) con destino a (MTY|CDMX)/, (m) => `Salió de bodega ${m[1]} con destino a ${m[2]}`],
     [/^Llego a bodega (MTY|CDMX)/, (m) => `Llegó a bodega ${m[1]}`],
     [/^Regreso a bodega (MTY|CDMX)/, (m) => `Regresó a bodega ${m[1]} (entrega no completada)`],
+    [/^Paquete en ruta de entrega en (MTY|CDMX)/, (m) => `Paquete en ruta de entrega en ${m[1]}`],
     [/^Entregado a domicilio en (MTY|CDMX)/, (m) => `Entregado a domicilio en ${m[1]}`],
     [/^Entregado en ocurre \(bodega (MTY|CDMX)\)/, (m) => `Entregado en bodega ${m[1]} (ocurre)`],
     // Textos de versiones anteriores del sistema
@@ -286,36 +963,36 @@
     return accion === 'SALIDA' ? 'Salió de bodega' : 'Llegó a bodega';
   }
 
+  const ICONO_EVENTO = {
+    SALIDA: ICONOS.salida,
+    LLEGADA: ICONOS.caja,
+    RUTA_ENTREGA: ICONOS.camion,
+    ENTREGA: ICONOS.palomita,
+  };
+
   function fmtFecha(f) {
     return new Date(f).toLocaleString('es-MX', {
       day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
   }
 
+  function esc(t) {
+    const d = document.createElement('div');
+    d.textContent = t == null ? '' : String(t);
+    return d.innerHTML;
+  }
+
+  // ---------- Consulta ----------
+
   function mostrarError(texto) {
-    // Sin resultado que destacar, la marca vuelve a su tamano original
-    document.body.classList.remove('compacto');
-    $('resultado').style.display = 'none';
-    $('cardHistorial').style.display = 'none';
+    $('resultados').classList.remove('visible');
     $('error').textContent = texto;
     $('error').style.display = 'block';
   }
 
-  // Encoge la marca y anima la entrada de la tarjeta de estatus. La animacion
-  // se reinicia a mano para que tambien se note al consultar una segunda guia
-  // sin recargar la pagina.
-  function mostrarResultado() {
-    document.body.classList.add('compacto');
-    const card = $('resultado');
-    card.style.display = 'block';
-    card.classList.remove('aparece');
-    void card.offsetWidth;
-    card.classList.add('aparece');
-  }
-
   async function rastrear() {
     const numeroGuia = $('guia').value.trim().toUpperCase();
-    if (!numeroGuia) return;
+    if (!numeroGuia) return $('guia').focus();
     $('error').style.display = 'none';
     $('btnBuscar').disabled = true;
     try {
@@ -323,28 +1000,33 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No pudimos consultar tu guía, intenta más tarde.');
 
-      // El numero de guia pasa a ser el dato secundario: manda el estatus
-      $('resGuia').textContent = 'Guía ' + data.numeroGuia;
+      const clase = claseEstatus(data.estatus);
+      $('tarjetaEstatus').className = 'tarjeta tarjeta--estatus ' + clase;
+      $('resGuia').textContent = data.numeroGuia;
+      $('resIcono').innerHTML = iconoDeEstatus(data.estatus);
       $('resEstatus').textContent = ETIQUETAS[data.estatus] || data.estatus;
-      $('resEstatus').className = 'estatus-grande ' + claseEstatus(data.estatus);
       $('resMensaje').textContent = DETALLES[data.estatus] || data.mensaje;
-      pintarStepper(data.estatus);
+      $('resFechaTexto').textContent = fmtFecha(data.actualizado_en);
       $('resActualizado').textContent = 'Última actualización: ' + fmtFecha(data.actualizado_en);
-      mostrarResultado();
+      pintarStepper(data.estatus);
 
       $('historial').innerHTML = data.historial
-        .map((ev) => {
-          const clase =
-            { SALIDA: 'e-salida', LLEGADA: 'e-llegada', RUTA_ENTREGA: 'e-ruta', ENTREGA: 'e-llegada' }[ev.accion] ||
-            'e-llegada';
-          return `<li class="${clase}">
-            <div class="desc">${textoEvento(ev.descripcion, ev.accion)}</div>
-            <div class="fecha">${fmtFecha(ev.creado_en)}</div>
-          </li>`;
-        })
-        .join('');
-      $('cardHistorial').style.display = data.historial.length ? 'block' : 'none';
-      actualizarBotonWa(data.numeroGuia);
+        .map((ev) => `<li>
+          <div class="evento">
+            <span class="evento__ico">${ICONO_EVENTO[ev.accion] || ICONOS.caja}</span>
+            <div>
+              <div class="evento__desc">${esc(textoEvento(ev.descripcion, ev.accion))}</div>
+              <div class="evento__fecha">${fmtFecha(ev.creado_en)}</div>
+            </div>
+          </div>
+        </li>`).join('');
+
+      // Sin historial la columna derecha se esconde y el estatus toma el ancho
+      $('cardHistorial').style.display = data.historial.length ? '' : 'none';
+      $('resultados').style.gridTemplateColumns = data.historial.length ? '' : 'minmax(0, 1fr)';
+      $('resultados').classList.add('visible');
+
+      actualizarWhatsApp(data.numeroGuia);
     } catch (e) {
       mostrarError(e.message);
     } finally {
@@ -352,11 +1034,25 @@
     }
   }
 
+  // Copiar el numero: en el mostrador se dicta por telefono todo el tiempo
+  $('btnCopiar').addEventListener('click', async () => {
+    const numero = $('resGuia').textContent;
+    try {
+      await navigator.clipboard.writeText(numero);
+      $('btnCopiar').classList.add('ok');
+      $('btnCopiar').title = 'Número copiado';
+      setTimeout(() => {
+        $('btnCopiar').classList.remove('ok');
+        $('btnCopiar').title = 'Copiar número de guía';
+      }, 1800);
+    } catch { /* sin portapapeles disponible no pasa nada */ }
+  });
+
   $('guia').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') rastrear();
   });
 
-  // Permite enlaces directos: /rastreo.html?guia=TAU-1001
+  // Permite enlaces directos: /rastreo.html?guia=AN123456789
   const param = new URLSearchParams(location.search).get('guia');
   if (param) {
     $('guia').value = param;
