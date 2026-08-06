@@ -527,22 +527,32 @@ button.plaza-fila:hover {
   opacity: 0;
 }
 
+/* Cada sentido tiene su propio recorrido en vez de reproducir uno al reves.
+   Con animation-direction:reverse las dos luces arrancaban en fases opuestas
+   —una empezaba cuando la otra iba terminando— y ademas la curva de easing,
+   invertida, frenaba el punto en los extremos y parecia que se trababa.
+   Con dos juegos de fotogramas y avance lineal las dos salen a la vez, cada
+   una hacia su lado, y a velocidad pareja de punta a punta. */
 .flecha.is-activa .flecha__luz {
-  animation: recorrer 4s var(--ease) infinite;
+  animation: recorrer-der 4s linear infinite;
 }
 
-/* Mas especifico que la regla de arriba a proposito: el atajo "animation"
-   reinicia animation-direction, asi que con menos peso esta declaracion se
-   perdia y las dos rutas pulsaban hacia el mismo lado. */
 .flecha.is-activa.flecha--izq .flecha__luz {
-  animation-direction: reverse;
+  animation-name: recorrer-izq;
 }
 
-@keyframes recorrer {
+@keyframes recorrer-der {
   0%   { left: 0;    opacity: 0; }
-  18%  { opacity: 0.55; }
-  82%  { opacity: 0.55; }
+  12%  { opacity: 0.55; }
+  88%  { opacity: 0.55; }
   100% { left: 100%; opacity: 0; }
+}
+
+@keyframes recorrer-izq {
+  0%   { left: 100%; opacity: 0; }
+  12%  { opacity: 0.55; }
+  88%  { opacity: 0.55; }
+  100% { left: 0;    opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
