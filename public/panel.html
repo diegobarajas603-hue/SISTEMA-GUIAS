@@ -1675,10 +1675,16 @@
     },
   ];
 
-  function cuerpoRevertir() {
-    const comp = guiaDetalle && guiaDetalle.complemento;
-    return `
-      <div class="opciones" id="revOpciones">
+  // Paso 1: que paso con la guia. Si la resolucion necesita mas datos, el
+  // segundo cuadro los pide; asi el primero se lee de un vistazo en vez de
+  // mostrar un formulario largo que la mayoria de las veces no hace falta.
+  function pasoQuePaso() {
+    return UI.confirmar({
+      titulo: `Revertir ultimo escaneo de ${guiaDetalleActual}`,
+      descripcion: 'Elige que paso con la guia. Todo queda registrado en el historial.',
+      peligro: true,
+      confirmar: 'Continuar',
+      cuerpo: `<div class="opciones" id="revOpciones">
         ${OPCIONES_REV.map((o, i) => `
           <label class="opcion">
             <input type="radio" name="revTipo" value="${o.id}"${i === 0 ? ' checked' : ''} />
@@ -1687,104 +1693,94 @@
               <span class="opcion__desc">${esc(o.desc)}</span>
             </span>
           </label>`).join('')}
-      </div>
-
-      <label class="field" id="revNumeroWrap" style="display:none">
-        <span class="field__label" id="revNumeroLabel">Numero de la guia nueva</span>
-        <input class="input" type="text" id="revNumero" autocomplete="off" spellcheck="false" />
-      </label>
-
-      <div id="revCanceladaWrap" style="display:none">
-        <label class="field">
-          <span class="field__label">¿En que estatus queda la guia nueva?</span>
-          <select class="select" id="revEstatus">
-            <option value="">El anterior al ultimo escaneo (automatico)</option>
-            ${Object.keys(ETIQUETAS).map((e) => `<option value="${e}">${esc(ETIQUETAS[e])}</option>`).join('')}
-          </select>
-        </label>
-        ${comp ? `
-          <label class="opcion opcion--check">
-            <input type="checkbox" id="revConservarComp" />
-            <span class="opcion__cuerpo">
-              <span class="opcion__desc">Pasar tambien el complemento ${esc(comp)} a la guia nueva. Si no lo marcas, se queda con la guia cancelada y ese numero vuelve a quedar libre.</span>
-            </span>
-          </label>` : ''}
-        <label class="field">
-          <span class="field__label">Motivo de la cancelacion</span>
-          <textarea class="input input--area" id="revMotivo" rows="2" maxlength="500"
-                    placeholder="Por ejemplo: el cliente no pago la entrega y se emitio una guia nueva"></textarea>
-        </label>
-        <p class="nota">Queda registrado en el historial de la guia y en la bitacora, junto con tu usuario y la fecha.</p>
-      </div>
-
-      <p class="msg-error" id="revError" hidden></p>`;
+      </div>`,
+      alAbrir: (panel) => {
+        const btn = panel.querySelector('[data-accion="confirmar"]');
+        // "Confirmar" cuando la accion se ejecuta ya; "Continuar" cuando
+        // todavia faltan datos por pedir
+        const rotular = () => {
+          const t = panel.querySelector('input[name="revTipo"]:checked').value;
+          btn.textContent = t === 'solo' ? 'Confirmar' : 'Continuar';
+        };
+        panel.querySelectorAll('input[name="revTipo"]').forEach((r) => r.addEventListener('change', rotular));
+        rotular();
+        panel.querySelector('input[name="revTipo"]').focus();
+      },
+      alCerrar: (panel, ok) => (ok ? panel.querySelector('input[name="revTipo"]:checked').value : null),
+    });
   }
 
-  $('btnRevertir').addEventListener('click', async () => {
-    if (!guiaDetalleActual) return;
-    const guia = guiaDetalleActual;
+  // Paso 2: los datos que pide la resolucion elegida
+  function pasoDatos(tipo) {
+    const cancelada = tipo === 'cancelada';
+    const comp = guiaDetalle && guiaDetalle.complemento;
+    const pref = /^(AN|BN)/.exec(guiaDetalleActual || '');
 
-    const datos = await UI.confirmar({
-      titulo: `Revertir ultimo escaneo de ${guia}`,
-      descripcion: 'Elige que paso con la guia. Todo queda registrado en el historial.',
-      cuerpo: cuerpoRevertir(),
-      confirmar: 'Confirmar',
+    return UI.confirmar({
+      titulo: cancelada ? 'La guia se cancelo y se hizo una nueva' : 'Se hizo un complemento',
+      descripcion: cancelada
+        ? `${guiaDetalleActual} se cancela y su historial pasa a la guia nueva.`
+        : `${guiaDetalleActual} conserva su numero y ademas el del complemento.`,
       peligro: true,
+      confirmar: cancelada ? 'Cancelar la guia' : 'Guardar complemento',
+      cancelar: 'Volver',
+      cuerpo: `
+        <label class="field">
+          <span class="field__label">${cancelada ? 'Numero de la guia nueva' : 'Numero del complemento'}</span>
+          <input class="input" type="text" id="revNumero" autocomplete="off" spellcheck="false"
+                 placeholder="${cancelada ? (pref ? `Debe empezar con ${pref[1]}, igual que la guia cancelada` : 'AN... o BN...') : ''}" />
+        </label>
+        ${cancelada ? `
+          <label class="field">
+            <span class="field__label">¿En que estatus queda la guia nueva?</span>
+            <select class="select" id="revEstatus">
+              <option value="">El anterior al ultimo escaneo (automatico)</option>
+              ${Object.keys(ETIQUETAS).map((e) => `<option value="${e}">${esc(ETIQUETAS[e])}</option>`).join('')}
+            </select>
+          </label>
+          ${comp ? `
+            <label class="opcion opcion--check">
+              <input type="checkbox" id="revConservarComp" />
+              <span class="opcion__cuerpo">
+                <span class="opcion__desc">Pasar tambien el complemento ${esc(comp)} a la guia nueva. Si no lo marcas, se queda con la guia cancelada y ese numero vuelve a quedar libre.</span>
+              </span>
+            </label>` : ''}
+          <label class="field">
+            <span class="field__label">Motivo de la cancelacion</span>
+            <textarea class="input input--area" id="revMotivo" rows="2" maxlength="500"
+                      placeholder="Por ejemplo: el cliente no pago la entrega y se emitio una guia nueva"></textarea>
+          </label>
+          <p class="nota">Queda registrado en el historial de la guia y en la bitacora, junto con tu usuario y la fecha.</p>
+        ` : ''}
+        <p class="msg-error" id="revError" hidden></p>`,
       alAbrir: (panel) => {
         const $$ = (id) => panel.querySelector('#' + id);
-        const tipo = () => panel.querySelector('input[name="revTipo"]:checked').value;
-
-        function pintar() {
-          const t = tipo();
-          $$('revNumeroWrap').style.display = t === 'solo' ? 'none' : '';
-          $$('revNumeroLabel').textContent =
-            t === 'cancelada' ? 'Numero de la guia nueva' : 'Numero del complemento';
-          const pref = /^(AN|BN)/.exec(guia);
-          $$('revNumero').placeholder =
-            t === 'cancelada' ? (pref ? `Debe empezar con ${pref[1]}, igual que la guia cancelada` : 'AN... o BN...') : '';
-          $$('revCanceladaWrap').style.display = t === 'cancelada' ? '' : 'none';
-        }
-
-        panel.querySelectorAll('input[name="revTipo"]').forEach((r) =>
-          r.addEventListener('change', () => {
-            pintar();
-            if (tipo() !== 'solo') setTimeout(() => $$('revNumero').focus(), 30);
-          })
-        );
-        pintar();
-
-        // La validacion se engancha en fase de captura sobre el panel: asi
-        // corre antes que el listener del propio boton y puede impedir que el
-        // modal se cierre con datos incompletos.
+        $$('revNumero').focus();
+        // La validacion va en fase de captura sobre el panel: corre antes que
+        // el listener del boton y puede impedir que el cuadro se cierre
         panel.addEventListener('click', (e) => {
           if (!e.target.closest('[data-accion="confirmar"]')) return;
-          const t = tipo();
           const error = (texto, campo) => {
             const p = $$('revError');
             p.textContent = texto;
             p.hidden = false;
-            if (campo) campo.focus();
+            campo.focus();
             e.stopPropagation();
             e.preventDefault();
           };
-          if (t === 'solo') return;
           if (!$$('revNumero').value.trim()) {
-            return error(t === 'cancelada' ? 'Escribe el numero de la guia nueva.' : 'Escribe el numero del complemento.', $$('revNumero'));
+            return error(cancelada ? 'Escribe el numero de la guia nueva.' : 'Escribe el numero del complemento.', $$('revNumero'));
           }
-          if (t === 'cancelada' && $$('revMotivo').value.trim().length < 5) {
+          if (cancelada && $$('revMotivo').value.trim().length < 5) {
             return error('Escribe el motivo de la cancelacion: queda en el historial y en la bitacora.', $$('revMotivo'));
           }
         }, true);
-
-        panel.querySelector('input[name="revTipo"]').focus();
       },
       alCerrar: (panel, ok) => {
         if (!ok) return null;
         const $$ = (id) => panel.querySelector('#' + id);
-        const t = panel.querySelector('input[name="revTipo"]:checked').value;
-        if (t === 'solo') return {};
-        const cuerpo = { resolucion: t, numero: $$('revNumero').value.trim().toUpperCase() };
-        if (t === 'cancelada') {
+        const cuerpo = { resolucion: tipo, numero: $$('revNumero').value.trim().toUpperCase() };
+        if (cancelada) {
           cuerpo.motivo = $$('revMotivo').value.trim();
           if ($$('revEstatus').value) cuerpo.estatus = $$('revEstatus').value;
           const chk = $$('revConservarComp');
@@ -1793,8 +1789,17 @@
         return cuerpo;
       },
     });
+  }
 
+  $('btnRevertir').addEventListener('click', async () => {
+    if (!guiaDetalleActual) return;
+    const guia = guiaDetalleActual;
+
+    const tipo = await pasoQuePaso();
+    if (!tipo) return;
+    const datos = tipo === 'solo' ? {} : await pasoDatos(tipo);
     if (!datos) return;
+
     $('btnRevertir').disabled = true;
     try {
       const r = await api('/api/guias/' + encodeURIComponent(guia) + '/revertir', {
