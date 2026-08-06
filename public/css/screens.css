@@ -75,9 +75,10 @@ tbody tr.clic:hover {
 
 /* ---------- KPIs ---------- */
 
-/* Son seis tarjetas, siempre las mismas. Con auto-fit el ancho decidia
-   cuantas caben y quedaba una fila de cinco y otra de una sola, que se lee
-   como un hueco. Se fijan repartos que dividen exacto: 6, 3 o 2 columnas. */
+/* Son cinco tarjetas, siempre las mismas. Cinco es primo y con auto-fit
+   quedaba una fila coja, asi que la destacada ocupa dos columnas cuando no
+   caben las cinco en una linea: 5 tarjetas llenan 6 celdas y ninguna fila
+   queda a medias. */
 .kpis {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -85,8 +86,23 @@ tbody tr.clic:hover {
   margin-bottom: var(--card-gap);
 }
 
+.kpis .card--featured { grid-column: span 2; }
+
 @media (min-width: 760px)  { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 1500px) { .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
+@media (min-width: 1240px) {
+  .kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .kpis .card--featured { grid-column: span 1; }
+}
+
+/* El dashboard se lee de un vistazo desde lejos, pero no necesita tarjetas
+   enormes: se comprimen para que el resto del tablero suba a la vista. */
+.kpis .card { padding: var(--space-16); }
+
+.kpis .kpi-valor {
+  font-size: var(--t-h1-size);
+  line-height: var(--t-h1-line);
+}
 
 .kpi-valor {
   font-size: var(--t-display-size);

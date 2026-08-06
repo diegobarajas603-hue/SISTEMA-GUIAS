@@ -133,10 +133,20 @@
         <button class="btn btn--ghost btn--icon" id="btnIrEscanear" type="button" title="Ir a escanear" aria-label="Ir a escanear">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5v10M6.5 5v10M10 5v10M13.5 5v10M17 5v10"/></svg>
         </button>
-        <button class="btn btn--ghost btn--icon" id="btnPendientes" type="button" title="Guias detenidas" aria-label="Guias detenidas">
+        <div class="notif-wrap">
+        <button class="btn btn--ghost btn--icon" id="btnPendientes" type="button" title="Notificaciones"
+                aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a5 5 0 0 0-5 5v3l-1.5 2.5h13L15 11V8a5 5 0 0 0-5-5z"/><path d="M8 16a2 2 0 0 0 4 0"/></svg>
           <span class="btn__dot" id="puntoPendientes" style="display:none"></span>
         </button>
+        <div class="notif" id="panelNotif" hidden>
+          <div class="notif__head">
+            <span class="notif__titulo">Notificaciones</span>
+            <span class="notif__conteo" id="notifConteo"></span>
+          </div>
+          <div class="notif__lista" id="notifLista"></div>
+        </div>
+        </div>
         <button class="btn btn--ghost btn--icon" id="btnTema" type="button" title="Cambiar a tema claro" aria-label="Cambiar a tema claro">
           <svg id="icoTema" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></svg>
         </button>
@@ -151,7 +161,6 @@
       <!-- ==================================================== Dashboard -->
       <section id="v-dashboard" style="display:none">
         <div class="kpis" id="kpis"></div>
-        <div id="alertaDetenidas"></div>
         <div class="card">
           <h2 class="titulo-card">Donde esta la mercancia</h2>
           <div class="flujo" id="flujo"></div>
@@ -1040,7 +1049,7 @@
 
   // Esqueletos con la forma real del contenido, no un spinner generico
   function esqueletoDashboard() {
-    $('kpis').innerHTML = Array.from({ length: 6 }, () =>
+    $('kpis').innerHTML = Array.from({ length: 5 }, () =>
       `<div class="card">
          ${UI.skeleton('skeleton--num', 'width:56%')}
          <div style="margin-top:var(--space-8)">${UI.skeleton('skeleton--label', 'width:82%')}</div>
@@ -1076,7 +1085,6 @@
         { valor: p.EN_BODEGA_CDMX || 0, etiqueta: 'En bodega CDMX', tab: 'MTY', est: 'EN_BODEGA_CDMX' },
         { valor: transito, etiqueta: 'En transito', tab: '', est: '' },
         { valor: ruta, etiqueta: 'En ruta de entrega', tab: '', est: '' },
-        { valor: r.eventos24h || 0, etiqueta: 'Escaneos 24 h', eventos: true },
       ];
 
       $('kpis').innerHTML = tarjetas.map((t) => `
@@ -1183,32 +1191,98 @@
       const guias = await api('/api/guias');
       const limite = Date.now() - HORAS_DETENIDA * 3600 * 1000;
       detenidas = guias.filter((g) => esDetenida(g, limite));
-      $('puntoPendientes').style.display = detenidas.length ? '' : 'none';
-      $('btnPendientes').title = detenidas.length
-        ? `${detenidas.length} guia(s) detenida(s) mas de ${HORAS_DETENIDA} h`
-        : 'Sin guias detenidas';
-      pintarAlertaDetenidas();
+      pintarNotificaciones();
     } catch {}
   }
 
-  function pintarAlertaDetenidas() {
-    if (!detenidas.length) { $('alertaDetenidas').innerHTML = ''; return; }
-    const n = detenidas.length;
-    $('alertaDetenidas').innerHTML = `
-      <div class="alerta">
-        <span class="alerta__ico">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 2.5l7.5 13h-15z"/><path d="M10 8v3.5M10 13.5h.01"/>
-          </svg>
-        </span>
-        <div class="alerta__cuerpo">
-          <div class="alerta__titulo">${n} guia${n === 1 ? '' : 's'} detenida${n === 1 ? '' : 's'}</div>
-          <div class="alerta__desc">En transito sin ningun escaneo desde hace mas de ${HORAS_DETENIDA} h.</div>
-        </div>
-        <button class="btn btn--secondary" id="btnVerDetenidas">Ver guias</button>
-      </div>`;
-    $('btnVerDetenidas').addEventListener('click', irADetenidas);
+  // ---------- Notificaciones ----------
+  // La campana abre un panel con lo que necesita atencion. Antes esto era un
+  // banner fijo en el dashboard: ocupaba sitio siempre y no dejaba elegir a
+  // donde ir. Cada notificacion dice a que lleva y se navega al tocarla.
+  function notificaciones() {
+    const lista = [];
+    if (detenidas.length) {
+      const n = detenidas.length;
+      lista.push({
+        id: 'detenidas',
+        tono: 'aviso',
+        titulo: `${n} guia${n === 1 ? '' : 's'} detenida${n === 1 ? '' : 's'}`,
+        desc: `En transito sin ningun escaneo desde hace mas de ${HORAS_DETENIDA} h.`,
+        ir: irADetenidas,
+      });
+      // Las tres mas antiguas, para poder ir directo a una sola guia
+      const porFecha = [...detenidas].sort((a, b) => new Date(a.actualizado_en) - new Date(b.actualizado_en));
+      for (const g of porFecha.slice(0, 3)) {
+        lista.push({
+          id: 'guia-' + g.numero_guia,
+          tono: 'guia',
+          titulo: g.numero_guia,
+          desc: `Sin movimiento desde ${fmtRelativo(g.actualizado_en)}.`,
+          ir: () => (location.hash = '#/guia/' + encodeURIComponent(g.numero_guia)),
+        });
+      }
+    }
+    return lista;
   }
+
+  function pintarNotificaciones() {
+    const lista = notificaciones();
+    $('puntoPendientes').style.display = detenidas.length ? '' : 'none';
+    $('btnPendientes').title = detenidas.length
+      ? `${detenidas.length} guia(s) detenida(s) mas de ${HORAS_DETENIDA} h`
+      : 'Sin notificaciones';
+    $('notifConteo').textContent = lista.length ? lista.length : '';
+
+    $('notifLista').innerHTML = lista.length
+      ? lista.map((n, i) => `
+          <button class="notif__item notif__item--${n.tono}" type="button" data-i="${i}">
+            <span class="notif__punto"></span>
+            <span class="notif__cuerpo">
+              <span class="notif__item-titulo">${esc(n.titulo)}</span>
+              <span class="notif__item-desc">${esc(n.desc)}</span>
+            </span>
+            <svg class="notif__flecha" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5L10.5 8 6 12.5"/></svg>
+          </button>`).join('')
+      : `<p class="notif__vacio">Todo en movimiento. Ninguna guia lleva mas de ${HORAS_DETENIDA} h detenida.</p>`;
+
+    $('notifLista').querySelectorAll('[data-i]').forEach((b) =>
+      b.addEventListener('click', () => {
+        cerrarNotificaciones();
+        lista[Number(b.dataset.i)].ir();
+      })
+    );
+  }
+
+  function abrirNotificaciones() {
+    pintarNotificaciones();
+    $('panelNotif').hidden = false;
+    $('btnPendientes').setAttribute('aria-expanded', 'true');
+    const primero = $('notifLista').querySelector('button');
+    if (primero) primero.focus();
+  }
+
+  function cerrarNotificaciones() {
+    $('panelNotif').hidden = true;
+    $('btnPendientes').setAttribute('aria-expanded', 'false');
+  }
+
+  $('btnPendientes').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if ($('panelNotif').hidden) abrirNotificaciones();
+    else cerrarNotificaciones();
+  });
+
+  // Se cierra al tocar fuera o con Escape, como cualquier menu
+  document.addEventListener('click', (e) => {
+    if ($('panelNotif').hidden) return;
+    if (!e.target.closest('.notif-wrap')) cerrarNotificaciones();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('panelNotif').hidden) {
+      cerrarNotificaciones();
+      $('btnPendientes').focus();
+    }
+  });
 
   function irADetenidas() {
     soloDetenidas = true;
@@ -1218,14 +1292,6 @@
     if (location.hash === '#/guias') setPlazaTab('');
     else location.hash = '#/guias';
   }
-
-  $('btnPendientes').addEventListener('click', () => {
-    if (!detenidas.length) {
-      UI.toast({ tipo: 'ok', titulo: 'Todo en movimiento', descripcion: `Ninguna guia lleva mas de ${HORAS_DETENIDA} h detenida.` });
-      return;
-    }
-    irADetenidas();
-  });
 
   // Etiqueta para escaneos que un administrador revirtio
   const tagRevertido = (ev) => (ev.revertido ? ' <span class="t-small">(revertido)</span>' : '');

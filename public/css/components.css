@@ -913,3 +913,115 @@
   gap: var(--space-8);
   margin-top: var(--space-16);
 }
+
+/* ---------- Panel de notificaciones ----------
+   Cuelga de la campana de la barra superior. Reemplaza al banner fijo que
+   vivia en el dashboard: aqui no ocupa sitio mientras no se abre, y cada
+   linea dice a donde lleva, de modo que se elige el destino en vez de tener
+   un solo boton "ver guias". */
+
+.notif-wrap { position: relative; }
+
+.notif {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-8));
+  z-index: var(--z-overlay);
+  width: min(340px, calc(100vw - var(--space-32)));
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), var(--sheen);
+  overflow: hidden;
+  animation: modal-in var(--t-normal) var(--ease);
+}
+
+.notif__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-16);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.notif__titulo {
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.notif__conteo {
+  font-family: var(--font-mono);
+  font-size: var(--t-small-size);
+  color: var(--text-tertiary);
+}
+
+/* Tope de alto: con muchas guias detenidas la lista se desplaza por dentro
+   en vez de crecer hasta salirse de la pantalla */
+.notif__lista { max-height: min(420px, 60vh); overflow-y: auto; }
+
+.notif__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  width: 100%;
+  padding: var(--space-12) var(--space-16);
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+.notif__item:last-child { border-bottom: 0; }
+.notif__item:hover { background: var(--overlay-hover); }
+.notif__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.notif__punto {
+  width: 7px;
+  height: 7px;
+  margin-top: 6px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--text-tertiary);
+}
+
+.notif__item--aviso .notif__punto { background: var(--st-transito-color); }
+.notif__item--guia .notif__punto  { background: var(--border-strong); }
+
+.notif__cuerpo { flex: 1; min-width: 0; }
+
+.notif__item-titulo {
+  display: block;
+  font-size: var(--t-body-size);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notif__item--guia .notif__item-titulo { font-family: var(--font-mono); font-weight: 500; }
+
+.notif__item-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--text-secondary);
+}
+
+.notif__flecha {
+  width: var(--icon-sm, 16px);
+  height: var(--icon-sm, 16px);
+  margin-top: 3px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.notif__vacio {
+  padding: var(--space-20) var(--space-16);
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--text-tertiary);
+  text-align: center;
+}
