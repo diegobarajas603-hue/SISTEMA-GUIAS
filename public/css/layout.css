@@ -473,10 +473,10 @@
 .login-card__mark {
   width: 140px;
   aspect-ratio: 1226 / 830;
-  margin-bottom: var(--space-24);
+  margin: 0 auto var(--space-24);
   background-image: var(--logo-url);
   background-repeat: no-repeat;
-  background-position: left center;
+  background-position: center;
   background-size: contain;
 }
 
