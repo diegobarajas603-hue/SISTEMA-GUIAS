@@ -23,7 +23,10 @@
 
   .card { background: #fff; border-radius: 14px; padding: 20px; border: 1px solid #ececee; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.05); margin-bottom: 14px; }
   .buscador { display: flex; gap: 8px; }
-  input[type=text] { flex: 1; padding: 13px 14px; font-size: 1.05rem; border-radius: 10px; border: 1.5px solid #cfcfcf; color: #1a1a1a; }
+  /* min-width:0 deja que el campo se encoja de verdad dentro del flex; sin
+     eso conserva el ancho de su placeholder y empuja al boton fuera de la
+     pantalla en celulares angostos. */
+  input[type=text] { flex: 1; min-width: 0; padding: 13px 14px; font-size: 1.05rem; border-radius: 10px; border: 1.5px solid #cfcfcf; color: #1a1a1a; }
   input[type=text]:focus { outline: none; border-color: #d92027; box-shadow: 0 0 0 3px rgba(217,32,39,0.12); }
   button { padding: 13px 24px; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 10px; border: none; background: #d92027; color: #fff; cursor: pointer; }
   button:hover { background: #b31a20; }
@@ -53,28 +56,40 @@
   @media (prefers-reduced-motion: reduce) {
     .marca, .marca img, .marca p { transition: none; }
     #resultado.aparece { animation: none; }
-    .estatus-grande::before { animation: none; }
+    .estatus-grande::before, .paso.cargando::before, .paso.actual .circulo { animation: none; }
   }
 
-  /* Barra de progreso del envio */
-  .stepper { display: flex; margin: 14px 0 4px; }
+  /* Linea de tiempo del envio. Cada etapa es un nodo con su icono (camion,
+     paquete, ubicacion y casa) unido por una linea fina: continua en verde
+     donde el envio ya paso y punteada en gris donde falta. */
+  .stepper { display: flex; margin: 16px 0 2px; }
   .paso { flex: 1; text-align: center; position: relative; }
-  .paso::before { content: ''; position: absolute; top: 17px; left: -50%; width: 100%; height: 5px; border-radius: 99px; background: #e4e4e7; z-index: 0; }
-  .paso:first-child::before { display: none; }
-  .paso.hecho::before, .paso.actual::before { background: linear-gradient(90deg, #1e7d32, #2e9e45); }
-  /* Tramo hacia el siguiente proceso: se ve avanzando (cargando) */
-  .paso.cargando::before {
-    background: linear-gradient(90deg, #2e9e45 0%, #7ed492 32%, #e4e4e7 55%, #e4e4e7 100%);
-    background-size: 220% 100%;
-    animation: fluir 2.2s ease-in-out infinite;
+  .paso::before {
+    content: ''; position: absolute; top: 17px; left: -50%; width: 100%; height: 2px; z-index: 0;
+    background-image: repeating-linear-gradient(90deg, #d8d8dc 0 4px, transparent 4px 9px);
   }
-  @keyframes fluir { 0% { background-position: 100% 0; } 100% { background-position: 0% 0; } }
-  .paso .circulo { position: relative; z-index: 1; width: 38px; height: 38px; margin: 0 auto 8px; border-radius: 50%; background: #e4e4e7; color: #a1a1aa; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; transition: background 0.3s; }
-  .paso.hecho .circulo { background: linear-gradient(135deg, #27963e, #1e7d32); color: #fff; box-shadow: 0 2px 6px rgba(30,125,50,0.35); }
-  .paso.actual .circulo { background: linear-gradient(135deg, #27963e, #1e7d32); color: #fff; animation: pulso 1.8s ease-in-out infinite; }
-  @keyframes pulso { 0%, 100% { box-shadow: 0 0 0 4px rgba(30,125,50,0.25); } 50% { box-shadow: 0 0 0 10px rgba(30,125,50,0.08); } }
-  .paso .nombre { font-size: 0.78rem; font-weight: 700; color: #3f3f46; line-height: 1.2; }
-  .paso.hecho .nombre, .paso.actual .nombre { color: #1a1a1a; }
+  .paso:first-child::before { display: none; }
+  .paso.hecho::before, .paso.actual::before { background-image: none; background-color: #1e7d32; }
+  /* Tramo hacia el siguiente proceso: los puntos avanzan hacia esa etapa */
+  .paso.cargando::before {
+    background-image: repeating-linear-gradient(90deg, #1e7d32 0 4px, transparent 4px 9px);
+    animation: fluir 1.6s linear infinite;
+  }
+  @keyframes fluir { from { background-position: 0 0; } to { background-position: 9px 0; } }
+
+  .paso .circulo {
+    position: relative; z-index: 1; width: 36px; height: 36px; margin: 0 auto 9px;
+    border-radius: 50%; background: #fff; border: 1.5px solid #e2e2e6;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .paso .circulo svg { width: 18px; height: 18px; fill: #c2c2c8; transition: fill 0.3s; }
+  .paso.hecho .circulo, .paso.actual .circulo { background: #1e7d32; border-color: #1e7d32; }
+  .paso.hecho .circulo svg, .paso.actual .circulo svg { fill: #fff; }
+  .paso.actual .circulo { animation: pulso 2s ease-in-out infinite; }
+  @keyframes pulso { 0%, 100% { box-shadow: 0 0 0 0 rgba(30,125,50,0.30); } 50% { box-shadow: 0 0 0 8px rgba(30,125,50,0); } }
+  .paso .nombre { font-size: 0.72rem; font-weight: 600; color: #8a8a92; line-height: 1.25; }
+  .paso.hecho .nombre, .paso.actual .nombre { color: #1a1a1a; font-weight: 700; }
 
   .error { display: none; background: #fdecec; border: 1.5px solid #d92027; color: #a31419; border-radius: 4px; padding: 14px 16px; margin-bottom: 14px; }
 
@@ -92,6 +107,14 @@
   .btn-wa { position: fixed; right: 18px; bottom: 18px; width: 58px; height: 58px; border-radius: 50%; background: #25d366; box-shadow: 0 3px 10px rgba(0,0,0,0.25); display: none; align-items: center; justify-content: center; z-index: 10; }
   .btn-wa:hover { background: #1fb857; }
   .btn-wa svg { width: 32px; height: 32px; fill: #fff; }
+
+  /* En celulares angostos el buscador se apila: el campo y el boton a lo
+     ancho, en vez de competir por el mismo renglon. */
+  @media (max-width: 420px) {
+    .buscador { flex-direction: column; }
+    button { width: 100%; }
+    .paso .nombre { font-size: 0.68rem; }
+  }
 </style>
 </head>
 <body>
@@ -178,9 +201,28 @@
     return 'e-transito';
   }
 
-  // Barra de progreso: 4 etapas del envio. El indice "actual" indica cuantas
-  // ya se completaron (las anteriores llevan check, esa es la etapa en curso).
-  const PASOS = ['En camino', 'En bodega', 'En reparto', 'Entregado'];
+  // Iconos de la linea de tiempo. Van en el HTML y no como archivos aparte
+  // para que el estatus se pinte de una sola vez, sin peticiones extra.
+  const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+  const ICONOS = {
+    // Camion de reparto: el envio viaja entre plazas
+    camion: svg('M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z'),
+    // Caja: el paquete esperando en bodega
+    caja: svg('M20 2H4c-1 0-2 .9-2 2v3.01c0 .72.43 1.34 1 1.69V20c0 1.1 1.1 2 2 2h14c.9 0 2-.9 2-2V8.7c.57-.35 1-.97 1-1.69V4c0-1.1-1-2-2-2zm-5 12H9v-2h6v2zm5-7H4V4h16v3z'),
+    // Pin de ubicacion: el paquete ya va en la calle hacia el domicilio
+    ubicacion: svg('M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'),
+    // Casa: el envio llego a su destino
+    casa: svg('M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z'),
+  };
+
+  // Linea de tiempo: 4 etapas del envio. El indice "actual" indica cuantas
+  // ya se completaron (esa es la etapa en curso).
+  const PASOS = [
+    { nombre: 'En camino', icono: ICONOS.camion },
+    { nombre: 'En bodega', icono: ICONOS.caja },
+    { nombre: 'En reparto', icono: ICONOS.ubicacion },
+    { nombre: 'Entregado', icono: ICONOS.casa },
+  ];
 
   function pasoActual(estatus) {
     if (estatus.startsWith('ENTREGADO')) return 4; // todas completas
@@ -191,14 +233,13 @@
 
   function pintarStepper(estatus) {
     const actual = pasoActual(estatus);
-    $('stepper').innerHTML = PASOS.map((nombre, i) => {
+    $('stepper').innerHTML = PASOS.map((paso, i) => {
       // El tramo que llega al paso siguiente al actual se anima como si
       // estuviera cargando: el envio va avanzando hacia ese proceso
       const clase = i < actual ? 'hecho' : i === actual ? 'actual' : i === actual + 1 ? 'cargando' : '';
-      const marca = i < actual ? '✓' : i + 1;
       return `<div class="paso ${clase}">
-        <div class="circulo">${marca}</div>
-        <div class="nombre">${nombre}</div>
+        <div class="circulo">${paso.icono}</div>
+        <div class="nombre">${paso.nombre}</div>
       </div>`;
     }).join('');
   }
