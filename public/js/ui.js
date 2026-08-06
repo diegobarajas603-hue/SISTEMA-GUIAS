@@ -62,14 +62,16 @@
 
   /* ---------- Formato ---------- */
 
+  // Reloj de 24 h en toda la app: en operacion logistica se lee mas rapido,
+  // no admite ambiguedad y ocupa menos ancho en las columnas de tabla.
   function fmtFecha(f) {
     return new Date(f).toLocaleString('es-MX', {
-      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
     });
   }
 
   function fmtHora(f) {
-    return new Date(f).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    return new Date(f).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
   }
 
   function fmtRelativo(f) {

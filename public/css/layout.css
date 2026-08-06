@@ -1,0 +1,563 @@
+/* ============================================================================
+   FLETES TAURO — SHELL
+   Marco de la aplicacion: sidebar, topbar, login.
+   ==========================================================================*/
+
+/* ============================================================================
+   MARCO
+   ==========================================================================*/
+
+.app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  padding: var(--space-24);
+  max-width: 1280px;
+  width: 100%;
+}
+
+/* ============================================================================
+   SIDEBAR — 240px, colapsable a 64px
+   ==========================================================================*/
+
+.sidebar {
+  position: relative;
+  width: var(--w-sidebar);
+  flex-shrink: 0;
+  background: var(--bg-base);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  transition: width var(--t-normal) var(--ease);
+}
+
+.app.is-collapsed .sidebar {
+  width: var(--w-sidebar-collapsed);
+}
+
+/* ---------- Logo ----------
+   El logo de la marca es un wordmark ancho (478x96), no un mark cuadrado:
+   metido en una caja de 40px queda ilegible. Expandido se usa el wordmark
+   completo; colapsado, un monograma que si cabe en 40px.
+
+   El wordmark es negro con detalles rojos, hecho para fondo claro. En vez de
+   ponerlo sobre un recuadro blanco (un hueco en un sidebar oscuro), se
+   invierte la luminancia conservando el tono: invert() manda el negro a
+   blanco y el rojo a cyan, y hue-rotate(180deg) devuelve el cyan a rojo. */
+
+.sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-16) var(--space-16) var(--space-12);
+  min-height: var(--h-topbar);
+}
+
+.marca {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.marca img {
+  width: 148px;
+  max-width: 100%;
+  height: auto;
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.marca span {
+  display: block;
+  margin-top: var(--space-8);
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* Monograma: solo visible con el sidebar colapsado */
+.marca-mono {
+  display: none;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  box-shadow: var(--sheen);
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+/* ---------- Navegacion ---------- */
+
+.sidebar__nav {
+  position: relative;
+  flex: 1;
+  padding: var(--space-8);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.nav-group {
+  display: block;
+  padding: var(--space-16) var(--space-12) var(--space-8);
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: var(--h-nav-item);
+  padding: 0 var(--space-12);
+  margin-bottom: 2px;
+  border-radius: var(--radius-md);
+  font-size: var(--t-body-size);
+  color: var(--text-secondary);
+  text-align: left;
+  white-space: nowrap;
+  transition: background-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease);
+}
+
+.nav-item__ico {
+  width: var(--icon-md);
+  height: var(--icon-md);
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: color var(--t-fast) var(--ease);
+}
+
+.nav-item__ico svg {
+  width: 100%;
+  height: 100%;
+}
+
+.nav-item__texto {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hover: sin desplazamiento */
+.nav-item:hover {
+  background: var(--overlay-hover);
+  color: var(--text-primary);
+}
+
+.nav-item:hover .nav-item__ico {
+  color: var(--text-secondary);
+}
+
+.nav-item.is-active {
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.nav-item.is-active .nav-item__ico {
+  color: var(--accent);
+}
+
+/* ---------- Indicador que se desliza ----------
+   Barra de 2px x 16px pegada al borde izquierdo del sidebar. */
+
+.nav-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2px;
+  height: 16px;
+  border-radius: 0 var(--radius-full) var(--radius-full) 0;
+  background: var(--accent);
+  opacity: 0;
+  transform: translateY(var(--nav-y, 0px));
+  transition: transform var(--t-normal) var(--ease),
+              opacity var(--t-fast) var(--ease);
+  pointer-events: none;
+}
+
+.nav-indicator.is-on {
+  opacity: 1;
+}
+
+/* La primera colocacion no se anima: aparece donde va */
+.nav-indicator.no-anim {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-indicator {
+    transition: opacity var(--t-fast) var(--ease);
+  }
+}
+
+/* ---------- Pie del sidebar ---------- */
+
+.sidebar__pie {
+  padding: var(--space-12);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.plaza-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  align-self: flex-start;
+  height: var(--h-badge);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.usuario {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.usuario__datos {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.usuario__nombre {
+  display: block;
+  font-size: var(--t-small-size);
+  line-height: var(--t-small-line);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.usuario__rol {
+  display: block;
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  color: var(--text-tertiary);
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Estado colapsado ---------- */
+
+.app.is-collapsed .marca,
+.app.is-collapsed .nav-item__texto,
+.app.is-collapsed .nav-group,
+.app.is-collapsed .usuario__datos,
+.app.is-collapsed .plaza-tag .dot {
+  display: none;
+}
+
+.app.is-collapsed .marca-mono {
+  display: flex;
+}
+
+.app.is-collapsed .sidebar__logo {
+  justify-content: center;
+  padding-left: var(--space-8);
+  padding-right: var(--space-8);
+}
+
+.app.is-collapsed .nav-item {
+  justify-content: center;
+  padding: 0;
+}
+
+.app.is-collapsed .sidebar__pie {
+  align-items: center;
+}
+
+.app.is-collapsed .usuario {
+  justify-content: center;
+}
+
+.app.is-collapsed .plaza-tag {
+  align-self: center;
+  padding: 0 var(--space-4);
+}
+
+/* Separacion visible entre grupos cuando no hay etiquetas */
+.app.is-collapsed .nav-group + .nav-item {
+  margin-top: var(--space-8);
+}
+
+/* ============================================================================
+   TOPBAR — 56px, sticky
+   ==========================================================================*/
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  height: var(--h-topbar);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  padding: 0 var(--space-24);
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.topbar__titulo {
+  font-size: var(--t-h1-size);
+  line-height: var(--t-h1-line);
+  font-weight: var(--t-h1-weight);
+  letter-spacing: var(--t-h1-tracking);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.topbar__centro {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.topbar__derecha {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-shrink: 0;
+}
+
+/* ---------- Buscador ---------- */
+
+.buscador {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: var(--w-search);
+  max-width: 100%;
+}
+
+.buscador__ico {
+  position: absolute;
+  left: var(--space-12);
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.buscador__input {
+  width: 100%;
+  height: var(--h-search);
+  padding: 0 var(--space-32) 0 var(--space-32);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: border-color var(--t-fast) var(--ease),
+              box-shadow var(--t-fast) var(--ease);
+}
+
+.buscador__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.buscador__input:hover:not(:focus) {
+  border-color: var(--border-strong);
+}
+
+.buscador__input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.buscador__input:focus-visible {
+  outline: none;
+}
+
+.buscador__kbd {
+  position: absolute;
+  right: var(--space-8);
+  pointer-events: none;
+  transition: opacity var(--t-fast) var(--ease);
+}
+
+.buscador__input:focus ~ .buscador__kbd {
+  opacity: 0;
+}
+
+/* ---------- Reloj ---------- */
+
+.reloj {
+  text-align: right;
+  line-height: 1.1;
+  padding-right: var(--space-4);
+  white-space: nowrap;
+}
+
+.reloj__hora {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--t-body-size);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.reloj__fecha {
+  display: block;
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+}
+
+/* ============================================================================
+   LOGIN
+   ==========================================================================*/
+
+.login-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--bg-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-24);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg), var(--sheen);
+  padding: var(--space-32);
+}
+
+.login-card__mark {
+  margin-bottom: var(--space-24);
+}
+
+.login-card__mark img {
+  width: 168px;
+  max-width: 100%;
+  height: auto;
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.login-card__titulo {
+  font-size: var(--t-h1-size);
+  line-height: var(--t-h1-line);
+  font-weight: var(--t-h1-weight);
+  letter-spacing: var(--t-h1-tracking);
+  color: var(--text-primary);
+}
+
+.login-card__sub {
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--text-secondary);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-24);
+}
+
+.login-card .btn {
+  width: 100%;
+  margin-top: var(--space-24);
+}
+
+.login-error {
+  display: none;
+  align-items: flex-start;
+  gap: var(--space-8);
+  margin-top: var(--space-16);
+  padding: var(--space-12);
+  background: var(--st-eliminada-bg);
+  border: 1px solid var(--st-eliminada-border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--st-eliminada-text);
+}
+
+.login-error.is-visible {
+  display: flex;
+}
+
+/* ============================================================================
+   RESPONSIVE — la app es de escritorio; abajo de 900px el sidebar se colapsa
+   ==========================================================================*/
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: var(--w-sidebar-collapsed);
+  }
+
+  .marca,
+  .nav-item__texto,
+  .nav-group,
+  .usuario__datos,
+  .plaza-tag .dot {
+    display: none;
+  }
+
+  .marca-mono {
+    display: flex;
+  }
+
+  .sidebar__logo,
+  .nav-item {
+    justify-content: center;
+  }
+
+  .nav-item {
+    padding: 0;
+  }
+
+  .topbar {
+    padding: 0 var(--space-16);
+  }
+
+  .topbar__titulo {
+    display: none;
+  }
+
+  .content {
+    padding: var(--space-16);
+  }
+}

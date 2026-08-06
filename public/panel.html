@@ -3,257 +3,138 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
 <title>Fletes Tauro - Sistema de Guias</title>
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; margin: 0; background: #f1f2f4; color: #1a1a1a; }
-
-  .layout { display: flex; min-height: 100vh; }
-
-  /* ---------- Sidebar ---------- */
-  aside { width: 240px; background: #141414; color: #a3a3a3; display: flex; flex-direction: column; flex-shrink: 0; }
-  .logo { padding: 16px 14px 14px; background: #fff; border-bottom: 3px solid #d92027; border-right: 1px solid #d4d4d8; }
-  .logo-card { background: #fff; padding: 0 4px; }
-  .logo-card img { width: 100%; display: block; }
-  .logo small { display: block; color: #7a7a7a; font-size: 0.72rem; margin-top: 8px; text-align: center; letter-spacing: 0.04em; }
-  nav { flex: 1; padding: 12px 10px; }
-  .sec { display: block; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: #6b6b6b; margin: 16px 10px 7px; }
-  .nav-item { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 13px; margin-bottom: 3px; border: none; border-radius: 10px; background: none; color: #b9b9b9; font-size: 0.93rem; cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s; }
-  .nav-item:hover { background: #232323; color: #fff; }
-  .nav-item.activa { background: #d92027; color: #fff; font-weight: 600; }
-  .nav-item .ico { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; }
-  .nav-item .ico svg { width: 19px; height: 19px; }
-  .plaza-pie { padding: 14px 18px; border-top: 1px solid #262626; font-size: 0.8rem; color: #8a8a8a; }
-  .plaza-pie b { color: #fff; }
-
-  /* ---------- Contenido ---------- */
-  main { flex: 1; min-width: 0; padding: 0 0 40px; }
-  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); padding: 14px 24px; border-bottom: 1px solid #e6e6e9; flex-wrap: wrap; position: sticky; top: 0; z-index: 20; }
-  .topbar h1 { font-size: 1.15rem; margin: 0; }
-  .topbar input { width: 300px; max-width: 100%; padding: 9px 12px; border: 1.5px solid #d4d4d8; border-radius: 10px; font-size: 0.9rem; transition: border-color 0.12s, box-shadow 0.12s; }
-  .topbar input:focus { outline: none; border-color: #d92027; box-shadow: 0 0 0 3px rgba(217,32,39,0.12); }
-  .contenido { padding: 22px 24px; max-width: 1180px; }
-
-  .card { background: #fff; border-radius: 14px; padding: 18px; border: 1px solid #ececee; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.04); margin-bottom: 16px; }
-  h2.titulo-card { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.07em; color: #8a8a8a; margin: 0 0 14px; }
-
-  /* KPIs */
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .kpi { background: #fff; border-radius: 14px; padding: 14px 16px; border: 1px solid #ececee; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.04); border-top: 3px solid #d4d4d8; cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; }
-  .kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.06), 0 10px 24px rgba(0,0,0,0.08); }
-  .kpi.rojo { border-top-color: #d92027; }
-  .kpi.ambar { border-top-color: #f59e0b; }
-  .kpi.verde { border-top-color: #16a34a; }
-  .kpi.azul { border-top-color: #3b82f6; }
-  .kpi .valor { font-size: 1.7rem; font-weight: 800; }
-  .kpi .etiqueta { font-size: 0.78rem; color: #71717a; margin-top: 2px; }
-
-  /* Botones y campos */
-  button.primario { padding: 11px 18px; border: none; border-radius: 8px; background: #d92027; color: #fff; font-weight: 700; font-size: 0.92rem; cursor: pointer; }
-  button.primario:hover { background: #b31a20; }
-  input[type=text], input[type=password], select { padding: 10px 12px; border: 1.5px solid #d4d4d8; border-radius: 8px; font-size: 0.95rem; background: #fff; color: #1a1a1a; }
-  input[type=text]:focus, input[type=password]:focus, select:focus { outline: none; border-color: #d92027; }
-  label { display: block; font-size: 0.8rem; color: #71717a; margin: 12px 0 5px; }
-
-  /* Banner de plaza en Escanear */
-  .plaza-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #1a1a1a; color: #fff; border-radius: 10px; padding: 14px 20px; margin-bottom: 14px; font-size: 1rem; }
-  .plaza-banner b { font-size: 1.6rem; letter-spacing: 0.08em; }
-
-  /* Toggles de plaza / modo */
-  .toggle { display: flex; gap: 8px; flex-wrap: wrap; }
-  .toggle button { flex: 1; min-width: 110px; padding: 12px 8px; border: 2px solid #d4d4d8; border-radius: 8px; background: #fff; color: #52525b; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
-  .toggle button.activa { border-color: #d92027; background: #d92027; color: #fff; }
-
-  /* Resultado de escaneo */
-  .resultado { border-radius: 10px; padding: 18px; margin: 16px 0; display: none; border: 2px solid; }
-  .resultado h3 { margin: 0 0 4px; font-size: 1.25rem; text-transform: uppercase; }
-  .resultado p { margin: 0; }
-  .r-salida { display: block; background: #fff7ed; border-color: #f59e0b; color: #7c2d12; }
-  .r-llegada { display: block; background: #f0fdf4; border-color: #16a34a; color: #14532d; }
-  .r-ruta { display: block; background: #eff6ff; border-color: #3b82f6; color: #1e3a8a; }
-  .r-entregado { display: block; background: #f0fdf4; border-color: #22c55e; color: #14532d; }
-  .r-repetido { display: block; background: #fafafa; border-color: #a1a1aa; color: #3f3f46; }
-  .r-error { display: block; background: #fef2f2; border-color: #dc2626; color: #7f1d1d; }
-
-  .log-row { background: #fff; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 0.88rem; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 4px solid #a1a1aa; }
-  .log-row.ok { border-left-color: #16a34a; }
-  .log-row.warn { border-left-color: #f59e0b; }
-  .log-row.err { border-left-color: #dc2626; }
-  .log-row .hora { color: #a1a1aa; font-size: 0.78rem; }
-
-  /* Tablas */
-  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-  th { text-align: left; color: #8a8a8a; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px; border-bottom: 2px solid #f0f0f0; }
-  td { padding: 11px 10px; border-bottom: 1px solid #f0f0f0; }
-  tbody tr.clic { cursor: pointer; }
-  tbody tr.clic:hover { background: #fafafa; }
-  .vacio { color: #a1a1aa; padding: 18px 10px; }
-  .tabla-scroll { overflow-x: auto; }
-
-  /* Badges de estatus */
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.76rem; font-weight: 700; white-space: nowrap; }
-  .s-transito { background: #fef3c7; color: #92400e; }
-  .s-bodega { background: #dcfce7; color: #166534; }
-  .s-ruta { background: #dbeafe; color: #1e40af; }
-  .s-entregado { background: #166534; color: #fff; }
-
-  /* Detalle de guia */
-  .det-header { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
-  .det-header h2 { margin: 0 0 6px; font-size: 1.4rem; }
-  .det-ruta { color: #52525b; font-size: 0.95rem; }
-  .det-meta { display: flex; gap: 26px; flex-wrap: wrap; margin-top: 14px; }
-  .det-meta div { font-size: 0.86rem; }
-  .det-meta .k { color: #8a8a8a; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; display: block; }
-  #barcodeWrap { text-align: center; }
-  #barcodeWrap svg { max-width: 240px; }
-  .volver { background: none; border: none; color: #d92027; font-size: 0.92rem; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 14px; }
-
-  /* Stepper */
-  .stepper { display: flex; margin: 4px 0 2px; overflow-x: auto; }
-  .paso { flex: 1; min-width: 105px; text-align: center; position: relative; padding-top: 4px; }
-  .paso::before { content: ''; position: absolute; top: 21px; left: -50%; width: 100%; height: 3px; background: #e4e4e7; z-index: 0; }
-  .paso:first-child::before { display: none; }
-  .paso.hecho::before { background: #16a34a; }
-  .paso .circulo { position: relative; z-index: 1; width: 36px; height: 36px; margin: 0 auto 8px; border-radius: 50%; background: #e4e4e7; color: #71717a; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; }
-  .paso.hecho .circulo { background: #16a34a; color: #fff; }
-  .paso.actual .circulo { background: #d92027; color: #fff; box-shadow: 0 0 0 4px #fbd5d6; }
-  .paso .nombre { font-size: 0.8rem; font-weight: 600; }
-  .paso .fecha { font-size: 0.72rem; color: #a1a1aa; margin-top: 2px; }
-
-  /* Timeline */
-  .timeline { list-style: none; margin: 0; padding: 0; }
-  .timeline li { position: relative; padding: 0 0 18px 26px; border-left: 2px solid #e4e4e7; margin-left: 8px; }
-  .timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
-  .timeline li::before { content: ''; position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #d4d4d8; }
-  .timeline li.e-salida::before { background: #f59e0b; }
-  .timeline li.e-llegada::before { background: #16a34a; }
-  .timeline li.e-ruta::before { background: #3b82f6; }
-  .timeline li.e-entrega::before { background: #166534; }
-  .timeline li.e-correccion::before { background: #d92027; }
-  .ev-revertido { opacity: 0.55; }
-  .ev-revertido .desc { text-decoration: line-through; }
-  .timeline .desc { font-size: 0.92rem; }
-  .timeline .meta { font-size: 0.76rem; color: #a1a1aa; margin-top: 2px; }
-
-  .grid-2 { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
-
-  /* Pestañas de plaza en Guias */
-  .ptabs { display: flex; gap: 8px; margin-bottom: 14px; }
-  .ptabs button { flex: 1; max-width: 200px; padding: 13px 10px; border: 2px solid #d4d4d8; border-radius: 10px; background: #fff; color: #52525b; font-weight: 800; font-size: 1.05rem; letter-spacing: 0.03em; cursor: pointer; }
-  .ptabs button.activa { border-color: #d92027; background: #d92027; color: #fff; }
-  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-  .chipf { background: #fff; border: 2px solid transparent; border-radius: 10px; padding: 10px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); cursor: pointer; font-size: 0.8rem; color: #71717a; text-align: left; }
-  .chipf b { display: block; font-size: 1.35rem; color: #1a1a1a; }
-  .chipf.activo { border-color: #d92027; }
-
-  /* Eventos agrupados por guia */
-  .grupo { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); margin-bottom: 10px; overflow: hidden; }
-  .grupo-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 14px 16px; border: none; background: none; cursor: pointer; text-align: left; font-size: 0.92rem; color: #1a1a1a; }
-  .grupo-head:hover { background: #fafafa; }
-  .grupo-head .num { font-weight: 800; font-size: 1rem; margin-right: 10px; }
-  .grupo-head .ultimo { color: #71717a; font-size: 0.84rem; display: block; margin-top: 3px; }
-  .grupo-head .der { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-  .grupo-head .conteo { background: #f4f4f5; color: #52525b; border-radius: 999px; padding: 3px 10px; font-size: 0.76rem; font-weight: 700; }
-  .grupo-head .chev { color: #a1a1aa; transition: transform 0.15s; }
-  .grupo.abierto .chev { transform: rotate(180deg); }
-  .grupo-body { display: none; border-top: 1px solid #f0f0f0; padding: 4px 16px 14px; }
-  .grupo.abierto .grupo-body { display: block; }
-  .grupo-body .ver-detalle { margin-top: 10px; background: none; border: none; color: #d92027; font-weight: 700; font-size: 0.86rem; cursor: pointer; padding: 0; }
-
-  .nota { font-size: 0.85rem; color: #71717a; }
-
-  /* ---------- Login ---------- */
-  #loginOverlay { position: fixed; inset: 0; background: #141414; display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
-  .login-card { background: #fff; border-radius: 16px; padding: 28px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
-  .login-card .logo-login { background: #fff; border: 1px solid #ececee; border-radius: 10px; padding: 10px 14px; margin-bottom: 18px; }
-  .login-card .logo-login img { width: 100%; display: block; }
-  .login-card h2 { margin: 0 0 4px; font-size: 1.25rem; }
-  .login-card .sub { margin: 0 0 8px; font-size: 0.85rem; color: #71717a; }
-  .login-card input { width: 100%; }
-  .login-error { display: none; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-top: 14px; }
-  .login-error.visible { display: block; }
-  .login-card button.primario { width: 100%; margin-top: 16px; padding: 13px; font-size: 1rem; }
-
-  /* Usuario en la barra lateral */
-  .usuario-pie { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
-  .usuario-pie .quien { color: #fff; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .usuario-pie .quien small { display: block; color: #8a8a8a; font-size: 0.7rem; text-transform: capitalize; }
-  .btn-salir { background: #262626; border: none; color: #d4d4d8; border-radius: 8px; padding: 7px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; flex-shrink: 0; }
-  .btn-salir:hover { background: #d92027; color: #fff; }
-
-  /* Mensajes en formularios de Configuracion */
-  .msg-form { display: none; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-top: 12px; }
-  .msg-form.ok { display: block; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
-  .msg-form.err { display: block; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
-  .btn-peligro { background: none; border: 1px solid #fecaca; color: #dc2626; border-radius: 8px; padding: 6px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
-  .btn-peligro:hover { background: #fef2f2; }
-  .btn-sec { background: none; border: 1px solid #d4d4d8; color: #52525b; border-radius: 8px; padding: 6px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
-  .btn-sec:hover { background: #f4f4f5; }
-
-  /* ---------- Responsive ---------- */
-  @media (max-width: 860px) {
-    .layout { flex-direction: column; }
-    aside { width: 100%; }
-    nav { display: flex; overflow-x: auto; padding: 8px; }
-    .sec { display: none; }
-    .nav-item { width: auto; white-space: nowrap; }
-    .plaza-pie { display: none; }
-    .grid-2 { grid-template-columns: 1fr; }
-    .topbar input { width: 100%; }
-  }
-</style>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/css/tokens.css" />
+<link rel="stylesheet" href="/css/base.css" />
+<link rel="stylesheet" href="/css/components.css" />
+<link rel="stylesheet" href="/css/layout.css" />
+<link rel="stylesheet" href="/css/screens.css" />
 </head>
 <body>
 
-<!-- ============ Login ============ -->
-<div id="loginOverlay">
+<!-- ============================================================ Login ==== -->
+<div class="login-scrim" id="loginOverlay">
   <form class="login-card" id="formLogin" autocomplete="on">
-    <div class="logo-login"><img src="/logo-tauro.png" alt="Fletes Tauro" onerror="this.onerror=null;this.src='/logo.svg'" /></div>
-    <h2>Iniciar sesion</h2>
-    <p class="sub">Sistema de guias MTY &harr; CDMX</p>
-    <label for="loginUsuario">Usuario</label>
-    <input type="text" id="loginUsuario" autocomplete="username" autocapitalize="none" required />
-    <label for="loginPassword">Contraseña</label>
-    <input type="password" id="loginPassword" autocomplete="current-password" required />
-    <div class="login-error" id="loginError"></div>
-    <button class="primario" type="submit" id="btnLogin">Entrar</button>
+    <div class="login-card__mark">
+      <img src="/logo-tauro.png" alt="" onerror="this.onerror=null;this.src='/logo.svg'" />
+    </div>
+    <h1 class="login-card__titulo">Iniciar sesion</h1>
+    <p class="login-card__sub">Sistema de guias MTY &harr; CDMX</p>
+
+    <label class="field">
+      <span class="field__label">Usuario</span>
+      <input class="input" type="text" id="loginUsuario" autocomplete="username" autocapitalize="none" required />
+    </label>
+    <label class="field">
+      <span class="field__label">Contraseña</span>
+      <input class="input" type="password" id="loginPassword" autocomplete="current-password" required />
+    </label>
+
+    <div class="login-error" id="loginError" role="alert"></div>
+    <button class="btn btn--primary" type="submit" id="btnLogin">Entrar</button>
   </form>
 </div>
 
-<div class="layout">
+<div class="app" id="app">
 
-  <aside>
-    <div class="logo">
-      <div class="logo-card"><img src="/logo-tauro.png" alt="Fletes Tauro" onerror="this.onerror=null;this.src='/logo.svg'" /></div>
-      <small>Sistema de guias</small>
+  <!-- ======================================================= Sidebar ==== -->
+  <aside class="sidebar">
+    <div class="sidebar__logo">
+      <div class="marca-mono" aria-hidden="true">FT</div>
+      <div class="marca">
+        <img src="/logo-tauro.png" alt="Fletes Tauro" onerror="this.onerror=null;this.src='/logo.svg'" />
+        <span>Sistema de guias</span>
+      </div>
     </div>
-    <nav>
-      <span class="sec">Operaciones</span>
-      <button class="nav-item" data-ruta="dashboard"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span> Dashboard</button>
-      <button class="nav-item" data-ruta="escanear-mty"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span> Escanear en MTY</button>
-      <button class="nav-item" data-ruta="escanear-cdmx"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span> Escanear en CDMX</button>
-      <button class="nav-item" data-ruta="guias"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span> Guias</button>
-      <button class="nav-item" data-ruta="eventos"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span> Eventos</button>
-      <span class="sec">Sistema</span>
-      <button class="nav-item" data-ruta="config"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.5"/><circle cx="8" cy="16" r="2.5"/></svg></span> Configuracion</button>
+
+    <nav class="sidebar__nav" id="sidebarNav" aria-label="Navegacion principal">
+      <span class="nav-indicator" id="navIndicator" aria-hidden="true"></span>
+
+      <span class="nav-group">Operaciones</span>
+      <button class="nav-item" data-ruta="dashboard" title="Dashboard">
+        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span>
+        <span class="nav-item__texto">Dashboard</span>
+      </button>
+      <button class="nav-item" data-ruta="escanear-mty" title="Escanear en MTY">
+        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span>
+        <span class="nav-item__texto">Escanear en MTY</span>
+      </button>
+      <button class="nav-item" data-ruta="escanear-cdmx" title="Escanear en CDMX">
+        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span>
+        <span class="nav-item__texto">Escanear en CDMX</span>
+      </button>
+      <button class="nav-item" data-ruta="guias" title="Guias">
+        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
+        <span class="nav-item__texto">Guias</span>
+      </button>
+      <button class="nav-item" data-ruta="eventos" title="Eventos">
+        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+        <span class="nav-item__texto">Eventos</span>
+      </button>
+
+      <span class="nav-group">Sistema</span>
+      <button class="nav-item" data-ruta="config" title="Configuracion">
+        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.5"/><circle cx="8" cy="16" r="2.5"/></svg></span>
+        <span class="nav-item__texto">Configuracion</span>
+      </button>
     </nav>
-    <div class="plaza-pie">
-      Plaza actual: <b id="plazaPie">-</b>
-      <div class="usuario-pie">
-        <span class="quien" id="usuarioPie"></span>
-        <button class="btn-salir" id="btnLogout" type="button">Salir</button>
+
+    <div class="sidebar__pie">
+      <span class="plaza-tag" id="plazaPie" title="Plaza actual">
+        <span class="dot dot--accent"></span><span>MTY</span>
+      </span>
+      <div class="usuario">
+        <span id="usuarioAvatar"></span>
+        <span class="usuario__datos">
+          <span class="usuario__nombre" id="usuarioNombre"></span>
+          <span class="usuario__rol" id="usuarioRol"></span>
+        </span>
+        <button class="btn btn--ghost btn--icon" id="btnLogout" type="button" title="Cerrar sesion" aria-label="Cerrar sesion">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><path d="M13 14l4-4-4-4M17 10H8"/></svg>
+        </button>
       </div>
     </div>
   </aside>
 
-  <main>
-    <div class="topbar">
-      <h1 id="tituloVista">Dashboard</h1>
-      <input type="text" id="buscarRapido" placeholder="Buscar guia y ver detalle (Enter)" autocomplete="off" />
-    </div>
-    <div class="contenido">
+  <!-- ========================================================== Main ==== -->
+  <div class="app__main">
 
-      <!-- ============ Dashboard ============ -->
+    <header class="topbar">
+      <h1 class="topbar__titulo" id="tituloVista">Dashboard</h1>
+
+      <div class="topbar__centro">
+        <div class="buscador">
+          <svg class="buscador__ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <input class="buscador__input" type="text" id="buscarRapido"
+                 placeholder="Buscar guia y ver su detalle" autocomplete="off"
+                 aria-label="Buscar guia" />
+          <span class="kbd buscador__kbd" aria-hidden="true">/</span>
+        </div>
+      </div>
+
+      <div class="topbar__derecha">
+        <div class="reloj" aria-hidden="true">
+          <span class="reloj__hora" id="relojHora">--:--</span>
+          <span class="reloj__fecha" id="relojFecha"></span>
+        </div>
+        <button class="btn btn--ghost btn--icon" id="btnIrEscanear" type="button" title="Ir a escanear" aria-label="Ir a escanear">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5v10M6.5 5v10M10 5v10M13.5 5v10M17 5v10"/></svg>
+        </button>
+        <button class="btn btn--ghost btn--icon" id="btnPendientes" type="button" title="Guias detenidas" aria-label="Guias detenidas">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a5 5 0 0 0-5 5v3l-1.5 2.5h13L15 11V8a5 5 0 0 0-5-5z"/><path d="M8 16a2 2 0 0 0 4 0"/></svg>
+          <span class="btn__dot" id="puntoPendientes" style="display:none"></span>
+        </button>
+        <button class="btn btn--ghost btn--icon" id="btnColapsar" type="button" title="Colapsar barra lateral" aria-label="Colapsar barra lateral">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M8 3.5v13"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ==================================================== Dashboard -->
       <section id="v-dashboard" style="display:none">
         <div class="kpis" id="kpis"></div>
         <div class="card">
@@ -267,22 +148,26 @@
         </div>
       </section>
 
-      <!-- ============ Escanear ============ -->
+      <!-- ===================================================== Escanear -->
       <section id="v-escanear" style="display:none">
         <div class="plaza-banner" id="plazaBanner">
           <span>Estas escaneando en la plaza</span>
           <b id="plazaBannerNombre"></b>
         </div>
         <div class="card">
-          <label>Tipo de operacion</label>
+          <h2 class="titulo-card">Tipo de operacion</h2>
           <div class="toggle" id="toggleModo">
             <button data-modo="bodega">Bodega MTY &harr; CDMX</button>
             <button data-modo="domicilio">Entrega a domicilio</button>
             <button data-modo="ocurre">Ocurre (recoge en bodega)</button>
           </div>
-          <label for="guia">Numero de guia (escanea aqui)</label>
-          <input type="text" id="guia" autocomplete="off" placeholder="Escanea o escribe el numero de guia" style="width:100%; font-size:1.1rem; padding:13px;" />
-          <p class="nota" style="margin:8px 0 0">El sistema detecta solo si el escaneo es salida, llegada, ruta de entrega o entrega, segun el estado de la guia.</p>
+          <label class="field" style="margin-top:var(--space-20)">
+            <span class="field__label">Numero de guia (escanea aqui)</span>
+            <input class="input" type="text" id="guia" autocomplete="off"
+                   placeholder="Escanea o escribe el numero de guia"
+                   style="height:52px; font-size:18px" />
+          </label>
+          <p class="nota" style="margin-top:var(--space-8)">El sistema detecta solo si el escaneo es salida, llegada, ruta de entrega o entrega, segun el estado de la guia.</p>
         </div>
         <div class="resultado" id="resultado">
           <h3 id="resTitulo"></h3>
@@ -291,7 +176,7 @@
         <div id="log"></div>
       </section>
 
-      <!-- ============ Guias ============ -->
+      <!-- ======================================================== Guias -->
       <section id="v-guias" style="display:none">
         <div class="ptabs">
           <button data-ptab="MTY">MTY</button>
@@ -299,19 +184,21 @@
           <button data-ptab="">Todas</button>
         </div>
         <div class="chips" id="chipsPlaza"></div>
-        <div class="card" style="display:flex; gap:10px; flex-wrap:wrap;">
-          <input type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" style="flex:2; min-width:180px;" />
-          <select id="filtroEstatus" style="flex:1; min-width:170px;"></select>
+        <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap;">
+          <input class="input" type="text" id="buscar" placeholder="Buscar numero de guia..." autocomplete="off" style="flex:2; min-width:200px;" />
+          <select class="select" id="filtroEstatus" style="flex:1; min-width:190px;"></select>
         </div>
-        <div class="card tabla-scroll">
-          <table>
-            <thead><tr><th>Guia</th><th>Ruta</th><th>Estatus</th><th>Creada</th><th>Actualizada</th></tr></thead>
-            <tbody id="tbodyGuias"></tbody>
-          </table>
+        <div class="card card--flush">
+          <div class="tabla-scroll">
+            <table>
+              <thead><tr><th>Guia</th><th>Ruta</th><th>Estatus</th><th>Creada</th><th>Actualizada</th></tr></thead>
+              <tbody id="tbodyGuias"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
-      <!-- ============ Detalle de guia ============ -->
+      <!-- ============================================== Detalle de guia -->
       <section id="v-detalle" style="display:none">
         <button class="volver" onclick="history.back()">&larr; Volver</button>
         <div class="card det-header">
@@ -324,7 +211,7 @@
               <div><span class="k">Ultima actualizacion</span><span id="detActualizada"></span></div>
               <div><span class="k">Escaneos</span><span id="detEscaneos"></span></div>
             </div>
-            <button class="btn-peligro" id="btnRevertir" style="display:none; margin-top:14px;">Revertir ultimo escaneo</button>
+            <button class="btn btn--danger-ghost" id="btnRevertir" style="display:none; margin-top:var(--space-16);">Revertir ultimo escaneo</button>
           </div>
           <div id="barcodeWrap"><svg id="barcode"></svg></div>
         </div>
@@ -333,12 +220,14 @@
           <div class="stepper" id="stepper"></div>
         </div>
         <div class="grid-2">
-          <div class="card tabla-scroll">
-            <h2 class="titulo-card">Eventos de la guia</h2>
-            <table>
-              <thead><tr><th>Fecha y hora</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
-              <tbody id="tbodyDetEventos"></tbody>
-            </table>
+          <div class="card card--flush">
+            <h2 class="titulo-card" style="padding:var(--space-20) var(--space-20) 0; margin-bottom:var(--space-12)">Eventos de la guia</h2>
+            <div class="tabla-scroll">
+              <table>
+                <thead><tr><th>Fecha y hora</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
+                <tbody id="tbodyDetEventos"></tbody>
+              </table>
+            </div>
           </div>
           <div class="card">
             <h2 class="titulo-card">Linea de tiempo</h2>
@@ -347,115 +236,116 @@
         </div>
       </section>
 
-      <!-- ============ Eventos ============ -->
+      <!-- ====================================================== Eventos -->
       <section id="v-eventos" style="display:none">
-        <div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <input type="text" id="buscarEvento" placeholder="Filtrar por numero de guia..." autocomplete="off" style="flex:1; min-width:180px;" />
+        <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
+          <input class="input" type="text" id="buscarEvento" placeholder="Filtrar por numero de guia..." autocomplete="off" style="flex:1; min-width:200px;" />
           <span class="nota" id="resumenEventos"></span>
         </div>
         <div id="gruposEventos"></div>
       </section>
 
-      <!-- ============ Configuracion ============ -->
+      <!-- ================================================ Configuracion -->
       <section id="v-config" style="display:none">
-        <div class="card" style="max-width:520px;">
-          <h2 class="titulo-card">Mi cuenta</h2>
-          <p style="margin:0 0 4px;"><b id="cfgUsuario"></b></p>
-          <p class="nota" id="cfgRol" style="margin:0;"></p>
-          <p class="nota" id="cfgNotaOperador" style="margin-top:10px; display:none;">Si necesitas cambiar tu contraseña, pidesela a un administrador.</p>
-          <p class="nota" style="margin-top:10px;">La plaza y el tipo de operacion se eligen en la pantalla de escaneo y quedan guardados en este navegador.</p>
-        </div>
+        <div class="pila" style="max-width:640px">
 
-        <div class="card" id="cardPassword" style="max-width:520px; display:none;">
-          <h2 class="titulo-card">Cambiar mi contraseña</h2>
-          <form id="formPassword">
-            <label for="pwActual">Contraseña actual</label>
-            <input type="password" id="pwActual" autocomplete="current-password" required style="width:100%;" />
-            <label for="pwNueva">Nueva contraseña (minimo 6 caracteres)</label>
-            <input type="password" id="pwNueva" autocomplete="new-password" required minlength="6" style="width:100%;" />
-            <label for="pwConfirmar">Confirmar nueva contraseña</label>
-            <input type="password" id="pwConfirmar" autocomplete="new-password" required style="width:100%;" />
-            <div class="msg-form" id="msgPassword"></div>
-            <button class="primario" type="submit" style="margin-top:14px;">Guardar contraseña</button>
-          </form>
-        </div>
-
-        <div class="card" id="cardUsuarios" style="max-width:640px; display:none;">
-          <h2 class="titulo-card">Usuarios del sistema</h2>
-          <div class="tabla-scroll">
-            <table>
-              <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Plaza</th><th></th></tr></thead>
-              <tbody id="tbodyUsuarios"></tbody>
-            </table>
+          <div class="card">
+            <h2 class="titulo-card">Mi cuenta</h2>
+            <p style="margin-bottom:var(--space-4)"><b id="cfgUsuario"></b></p>
+            <p class="nota" id="cfgRol"></p>
+            <p class="nota" id="cfgNotaOperador" style="margin-top:var(--space-12); display:none;">Si necesitas cambiar tu contraseña, pidesela a un administrador.</p>
+            <p class="nota" style="margin-top:var(--space-12);">La plaza y el tipo de operacion se eligen en la pantalla de escaneo y quedan guardados en este navegador.</p>
           </div>
-          <h2 class="titulo-card" style="margin-top:20px;">Agregar usuario</h2>
-          <form id="formNuevoUsuario">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 12px;">
-              <div>
-                <label for="nuUsuario">Usuario</label>
-                <input type="text" id="nuUsuario" autocomplete="off" autocapitalize="none" required style="width:100%;" />
-              </div>
-              <div>
-                <label for="nuNombre">Nombre</label>
-                <input type="text" id="nuNombre" autocomplete="off" style="width:100%;" />
-              </div>
-              <div>
-                <label for="nuPassword">Contraseña (minimo 6 caracteres)</label>
-                <input type="password" id="nuPassword" autocomplete="new-password" required minlength="6" style="width:100%;" />
-              </div>
-              <div>
-                <label for="nuRol">Rol</label>
-                <select id="nuRol" style="width:100%;">
-                  <option value="operador">Operador</option>
-                  <option value="admin">Administrador</option>
-                </select>
-              </div>
-              <div>
-                <label for="nuPlaza">Plaza (donde trabaja)</label>
-                <select id="nuPlaza" style="width:100%;">
-                  <option value="MTY">Monterrey (solo escanea en MTY)</option>
-                  <option value="CDMX">Ciudad de Mexico (solo escanea en CDMX)</option>
-                  <option value="">Ambas plazas</option>
-                </select>
-              </div>
+
+          <div class="card" id="cardPassword" style="display:none;">
+            <h2 class="titulo-card">Cambiar mi contraseña</h2>
+            <form id="formPassword">
+              <label class="field">
+                <span class="field__label">Contraseña actual</span>
+                <input class="input" type="password" id="pwActual" autocomplete="current-password" required />
+              </label>
+              <label class="field">
+                <span class="field__label">Nueva contraseña (minimo 6 caracteres)</span>
+                <input class="input" type="password" id="pwNueva" autocomplete="new-password" required minlength="6" />
+              </label>
+              <label class="field">
+                <span class="field__label">Confirmar nueva contraseña</span>
+                <input class="input" type="password" id="pwConfirmar" autocomplete="new-password" required />
+              </label>
+              <div class="msg-form" id="msgPassword"></div>
+              <button class="btn btn--primary" type="submit" style="margin-top:var(--space-16);">Guardar contraseña</button>
+            </form>
+          </div>
+
+          <div class="card" id="cardUsuarios" style="display:none;">
+            <h2 class="titulo-card">Usuarios del sistema</h2>
+            <div class="tabla-scroll">
+              <table>
+                <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Plaza</th><th></th></tr></thead>
+                <tbody id="tbodyUsuarios"></tbody>
+              </table>
             </div>
-            <div class="msg-form" id="msgUsuarios"></div>
-            <button class="primario" type="submit" style="margin-top:14px;">Crear usuario</button>
-          </form>
-        </div>
+            <h2 class="titulo-card" style="margin-top:var(--space-24);">Agregar usuario</h2>
+            <form id="formNuevoUsuario">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-16);">
+                <label class="field">
+                  <span class="field__label">Usuario</span>
+                  <input class="input" type="text" id="nuUsuario" autocomplete="off" autocapitalize="none" required />
+                </label>
+                <label class="field">
+                  <span class="field__label">Nombre</span>
+                  <input class="input" type="text" id="nuNombre" autocomplete="off" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Contraseña (minimo 6 caracteres)</span>
+                  <input class="input" type="password" id="nuPassword" autocomplete="new-password" required minlength="6" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Rol</span>
+                  <select class="select" id="nuRol">
+                    <option value="operador">Operador</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field__label">Plaza (donde trabaja)</span>
+                  <select class="select" id="nuPlaza">
+                    <option value="MTY">Monterrey (solo escanea en MTY)</option>
+                    <option value="CDMX">Ciudad de Mexico (solo escanea en CDMX)</option>
+                    <option value="">Ambas plazas</option>
+                  </select>
+                </label>
+              </div>
+              <div class="msg-form" id="msgUsuarios"></div>
+              <button class="btn btn--primary" type="submit" style="margin-top:var(--space-16);">Crear usuario</button>
+            </form>
+          </div>
 
-        <div class="card" style="max-width:520px;">
-          <h2 class="titulo-card">Pagina publica de rastreo</h2>
-          <p class="nota">Tus clientes pueden consultar su guia (sin iniciar sesion) en la pagina principal del sitio:<br /><a href="/" target="_blank" rel="noopener">Abrir pagina de rastreo</a></p>
-          <p class="nota">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
-        </div>
+          <div class="card">
+            <h2 class="titulo-card">Pagina publica de rastreo</h2>
+            <p class="nota">Tus clientes pueden consultar su guia (sin iniciar sesion) en la pagina principal del sitio: <a href="/" target="_blank" rel="noopener">abrir pagina de rastreo</a>.</p>
+            <p class="nota" style="margin-top:var(--space-8)">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
+          </div>
 
-        <div class="card" id="cardBorrar" style="max-width:520px; display:none; border:1px solid #fecaca;">
-          <h2 class="titulo-card" style="color:#dc2626;">Zona de peligro</h2>
-          <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
-          <div class="msg-form" id="msgBorrar"></div>
-          <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:12px;">Borrar todas las guias</button>
+          <div class="card zona-peligro" id="cardBorrar" style="display:none;">
+            <h2 class="titulo-card">Zona de peligro</h2>
+            <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
+            <div class="msg-form" id="msgBorrar"></div>
+            <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:var(--space-12);">Borrar todas las guias</button>
+          </div>
+
         </div>
       </section>
 
     </div>
-  </main>
+  </div>
 </div>
 
+<script src="/js/ui.js"></script>
 <script src="/jsbarcode.min.js" onerror="window.JsBarcode=null"></script>
 <script>
   const $ = (id) => document.getElementById(id);
-
-  const ETIQUETAS = {
-    EN_TRANSITO_A_CDMX: 'En transito a CDMX',
-    EN_TRANSITO_A_MTY: 'En transito a MTY',
-    EN_BODEGA_CDMX: 'En bodega CDMX',
-    EN_BODEGA_MTY: 'En bodega MTY',
-    EN_RUTA_ENTREGA_CDMX: 'En ruta de entrega CDMX',
-    EN_RUTA_ENTREGA_MTY: 'En ruta de entrega MTY',
-    ENTREGADO_CDMX: 'Entregado CDMX',
-    ENTREGADO_MTY: 'Entregado MTY',
-  };
+  const { esc, badge, fmtFecha, fmtRelativo, ETIQUETAS } = UI;
 
   const ACCION_TXT = {
     SALIDA: 'Salida',
@@ -466,27 +356,6 @@
     CORRECCION: 'Correccion',
     INGRESO: 'Ingreso',
   };
-
-  function badge(estatus) {
-    let clase = 's-transito';
-    if (estatus.startsWith('EN_BODEGA')) clase = 's-bodega';
-    else if (estatus.startsWith('EN_RUTA_ENTREGA')) clase = 's-ruta';
-    else if (estatus.startsWith('ENTREGADO')) clase = 's-entregado';
-    return `<span class="badge ${clase}">${ETIQUETAS[estatus] || estatus}</span>`;
-  }
-
-  function fmtFecha(f) {
-    return new Date(f).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-  }
-
-  // Tiempo relativo para actividad reciente ("hace 5 min")
-  function fmtRelativo(f) {
-    const seg = (Date.now() - new Date(f).getTime()) / 1000;
-    if (seg < 60) return 'hace un momento';
-    if (seg < 3600) return `hace ${Math.floor(seg / 60)} min`;
-    if (seg < 86400) return `hace ${Math.floor(seg / 3600)} h`;
-    return fmtFecha(f);
-  }
 
   // Sonido corto al escanear (exito agudo, repetido medio, error grave)
   let audioCtx;
@@ -506,12 +375,6 @@
     } catch {}
   }
 
-  function esc(t) {
-    const d = document.createElement('div');
-    d.textContent = t == null ? '' : String(t);
-    return d.innerHTML;
-  }
-
   // ---------- Estado persistido ----------
   let plaza = localStorage.getItem('plaza') || 'MTY';
   let modo = localStorage.getItem('modo') || 'bodega';
@@ -519,9 +382,8 @@
   function setPlaza(p) {
     plaza = p;
     localStorage.setItem('plaza', p);
-    $('plazaBanner').classList.toggle('cdmx', p === 'CDMX');
     $('plazaBannerNombre').textContent = p === 'MTY' ? 'Monterrey' : 'Ciudad de Mexico';
-    $('plazaPie').textContent = p;
+    $('plazaPie').querySelector('span:last-child').textContent = p;
   }
   function pintarToggles() {
     document.querySelectorAll('#toggleModo button').forEach((b) => b.classList.toggle('activa', b.dataset.modo === modo));
@@ -532,31 +394,69 @@
   setPlaza(plaza);
   pintarToggles();
 
+  // ---------- Shell: colapsar sidebar ----------
+  if (localStorage.getItem('sidebarColapsado') === '1') $('app').classList.add('is-collapsed');
+  $('btnColapsar').addEventListener('click', () => {
+    const colapsado = $('app').classList.toggle('is-collapsed');
+    localStorage.setItem('sidebarColapsado', colapsado ? '1' : '0');
+    moverIndicador();
+  });
+
+  // ---------- Shell: indicador de navegacion que se desliza ----------
+  function moverIndicador(sinAnimar) {
+    const ind = $('navIndicator');
+    const activo = document.querySelector('.nav-item.is-active');
+    if (!activo || activo.offsetParent === null) { ind.classList.remove('is-on'); return; }
+    if (sinAnimar) ind.classList.add('no-anim');
+    ind.style.setProperty('--nav-y', activo.offsetTop + (activo.offsetHeight - 16) / 2 + 'px');
+    ind.classList.add('is-on');
+    if (sinAnimar) requestAnimationFrame(() => ind.classList.remove('no-anim'));
+  }
+  window.addEventListener('resize', () => moverIndicador(true));
+
+  // ---------- Shell: reloj ----------
+  // 24 h: en operacion logistica "18:40" se lee mas rapido y sin ambiguedad
+  // que "6:40 p.m.", y ocupa menos.
+  function pintarReloj() {
+    const ahora = new Date();
+    $('relojHora').textContent = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const fecha = ahora.toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short' });
+    // Solo la inicial en mayuscula: "Mie 06 ago", no "Mié 06 De Ago"
+    $('relojFecha').textContent = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+  }
+  pintarReloj();
+  setInterval(pintarReloj, 10000);
+
+  $('btnIrEscanear').addEventListener('click', () => { location.hash = '#/escanear'; });
+
   // ---------- Sesion ----------
   let sesionToken = localStorage.getItem('sesionToken') || '';
   let usuarioActual = null;
 
   function pintarUsuario() {
-    if (usuarioActual) {
-      const esAdmin = usuarioActual.rol === 'admin';
-      const plazaUsuario = usuarioActual.plaza || '';
-      $('usuarioPie').innerHTML = `${esc(usuarioActual.nombre)}<small>${esc(usuarioActual.rol)}${plazaUsuario ? ' - ' + esc(plazaUsuario) : ''}</small>`;
-      $('cfgUsuario').textContent = `${usuarioActual.nombre} (${usuarioActual.usuario})`;
-      $('cfgRol').textContent =
-        (esAdmin ? 'Rol: administrador' : 'Rol: operador') +
-        (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
-      $('cardUsuarios').style.display = esAdmin ? '' : 'none';
-      $('cardPassword').style.display = esAdmin ? '' : 'none';
-      $('cardBorrar').style.display = esAdmin ? '' : 'none';
-      $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
-      // Si el usuario tiene plaza asignada, solo ve el boton de escanear de
-      // su plaza y esa queda como la plaza activa
-      document.querySelector('[data-ruta="escanear-mty"]').style.display =
-        !plazaUsuario || plazaUsuario === 'MTY' ? '' : 'none';
-      document.querySelector('[data-ruta="escanear-cdmx"]').style.display =
-        !plazaUsuario || plazaUsuario === 'CDMX' ? '' : 'none';
-      if (plazaUsuario) setPlaza(plazaUsuario);
-    }
+    if (!usuarioActual) return;
+    const esAdmin = usuarioActual.rol === 'admin';
+    const plazaUsuario = usuarioActual.plaza || '';
+
+    $('usuarioAvatar').innerHTML = UI.avatar(usuarioActual.nombre, { sm: true });
+    $('usuarioNombre').textContent = usuarioActual.nombre;
+    $('usuarioRol').textContent = usuarioActual.rol + (plazaUsuario ? ' · ' + plazaUsuario : '');
+
+    $('cfgUsuario').textContent = `${usuarioActual.nombre} (${usuarioActual.usuario})`;
+    $('cfgRol').textContent =
+      (esAdmin ? 'Rol: administrador' : 'Rol: operador') +
+      (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
+    $('cardUsuarios').style.display = esAdmin ? '' : 'none';
+    $('cardPassword').style.display = esAdmin ? '' : 'none';
+    $('cardBorrar').style.display = esAdmin ? '' : 'none';
+    $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
+
+    // Un usuario con plaza asignada solo ve el boton de escanear de su plaza
+    document.querySelector('[data-ruta="escanear-mty"]').style.display =
+      !plazaUsuario || plazaUsuario === 'MTY' ? '' : 'none';
+    document.querySelector('[data-ruta="escanear-cdmx"]').style.display =
+      !plazaUsuario || plazaUsuario === 'CDMX' ? '' : 'none';
+    if (plazaUsuario) setPlaza(plazaUsuario);
   }
 
   function mostrarLogin(mensaje) {
@@ -566,14 +466,14 @@
     $('loginOverlay').style.display = 'flex';
     const err = $('loginError');
     err.textContent = mensaje || '';
-    err.classList.toggle('visible', !!mensaje);
+    err.classList.toggle('is-visible', !!mensaje);
     setTimeout(() => $('loginUsuario').focus(), 50);
   }
 
   function ocultarLogin() {
     $('loginOverlay').style.display = 'none';
     $('formLogin').reset();
-    $('loginError').classList.remove('visible');
+    $('loginError').classList.remove('is-visible');
   }
 
   $('formLogin').addEventListener('submit', async (e) => {
@@ -595,7 +495,7 @@
       render();
     } catch (err2) {
       $('loginError').textContent = err2.message;
-      $('loginError').classList.add('visible');
+      $('loginError').classList.add('is-visible');
       $('loginPassword').value = '';
       $('loginPassword').focus();
     } finally {
@@ -648,8 +548,9 @@
 
     const navRuta = vista === 'detalle' ? 'guias' : vista === 'escanear' ? 'escanear-' + plaza.toLowerCase() : vista;
     VISTAS.forEach((v) => ($('v-' + v).style.display = v === vista ? '' : 'none'));
-    document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('activa', b.dataset.ruta === navRuta));
+    document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('is-active', b.dataset.ruta === navRuta));
     $('tituloVista').textContent = vista === 'escanear' ? 'Escanear en ' + plaza : TITULOS[vista];
+    moverIndicador();
 
     if (vista === 'dashboard') cargarDashboard();
     if (vista === 'guias') setPlazaTab(plazaTab);
@@ -665,10 +566,52 @@
     if (e.key === 'Enter' && $('buscarRapido').value.trim()) {
       location.hash = '#/guia/' + encodeURIComponent($('buscarRapido').value.trim().toUpperCase());
       $('buscarRapido').value = '';
+      $('buscarRapido').blur();
     }
   });
 
+  // ---------- Atajos de teclado ----------
+  // "/" busca · "Esc" sale del campo · "g d" dashboard, "g g" guias,
+  // "g e" eventos, "g s" escanear, "g c" configuracion.
+  let teclaG = 0;
+  const RUTAS_G = { d: 'dashboard', g: 'guias', e: 'eventos', s: 'escanear', c: 'config' };
+
+  function escribiendo(el) {
+    return el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    // El overlay de login y los modales manejan sus propias teclas
+    if ($('loginOverlay').style.display !== 'none') return;
+    if (document.querySelector('.modal-scrim')) return;
+
+    if (e.key === 'Escape' && escribiendo(document.activeElement)) {
+      document.activeElement.blur();
+      return;
+    }
+    if (escribiendo(document.activeElement)) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    if (e.key === '/') {
+      e.preventDefault();
+      $('buscarRapido').focus();
+      $('buscarRapido').select();
+      return;
+    }
+    if (e.key === 'g') { teclaG = Date.now(); return; }
+    if (teclaG && Date.now() - teclaG < 1200 && RUTAS_G[e.key]) {
+      e.preventDefault();
+      teclaG = 0;
+      location.hash = '#/' + RUTAS_G[e.key];
+      return;
+    }
+    teclaG = 0;
+  });
+
   // ---------- Dashboard ----------
+  // Umbral para considerar detenida una guia en transito (sin movimiento)
+  const HORAS_DETENIDA = 24;
+
   async function cargarDashboard() {
     try {
       const r = await api('/api/guias/resumen');
@@ -676,37 +619,80 @@
       const transito = (p.EN_TRANSITO_A_CDMX || 0) + (p.EN_TRANSITO_A_MTY || 0);
       const ruta = (p.EN_RUTA_ENTREGA_CDMX || 0) + (p.EN_RUTA_ENTREGA_MTY || 0);
       const entregadas = (p.ENTREGADO_CDMX || 0) + (p.ENTREGADO_MTY || 0);
-      $('kpis').innerHTML = `
-        <div class="kpi verde" data-tab="CDMX" data-est="EN_BODEGA_MTY"><div class="valor">${p.EN_BODEGA_MTY || 0}</div><div class="etiqueta">En bodega MTY</div></div>
-        <div class="kpi verde" data-tab="MTY" data-est="EN_BODEGA_CDMX"><div class="valor">${p.EN_BODEGA_CDMX || 0}</div><div class="etiqueta">En bodega CDMX</div></div>
-        <div class="kpi ambar" data-tab="" data-est=""><div class="valor">${transito}</div><div class="etiqueta">En transito</div></div>
-        <div class="kpi azul" data-tab="" data-est=""><div class="valor">${ruta}</div><div class="etiqueta">En ruta de entrega</div></div>
-        <div class="kpi rojo" data-tab="" data-est=""><div class="valor">${entregadas}</div><div class="etiqueta">Entregadas (total)</div></div>
-        <div class="kpi rojo" data-eventos="1"><div class="valor">${r.eventos24h || 0}</div><div class="etiqueta">Escaneos ultimas 24 h</div></div>`;
-      document.querySelectorAll('#kpis .kpi').forEach((k) =>
+
+      const tarjetas = [
+        { valor: r.totalGuias || 0, etiqueta: 'Guias en el sistema', destacada: true, tab: '', est: '' },
+        { valor: p.EN_BODEGA_MTY || 0, etiqueta: 'En bodega MTY', tab: 'CDMX', est: 'EN_BODEGA_MTY' },
+        { valor: p.EN_BODEGA_CDMX || 0, etiqueta: 'En bodega CDMX', tab: 'MTY', est: 'EN_BODEGA_CDMX' },
+        { valor: transito, etiqueta: 'En transito', tab: '', est: '' },
+        { valor: ruta, etiqueta: 'En ruta de entrega', tab: '', est: '' },
+        { valor: r.eventos24h || 0, etiqueta: 'Escaneos 24 h', eventos: true },
+      ];
+
+      $('kpis').innerHTML = tarjetas.map((t) => `
+        <div class="card ${t.destacada ? 'card--featured' : 'card--interactive'}"
+             data-tab="${t.tab || ''}" data-est="${t.est || ''}" ${t.eventos ? 'data-eventos="1"' : ''}>
+          <div class="kpi-valor" data-valor="${t.valor}">0</div>
+          <div class="kpi-etiqueta">${esc(t.etiqueta)}</div>
+        </div>`).join('');
+
+      document.querySelectorAll('#kpis .kpi-valor').forEach((el) => UI.countUp(el, Number(el.dataset.valor)));
+      document.querySelectorAll('#kpis .card').forEach((k) =>
         k.addEventListener('click', () => {
           if (k.dataset.eventos) { location.hash = '#/eventos'; return; }
           irAGuias(k.dataset.tab, k.dataset.est);
         })
       );
+
       const eventos = await api('/api/eventos?limit=10');
       $('tbodyActividad').innerHTML = eventos.length
         ? eventos.map(filaEvento).join('')
-        : '<tr><td colspan="5" class="vacio">Sin actividad todavia</td></tr>';
+        : `<tr><td colspan="5" class="vacio">Sin actividad todavia</td></tr>`;
       activarFilasGuia('#tbodyActividad');
+
+      revisarDetenidas();
     } catch (e) {
-      $('kpis').innerHTML = `<div class="card vacio">${esc(e.message)}</div>`;
+      $('kpis').innerHTML = `<div class="card">${UI.errorState(e.message)}</div>`;
       $('tbodyActividad').innerHTML = '';
     }
   }
 
+  // Guias en transito sin movimiento en mas de HORAS_DETENIDA horas.
+  // Se deriva en el cliente de /api/guias; no requiere endpoint nuevo.
+  let detenidas = [];
+  async function revisarDetenidas() {
+    try {
+      const guias = await api('/api/guias');
+      const limite = Date.now() - HORAS_DETENIDA * 3600 * 1000;
+      detenidas = guias.filter(
+        (g) => g.estatus.startsWith('EN_TRANSITO') && new Date(g.actualizado_en).getTime() < limite
+      );
+      $('puntoPendientes').style.display = detenidas.length ? '' : 'none';
+      $('btnPendientes').title = detenidas.length
+        ? `${detenidas.length} guia(s) detenida(s) mas de ${HORAS_DETENIDA} h`
+        : 'Sin guias detenidas';
+    } catch {}
+  }
+
+  $('btnPendientes').addEventListener('click', () => {
+    if (!detenidas.length) {
+      UI.toast({ tipo: 'ok', titulo: 'Todo en movimiento', descripcion: `Ninguna guia lleva mas de ${HORAS_DETENIDA} h detenida.` });
+      return;
+    }
+    UI.toast({
+      tipo: 'warn',
+      titulo: `${detenidas.length} guia(s) detenida(s)`,
+      descripcion: `Sin movimiento en mas de ${HORAS_DETENIDA} h. La primera es ${detenidas[0].numero_guia}.`,
+    });
+  });
+
   // Etiqueta para escaneos que un administrador revirtio
-  const tagRevertido = (ev) => (ev.revertido ? ' <span class="nota">(revertido)</span>' : '');
+  const tagRevertido = (ev) => (ev.revertido ? ' <span class="t-small">(revertido)</span>' : '');
 
   function filaEvento(ev) {
     return `<tr class="clic ${ev.revertido ? 'ev-revertido' : ''}" data-guia="${esc(ev.numero_guia)}">
-      <td title="${fmtFecha(ev.creado_en)}">${fmtRelativo(ev.creado_en)}</td>
-      <td><b>${esc(ev.numero_guia)}</b></td>
+      <td title="${fmtFecha(ev.creado_en)}"><span class="mono t-tertiary">${fmtRelativo(ev.creado_en)}</span></td>
+      <td><span class="mono t-primary">${esc(ev.numero_guia)}</span></td>
       <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}${tagRevertido(ev)}</td>
       <td>${esc(ev.plaza || '-')}</td>
       <td>${esc(ev.descripcion || '')}</td></tr>`;
@@ -726,7 +712,6 @@
     $('resTitulo').textContent = titulo;
     $('resDetalle').textContent = detalle;
     // El estatus y la lista de movimientos se borran solos a los 30 segundos
-    // (cada escaneo nuevo reinicia el contador)
     clearTimeout(timerResultado);
     timerResultado = setTimeout(() => {
       r.className = 'resultado';
@@ -737,7 +722,8 @@
   function logRow(texto, clase) {
     const div = document.createElement('div');
     div.className = 'log-row ' + clase;
-    div.innerHTML = `<span></span><span class="hora">${new Date().toLocaleTimeString('es-MX')}</span>`;
+    const hora = new Date().toLocaleTimeString('es-MX', { hour12: false });
+    div.innerHTML = `<span></span><span class="hora">${hora}</span>`;
     div.firstChild.textContent = texto;
     $('log').prepend(div);
     // Solo se conservan los ultimos 4 movimientos en pantalla
@@ -768,13 +754,11 @@
   });
 
   // ---------- Guias ----------
-  // Pestaña de plaza: por defecto la plaza donde estas (elegida en Escanear)
   let plazaTab = localStorage.getItem('plazaTab');
   if (plazaTab === null) plazaTab = plaza;
 
   // Estatus que pertenecen a la pestaña de una plaza: todo lo que se envio
-  // desde ahi, en cualquier punto del recorrido (en transito a la otra plaza,
-  // en la bodega destino, en reparto o ya entregado alla).
+  // desde ahi, en cualquier punto del recorrido.
   function pasosPlaza(p) {
     const otra = p === 'MTY' ? 'CDMX' : 'MTY';
     return [
@@ -850,19 +834,20 @@
     } else if (plazaTab) {
       params.set('plaza', plazaTab);
     }
+    $('tbodyGuias').innerHTML = UI.skeletonRows(6, 5);
     try {
       const data = await api('/api/guias?' + params);
       $('tbodyGuias').innerHTML = data.length
         ? data.map((g) => `<tr class="clic" data-guia="${esc(g.numero_guia)}">
-            <td><b>${esc(g.numero_guia)}</b></td>
+            <td><span class="mono t-primary">${esc(g.numero_guia)}</span></td>
             <td>${esc(g.origen)} &rarr; ${esc(g.destino)}</td>
             <td>${badge(g.estatus)}</td>
-            <td>${fmtFecha(g.creado_en)}</td>
-            <td>${fmtFecha(g.actualizado_en)}</td></tr>`).join('')
-        : '<tr><td colspan="5" class="vacio">Sin guias</td></tr>';
+            <td><span class="mono t-tertiary">${fmtFecha(g.creado_en)}</span></td>
+            <td><span class="mono t-tertiary">${fmtFecha(g.actualizado_en)}</span></td></tr>`).join('')
+        : `<tr><td colspan="5">${UI.emptyState({ icono: 'busqueda', titulo: 'Sin guias', descripcion: 'No hay guias que coincidan con los filtros activos.' })}</td></tr>`;
       activarFilasGuia('#tbodyGuias');
     } catch (e) {
-      $('tbodyGuias').innerHTML = `<tr><td colspan="5" class="vacio">${esc(e.message)}</td></tr>`;
+      $('tbodyGuias').innerHTML = `<tr><td colspan="5">${UI.errorState(e.message)}</td></tr>`;
     }
   }
   let timerBuscar;
@@ -892,13 +877,20 @@
 
   $('btnRevertir').addEventListener('click', async () => {
     if (!guiaDetalleActual) return;
-    if (!confirm(`¿Revertir el ultimo escaneo de ${guiaDetalleActual}?\nLa guia regresara a su estatus anterior y quedara registrada la correccion.`)) return;
+    const ok = await UI.confirmar({
+      titulo: `¿Revertir el ultimo escaneo de ${guiaDetalleActual}?`,
+      descripcion: 'La guia regresara a su estatus anterior y la correccion quedara registrada en el historial.',
+      confirmar: 'Revertir escaneo',
+      peligro: true,
+    });
+    if (!ok) return;
     $('btnRevertir').disabled = true;
     try {
       await api('/api/guias/' + encodeURIComponent(guiaDetalleActual) + '/revertir', { method: 'POST' });
+      UI.toast({ tipo: 'ok', titulo: 'Escaneo revertido', descripcion: `${guiaDetalleActual} regreso a su estatus anterior.` });
       cargarDetalle(guiaDetalleActual);
     } catch (e) {
-      alert(e.message);
+      UI.toast({ tipo: 'error', titulo: 'No se pudo revertir', descripcion: e.message });
     } finally {
       $('btnRevertir').disabled = false;
     }
@@ -919,8 +911,13 @@
 
       // Codigo de barras (si la libreria cargo)
       try {
-        if (window.JsBarcode) JsBarcode('#barcode', d.numero_guia, { format: 'CODE128', height: 52, fontSize: 13, margin: 0 });
-        else $('barcodeWrap').style.display = 'none';
+        if (window.JsBarcode) {
+          JsBarcode('#barcode', d.numero_guia, {
+            format: 'CODE128', height: 52, fontSize: 13, margin: 0,
+            background: '#0A0B0E', lineColor: '#EDEEF0',
+          });
+          $('barcodeWrap').style.display = '';
+        } else $('barcodeWrap').style.display = 'none';
       } catch { $('barcodeWrap').style.display = 'none'; }
 
       // Stepper (ignora escaneos revertidos para no marcar pasos deshechos)
@@ -940,7 +937,7 @@
       // Tabla de eventos + timeline
       $('tbodyDetEventos').innerHTML = d.historial.length
         ? d.historial.map((ev) => `<tr class="${ev.revertido ? 'ev-revertido' : ''}">
-            <td>${fmtFecha(ev.creado_en)}</td>
+            <td><span class="mono t-tertiary">${fmtFecha(ev.creado_en)}</span></td>
             <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}${tagRevertido(ev)}</td>
             <td>${esc(ev.plaza || '-')}</td>
             <td>${esc(ev.descripcion || '')}</td></tr>`).join('')
@@ -961,7 +958,7 @@
       $('detCreada').textContent = $('detActualizada').textContent = $('detEscaneos').textContent = '-';
       $('stepper').innerHTML = '';
       $('barcodeWrap').style.display = 'none';
-      $('tbodyDetEventos').innerHTML = `<tr><td colspan="4" class="vacio">${esc(e.message)}</td></tr>`;
+      $('tbodyDetEventos').innerHTML = `<tr><td colspan="4">${UI.errorState(e.message)}</td></tr>`;
       $('detTimeline').innerHTML = '';
     }
   }
@@ -974,7 +971,7 @@
       eventosCache = await api('/api/eventos?limit=300');
       pintarGruposEventos();
     } catch (e) {
-      $('gruposEventos').innerHTML = `<div class="card vacio">${esc(e.message)}</div>`;
+      $('gruposEventos').innerHTML = `<div class="card">${UI.errorState(e.message)}</div>`;
       $('resumenEventos').textContent = '';
     }
   }
@@ -990,7 +987,7 @@
       grupos.get(ev.numero_guia).push(ev);
     }
     if (!grupos.size) {
-      $('gruposEventos').innerHTML = '<div class="card vacio">Sin eventos</div>';
+      $('gruposEventos').innerHTML = `<div class="card">${UI.emptyState({ icono: 'busqueda', titulo: 'Sin eventos', descripcion: 'Ninguna guia coincide con ese filtro.' })}</div>`;
       $('resumenEventos').textContent = '';
       return;
     }
@@ -1009,7 +1006,7 @@
             <table>
               <thead><tr><th>Fecha y hora</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
               <tbody>${evs.map((ev) => `<tr class="${ev.revertido ? 'ev-revertido' : ''}">
-                <td>${fmtFecha(ev.creado_en)}</td>
+                <td><span class="mono t-tertiary">${fmtFecha(ev.creado_en)}</span></td>
                 <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}${tagRevertido(ev)}</td>
                 <td>${esc(ev.plaza || '-')}</td>
                 <td>${esc(ev.descripcion || '')}</td></tr>`).join('')}</tbody>
@@ -1070,9 +1067,9 @@
         <td><b>${esc(u.usuario)}</b></td>
         <td>${esc(u.nombre)}</td>
         <td>${u.rol === 'admin' ? 'Administrador' : 'Operador'}</td>
-        <td><select class="sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}" style="padding:6px 8px; font-size:0.82rem;">${opcionesPlaza(u.plaza)}</select></td>
+        <td><select class="select select--quiet sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}">${opcionesPlaza(u.plaza)}</select></td>
         <td style="text-align:right; white-space:nowrap;">${u.id === usuarioActual.id
-          ? '<span class="nota">(tu)</span>'
+          ? '<span class="t-small">(tu)</span>'
           : `<button class="btn-sec" data-reset="${u.id}" data-usuario="${esc(u.usuario)}">Contraseña</button>
              <button class="btn-peligro" data-id="${u.id}" data-usuario="${esc(u.usuario)}">Eliminar</button>`}</td></tr>`).join('');
       document.querySelectorAll('#tbodyUsuarios .sel-plaza').forEach((s) =>
@@ -1089,7 +1086,13 @@
       );
       document.querySelectorAll('#tbodyUsuarios .btn-peligro').forEach((b) =>
         b.addEventListener('click', async () => {
-          if (!confirm(`¿Eliminar al usuario "${b.dataset.usuario}"? Esta accion no se puede deshacer.`)) return;
+          const ok = await UI.confirmar({
+            titulo: `¿Eliminar al usuario "${b.dataset.usuario}"?`,
+            descripcion: 'Se cerraran todas sus sesiones abiertas. Esta accion no se puede deshacer.',
+            confirmar: 'Eliminar usuario',
+            peligro: true,
+          });
+          if (!ok) return;
           try {
             await api('/api/usuarios/' + b.dataset.id, { method: 'DELETE' });
             msgForm('msgUsuarios', `Usuario "${b.dataset.usuario}" eliminado`, 'ok');
@@ -1108,7 +1111,7 @@
         })
       );
     } catch (e) {
-      $('tbodyUsuarios').innerHTML = `<tr><td colspan="5" class="vacio">${esc(e.message)}</td></tr>`;
+      $('tbodyUsuarios').innerHTML = `<tr><td colspan="5">${UI.errorState(e.message)}</td></tr>`;
     }
   }
 
@@ -1134,7 +1137,13 @@
   });
 
   $('btnBorrarTodas').addEventListener('click', async () => {
-    if (!confirm('¿Seguro que quieres BORRAR TODAS las guias y su historial?\nEsta accion no se puede deshacer.')) return;
+    const ok = await UI.confirmar({
+      titulo: '¿Borrar TODAS las guias y su historial?',
+      descripcion: 'El sistema quedara como nuevo. Los usuarios y tus accesos no se borran. Esta accion no se puede deshacer.',
+      confirmar: 'Borrar todo',
+      peligro: true,
+    });
+    if (!ok) return;
     const texto = prompt('Para confirmar, escribe: BORRAR');
     if (texto === null) return;
     if (texto.trim().toUpperCase() !== 'BORRAR') {
@@ -1160,6 +1169,7 @@
       pintarUsuario();
       ocultarLogin();
       render();
+      moverIndicador(true);
     } catch (e2) {
       // Si la sesion expiro, api() ya mostro el login; si fue error de red, tambien lo pedimos
       if (e2.message !== 'Sesion expirada') mostrarLogin('No se pudo validar la sesion. Revisa tu conexion e intenta de nuevo.');

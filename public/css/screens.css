@@ -1,0 +1,700 @@
+/* ============================================================================
+   FLETES TAURO — PANTALLAS
+
+   Estado: PUENTE DE MIGRACION.
+   Los estilos de pantalla del panel anterior, portados a los tokens oscuros
+   para que nada quede ilegible mientras cada pantalla se rediseña en su paso:
+     Paso 4 → Dashboard      Paso 6 → Bitacora y Configuracion
+     Paso 5 → Guias, Detalle y Eventos    Paso 7 → Escaner
+   Cada bloque marcado [PUENTE] desaparece cuando su paso lo reemplaza.
+   ==========================================================================*/
+
+/* ---------- Comunes ---------- */
+
+.seccion + .seccion {
+  margin-top: var(--section-margin);
+}
+
+.nota {
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--text-secondary);
+}
+
+.titulo-card {
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-16);
+}
+
+.card + .card,
+.grid-cards > * {
+  margin-top: 0;
+}
+
+.pila {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+}
+
+/* ---------- Tablas ---------- */
+
+.tabla-scroll {
+  overflow-x: auto;
+}
+
+table {
+  font-size: var(--t-body-size);
+}
+
+th {
+  text-align: left;
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+td {
+  padding: 0 var(--space-12);
+  height: var(--h-row);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+tbody tr.clic {
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+tbody tr.clic:hover {
+  background: var(--overlay-row-hover);
+}
+
+.vacio {
+  color: var(--text-tertiary);
+  padding: var(--space-24) var(--space-12);
+  text-align: center;
+}
+
+/* ---------- KPIs ---------- */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: var(--card-gap);
+  margin-bottom: var(--card-gap);
+}
+
+.kpi-valor {
+  font-size: var(--t-display-size);
+  line-height: var(--t-display-line);
+  font-weight: var(--t-display-weight);
+  letter-spacing: var(--t-display-tracking);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-etiqueta {
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-top: var(--space-4);
+}
+
+.card--featured .kpi-valor { color: #fff; }
+.card--featured .kpi-etiqueta { color: rgba(255, 255, 255, 0.72); }
+
+/* ============================================================================
+   [PUENTE] ESCANEAR — se reemplaza en el Paso 7
+   ==========================================================================*/
+
+.plaza-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-12);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm), var(--sheen);
+  padding: var(--space-16) var(--space-20);
+  margin-bottom: var(--card-gap);
+  color: var(--text-secondary);
+  font-size: var(--t-body-size);
+}
+
+.plaza-banner b {
+  font-size: var(--t-h1-size);
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+}
+
+.toggle {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.toggle button {
+  flex: 1;
+  min-width: 140px;
+  height: var(--h-scan-pill);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: var(--t-body-size);
+  transition: background-color var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease);
+}
+
+.toggle button:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.toggle button.activa {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  box-shadow: var(--shadow-md);
+}
+
+.resultado {
+  display: none;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm), var(--sheen);
+  padding: var(--space-20);
+  margin: var(--card-gap) 0;
+}
+
+.resultado h3 {
+  font-size: var(--t-h2-size);
+  line-height: var(--t-h2-line);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+}
+
+.resultado p {
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--text-secondary);
+}
+
+.r-salida,
+.r-llegada,
+.r-ruta,
+.r-entregado,
+.r-repetido,
+.r-error { display: block; }
+
+.r-salida    { border-color: var(--st-transito-border);  background: var(--st-transito-bg); }
+.r-llegada   { border-color: var(--st-bodega-border);    background: var(--st-bodega-bg); }
+.r-ruta      { border-color: var(--st-reparto-border);   background: var(--st-reparto-bg); }
+.r-entregado { border-color: var(--st-entregado-border); background: var(--st-entregado-bg); }
+.r-repetido  { border-color: var(--border-default);      background: var(--bg-elevated); }
+.r-error     { border-color: var(--st-eliminada-border); background: var(--st-eliminada-bg); }
+
+.log-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--st-neutro-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-12) var(--space-16);
+  margin-bottom: var(--space-8);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.log-row.ok   { border-left-color: var(--st-entregado-color); }
+.log-row.warn { border-left-color: var(--st-transito-color); }
+.log-row.err  { border-left-color: var(--st-eliminada-color); }
+
+.log-row .hora {
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+}
+
+/* ============================================================================
+   [PUENTE] GUIAS — se reemplaza en el Paso 5
+   ==========================================================================*/
+
+.ptabs {
+  display: flex;
+  gap: var(--space-8);
+  margin-bottom: var(--card-gap);
+}
+
+.ptabs button {
+  min-width: 96px;
+  height: var(--h-control);
+  padding: 0 var(--space-16);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: var(--t-body-size);
+  transition: background-color var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease);
+}
+
+.ptabs button:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.ptabs button.activa {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--text-primary);
+}
+
+.chips {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  margin-bottom: var(--card-gap);
+}
+
+.chipf {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-8) var(--space-16);
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-align: left;
+  transition: border-color var(--t-fast) var(--ease),
+              background-color var(--t-fast) var(--ease);
+}
+
+.chipf:hover {
+  border-color: var(--border-strong);
+}
+
+.chipf b {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--t-h1-size);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-primary);
+}
+
+.chipf.activo {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--text-primary);
+}
+
+/* ============================================================================
+   [PUENTE] DETALLE DE GUIA — se reemplaza en el Paso 5
+   ==========================================================================*/
+
+.volver {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: var(--space-16);
+  padding: var(--space-4) 0;
+  transition: color var(--t-fast) var(--ease);
+}
+
+.volver:hover {
+  color: var(--text-primary);
+}
+
+.det-header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-24);
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.det-header h2 {
+  font-family: var(--font-mono);
+  font-size: var(--t-h1-size);
+  line-height: var(--t-h1-line);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+}
+
+.det-ruta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.det-meta {
+  display: flex;
+  gap: var(--space-24);
+  flex-wrap: wrap;
+  margin-top: var(--space-16);
+}
+
+.det-meta div {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.det-meta .k {
+  display: block;
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
+}
+
+#barcodeWrap {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-12);
+}
+
+#barcodeWrap svg {
+  max-width: 240px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: var(--card-gap);
+  align-items: start;
+}
+
+/* Stepper */
+.stepper {
+  display: flex;
+  overflow-x: auto;
+  padding-top: var(--space-4);
+}
+
+.paso {
+  flex: 1;
+  min-width: 112px;
+  text-align: center;
+  position: relative;
+}
+
+.paso::before {
+  content: '';
+  position: absolute;
+  top: 17px;
+  left: -50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border-default);
+  z-index: 0;
+}
+
+.paso:first-child::before { display: none; }
+.paso.hecho::before,
+.paso.actual::before { background: var(--accent); }
+
+.paso .circulo {
+  position: relative;
+  z-index: 1;
+  width: var(--space-32);
+  height: var(--space-32);
+  margin: 0 auto var(--space-8);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.paso.hecho .circulo,
+.paso.actual .circulo {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.paso.actual .circulo {
+  box-shadow: 0 0 0 4px var(--accent-subtle);
+}
+
+.paso .nombre {
+  font-size: var(--t-small-size);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.paso.hecho .nombre,
+.paso.actual .nombre { color: var(--text-primary); }
+
+.paso .fecha {
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* Timeline */
+.timeline li {
+  position: relative;
+  padding: 0 0 var(--space-20) var(--space-24);
+  border-left: 1px solid var(--border-default);
+  margin-left: 7px;
+}
+
+.timeline li:last-child {
+  border-left-color: transparent;
+  padding-bottom: 0;
+}
+
+.timeline li::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+}
+
+.timeline li.e-salida::before     { background: var(--st-transito-color);  border-color: var(--st-transito-color); }
+.timeline li.e-llegada::before    { background: var(--st-bodega-color);    border-color: var(--st-bodega-color); }
+.timeline li.e-ruta::before       { background: var(--st-reparto-color);   border-color: var(--st-reparto-color); }
+.timeline li.e-entrega::before    { background: var(--st-entregado-color); border-color: var(--st-entregado-color); }
+.timeline li.e-correccion::before { background: var(--st-eliminada-color); border-color: var(--st-eliminada-color); }
+
+.timeline .desc {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.timeline .meta {
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.ev-revertido { opacity: 0.5; }
+.ev-revertido .desc { text-decoration: line-through; }
+
+/* ============================================================================
+   [PUENTE] EVENTOS — se reemplaza en el Paso 5
+   ==========================================================================*/
+
+.grupo {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm), var(--sheen);
+  margin-bottom: var(--space-8);
+  overflow: hidden;
+  transition: border-color var(--t-fast) var(--ease);
+}
+
+.grupo:hover { border-color: var(--border-strong); }
+
+.grupo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  width: 100%;
+  padding: var(--space-16);
+  text-align: left;
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+.grupo-head:hover { background: var(--overlay-row-hover); }
+
+.grupo-head .num {
+  font-family: var(--font-mono);
+  font-size: var(--t-h2-size);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  margin-right: var(--space-8);
+}
+
+.grupo-head .ultimo {
+  display: block;
+  margin-top: var(--space-4);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.grupo-head .der {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  flex-shrink: 0;
+}
+
+.grupo-head .conteo {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  border-radius: var(--radius-full);
+  padding: var(--space-4) var(--space-8);
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  white-space: nowrap;
+}
+
+.grupo-head .chev {
+  color: var(--text-tertiary);
+  transition: transform var(--t-normal) var(--ease);
+}
+
+.grupo.abierto .chev { transform: rotate(180deg); }
+
+.grupo-body {
+  display: none;
+  border-top: 1px solid var(--border-subtle);
+  padding: 0 var(--space-16) var(--space-16);
+}
+
+.grupo.abierto .grupo-body { display: block; }
+
+.grupo-body .ver-detalle {
+  margin-top: var(--space-12);
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  padding: var(--space-4) 0;
+}
+
+.grupo-body .ver-detalle:hover { text-decoration: underline; }
+
+/* ============================================================================
+   [PUENTE] CONFIGURACION — se reemplaza en el Paso 6
+   ==========================================================================*/
+
+.msg-form {
+  display: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-12);
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  margin-top: var(--space-12);
+}
+
+.msg-form.ok {
+  display: block;
+  background: var(--st-entregado-bg);
+  border: 1px solid var(--st-entregado-border);
+  color: var(--st-entregado-text);
+}
+
+.msg-form.err {
+  display: block;
+  background: var(--st-eliminada-bg);
+  border: 1px solid var(--st-eliminada-border);
+  color: var(--st-eliminada-text);
+}
+
+/* Alias de los botones del panel anterior sobre los primitivos nuevos */
+.btn-peligro {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--h-chip);
+  padding: 0 var(--space-12);
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-tertiary);
+  font-size: var(--t-small-size);
+  font-weight: 500;
+  transition: background-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease);
+}
+
+.btn-peligro:hover {
+  background: var(--st-eliminada-bg);
+  color: var(--st-eliminada-text);
+}
+
+.btn-sec {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--h-chip);
+  padding: 0 var(--space-12);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: var(--t-small-size);
+  font-weight: 500;
+  transition: border-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease);
+}
+
+.btn-sec:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.zona-peligro {
+  border-color: var(--st-eliminada-border);
+}
+
+.zona-peligro .titulo-card {
+  color: var(--st-eliminada-text);
+}
+
+@media (max-width: 900px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
