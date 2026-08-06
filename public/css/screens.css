@@ -75,12 +75,18 @@ tbody tr.clic:hover {
 
 /* ---------- KPIs ---------- */
 
+/* Son seis tarjetas, siempre las mismas. Con auto-fit el ancho decidia
+   cuantas caben y quedaba una fila de cinco y otra de una sola, que se lee
+   como un hueco. Se fijan repartos que dividen exacto: 6, 3 o 2 columnas. */
 .kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--card-gap);
   margin-bottom: var(--card-gap);
 }
+
+@media (min-width: 760px)  { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1500px) { .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 
 .kpi-valor {
   font-size: var(--t-display-size);
@@ -409,16 +415,35 @@ button.plaza-fila:hover {
   gap: var(--space-32);
 }
 
+/* El rotulo de la ruta va en su propio renglon, no encima de la linea:
+   posicionado en absoluto se montaba sobre el chip del conteo. */
 .flecha {
-  position: relative;
-  height: var(--space-48);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: var(--space-8);
   --flecha-color: var(--text-tertiary);
 }
 
 .flecha.is-activa {
   --flecha-color: var(--st-transito-color);
+}
+
+.flecha__ruta {
+  text-align: center;
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* La pista: linea, punta, chip y luz comparten este sistema de referencia */
+.flecha__pista {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--space-32);
 }
 
 /* Linea de 1px que se desvanece en los extremos */
@@ -469,29 +494,18 @@ button.plaza-fila:hover {
   border-color: var(--st-transito-border);
 }
 
-.flecha__ruta {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  text-align: center;
-  font-size: var(--t-label-size);
-  line-height: var(--t-label-line);
-  font-weight: var(--t-label-weight);
-  letter-spacing: var(--t-label-tracking);
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-
 /* Punto de luz que recorre la linea.
-   Unico loop permitido en toda la aplicacion. */
+   Unico loop permitido en toda la aplicacion.
+   Se anima "left" en vez de translateX: el porcentaje se mide contra la
+   pista, asi que recorre justo su ancho sea cual sea, en vez de una
+   distancia fija en pixeles que se quedaba corta o se pasaba. */
 .flecha__luz {
   position: absolute;
   top: 50%;
   left: 0;
   width: 4px;
   height: 4px;
-  margin-top: -2px;
+  margin: -2px 0 0 -2px;
   border-radius: var(--radius-full);
   background: var(--st-transito-color);
   opacity: 0;
@@ -501,15 +515,18 @@ button.plaza-fila:hover {
   animation: recorrer 4s var(--ease) infinite;
 }
 
-.flecha--izq .flecha__luz {
+/* Mas especifico que la regla de arriba a proposito: el atajo "animation"
+   reinicia animation-direction, asi que con menos peso esta declaracion se
+   perdia y las dos rutas pulsaban hacia el mismo lado. */
+.flecha.is-activa.flecha--izq .flecha__luz {
   animation-direction: reverse;
 }
 
 @keyframes recorrer {
-  0%        { transform: translateX(0);     opacity: 0; }
-  18%       { opacity: 0.5; }
-  82%       { opacity: 0.5; }
-  100%      { transform: translateX(200px); opacity: 0; }
+  0%   { left: 0;    opacity: 0; }
+  18%  { opacity: 0.55; }
+  82%  { opacity: 0.55; }
+  100% { left: 100%; opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
