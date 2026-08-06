@@ -541,6 +541,12 @@ button.plaza-fila:hover {
   --accent-border:      var(--st-entregado-border);
   --accent-ring:        var(--st-entregado-halo);
 
+  /* Degradado de la pill activa, equivalente verde del que usa la card
+     destacada del dashboard (#1E4FA8 -> #17325F). */
+  --pill-activa-from:  #1C8340;                  /* blanco encima: 4.8:1 */
+  --pill-activa-to:    #10502A;
+  --pill-activa-borde: rgba(28, 131, 64, 0.55);
+
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -600,6 +606,18 @@ button.plaza-fila:hover {
   border-color: var(--accent-solid);
   color: var(--accent-text);
   box-shadow: var(--shadow-md);
+}
+
+/* La pill activa del escaner recibe el mismo tratamiento que la card
+   destacada del dashboard: degradado a 160 grados y brillo en el borde
+   superior. Asi el verde tiene el cuerpo del azul del sistema en vez de
+   verse como un relleno plano. El tono mas claro del degradado da 4.8:1
+   con texto blanco, de modo que toda la superficie cumple AA. */
+.escaner .pill[aria-pressed="true"] {
+  background: linear-gradient(160deg, var(--pill-activa-from) 0%, var(--pill-activa-to) 100%);
+  border-color: var(--pill-activa-borde);
+  color: var(--text-on-solid);
+  box-shadow: var(--shadow-sm), var(--sheen-strong);
 }
 
 /* ---------- Zona de captura ---------- */
