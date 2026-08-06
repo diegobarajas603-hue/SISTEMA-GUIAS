@@ -744,11 +744,17 @@
   animation: fade-in var(--t-fast) var(--ease);
 }
 
+/* El panel nunca sale de la pantalla: crece hasta donde alcanza y es el
+   cuerpo el que se desplaza por dentro, de modo que el titulo y los botones
+   de accion siguen a la vista aunque el formulario sea largo. */
 .modal-panel {
   position: relative;
   z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 440px;
+  max-height: 100%;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
@@ -757,6 +763,7 @@
 }
 
 .modal-panel__header {
+  flex-shrink: 0;
   padding: var(--space-20) var(--space-20) var(--space-12);
 }
 
@@ -775,15 +782,28 @@
 }
 
 .modal-panel__body {
+  /* min-height:0 es obligatorio: sin el, un hijo de flex no se encoge por
+     debajo de su contenido y el desbordamiento se lo lleva la pagina */
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0 var(--space-20) var(--space-16);
 }
 
 .modal-panel__footer {
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
   gap: var(--space-8);
   padding: var(--space-16) var(--space-20);
   border-top: 1px solid var(--border-subtle);
+}
+
+/* En pantallas bajas (una laptop con el navegador a media altura) el margen
+   del scrim se vuelve espacio que le falta al modal */
+@media (max-height: 600px) {
+  .modal-scrim { padding: var(--space-12); }
+  .modal-panel__header { padding-bottom: var(--space-8); }
 }
 
 @keyframes fade-in {
