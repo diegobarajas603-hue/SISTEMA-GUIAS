@@ -1273,15 +1273,64 @@ button.plaza-fila:hover {
   margin-bottom: 2px;
 }
 
+/* Etiqueta de codigo de barras.
+   Se queda BLANCA tambien en tema oscuro, a proposito: un lector optico
+   necesita barras oscuras sobre fondo claro, asi que seguir al tema la
+   volveria imposible de escanear. Antes JsBarcode pintaba su propio
+   rectangulo solo detras de las barras y el numero quedaba en una franja
+   suelta, que contra la tarjeta oscura parecia un error de dibujo. Ahora la
+   etiqueta es una tarjeta completa, como la que se pega en el paquete, y el
+   numero lo escribimos nosotros para que use la tipografia del sistema. */
 #barcodeWrap {
-  background: var(--bg-inset);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  flex-shrink: 0;
 }
 
-#barcodeWrap svg {
-  max-width: 240px;
+.etiqueta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: var(--space-12) var(--space-16) var(--space-8);
+  background: #FFFFFF;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+/* En oscuro el blanco puro deslumbra: un borde mas marcado y una sombra
+   suave la asientan sin bajarle el contraste a las barras. */
+:root:not([data-tema="claro"]) .etiqueta {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+.etiqueta__tit {
+  align-self: flex-start;
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: #7B879E;
+}
+
+.etiqueta svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.etiqueta__num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: #0C1424;
+  /* El interletrado empuja el texto a la izquierda; se compensa para que
+     quede centrado bajo las barras */
+  text-indent: 0.16em;
 }
 
 .grid-2 {
@@ -1911,4 +1960,87 @@ button.plaza-fila:hover {
 
 @media (max-width: 900px) {
   .grid-2 { grid-template-columns: 1fr; }
+}
+
+/* ---------- Bitacora permanente ----------
+   Una eliminacion o una cancelacion es lo unico que queda de una guia que ya
+   no esta, asi que la ficha pone el motivo en primer plano y debajo quien lo
+   hizo. El numero viejo va tachado: ese ya no lleva a ningun lado. */
+
+.registro {
+  padding: var(--space-16);
+  margin-bottom: var(--space-8);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.registro--rojo  { border-left-color: var(--st-eliminada-color); }
+.registro--ambar { border-left-color: var(--st-cancelada-color); }
+
+.registro__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-12);
+}
+
+.registro__tipo {
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.registro__numeros { display: inline-flex; align-items: center; gap: var(--space-8); }
+.registro__fecha { margin-left: auto; font-size: 13px; color: var(--text-tertiary); }
+
+.bit-tachado { text-decoration: line-through; color: var(--text-tertiary); }
+.bit-flecha { color: var(--text-tertiary); }
+
+.bit-nuevo {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.registro__motivo {
+  padding: var(--space-12);
+  background: var(--bg-inset);
+  border-radius: var(--radius-sm);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-line);
+  color: var(--text-primary);
+}
+
+.registro__motivo .k {
+  display: block;
+  margin-bottom: 3px;
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.registro__pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-24);
+  margin-top: var(--space-12);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.registro__pie .k {
+  display: block;
+  font-size: var(--t-label-size);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
 }

@@ -7,8 +7,30 @@ const auth = require('./auth');
 const { mensajeEstatus } = require('./estatus');
 const { extraerNumeroGuia, enviarMensaje } = require('./whatsapp');
 
+// Red de seguridad del proceso.
+//
+// Desde Node 15, una promesa rechazada que nadie atrapa TUMBA el proceso. En
+// este sistema eso significa que un solo error raro deja sin escanear a toda
+// la operacion, en las dos plazas, hasta que el hosting lo reinicie. Se
+// registra el error y se sigue vivo: perder una peticion es mucho menos grave
+// que perder el servicio.
+process.on('unhandledRejection', (razon) => {
+  console.error('[grave] Promesa rechazada sin atrapar (el servidor sigue vivo):', razon);
+});
+
+// Una excepcion sin atrapar si deja el proceso en un estado dudoso: se
+// registra y se sale para que el hosting levante una instancia limpia.
+process.on('uncaughtException', (e) => {
+  console.error('[fatal] Excepcion sin atrapar, reiniciando:', e);
+  process.exit(1);
+});
+
 const app = express();
-app.use(express.json());
+// Detras del proxy del hosting (Railway): req.ip debe ser la IP real del
+// cliente, no la del proxy (la usa el limite de intentos de login)
+app.set('trust proxy', 1);
+// Un cuerpo enorme no debe poder agotar la memoria del servidor
+app.use(express.json({ limit: '256kb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // La raiz del sitio es la pagina publica de rastreo para clientes; el panel
@@ -29,6 +51,10 @@ app.get('/index.html', (req, res) => res.redirect('/panel'));
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || '';
 const { requireAuth, requireAdmin } = auth;
 
+// Envuelve rutas async para que un fallo inesperado (p. ej. la base de datos
+// caida un instante) responda un error 500 en lugar de tumbar el proceso.
+const seguro = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // ---------- Autenticacion (login del panel) ----------
@@ -44,11 +70,11 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/logout', requireAuth, async (req, res) => {
+app.post('/api/auth/logout', requireAuth, seguro(async (req, res) => {
   const token = auth.extraerToken(req);
   if (token) await auth.logout(token);
   res.json({ ok: true });
-});
+}));
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ usuario: req.usuario });
@@ -69,9 +95,9 @@ app.post('/api/auth/password', requireAuth, requireAdmin, async (req, res) => {
 
 // ---------- Gestion de usuarios (solo administradores) ----------
 
-app.get('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/usuarios', requireAuth, requireAdmin, seguro(async (req, res) => {
   res.json(await auth.listarUsuarios());
-});
+}));
 
 app.post('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
   const { usuario, nombre, password, rol, plaza } = req.body || {};
@@ -89,6 +115,22 @@ app.put('/api/usuarios/:id/plaza', requireAuth, requireAdmin, async (req, res) =
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
+});
+
+app.put('/api/usuarios/:id/rol', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await auth.actualizarRol(Number(req.params.id), (req.body || {}).rol, req.usuario);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Roles que se pueden asignar, con el nombre que ve el usuario y los tipos de
+// escaneo de cada uno. El panel arma con esto el selector y los botones de
+// escaneo, para no repetir la tabla de permisos en el navegador.
+app.get('/api/roles', requireAuth, (req, res) => {
+  res.json(auth.ROLES_ASIGNABLES.map((id) => ({ id, ...auth.ROLES[id] })));
 });
 
 app.delete('/api/usuarios/:id', requireAuth, requireAdmin, async (req, res) => {
@@ -115,18 +157,34 @@ app.put('/api/usuarios/:id/password', requireAuth, requireAdmin, async (req, res
 // operacion (bodega, domicilio u ocurre); el sistema decide que significa el
 // escaneo segun el estado actual de la guia.
 app.post('/api/guias/escanear', requireAuth, async (req, res) => {
-  const { numeroGuia, plaza, modo } = req.body;
+  const { numeroGuia, plaza, modo } = req.body || {};
   if (!numeroGuia || !plaza) return res.status(400).json({ error: 'numeroGuia y plaza son requeridos' });
   // Si el usuario tiene plaza asignada, solo puede escanear en esa plaza
-  if (req.usuario.plaza && plaza.trim().toUpperCase() !== req.usuario.plaza) {
+  if (req.usuario.plaza && String(plaza).trim().toUpperCase() !== req.usuario.plaza) {
     return res.status(403).json({ error: `Tu usuario solo puede escanear en ${req.usuario.plaza}` });
+  }
+  // Cada rol solo hace el tipo de escaneo que le toca (salidas, ocurre o
+  // domicilio). El panel ya oculta los demas, pero se valida aqui tambien:
+  // esconder un boton no es una restriccion.
+  const modoPedido = String(modo || 'bodega').trim().toLowerCase();
+  if (!auth.puedeModo(req.usuario.rol, modoPedido)) {
+    const permitidos = auth.modosDeRol(req.usuario.rol);
+    return res.status(403).json({
+      error: permitidos.length
+        ? `Tu usuario (${auth.nombreDeRol(req.usuario.rol)}) no puede hacer escaneos de tipo "${modoPedido}"`
+        : 'Tu usuario no tiene permitido escanear guias',
+    });
   }
   try {
     const resultado = await guias.escanearGuia(
-      numeroGuia.trim().toUpperCase(),
-      plaza.trim().toUpperCase(),
-      (modo || 'bodega').trim().toLowerCase()
+      String(numeroGuia).trim().toUpperCase(),
+      String(plaza).trim().toUpperCase(),
+      modoPedido,
+      req.usuario.usuario
     );
+    // El panel muestra quien y cuando en la confirmacion del escaneo
+    resultado.operador = req.usuario.nombre || req.usuario.usuario;
+    resultado.hora = new Date().toISOString();
     res.json(resultado);
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -148,12 +206,55 @@ app.post('/api/guias/borrar-todas', requireAuth, requireAdmin, async (req, res) 
   }
 });
 
-// Revertir el ultimo escaneo de una guia (solo administradores)
+// Eliminar UNA guia con todo su historial (solo administradores). Pensado para
+// deshacer una captura equivocada. Es definitivo, asi que exige confirmar el
+// numero exacto de la guia; el borrado queda en el log del servidor.
+app.delete('/api/guias/:numeroGuia', requireAuth, requireAdmin, async (req, res) => {
+  const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
+  const confirmar = String((req.body || {}).confirmar || req.query.confirmar || '').trim().toUpperCase();
+  if (confirmar !== numeroGuia) {
+    return res.status(400).json({ error: `Confirmacion invalida: escribe el numero exacto de la guia (${numeroGuia})` });
+  }
+  try {
+    const r = await guias.borrarGuia(numeroGuia, req.usuario.usuario, (req.body || {}).motivo);
+    console.log(
+      `[guias] ${req.usuario.usuario} elimino la guia ${r.numeroGuia} (estatus ${r.estatus}, ${r.eventos} evento(s)` +
+        `${r.complemento ? `, complemento ${r.complemento}` : ''}). Motivo: ${r.motivo}`
+    );
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Revertir el ultimo escaneo de una guia (solo administradores). Acepta una
+// resolucion opcional de que paso con la guia (p. ej. entrega no pagada):
+//  { resolucion: 'cancelada', numero: 'AN...' }  -> la guia se cancelo y toma
+//    el numero de la nueva guia, conservando todo su historial. Opcionalmente
+//    acepta "estatus" (con que estatus arranca la guia nueva; si no se indica,
+//    regresa al estatus anterior al ultimo escaneo) y "conservarComplemento"
+//    (por omision el complemento se queda con la guia cancelada).
+//  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento;
+//    la guia conserva ambos numeros y los dos sirven para rastrear.
 app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
+  const { resolucion, numero, estatus, conservarComplemento, motivo } = req.body || {};
+  let r = null;
+  if (resolucion === 'cancelada' || resolucion === 'complemento') {
+    r = { tipo: resolucion, numero };
+    if (resolucion === 'cancelada') {
+      r.estatus = estatus || null;
+      r.conservarComplemento = conservarComplemento === true;
+      // Obligatorio: queda en el historial de la guia y en la bitacora
+      r.motivo = motivo;
+    }
+  } else if (resolucion) {
+    return res.status(400).json({ error: 'Resolucion invalida: usa "cancelada" o "complemento"' });
+  }
   try {
     const resultado = await guias.revertirUltimoEscaneo(
       req.params.numeroGuia.trim().toUpperCase(),
-      req.usuario.usuario
+      req.usuario.usuario,
+      r
     );
     res.json(resultado);
   } catch (e) {
@@ -161,26 +262,60 @@ app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (re
   }
 });
 
-app.get('/api/guias/resumen', requireAuth, async (req, res) => {
-  res.json(await guias.resumen());
-});
+// Bitacora de eliminaciones y cancelaciones (solo administradores). Es el
+// registro que sobrevive a la guia: dice quien la borro o la cancelo y por que.
+// Solo lectura: no hay forma de editarla ni de borrarla desde la aplicacion,
+// que es justamente lo que la hace util como constancia.
+app.get('/api/bitacora', requireAuth, requireAdmin, seguro(async (req, res) => {
+  const { tipo, buscar, limit } = req.query;
+  res.json({
+    resumen: await guias.resumenBitacora(),
+    registros: await guias.listarBitacora({ tipo, buscar, limit }),
+  });
+}));
 
-app.get('/api/eventos', requireAuth, async (req, res) => {
+app.get('/api/guias/resumen', requireAuth, seguro(async (req, res) => {
+  res.json(await guias.resumen());
+}));
+
+// Actividad por dia (guias enviadas y entregas) para las graficas del dashboard
+app.get('/api/guias/estadisticas', requireAuth, seguro(async (req, res) => {
+  res.json(await guias.estadisticas(req.query.dias));
+}));
+
+app.get('/api/eventos', requireAuth, seguro(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
   res.json(await guias.listarEventos({ limit }));
-});
+}));
 
-app.get('/api/guias/:numeroGuia', requireAuth, async (req, res) => {
+app.get('/api/guias/:numeroGuia', requireAuth, seguro(async (req, res) => {
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
-  const guia = await guias.obtenerGuia(numeroGuia);
+  // Busca tambien por el numero de complemento
+  const guia = await guias.buscarGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'Guia no encontrada' });
-  const historial = await guias.obtenerHistorial(numeroGuia);
-  res.json({ ...guia, mensaje: mensajeEstatus(numeroGuia, guia.estatus), historial });
-});
+  const historial = await guias.obtenerHistorial(guia.numero_guia);
+  res.json({ ...guia, mensaje: mensajeEstatus(guia.numero_guia, guia.estatus), historial });
+}));
 
+// Listado de guias. Ademas de buscar por numero y filtrar por estatus y plaza,
+// acepta un rango de fechas (desde/hasta en AAAA-MM-DD) sobre el ultimo
+// movimiento o sobre la fecha de registro, segun campoFecha.
 app.get('/api/guias', requireAuth, async (req, res) => {
-  const { buscar, estatus, plaza } = req.query;
-  res.json(await guias.listarGuias({ buscar, estatus, plaza: plaza && plaza.toUpperCase() }));
+  const { buscar, estatus, plaza, desde, hasta, campoFecha } = req.query;
+  try {
+    res.json(
+      await guias.listarGuias({
+        buscar,
+        estatus,
+        plaza: plaza && plaza.toUpperCase(),
+        desde,
+        hasta,
+        campoFecha,
+      })
+    );
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 // ---------- API publica de rastreo (sin token, para clientes) ----------
@@ -188,27 +323,31 @@ app.get('/api/guias', requireAuth, async (req, res) => {
 // Solo permite consultar una guia por su numero exacto; nunca expone la lista
 // completa ni las operaciones de escaneo. CORS abierto para poder llamarla
 // desde la pagina web de la empresa.
-app.get('/api/publico/guias/:numeroGuia', async (req, res) => {
+const ACCIONES_INTERNAS = ['ESCANEO_REPETIDO', 'CORRECCION', 'CAMBIO_NUMERO', 'COMPLEMENTO'];
+
+app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
   if (!/^[A-Z0-9-]{3,40}$/.test(numeroGuia)) {
     return res.status(400).json({ error: 'Numero de guia invalido' });
   }
-  const guia = await guias.obtenerGuia(numeroGuia);
+  // Busca tambien por el numero de complemento: ambos numeros rastrean la guia
+  const guia = await guias.buscarGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'No encontramos esa guia. Verifica el numero e intenta de nuevo.' });
-  // Los escaneos repetidos, las correcciones internas y los escaneos que
-  // fueron revertidos no se muestran al cliente
-  const historial = (await guias.obtenerHistorial(numeroGuia))
-    .filter((ev) => ev.accion !== 'ESCANEO_REPETIDO' && ev.accion !== 'CORRECCION' && !ev.revertido)
+  // Los escaneos repetidos, las anotaciones internas (correcciones, cambios de
+  // numero, complementos) y los escaneos revertidos no se muestran al cliente
+  const historial = (await guias.obtenerHistorial(guia.numero_guia))
+    .filter((ev) => !ACCIONES_INTERNAS.includes(ev.accion) && !ev.revertido)
     .map(({ accion, descripcion, creado_en }) => ({ accion, descripcion, creado_en }));
   res.json({
     numeroGuia: guia.numero_guia,
+    complemento: guia.complemento || null,
     estatus: guia.estatus,
     mensaje: mensajeEstatus(guia.numero_guia, guia.estatus),
     actualizado_en: guia.actualizado_en,
     historial,
   });
-});
+}));
 
 // ---------- Webhook de WhatsApp Business Cloud API (Meta) ----------
 
@@ -242,15 +381,30 @@ app.post('/webhook/whatsapp', async (req, res) => {
       return;
     }
 
-    const guia = await guias.obtenerGuia(numeroGuia);
+    // Busca tambien por el numero de complemento
+    const guia = await guias.buscarGuia(numeroGuia);
     if (!guia) {
       await enviarMensaje(de, `No encontramos la guia ${numeroGuia}. Verifica el numero e intenta de nuevo.`);
       return;
     }
 
-    await enviarMensaje(de, mensajeEstatus(numeroGuia, guia.estatus));
+    await enviarMensaje(de, mensajeEstatus(guia.numero_guia, guia.estatus));
   } catch (e) {
     console.error('Error procesando webhook de WhatsApp:', e);
+  }
+});
+
+// Manejador final de errores: responde JSON claro y el servidor sigue vivo
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'El cuerpo de la peticion no es JSON valido' });
+  }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'El cuerpo de la peticion es demasiado grande' });
+  }
+  console.error('Error no controlado:', err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'Error interno del servidor. Intenta de nuevo en un momento.' });
   }
 });
 

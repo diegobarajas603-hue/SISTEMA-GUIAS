@@ -803,3 +803,93 @@
     animation: none;
   }
 }
+
+/* ---------- Opciones de un modal ----------
+   Lista de alternativas excluyentes con su explicacion debajo. Se usa donde
+   elegir mal tiene consecuencias (revertir un escaneo), asi que cada opcion
+   dice que va a pasar en vez de confiar en un rotulo corto. */
+
+.opciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin-bottom: var(--space-16);
+}
+
+.opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-12);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+
+.opcion:hover { border-color: var(--border-strong); }
+
+.opcion input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.opcion:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.opcion__cuerpo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.opcion__titulo {
+  font-size: var(--t-body-size);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.opcion__desc {
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--text-secondary);
+}
+
+.opcion--check { margin-bottom: var(--space-16); }
+
+/* Campo de texto multilinea: mismo trazo que .input, pero sin poder
+   estirarse a lo ancho y romper el modal */
+.input--area {
+  min-height: 68px;
+  padding: var(--space-8) var(--space-12);
+  resize: vertical;
+  font-family: inherit;
+  line-height: var(--t-body-line);
+}
+
+/* Error de validacion dentro de un modal */
+.msg-error {
+  margin: var(--space-12) 0 0;
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--st-eliminada-text);
+}
+
+/* Lo que se pierde al borrar algo, en una lista que se pueda repasar */
+.lista-peligro {
+  margin: 0 0 var(--space-12);
+  padding-left: var(--space-20);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.lista-peligro li + li { margin-top: var(--space-4); }
+
+/* Acciones del detalle: los botones peligrosos van juntos y con aire */
+.det-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: var(--space-16);
+}

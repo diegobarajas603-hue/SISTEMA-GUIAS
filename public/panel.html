@@ -280,9 +280,23 @@
               <div><span class="k">Ultima actualizacion</span><span id="detActualizada"></span></div>
               <div><span class="k">Escaneos</span><span id="detEscaneos"></span></div>
             </div>
-            <button class="btn btn--danger-ghost" id="btnRevertir" style="display:none; margin-top:var(--space-16);">Revertir ultimo escaneo</button>
+            <div class="det-acciones">
+              <button class="btn btn--danger-ghost" id="btnRevertir" style="display:none">Revertir ultimo escaneo</button>
+              <button class="btn btn--danger-ghost" id="btnEliminarGuia" style="display:none">Eliminar guia</button>
+            </div>
           </div>
-          <div id="barcodeWrap"><svg id="barcode"></svg></div>
+          <div id="barcodeWrap">
+            <div class="etiqueta">
+              <span class="etiqueta__tit">Etiqueta</span>
+              <svg id="barcode"></svg>
+              <span class="etiqueta__num" id="barcodeNum"></span>
+            </div>
+            <div class="etiqueta" id="barcodeCompWrap" style="display:none">
+              <span class="etiqueta__tit">Complemento</span>
+              <svg id="barcodeComp"></svg>
+              <span class="etiqueta__num" id="barcodeCompNum"></span>
+            </div>
+          </div>
         </div>
         <div class="card">
           <h2 class="titulo-card">Progreso del envio</h2>
@@ -322,6 +336,18 @@
             <rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>
           </svg>
           <p>Este registro es <b>inmutable</b>: no se puede editar ni borrar. Cada correccion queda asentada con su responsable y su hora. El escaneo revertido <b>tampoco se elimina</b> del historial de la guia, solo deja de mostrarse en el rastreo publico.</p>
+        </div>
+        <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
+          <span class="input-wrap" style="flex:1; min-width:200px;">
+            <svg class="input-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+            <input class="input" type="text" id="bitBuscar" placeholder="Buscar por numero de guia..." autocomplete="off" />
+          </span>
+          <div class="seg" id="bitTipo">
+            <span class="seg__thumb"></span>
+            <button class="seg__option" data-value="" aria-selected="true">Todo</button>
+            <button class="seg__option" data-value="ELIMINACION" aria-selected="false">Eliminaciones</button>
+            <button class="seg__option" data-value="CANCELACION" aria-selected="false">Cancelaciones</button>
+          </div>
         </div>
         <div id="bitacoraLista"></div>
       </section>
@@ -590,6 +616,58 @@
   $('btnIrEscanear').addEventListener('click', () => { location.hash = '#/escanear'; });
 
   // ---------- Sesion ----------
+  // ---------- Roles ----------
+  // Los roles los define el servidor (nombre visible y que escaneos hace cada
+  // uno). Se piden una vez al entrar y sirven para el selector de alta y para
+  // el de la tabla de usuarios, en vez de repetir la tabla de permisos aqui.
+  let ROLES = [];
+
+  async function cargarRoles() {
+    if (ROLES.length) return;
+    try { ROLES = await api('/api/roles'); } catch { ROLES = []; }
+    if (!ROLES.length) return;
+    const sel = $('nuRol');
+    sel.innerHTML = ROLES.map((r) => `<option value="${r.id}">${esc(r.nombre)}</option>`).join('');
+    if (ROLES.some((r) => r.id === 'salidas')) sel.value = 'salidas';
+  }
+
+  function nombreRol(id) {
+    const r = ROLES.find((x) => x.id === id);
+    if (r) return r.nombre;
+    return id === 'admin' ? 'Administrador' : id === 'operador' ? 'Operador (todos los escaneos)' : id;
+  }
+
+  // ---------- Modo eliminacion (oculto tras un atajo de teclado) ----------
+  // Borrar es definitivo, asi que ningun boton de borrado esta a la vista: hay
+  // que habilitarlos a proposito con Ctrl+Alt+E (Cmd+Alt+E en Mac). Cubre
+  // tanto eliminar una guia como borrar todas. Se apaga con el mismo atajo, al
+  // recargar la pagina o al cerrar sesion, para que no quede encendido por
+  // descuido.
+  let modoEliminar = false;
+
+  function aplicarModoEliminar() {
+    const activo = !!(usuarioActual && usuarioActual.rol === 'admin' && modoEliminar);
+    $('btnEliminarGuia').style.display = activo && guiaDetalleActual ? '' : 'none';
+    // Se oculta la tarjeta entera, no solo el boton: asi nada delata que existe
+    $('cardBorrar').style.display = activo ? '' : 'none';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey) || !e.altKey) return;
+    if ((e.key || '').toLowerCase() !== 'e') return;
+    if (!usuarioActual || usuarioActual.rol !== 'admin') return;
+    e.preventDefault();
+    modoEliminar = !modoEliminar;
+    aplicarModoEliminar();
+    UI.toast({
+      tipo: modoEliminar ? 'warn' : 'ok',
+      titulo: modoEliminar ? 'Modo eliminacion activado' : 'Modo eliminacion desactivado',
+      descripcion: modoEliminar
+        ? 'Ya puedes borrar guias. Se apaga con el mismo atajo o al recargar.'
+        : 'Los botones de borrado vuelven a ocultarse.',
+    });
+  });
+
   function pintarUsuario() {
     if (!usuarioActual) return;
     const esAdmin = usuarioActual.rol === 'admin';
@@ -607,7 +685,7 @@
       (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
     $('cardUsuarios').style.display = esAdmin ? '' : 'none';
     $('cardPassword').style.display = esAdmin ? '' : 'none';
-    $('cardBorrar').style.display = esAdmin ? '' : 'none';
+    aplicarModoEliminar();
     $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
 
     // La bitacora es de administradores: se oculta del menu y la ruta se
@@ -1573,25 +1651,244 @@
   }
 
   let guiaDetalleActual = null;
+  let guiaDetalle = null;   // la guia completa: el modal de eliminar necesita su complemento
+
+  // Revertir no siempre significa lo mismo: puede ser un escaneo equivocado,
+  // una guia cancelada que se reemplaza por otra, o un complemento. El motivo
+  // solo es obligatorio al cancelar, porque es el unico caso donde la guia
+  // cambia de numero y alguien va a tener que explicar por que.
+  const OPCIONES_REV = [
+    {
+      id: 'solo',
+      titulo: 'Solo corregir un escaneo equivocado',
+      desc: 'La guia regresa a su estatus anterior y conserva su numero.',
+    },
+    {
+      id: 'cancelada',
+      titulo: 'La guia se cancelo y se hizo una nueva',
+      desc: 'La guia toma el numero de la nueva; el anterior queda registrado en el historial.',
+    },
+    {
+      id: 'complemento',
+      titulo: 'Se hizo un complemento',
+      desc: 'La guia conserva sus dos numeros y ambos sirven para rastrear.',
+    },
+  ];
+
+  function cuerpoRevertir() {
+    const comp = guiaDetalle && guiaDetalle.complemento;
+    return `
+      <div class="opciones" id="revOpciones">
+        ${OPCIONES_REV.map((o, i) => `
+          <label class="opcion">
+            <input type="radio" name="revTipo" value="${o.id}"${i === 0 ? ' checked' : ''} />
+            <span class="opcion__cuerpo">
+              <span class="opcion__titulo">${esc(o.titulo)}</span>
+              <span class="opcion__desc">${esc(o.desc)}</span>
+            </span>
+          </label>`).join('')}
+      </div>
+
+      <label class="field" id="revNumeroWrap" style="display:none">
+        <span class="field__label" id="revNumeroLabel">Numero de la guia nueva</span>
+        <input class="input" type="text" id="revNumero" autocomplete="off" spellcheck="false" />
+      </label>
+
+      <div id="revCanceladaWrap" style="display:none">
+        <label class="field">
+          <span class="field__label">¿En que estatus queda la guia nueva?</span>
+          <select class="select" id="revEstatus">
+            <option value="">El anterior al ultimo escaneo (automatico)</option>
+            ${Object.keys(ETIQUETAS).map((e) => `<option value="${e}">${esc(ETIQUETAS[e])}</option>`).join('')}
+          </select>
+        </label>
+        ${comp ? `
+          <label class="opcion opcion--check">
+            <input type="checkbox" id="revConservarComp" />
+            <span class="opcion__cuerpo">
+              <span class="opcion__desc">Pasar tambien el complemento ${esc(comp)} a la guia nueva. Si no lo marcas, se queda con la guia cancelada y ese numero vuelve a quedar libre.</span>
+            </span>
+          </label>` : ''}
+        <label class="field">
+          <span class="field__label">Motivo de la cancelacion</span>
+          <textarea class="input input--area" id="revMotivo" rows="2" maxlength="500"
+                    placeholder="Por ejemplo: el cliente no pago la entrega y se emitio una guia nueva"></textarea>
+        </label>
+        <p class="nota">Queda registrado en el historial de la guia y en la bitacora, junto con tu usuario y la fecha.</p>
+      </div>
+
+      <p class="msg-error" id="revError" hidden></p>`;
+  }
 
   $('btnRevertir').addEventListener('click', async () => {
     if (!guiaDetalleActual) return;
-    const ok = await UI.confirmar({
-      titulo: `¿Revertir el ultimo escaneo de ${guiaDetalleActual}?`,
-      descripcion: 'La guia regresara a su estatus anterior y la correccion quedara registrada en el historial.',
-      confirmar: 'Revertir escaneo',
+    const guia = guiaDetalleActual;
+
+    const datos = await UI.confirmar({
+      titulo: `Revertir ultimo escaneo de ${guia}`,
+      descripcion: 'Elige que paso con la guia. Todo queda registrado en el historial.',
+      cuerpo: cuerpoRevertir(),
+      confirmar: 'Confirmar',
       peligro: true,
+      alAbrir: (panel) => {
+        const $$ = (id) => panel.querySelector('#' + id);
+        const tipo = () => panel.querySelector('input[name="revTipo"]:checked').value;
+
+        function pintar() {
+          const t = tipo();
+          $$('revNumeroWrap').style.display = t === 'solo' ? 'none' : '';
+          $$('revNumeroLabel').textContent =
+            t === 'cancelada' ? 'Numero de la guia nueva' : 'Numero del complemento';
+          const pref = /^(AN|BN)/.exec(guia);
+          $$('revNumero').placeholder =
+            t === 'cancelada' ? (pref ? `Debe empezar con ${pref[1]}, igual que la guia cancelada` : 'AN... o BN...') : '';
+          $$('revCanceladaWrap').style.display = t === 'cancelada' ? '' : 'none';
+        }
+
+        panel.querySelectorAll('input[name="revTipo"]').forEach((r) =>
+          r.addEventListener('change', () => {
+            pintar();
+            if (tipo() !== 'solo') setTimeout(() => $$('revNumero').focus(), 30);
+          })
+        );
+        pintar();
+
+        // La validacion se engancha en fase de captura sobre el panel: asi
+        // corre antes que el listener del propio boton y puede impedir que el
+        // modal se cierre con datos incompletos.
+        panel.addEventListener('click', (e) => {
+          if (!e.target.closest('[data-accion="confirmar"]')) return;
+          const t = tipo();
+          const error = (texto, campo) => {
+            const p = $$('revError');
+            p.textContent = texto;
+            p.hidden = false;
+            if (campo) campo.focus();
+            e.stopPropagation();
+            e.preventDefault();
+          };
+          if (t === 'solo') return;
+          if (!$$('revNumero').value.trim()) {
+            return error(t === 'cancelada' ? 'Escribe el numero de la guia nueva.' : 'Escribe el numero del complemento.', $$('revNumero'));
+          }
+          if (t === 'cancelada' && $$('revMotivo').value.trim().length < 5) {
+            return error('Escribe el motivo de la cancelacion: queda en el historial y en la bitacora.', $$('revMotivo'));
+          }
+        }, true);
+
+        panel.querySelector('input[name="revTipo"]').focus();
+      },
+      alCerrar: (panel, ok) => {
+        if (!ok) return null;
+        const $$ = (id) => panel.querySelector('#' + id);
+        const t = panel.querySelector('input[name="revTipo"]:checked').value;
+        if (t === 'solo') return {};
+        const cuerpo = { resolucion: t, numero: $$('revNumero').value.trim().toUpperCase() };
+        if (t === 'cancelada') {
+          cuerpo.motivo = $$('revMotivo').value.trim();
+          if ($$('revEstatus').value) cuerpo.estatus = $$('revEstatus').value;
+          const chk = $$('revConservarComp');
+          if (chk) cuerpo.conservarComplemento = chk.checked;
+        }
+        return cuerpo;
+      },
     });
-    if (!ok) return;
+
+    if (!datos) return;
     $('btnRevertir').disabled = true;
     try {
-      await api('/api/guias/' + encodeURIComponent(guiaDetalleActual) + '/revertir', { method: 'POST' });
-      UI.toast({ tipo: 'ok', titulo: 'Escaneo revertido', descripcion: `${guiaDetalleActual} regreso a su estatus anterior.` });
-      cargarDetalle(guiaDetalleActual);
+      const r = await api('/api/guias/' + encodeURIComponent(guia) + '/revertir', {
+        method: 'POST',
+        body: JSON.stringify(datos),
+      });
+      UI.toast({ tipo: 'ok', titulo: 'Escaneo revertido', descripcion: `${guia} quedo actualizada.` });
+      // Si la guia se cancelo, ahora vive bajo el numero nuevo
+      const numeroFinal = r && r.guia && r.guia.numero_guia;
+      if (numeroFinal && numeroFinal !== guia) location.hash = '#/guia/' + encodeURIComponent(numeroFinal);
+      else cargarDetalle(guia);
     } catch (e) {
       UI.toast({ tipo: 'error', titulo: 'No se pudo revertir', descripcion: e.message });
     } finally {
       $('btnRevertir').disabled = false;
+    }
+  });
+
+  // Eliminar una guia capturada por equivocacion. Es definitivo: se pide el
+  // motivo primero (es lo unico que va a quedar de ella) y despues escribir el
+  // numero exacto, para que no se borre nada de un clic distraido.
+  $('btnEliminarGuia').addEventListener('click', async () => {
+    if (!guiaDetalleActual || !guiaDetalle) return;
+    const guia = guiaDetalleActual;
+    const puntos = [
+      `Se borra la guia <b>${esc(guia)}</b> y sus ${guiaDetalle.historial.length} escaneo(s) del historial.`,
+      `El numero ${esc(guia)} queda libre y podra usarse de nuevo.`,
+    ];
+    if (guiaDetalle.complemento) puntos.push(`El complemento ${esc(guiaDetalle.complemento)} tambien queda libre.`);
+    puntos.push('El cliente que rastree ese numero ya no encontrara nada.');
+
+    const datos = await UI.confirmar({
+      titulo: `Eliminar la guia ${guia}`,
+      descripcion: 'Esto no se puede deshacer.',
+      peligro: true,
+      confirmar: 'Eliminar definitivamente',
+      cuerpo: `
+        <ul class="lista-peligro">${puntos.map((p) => `<li>${p}</li>`).join('')}</ul>
+        <p class="nota">Usalo solo si la guia se capturo por equivocacion, por ejemplo un numero mal escaneado. Si el envio existe y solo se cancelo, usa "Revertir ultimo escaneo" para dejarlo registrado en el historial.</p>
+        <label class="field">
+          <span class="field__label">Motivo de la eliminacion</span>
+          <textarea class="input input--area" id="elimMotivo" rows="2" maxlength="500"
+                    placeholder="Por ejemplo: numero mal escaneado, la guia no existe"></textarea>
+        </label>
+        <p class="nota">La guia desaparece, pero este motivo queda para siempre en la bitacora con tu usuario y la fecha.</p>
+        <label class="field">
+          <span class="field__label">Para confirmar, escribe el numero de la guia</span>
+          <input class="input" type="text" id="elimConfirmar" autocomplete="off" spellcheck="false" placeholder="${esc(guia)}" />
+        </label>
+        <p class="msg-error" id="elimError" hidden></p>`,
+      alAbrir: (panel) => {
+        const $$ = (id) => panel.querySelector('#' + id);
+        // El foco va al motivo, no a la confirmacion: primero se explica por
+        // que y solo despues se consuma el borrado
+        $$('elimMotivo').focus();
+        panel.addEventListener('click', (e) => {
+          if (!e.target.closest('[data-accion="confirmar"]')) return;
+          const error = (texto, campo) => {
+            const p = $$('elimError');
+            p.textContent = texto;
+            p.hidden = false;
+            campo.focus();
+            e.stopPropagation();
+            e.preventDefault();
+          };
+          if ($$('elimMotivo').value.trim().length < 5) {
+            return error('Escribe el motivo de la eliminacion: es lo unico que va a quedar de esta guia.', $$('elimMotivo'));
+          }
+          if ($$('elimConfirmar').value.trim().toUpperCase() !== guia) {
+            return error(`Escribe el numero exacto de la guia (${guia}) para confirmar.`, $$('elimConfirmar'));
+          }
+        }, true);
+      },
+      alCerrar: (panel, ok) => ok ? {
+        confirmar: panel.querySelector('#elimConfirmar').value.trim().toUpperCase(),
+        motivo: panel.querySelector('#elimMotivo').value.trim(),
+      } : null,
+    });
+
+    if (!datos) return;
+    $('btnEliminarGuia').disabled = true;
+    try {
+      await api('/api/guias/' + encodeURIComponent(guia), {
+        method: 'DELETE',
+        body: JSON.stringify(datos),
+      });
+      UI.toast({ tipo: 'ok', titulo: 'Guia eliminada', descripcion: `${guia} se borro del sistema.` });
+      guiaDetalleActual = null;
+      guiaDetalle = null;
+      location.hash = '#/guias';
+    } catch (e) {
+      UI.toast({ tipo: 'error', titulo: 'No se pudo eliminar', descripcion: e.message });
+    } finally {
+      $('btnEliminarGuia').disabled = false;
     }
   });
 
@@ -1602,8 +1899,10 @@
     try {
       const d = await api('/api/guias/' + encodeURIComponent(numeroGuia));
       guiaDetalleActual = d.numero_guia;
-      $('btnRevertir').style.display =
-        usuarioActual && usuarioActual.rol === 'admin' && d.historial.length ? '' : 'none';
+      guiaDetalle = d;
+      const esAdminDet = !!(usuarioActual && usuarioActual.rol === 'admin');
+      $('btnRevertir').style.display = esAdminDet && d.historial.length ? '' : 'none';
+      aplicarModoEliminar();
       $('detNumero').textContent = d.numero_guia;
       $('detFavorita').innerHTML = botonEstrella(d.numero_guia);
       activarEstrellas($('detFavorita'));
@@ -1616,14 +1915,23 @@
       // Codigo de barras (si la libreria cargo)
       try {
         if (window.JsBarcode) {
-          // Los colores salen de los tokens vigentes: el codigo de barras
-          // tiene que seguir al tema, no quedarse en el oscuro
-          const cs = getComputedStyle(document.documentElement);
-          JsBarcode('#barcode', d.numero_guia, {
-            format: 'CODE128', height: 52, fontSize: 13, margin: 0,
-            background: cs.getPropertyValue('--bg-inset').trim(),
-            lineColor: cs.getPropertyValue('--text-primary').trim(),
-          });
+          // Colores fijos, no los del tema: la etiqueta imita a la que se
+          // pega en el paquete y un lector optico necesita barras oscuras
+          // sobre fondo claro. El numero se pinta aparte, con la tipografia
+          // del sistema, en vez de dejarselo a JsBarcode.
+          const OPCIONES = {
+            format: 'CODE128', height: 46, displayValue: false, margin: 0,
+            background: '#FFFFFF', lineColor: '#0C1424',
+          };
+          JsBarcode('#barcode', d.numero_guia, OPCIONES);
+          $('barcodeNum').textContent = d.numero_guia;
+          if (d.complemento) {
+            $('barcodeCompWrap').style.display = '';
+            JsBarcode('#barcodeComp', d.complemento, OPCIONES);
+            $('barcodeCompNum').textContent = d.complemento;
+          } else {
+            $('barcodeCompWrap').style.display = 'none';
+          }
           $('barcodeWrap').style.display = '';
         } else $('barcodeWrap').style.display = 'none';
       } catch { $('barcodeWrap').style.display = 'none'; }
@@ -1657,7 +1965,9 @@
       $('detTimeline').innerHTML = timelineHtml(d.historial);
     } catch (e) {
       guiaDetalleActual = null;
+      guiaDetalle = null;
       $('btnRevertir').style.display = 'none';
+      aplicarModoEliminar();
       $('detNumero').textContent = numeroGuia;
       $('detRuta').textContent = e.message;
       $('detBadge').innerHTML = '';
@@ -1786,58 +2096,109 @@
     </article>`;
   }
 
+  // Etiquetas e iconos de la bitacora permanente
+  const BIT_TXT = { ELIMINACION: 'Guia eliminada', CANCELACION: 'Guia cancelada' };
+  const BIT_CLASE = { ELIMINACION: 'registro--rojo', CANCELACION: 'registro--ambar' };
+  let bitTipo = '';
+  let bitTimer;
+
+  // Una eliminacion no tiene destino: la guia dejo de existir. Una cancelacion
+  // si, y esa guia nueva se puede abrir; la vieja va tachada y sin enlace.
+  function bitacoraHtml(r) {
+    const numeros = r.numero_nuevo
+      ? `<span class="bit-tachado">${esc(r.numero_guia)}</span>
+         <span class="bit-flecha">&rarr;</span>
+         <button class="bit-nuevo mono" type="button" data-guia="${esc(r.numero_nuevo)}"
+                 title="Abrir la guia ${esc(r.numero_nuevo)}">${esc(r.numero_nuevo)}</button>`
+      : `<span class="bit-tachado">${esc(r.numero_guia)}</span>`;
+
+    const pie = [['Responsable', esc(r.responsable || r.usuario || 'sin registrar')],
+                 ['Estatus que tenia', r.estatus ? esc(ETIQUETAS[r.estatus] || r.estatus) : '-']];
+    if (r.complemento) pie.push(['Complemento', esc(r.complemento)]);
+    if (r.tipo === 'ELIMINACION') pie.push(['Movimientos borrados', String(r.eventos == null ? '-' : r.eventos)]);
+
+    return `<article class="registro ${BIT_CLASE[r.tipo] || ''}">
+      <div class="registro__top">
+        <span class="registro__tipo">${esc(BIT_TXT[r.tipo] || r.tipo)}</span>
+        <span class="registro__numeros mono">${numeros}</span>
+        <span class="registro__fecha">${fmtFecha(r.creado_en)}</span>
+      </div>
+      <div class="registro__motivo"><span class="k">Motivo</span>${esc(r.motivo || '')}</div>
+      <div class="registro__pie">${pie.map(([k, v]) => `<div><span class="k">${esc(k)}</span><b>${v}</b></div>`).join('')}</div>
+    </article>`;
+  }
+
   async function cargarBitacora() {
     $('bitaKpis').innerHTML = '';
     $('bitacoraLista').innerHTML =
       `<div class="card">${UI.skeleton('skeleton--row')}</div><div class="card">${UI.skeleton('skeleton--row')}</div>`;
     try {
-      const eventos = await api('/api/eventos?limit=' + VENTANA_BITACORA);
+      const params = new URLSearchParams();
+      if (bitTipo) params.set('tipo', bitTipo);
+      const buscar = $('bitBuscar').value.trim();
+      if (buscar) params.set('buscar', buscar);
+
+      // Dos fuentes distintas: la bitacora permanente (eliminaciones y
+      // cancelaciones, con su motivo) y las correcciones, que viven en el
+      // historial de cada guia y no se borran nunca.
+      const [bit, eventos] = await Promise.all([
+        api('/api/bitacora?' + params),
+        api('/api/eventos?limit=' + VENTANA_BITACORA),
+      ]);
       const correcciones = eventos.filter((e) => e.accion === 'CORRECCION');
-      const ocultos = eventos.filter((e) => e.revertido).length;
-      const guiasAfectadas = new Set(correcciones.map((e) => e.numero_guia)).size;
 
       $('bitaKpis').innerHTML = `
         <div class="bita-kpi bita-kpi--rojo">
-          <div class="kpi-valor">${correcciones.length}</div>
-          <div class="kpi-etiqueta">Correcciones</div>
+          <div class="kpi-valor">${bit.resumen.eliminaciones}</div>
+          <div class="kpi-etiqueta">Guias eliminadas</div>
         </div>
         <div class="bita-kpi bita-kpi--ambar">
-          <div class="kpi-valor">${ocultos}</div>
-          <div class="kpi-etiqueta">Escaneos ocultos del rastreo</div>
+          <div class="kpi-valor">${bit.resumen.cancelaciones}</div>
+          <div class="kpi-etiqueta">Guias canceladas</div>
         </div>
         <div class="bita-kpi">
-          <div class="kpi-valor">${guiasAfectadas}</div>
-          <div class="kpi-etiqueta">Guias afectadas</div>
+          <div class="kpi-valor">${correcciones.length}</div>
+          <div class="kpi-etiqueta">Escaneos corregidos</div>
         </div>`;
 
-      if (!correcciones.length) {
+      const registros = bit.registros;
+      if (!registros.length && !correcciones.length) {
         $('bitacoraLista').innerHTML = `<div class="card">${UI.emptyState({
           icono: 'candado',
-          titulo: 'Sin correcciones registradas',
-          descripcion: `No se ha revertido ningun escaneo en los ultimos ${VENTANA_BITACORA} movimientos del sistema.`,
+          titulo: buscar || bitTipo ? 'Sin registros que coincidan' : 'Todavia no hay nada que registrar',
+          descripcion: buscar || bitTipo
+            ? 'Prueba con otro numero de guia o quita el filtro.'
+            : 'Cuando un administrador elimine o cancele una guia, aqui quedara el motivo, quien lo hizo y cuando.',
         })}</div>`;
         return;
       }
 
-      // Agrupadas por dia, del mas reciente al mas antiguo
+      // Agrupadas por dia, del mas reciente al mas antiguo: al revisar
+      // responsabilidades se busca "que paso el martes", no un registro suelto
       const dias = new Map();
-      for (const ev of correcciones) {
-        const k = claveDia(ev.creado_en);
+      const anotar = (fecha, html) => {
+        const k = claveDia(fecha);
         if (!dias.has(k)) dias.set(k, []);
-        dias.get(k).push(ev);
-      }
+        dias.get(k).push({ fecha, html });
+      };
+      for (const r of registros) anotar(r.creado_en, bitacoraHtml(r));
+      // Las correcciones solo se listan cuando no hay filtro de tipo: ese
+      // filtro es de la bitacora permanente, no del historial
+      if (!bitTipo && !buscar) for (const ev of correcciones) anotar(ev.creado_en, registroHtml(ev));
 
       $('bitacoraLista').innerHTML =
-        [...dias.entries()].map(([dia, evs]) => `
-          <section class="dia">
+        [...dias.entries()].map(([dia, filas]) => {
+          filas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+          return `<section class="dia">
             <header class="dia__head">
               <span class="dia__nombre">${esc(dia)}</span>
               <span class="dia__linea"></span>
-              <span class="dia__nombre">${evs.length}</span>
+              <span class="dia__nombre">${filas.length}</span>
             </header>
-            ${evs.map(registroHtml).join('')}
-          </section>`).join('') +
-        `<p class="nota" style="margin-top:var(--space-16)">Cubre las correcciones registradas en los ultimos ${VENTANA_BITACORA} movimientos del sistema.</p>`;
+            ${filas.map((f) => f.html).join('')}
+          </section>`;
+        }).join('') +
+        `<p class="nota" style="margin-top:var(--space-16)">Las eliminaciones y cancelaciones se guardan para siempre. Las correcciones cubren los ultimos ${VENTANA_BITACORA} movimientos del sistema.</p>`;
 
       $('bitacoraLista').querySelectorAll('[data-guia]').forEach((b) =>
         b.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(b.dataset.guia)))
@@ -1847,6 +2208,13 @@
       UI.montarError($('bitacoraLista'), e.message, cargarBitacora);
     }
   }
+
+  $('bitBuscar').addEventListener('input', () => {
+    clearTimeout(bitTimer);
+    bitTimer = setTimeout(cargarBitacora, 250);
+  });
+
+  UI.segmented($('bitTipo'), (valor) => { bitTipo = valor; cargarBitacora(); });
 
   // ---------- Configuracion ----------
   function msgForm(id, texto, tipo) {
@@ -1881,7 +2249,14 @@
   async function cargarUsuarios() {
     $('tbodyUsuarios').innerHTML = UI.skeletonRows(3, 4);
     try {
+      await cargarRoles();
       const usuarios = await api('/api/usuarios');
+      // Si alguien conserva un rol que ya no se asigna, su fila debe seguir
+      // mostrandolo: se agrega a la lista solo para ese select
+      const opcionesRol = (sel) => {
+        const lista = ROLES.some((r) => r.id === sel) ? ROLES : [...ROLES, { id: sel, nombre: nombreRol(sel) }];
+        return lista.map((r) => `<option value="${r.id}" ${r.id === sel ? 'selected' : ''}>${esc(r.nombre)}</option>`).join('');
+      };
       const opcionesPlaza = (sel) =>
         [['MTY', 'MTY'], ['CDMX', 'CDMX'], ['', 'Ambas']]
           .map(([v, t]) => `<option value="${v}" ${v === (sel || '') ? 'selected' : ''}>${t}</option>`).join('');
@@ -1895,7 +2270,10 @@
             </span>
           </span>
         </td>
-        <td><span class="rol-tag ${u.rol === 'admin' ? 'rol-tag--admin' : ''}">${u.rol === 'admin' ? 'Admin' : 'Operador'}</span></td>
+        <td>${u.id === usuarioActual.id
+          ? `<span class="rol-tag ${u.rol === 'admin' ? 'rol-tag--admin' : ''}">${esc(nombreRol(u.rol))}</span>`
+          : `<select class="select select--quiet sel-rol" data-id="${u.id}" data-usuario="${esc(u.usuario)}"
+                     aria-label="Rol de ${esc(u.usuario)}">${opcionesRol(u.rol)}</select>`}</td>
         <td><select class="select select--quiet sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}"
                     aria-label="Plaza de ${esc(u.usuario)}">${opcionesPlaza(u.plaza)}</select></td>
         <td class="celda-acciones">${u.id === usuarioActual.id
@@ -1908,6 +2286,17 @@
                      title="Eliminar usuario" aria-label="Eliminar a ${esc(u.usuario)}">
                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 9.5a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9L13.5 6"/></svg>
              </button>`}</td></tr>`).join('');
+      document.querySelectorAll('#tbodyUsuarios .sel-rol').forEach((s) =>
+        s.addEventListener('change', async () => {
+          try {
+            await api('/api/usuarios/' + s.dataset.id + '/rol', { method: 'PUT', body: JSON.stringify({ rol: s.value }) });
+            msgForm('msgUsuarios', `"${s.dataset.usuario}" ahora es ${nombreRol(s.value)}. Aplica en cuanto vuelva a entrar o recargue.`, 'ok');
+          } catch (err2) {
+            msgForm('msgUsuarios', err2.message, 'err');
+            cargarUsuarios();
+          }
+        })
+      );
       document.querySelectorAll('#tbodyUsuarios .sel-plaza').forEach((s) =>
         s.addEventListener('change', async () => {
           try {
