@@ -75,6 +75,10 @@
       </button>
 
       <span class="nav-group">Sistema</span>
+      <button class="nav-item" data-ruta="bitacora" title="Bitacora">
+        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17h11M9 8h6"/></svg></span>
+        <span class="nav-item__texto">Bitacora</span>
+      </button>
       <button class="nav-item" data-ruta="config" title="Configuracion">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.5"/><circle cx="8" cy="16" r="2.5"/></svg></span>
         <span class="nav-item__texto">Configuracion</span>
@@ -276,21 +280,42 @@
         <div id="gruposEventos"></div>
       </section>
 
+      <!-- ====================================================== Bitacora -->
+      <section id="v-bitacora" style="display:none">
+        <div class="bita-kpis" id="bitaKpis"></div>
+        <div class="aviso-inmutable">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>
+          </svg>
+          <p>Este registro es <b>inmutable</b>: no se puede editar ni borrar. Cada correccion queda asentada con su responsable y su hora. El escaneo revertido <b>tampoco se elimina</b> del historial de la guia, solo deja de mostrarse en el rastreo publico.</p>
+        </div>
+        <div id="bitacoraLista"></div>
+      </section>
+
       <!-- ================================================ Configuracion -->
       <section id="v-config" style="display:none">
-        <div class="pila" style="max-width:640px">
+        <div class="config-grid">
+        <div class="config-col">
 
-          <div class="card">
-            <h2 class="titulo-card">Mi cuenta</h2>
-            <p style="margin-bottom:var(--space-4)"><b id="cfgUsuario"></b></p>
-            <p class="nota" id="cfgRol"></p>
-            <p class="nota" id="cfgNotaOperador" style="margin-top:var(--space-12); display:none;">Si necesitas cambiar tu contraseña, pidesela a un administrador.</p>
-            <p class="nota" style="margin-top:var(--space-12);">La plaza y el tipo de operacion se eligen en la pantalla de escaneo y quedan guardados en este navegador.</p>
+          <div class="card card--flush">
+            <div class="card__header"><h2 class="t-label">Mi cuenta</h2></div>
+            <div class="card__body">
+              <div class="celda-usuario" style="margin-bottom:var(--space-12)">
+                <span id="cfgAvatar"></span>
+                <span class="celda-usuario__datos">
+                  <span class="celda-usuario__nombre" id="cfgUsuario"></span>
+                  <span class="celda-usuario__alias" id="cfgAlias"></span>
+                </span>
+              </div>
+              <p class="nota" id="cfgRol"></p>
+              <p class="nota" id="cfgNotaOperador" style="margin-top:var(--space-12); display:none;">Si necesitas cambiar tu contraseña, pidesela a un administrador.</p>
+              <p class="nota" style="margin-top:var(--space-12);">La plaza y el tipo de operacion se eligen en la pantalla de escaneo y quedan guardados en este navegador.</p>
+            </div>
           </div>
 
-          <div class="card" id="cardPassword" style="display:none;">
-            <h2 class="titulo-card">Cambiar mi contraseña</h2>
-            <form id="formPassword">
+          <div class="card card--flush" id="cardPassword" style="display:none;">
+            <div class="card__header"><h2 class="t-label">Cambiar mi contraseña</h2></div>
+            <form id="formPassword" class="card__body">
               <label class="field">
                 <span class="field__label">Contraseña actual</span>
                 <input class="input" type="password" id="pwActual" autocomplete="current-password" required />
@@ -305,19 +330,30 @@
               </label>
               <div class="msg-form" id="msgPassword"></div>
               <button class="btn btn--primary" type="submit" style="margin-top:var(--space-16);">Guardar contraseña</button>
-            </form>
+          </form>
           </div>
 
-          <div class="card" id="cardUsuarios" style="display:none;">
-            <h2 class="titulo-card">Usuarios del sistema</h2>
+          <div class="card card--flush">
+            <div class="card__header"><h2 class="t-label">Pagina publica de rastreo</h2></div>
+            <div class="card__body">
+              <p class="nota">Tus clientes pueden consultar su guia (sin iniciar sesion) en la pagina principal del sitio: <a href="/" target="_blank" rel="noopener">abrir pagina de rastreo</a>.</p>
+              <p class="nota" style="margin-top:var(--space-8)">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
+            </div>
+          </div>
+
+        </div>
+        <div class="config-col">
+
+          <div class="card card--flush" id="cardUsuarios" style="display:none;">
+            <div class="card__header"><h2 class="t-label">Usuarios del sistema</h2></div>
             <div class="tabla-scroll">
-              <table>
-                <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Plaza</th><th></th></tr></thead>
+              <table class="usuarios-tabla">
+                <thead><tr><th>Usuario</th><th>Rol</th><th>Plaza</th><th></th></tr></thead>
                 <tbody id="tbodyUsuarios"></tbody>
               </table>
             </div>
-            <h2 class="titulo-card" style="margin-top:var(--space-24);">Agregar usuario</h2>
-            <form id="formNuevoUsuario">
+            <div class="card__header" style="border-top:1px solid var(--border-subtle)"><h2 class="t-label">Agregar usuario</h2></div>
+            <form id="formNuevoUsuario" class="card__body">
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-16);">
                 <label class="field">
                   <span class="field__label">Usuario</span>
@@ -349,22 +385,19 @@
               </div>
               <div class="msg-form" id="msgUsuarios"></div>
               <button class="btn btn--primary" type="submit" style="margin-top:var(--space-16);">Crear usuario</button>
-            </form>
+          </form>
           </div>
 
-          <div class="card">
-            <h2 class="titulo-card">Pagina publica de rastreo</h2>
-            <p class="nota">Tus clientes pueden consultar su guia (sin iniciar sesion) en la pagina principal del sitio: <a href="/" target="_blank" rel="noopener">abrir pagina de rastreo</a>.</p>
-            <p class="nota" style="margin-top:var(--space-8)">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
+          <div class="card card--flush zona-peligro" id="cardBorrar" style="display:none;">
+            <div class="card__header"><h2 class="t-label" style="color:var(--st-eliminada-text)">Zona de peligro</h2></div>
+            <div class="card__body">
+              <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
+              <div class="msg-form" id="msgBorrar"></div>
+              <button class="btn btn--danger-ghost" id="btnBorrarTodas" type="button" style="margin-top:var(--space-12);">Borrar todas las guias</button>
+            </div>
           </div>
 
-          <div class="card zona-peligro" id="cardBorrar" style="display:none;">
-            <h2 class="titulo-card">Zona de peligro</h2>
-            <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
-            <div class="msg-form" id="msgBorrar"></div>
-            <button class="btn-peligro" id="btnBorrarTodas" type="button" style="margin-top:var(--space-12);">Borrar todas las guias</button>
-          </div>
-
+        </div>
         </div>
       </section>
 
@@ -473,7 +506,9 @@
     $('usuarioNombre').textContent = usuarioActual.nombre;
     $('usuarioRol').textContent = usuarioActual.rol + (plazaUsuario ? ' · ' + plazaUsuario : '');
 
-    $('cfgUsuario').textContent = `${usuarioActual.nombre} (${usuarioActual.usuario})`;
+    $('cfgAvatar').innerHTML = UI.avatar(usuarioActual.nombre);
+    $('cfgUsuario').textContent = usuarioActual.nombre;
+    $('cfgAlias').textContent = usuarioActual.usuario;
     $('cfgRol').textContent =
       (esAdmin ? 'Rol: administrador' : 'Rol: operador') +
       (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
@@ -555,8 +590,8 @@
   }
 
   // ---------- Router ----------
-  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', config: 'Configuracion', detalle: 'Detalle de guia' };
-  const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'config'];
+  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', bitacora: 'Bitacora', config: 'Configuracion', detalle: 'Detalle de guia' };
+  const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'bitacora', 'config'];
 
   function render() {
     let ruta = location.hash.replace(/^#\/?/, '') || 'dashboard';
@@ -586,6 +621,7 @@
     if (vista === 'dashboard') cargarDashboard();
     if (vista === 'guias') setPlazaTab(plazaTab);
     if (vista === 'eventos') cargarEventos();
+    if (vista === 'bitacora') cargarBitacora();
     if (vista === 'detalle') cargarDetalle(arg);
     if (vista === 'escanear') setTimeout(() => $('guia').focus(), 50);
     if (vista === 'config') cargarConfig();
@@ -605,7 +641,7 @@
   // "/" busca · "Esc" sale del campo · "g d" dashboard, "g g" guias,
   // "g e" eventos, "g s" escanear, "g c" configuracion.
   let teclaG = 0;
-  const RUTAS_G = { d: 'dashboard', g: 'guias', e: 'eventos', s: 'escanear', c: 'config' };
+  const RUTAS_G = { d: 'dashboard', g: 'guias', e: 'eventos', s: 'escanear', b: 'bitacora', c: 'config' };
 
   function escribiendo(el) {
     return el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
@@ -1355,6 +1391,107 @@
   let timerEventos;
   $('buscarEvento').addEventListener('input', () => { clearTimeout(timerEventos); timerEventos = setTimeout(pintarGruposEventos, 200); });
 
+  // ---------- Bitacora ----------
+  // Registro inmutable de correcciones. Se arma con los eventos CORRECCION
+  // que ya escribe el backend al revertir un escaneo; no hay endpoint ni
+  // tabla nueva. El responsable y el escaneo deshecho vienen dentro de la
+  // descripcion, con el formato fijo que genera guias.js al revertir.
+  const RE_RESPONSABLE = /^Correccion de ([^:]+):/;
+  const RE_DESHECHO = /se revirtio "(.+)" y la guia/;
+
+  // El endpoint tope a 500 eventos; la bitacora cubre esa ventana
+  const VENTANA_BITACORA = 500;
+
+  function parseCorreccion(ev) {
+    const responsable = (ev.descripcion || '').match(RE_RESPONSABLE)?.[1] || 'Sistema';
+    const deshecho = (ev.descripcion || '').match(RE_DESHECHO)?.[1] || ev.descripcion || '';
+    return { responsable, deshecho };
+  }
+
+  function claveDia(f) {
+    return new Date(f).toLocaleDateString('es-MX', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  }
+
+  function registroHtml(ev) {
+    const { responsable, deshecho } = parseCorreccion(ev);
+    return `<article class="registro">
+      <div class="registro__top">
+        <button class="registro__guia" data-guia="${esc(ev.numero_guia)}">${esc(ev.numero_guia)}</button>
+        <span class="registro__hora">${fmtFecha(ev.creado_en)}${ev.plaza ? ' &middot; ' + esc(ev.plaza) : ''}</span>
+      </div>
+      <div class="registro__deshecho">
+        <span class="k">Escaneo deshecho</span>
+        <span class="v">${esc(deshecho)}</span>
+      </div>
+      <div class="registro__pie">
+        <span class="registro__quien">${UI.avatar(responsable, { sm: true })}${esc(responsable)}</span>
+        <span class="registro__flecha">Regreso a ${badge(ev.estatus)}</span>
+      </div>
+    </article>`;
+  }
+
+  async function cargarBitacora() {
+    $('bitaKpis').innerHTML = '';
+    $('bitacoraLista').innerHTML =
+      `<div class="card">${UI.skeleton('skeleton--row')}</div><div class="card">${UI.skeleton('skeleton--row')}</div>`;
+    try {
+      const eventos = await api('/api/eventos?limit=' + VENTANA_BITACORA);
+      const correcciones = eventos.filter((e) => e.accion === 'CORRECCION');
+      const ocultos = eventos.filter((e) => e.revertido).length;
+      const guiasAfectadas = new Set(correcciones.map((e) => e.numero_guia)).size;
+
+      $('bitaKpis').innerHTML = `
+        <div class="bita-kpi bita-kpi--rojo">
+          <div class="kpi-valor">${correcciones.length}</div>
+          <div class="kpi-etiqueta">Correcciones</div>
+        </div>
+        <div class="bita-kpi bita-kpi--ambar">
+          <div class="kpi-valor">${ocultos}</div>
+          <div class="kpi-etiqueta">Escaneos ocultos del rastreo</div>
+        </div>
+        <div class="bita-kpi">
+          <div class="kpi-valor">${guiasAfectadas}</div>
+          <div class="kpi-etiqueta">Guias afectadas</div>
+        </div>`;
+
+      if (!correcciones.length) {
+        $('bitacoraLista').innerHTML = `<div class="card">${UI.emptyState({
+          icono: 'candado',
+          titulo: 'Sin correcciones registradas',
+          descripcion: `No se ha revertido ningun escaneo en los ultimos ${VENTANA_BITACORA} movimientos del sistema.`,
+        })}</div>`;
+        return;
+      }
+
+      // Agrupadas por dia, del mas reciente al mas antiguo
+      const dias = new Map();
+      for (const ev of correcciones) {
+        const k = claveDia(ev.creado_en);
+        if (!dias.has(k)) dias.set(k, []);
+        dias.get(k).push(ev);
+      }
+
+      $('bitacoraLista').innerHTML =
+        [...dias.entries()].map(([dia, evs]) => `
+          <section class="dia">
+            <header class="dia__head">
+              <span class="dia__nombre">${esc(dia)}</span>
+              <span class="dia__linea"></span>
+              <span class="dia__nombre">${evs.length}</span>
+            </header>
+            ${evs.map(registroHtml).join('')}
+          </section>`).join('') +
+        `<p class="nota" style="margin-top:var(--space-16)">Cubre las correcciones registradas en los ultimos ${VENTANA_BITACORA} movimientos del sistema.</p>`;
+
+      $('bitacoraLista').querySelectorAll('[data-guia]').forEach((b) =>
+        b.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(b.dataset.guia)))
+      );
+    } catch (e) {
+      $('bitaKpis').innerHTML = '';
+      $('bitacoraLista').innerHTML = `<div class="card">${UI.errorState(e.message)}</div>`;
+    }
+  }
+
   // ---------- Configuracion ----------
   function msgForm(id, texto, tipo) {
     const el = $(id);
@@ -1392,14 +1529,28 @@
         [['MTY', 'MTY'], ['CDMX', 'CDMX'], ['', 'Ambas']]
           .map(([v, t]) => `<option value="${v}" ${v === (sel || '') ? 'selected' : ''}>${t}</option>`).join('');
       $('tbodyUsuarios').innerHTML = usuarios.map((u) => `<tr>
-        <td><b>${esc(u.usuario)}</b></td>
-        <td>${esc(u.nombre)}</td>
-        <td>${u.rol === 'admin' ? 'Administrador' : 'Operador'}</td>
-        <td><select class="select select--quiet sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}">${opcionesPlaza(u.plaza)}</select></td>
-        <td style="text-align:right; white-space:nowrap;">${u.id === usuarioActual.id
-          ? '<span class="t-small">(tu)</span>'
-          : `<button class="btn-sec" data-reset="${u.id}" data-usuario="${esc(u.usuario)}">Contraseña</button>
-             <button class="btn-peligro" data-id="${u.id}" data-usuario="${esc(u.usuario)}">Eliminar</button>`}</td></tr>`).join('');
+        <td>
+          <span class="celda-usuario">
+            ${UI.avatar(u.nombre)}
+            <span class="celda-usuario__datos">
+              <span class="celda-usuario__nombre">${esc(u.nombre)}</span>
+              <span class="celda-usuario__alias">${esc(u.usuario)}</span>
+            </span>
+          </span>
+        </td>
+        <td><span class="rol-tag ${u.rol === 'admin' ? 'rol-tag--admin' : ''}">${u.rol === 'admin' ? 'Admin' : 'Operador'}</span></td>
+        <td><select class="select select--quiet sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}"
+                    aria-label="Plaza de ${esc(u.usuario)}">${opcionesPlaza(u.plaza)}</select></td>
+        <td class="celda-acciones">${u.id === usuarioActual.id
+          ? '<span class="t-small">tu</span>'
+          : `<button class="btn btn--ghost btn--icon" data-reset="${u.id}" data-usuario="${esc(u.usuario)}"
+                     title="Restablecer contraseña" aria-label="Restablecer contraseña de ${esc(u.usuario)}">
+               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="9" width="12" height="8" rx="2"/><path d="M7 9V6.5a3 3 0 0 1 6 0V9"/></svg>
+             </button>
+             <button class="btn btn--danger-ghost btn--icon" data-id="${u.id}" data-usuario="${esc(u.usuario)}"
+                     title="Eliminar usuario" aria-label="Eliminar a ${esc(u.usuario)}">
+               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 9.5a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9L13.5 6"/></svg>
+             </button>`}</td></tr>`).join('');
       document.querySelectorAll('#tbodyUsuarios .sel-plaza').forEach((s) =>
         s.addEventListener('change', async () => {
           try {
@@ -1412,7 +1563,7 @@
           }
         })
       );
-      document.querySelectorAll('#tbodyUsuarios .btn-peligro').forEach((b) =>
+      document.querySelectorAll('#tbodyUsuarios [data-id]').forEach((b) =>
         b.addEventListener('click', async () => {
           const ok = await UI.confirmar({
             titulo: `¿Eliminar al usuario "${b.dataset.usuario}"?`,
@@ -1423,18 +1574,24 @@
           if (!ok) return;
           try {
             await api('/api/usuarios/' + b.dataset.id, { method: 'DELETE' });
-            msgForm('msgUsuarios', `Usuario "${b.dataset.usuario}" eliminado`, 'ok');
+            UI.toast({ tipo: 'ok', titulo: 'Usuario eliminado', descripcion: `"${b.dataset.usuario}" ya no tiene acceso al panel.` });
             cargarUsuarios();
           } catch (err2) { msgForm('msgUsuarios', err2.message, 'err'); }
         })
       );
-      document.querySelectorAll('#tbodyUsuarios .btn-sec').forEach((b) =>
+      document.querySelectorAll('#tbodyUsuarios [data-reset]').forEach((b) =>
         b.addEventListener('click', async () => {
-          const nueva = prompt(`Nueva contraseña para "${b.dataset.usuario}" (minimo 6 caracteres):`);
+          const nueva = await UI.pedir({
+            titulo: `Restablecer contraseña de "${b.dataset.usuario}"`,
+            descripcion: 'Se cerraran todas sus sesiones abiertas y tendra que entrar con la contraseña nueva.',
+            etiqueta: 'Nueva contraseña (minimo 6 caracteres)',
+            tipo: 'password',
+            confirmar: 'Restablecer',
+          });
           if (nueva === null) return;
           try {
             await api('/api/usuarios/' + b.dataset.reset + '/password', { method: 'PUT', body: JSON.stringify({ nueva }) });
-            msgForm('msgUsuarios', `Contraseña de "${b.dataset.usuario}" restablecida. Sus sesiones abiertas se cerraron.`, 'ok');
+            UI.toast({ tipo: 'ok', titulo: 'Contraseña restablecida', descripcion: `Las sesiones abiertas de "${b.dataset.usuario}" se cerraron.` });
           } catch (err2) { msgForm('msgUsuarios', err2.message, 'err'); }
         })
       );
@@ -1465,14 +1622,14 @@
   });
 
   $('btnBorrarTodas').addEventListener('click', async () => {
-    const ok = await UI.confirmar({
+    const texto = await UI.pedir({
       titulo: '¿Borrar TODAS las guias y su historial?',
       descripcion: 'El sistema quedara como nuevo. Los usuarios y tus accesos no se borran. Esta accion no se puede deshacer.',
+      etiqueta: 'Para confirmar, escribe BORRAR',
+      placeholder: 'BORRAR',
       confirmar: 'Borrar todo',
       peligro: true,
     });
-    if (!ok) return;
-    const texto = prompt('Para confirmar, escribe: BORRAR');
     if (texto === null) return;
     if (texto.trim().toUpperCase() !== 'BORRAR') {
       return msgForm('msgBorrar', 'Confirmacion incorrecta. No se borro nada.', 'err');

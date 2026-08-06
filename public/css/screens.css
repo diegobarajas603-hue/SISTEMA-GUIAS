@@ -1179,7 +1179,299 @@ button.plaza-fila:hover {
 }
 
 /* ============================================================================
-   [PUENTE] CONFIGURACION — se reemplaza en el Paso 6
+   BITACORA — registro inmutable de correcciones
+   Tono deliberadamente mas serio que el resto de la aplicacion.
+   ==========================================================================*/
+
+.bita-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--card-gap);
+  margin-bottom: var(--card-gap);
+}
+
+/* Barra superior de 2px del color correspondiente */
+.bita-kpi {
+  position: relative;
+  padding: var(--card-padding);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm), var(--sheen);
+  overflow: hidden;
+}
+
+.bita-kpi::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--st-neutro-color);
+}
+
+.bita-kpi--rojo::before  { background: var(--st-eliminada-color); }
+.bita-kpi--ambar::before { background: var(--st-cancelada-color); }
+
+/* ---------- Aviso de inmutabilidad ---------- */
+
+.aviso-inmutable {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  margin-bottom: var(--card-gap);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.aviso-inmutable svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--text-tertiary);
+}
+
+.aviso-inmutable p {
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--text-secondary);
+}
+
+.aviso-inmutable b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ---------- Agrupacion por dia ---------- */
+
+.dia {
+  margin-bottom: var(--space-24);
+}
+
+.dia__head {
+  position: sticky;
+  top: var(--h-topbar);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-8) 0;
+  background: var(--bg-base);
+  margin-bottom: var(--space-8);
+}
+
+.dia__nombre {
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.dia__linea {
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+/* ---------- Registro ---------- */
+
+.registro {
+  position: relative;
+  padding: var(--space-16) var(--space-20);
+  margin-bottom: var(--space-8);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm), var(--sheen);
+  overflow: hidden;
+}
+
+.registro::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--st-eliminada-color);
+}
+
+.registro__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-12);
+}
+
+.registro__guia {
+  font-family: var(--font-mono);
+  font-size: var(--t-h2-size);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  background: none;
+  padding: 0;
+}
+
+.registro__guia:hover {
+  color: var(--accent);
+}
+
+.registro__hora {
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* Bloque del escaneo deshecho */
+.registro__deshecho {
+  padding: var(--space-12);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.registro__deshecho .k {
+  display: block;
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-4);
+}
+
+.registro__deshecho .v {
+  font-size: 13px;
+  line-height: var(--t-body-line);
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.registro__pie {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin-top: var(--space-12);
+  flex-wrap: wrap;
+}
+
+.registro__quien {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.registro__flecha {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-left: auto;
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* El badge conserva su propia caja tipografica dentro del pie */
+.registro__flecha .badge {
+  font-size: var(--t-small-size);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* ============================================================================
+   CONFIGURACION
+   ==========================================================================*/
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: var(--card-gap);
+  align-items: start;
+}
+
+.config-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+  min-width: 0;
+}
+
+.usuarios-tabla td {
+  height: var(--h-row-lg);
+}
+
+.celda-usuario {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.celda-usuario__datos {
+  min-width: 0;
+}
+
+.celda-usuario__nombre {
+  display: block;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.celda-usuario__alias {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+}
+
+.rol-tag {
+  display: inline-flex;
+  align-items: center;
+  height: var(--h-badge);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-inset);
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.rol-tag--admin {
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+}
+
+@media (max-width: 1100px) {
+  .config-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================================
+   [PUENTE] CONFIGURACION anterior — alias que aun usan formularios
    ==========================================================================*/
 
 .msg-form {

@@ -301,10 +301,13 @@
           .filter((el) => !el.disabled && el.offsetParent !== null);
 
       function cerrar(valor) {
+        // alCerrar puede transformar el resultado (por ejemplo, leer un
+        // campo del cuerpo) mientras el panel sigue en el DOM
+        const resultado = op.alCerrar ? op.alCerrar(panel, valor) : valor;
         document.removeEventListener('keydown', onKey, true);
         scrim.remove();
         if (antesDelModal && antesDelModal.focus) antesDelModal.focus();
-        resolve(valor);
+        resolve(resultado);
       }
 
       function onKey(e) {
@@ -337,7 +340,43 @@
       document.addEventListener('keydown', onKey, true);
 
       document.body.appendChild(scrim);
-      panel.querySelector('[data-accion="confirmar"]').focus();
+      if (op.alAbrir) op.alAbrir(panel);
+      else panel.querySelector('[data-accion="confirmar"]').focus();
+    });
+  }
+
+  /** Modal con un campo de texto. Devuelve Promise<string|null>.
+      Sustituye a prompt(), que no se puede estilizar ni atrapa el foco. */
+  function pedir(o) {
+    const op = o || {};
+    const id = 'campoModal';
+    const cuerpo = `<label class="field">
+        <span class="field__label">${esc(op.etiqueta || '')}</span>
+        <input class="input" type="${op.tipo || 'text'}" id="${id}"
+               placeholder="${esc(op.placeholder || '')}" autocomplete="off" />
+      </label>`;
+
+    return new Promise((resolve) => {
+      confirmar({
+        titulo: op.titulo,
+        descripcion: op.descripcion,
+        cuerpo,
+        confirmar: op.confirmar,
+        cancelar: op.cancelar,
+        peligro: op.peligro,
+        alAbrir: (panel) => {
+          const campo = panel.querySelector('#' + id);
+          campo.focus();
+          // Enter confirma sin tener que llegar al boton
+          campo.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              panel.querySelector('[data-accion="confirmar"]').click();
+            }
+          });
+        },
+        alCerrar: (panel, ok) => (ok ? panel.querySelector('#' + id).value : null),
+      }).then(resolve);
     });
   }
 
@@ -362,6 +401,7 @@
     errorState,
     toast,
     confirmar,
+    pedir,
     reduceMotion,
   };
 })();
