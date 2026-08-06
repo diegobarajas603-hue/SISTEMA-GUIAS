@@ -64,13 +64,13 @@
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span>
         <span class="nav-item__texto">Dashboard</span>
       </button>
-      <button class="nav-item" data-ruta="escanear-mty" title="Escanear en MTY">
+      <button class="nav-item" data-ruta="escanear-mty" title="Escanear en Monterrey">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span>
-        <span class="nav-item__texto">Escanear en MTY</span>
+        <span class="nav-item__texto">Escanear en Monterrey</span>
       </button>
-      <button class="nav-item" data-ruta="escanear-cdmx" title="Escanear en CDMX">
+      <button class="nav-item" data-ruta="escanear-cdmx" title="Escanear en Ciudad de Mexico">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span>
-        <span class="nav-item__texto">Escanear en CDMX</span>
+        <span class="nav-item__texto">Escanear en Ciudad de Mexico</span>
       </button>
       <button class="nav-item" data-ruta="guias" title="Guias">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
@@ -206,6 +206,11 @@
                    autocapitalize="characters" spellcheck="false"
                    placeholder="Escanea el numero de guia"
                    aria-label="Numero de guia" />
+            <svg class="captura__icono" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <path d="M3 7V5.5A1.5 1.5 0 0 1 4.5 4H7M17 4h2.5A1.5 1.5 0 0 1 21 5.5V7M21 17v1.5a1.5 1.5 0 0 1-1.5 1.5H17M7 20H4.5A1.5 1.5 0 0 1 3 18.5V17"/>
+              <path d="M7 9v6M10 9v6M13 9v6M17 9v6"/>
+            </svg>
           </div>
 
           <div class="escaner__resultado" id="resultado" aria-live="polite"></div>
@@ -493,7 +498,7 @@
     const plazaUsuario = usuarioActual && usuarioActual.plaza;
     const opciones = plazaUsuario ? [plazaUsuario] : ['MTY', 'CDMX'];
     $('pillsPlaza').innerHTML = opciones.map((p) =>
-      `<button class="pill" data-plaza="${p}" aria-pressed="${p === plaza}">${NOMBRE_PLAZA[p]} &middot; ${p}</button>`
+      `<button class="pill" data-plaza="${p}" aria-pressed="${p === plaza}">${NOMBRE_PLAZA[p]}</button>`
     ).join('');
     $('pillsPlaza').querySelectorAll('[data-plaza]').forEach((b) =>
       b.addEventListener('click', () => {
@@ -716,7 +721,7 @@
     const navRuta = vista === 'detalle' ? 'guias' : vista === 'escanear' ? 'escanear-' + plaza.toLowerCase() : vista;
     VISTAS.forEach((v) => ($('v-' + v).style.display = v === vista ? '' : 'none'));
     document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('is-active', b.dataset.ruta === navRuta));
-    $('tituloVista').textContent = vista === 'escanear' ? 'Escanear en ' + plaza : TITULOS[vista];
+    $('tituloVista').textContent = vista === 'escanear' ? 'Escanear en ' + NOMBRE_PLAZA[plaza] : TITULOS[vista];
     moverIndicador();
 
     if (vista === 'dashboard') cargarDashboard();

@@ -230,7 +230,9 @@
   --h-topbar:    56px;
   --h-scan-pill: 40px;   /* pills grandes del modo escaner */
 
-  --w-sidebar:           240px;
+  /* 264 px: "Escanear en Ciudad de Mexico" es el rotulo mas largo del menu
+     y a 240 px se cortaba con puntos suspensivos. */
+  --w-sidebar:           276px;
   --w-sidebar-collapsed: 64px;
   --w-search:            420px;
   --icon-sm: 14px;

@@ -527,7 +527,20 @@ button.plaza-fila:hover {
    contraste sube. Nada aqui debe requerir puntería.
    ==========================================================================*/
 
+/* El modo escaner trabaja en verde, no en el azul del resto del panel: es
+   el color con el que el operador confirma que el paquete quedo registrado
+   y el que da confianza en una operacion que se repite cientos de veces al
+   dia. Se redefine el acento solo dentro de .escaner, asi que hereda a las
+   pills, la caja de captura y la barra del resultado sin tocar el sistema. */
 .escaner {
+  --accent:             var(--st-entregado-color);
+  --accent-hover:       var(--st-entregado-text);
+  --accent-solid:       #1A7F37;              /* texto blanco encima: 5.1:1 */
+  --accent-solid-hover: #14682C;
+  --accent-subtle:      var(--st-entregado-bg);
+  --accent-border:      var(--st-entregado-border);
+  --accent-ring:        var(--st-entregado-halo);
+
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -597,14 +610,56 @@ button.plaza-fila:hover {
   max-width: 640px;
 }
 
+/* Marco de mira: cuatro esquinas dibujadas con degradados, como el visor de
+   una lectora. Le dice al operador donde apuntar sin agregar mas texto. */
+.captura-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  pointer-events: none;
+  opacity: 0.5;
+  background-repeat: no-repeat;
+  background-size: 20px 2px, 2px 20px, 20px 2px, 2px 20px,
+                   20px 2px, 2px 20px, 20px 2px, 2px 20px;
+  background-position: left top, left top, right top, right top,
+                       left bottom, left bottom, right bottom, right bottom;
+  background-image:
+    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent));
+  transition: opacity var(--t-fast) var(--ease);
+}
+
+.captura-wrap:focus-within::before { opacity: 0.85; }
+
+/* Icono de codigo de barras: marca de agua sobre el texto de ayuda. Solo se
+   ve mientras el campo esta vacio, para no estorbar al leer la guia. */
+.captura__icono {
+  position: absolute;
+  left: 50%;
+  top: 34px;
+  width: 34px;
+  height: 34px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease);
+}
+
+.captura:placeholder-shown + .captura__icono { opacity: 0.42; }
+
 .captura {
   width: 100%;
-  height: 140px;
-  padding: 0 var(--space-24);
-  background: var(--bg-surface);
+  height: 156px;
+  padding: 26px var(--space-24) 0;
+  background:
+    radial-gradient(120% 90% at 50% 0%, var(--accent-subtle) 0%, transparent 62%),
+    var(--bg-surface);
   border: 2px solid var(--accent);
   border-radius: var(--radius-xl);
-  box-shadow: 0 0 0 6px var(--accent-subtle);
+  box-shadow: 0 0 0 6px var(--accent-subtle), var(--shadow-md);
   font-family: var(--font-mono);
   font-size: 28px;
   font-weight: 500;
@@ -669,21 +724,37 @@ button.plaza-fila:hover {
 
 /* ---------- Indicador de listo ---------- */
 
+/* Pastilla abajo y al centro del visor: las esquinas las ocupa el marco de
+   mira y arriba estan las pills de operacion, asi que este es el unico
+   hueco donde no choca con nada. */
 .escaner__listo {
   position: absolute;
-  right: var(--space-16);
-  top: calc(var(--space-16) * -1 - 4px);
-  display: flex;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 1;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-8);
-  font-size: 13px;
-  color: var(--text-secondary);
+  padding: 5px 11px 5px 9px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--accent-subtle);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--accent-hover);
 }
 
 .escaner__listo .dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   background: var(--st-entregado-color);
+  animation: latido-listo 2.2s var(--ease) infinite;
+}
+
+@keyframes latido-listo {
+  0%, 100% { box-shadow: 0 0 0 0 var(--st-entregado-halo); }
+  50%      { box-shadow: 0 0 0 5px transparent; }
 }
 
 /* ---------- Card de resultado ----------
@@ -809,6 +880,7 @@ button.plaza-fila:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .escaner__listo .dot,
   .captura.flash,
   .captura.sacudir,
   .resultado-card { animation: none; }
