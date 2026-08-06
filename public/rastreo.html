@@ -115,6 +115,22 @@
     button { width: 100%; }
     .paso .nombre { font-size: 0.68rem; }
   }
+
+  /* Con un resultado en pantalla, el estatus y el historial se acomodan en
+     dos columnas: en una laptop sobra ancho y falta alto, asi que el envio
+     completo cabe sin scroll. En movil siguen uno debajo del otro. */
+  @media (min-width: 900px) {
+    body.compacto .wrap { max-width: 920px; padding-top: 18px; }
+    body.compacto .resultados {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start;
+    }
+    body.compacto .resultados .card { margin-bottom: 0; }
+    body.compacto .pie { margin-top: 14px; }
+  }
+
+  /* Un historial largo no debe estirar la pagina: a partir de cierto alto
+     se desplaza dentro de su propia tarjeta. */
+  .timeline { max-height: 232px; overflow-y: auto; }
 </style>
 </head>
 <body>
@@ -135,6 +151,7 @@
 
   <div class="error" id="error"></div>
 
+  <div class="resultados">
   <div class="card" id="resultado">
     <p class="guia-num" id="resGuia"></p>
     <p class="estatus-grande" id="resEstatus"></p>
@@ -146,6 +163,7 @@
   <div class="card" id="cardHistorial" style="display:none">
     <h2>Historial del envío</h2>
     <ul class="timeline" id="historial"></ul>
+  </div>
   </div>
 
   <p class="pie">Si tienes dudas sobre tu envío, contáctanos por WhatsApp.</p>
