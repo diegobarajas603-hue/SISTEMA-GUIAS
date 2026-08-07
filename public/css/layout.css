@@ -66,6 +66,7 @@
 .sidebar__logo {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-12);
   padding: var(--space-16) var(--space-16) var(--space-12);
   min-height: var(--h-topbar);
@@ -79,15 +80,17 @@
 .marca__img {
   width: 112px;
   max-width: 100%;
+  margin: 0 auto;
   aspect-ratio: 1226 / 830;
   background-image: var(--logo-url);
   background-repeat: no-repeat;
-  background-position: left center;
+  background-position: center;
   background-size: contain;
 }
 
 .marca span {
   display: block;
+  text-align: center;
   margin-top: var(--space-8);
   font-size: var(--t-label-size);
   line-height: var(--t-label-line);
