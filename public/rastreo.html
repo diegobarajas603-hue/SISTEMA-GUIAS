@@ -53,21 +53,6 @@
     text-align: center;
   }
 
-  /* Ondas de fondo: la marca sin cargar una imagen */
-  .hero::before,
-  .hero::after {
-    content: '';
-    position: absolute;
-    top: -40%;
-    width: 46%;
-    height: 200%;
-    pointer-events: none;
-    background-image: repeating-radial-gradient(circle at 50% 50%, rgba(209,19,30,0.10) 0 1px, transparent 1px 22px);
-  }
-
-  .hero::before { left: -14%; }
-  .hero::after  { right: -14%; }
-
   /* La marca encabeza la pagina; al haber resultado se encoge junto con el
      titulo para cederle el alto al estatus. */
   .hero__marca {
@@ -95,6 +80,10 @@
     max-height: 24px;
   }
 
+  /* Los motivos de confianza son para quien todavia no busca nada; con un
+     resultado en pantalla estorban y la atencion va al estatus. */
+  body.compacto .ventajas { display: none; }
+
   body.compacto .hero__marca { margin-bottom: 12px; }
   body.compacto .hero__marca img { width: 132px; }
   body.compacto .hero__lema { max-height: 0; opacity: 0; margin-top: 0; overflow: hidden; }
@@ -110,13 +99,6 @@
 
   .hero__titulo em { font-style: normal; color: var(--rojo); }
 
-  .hero__sub {
-    position: relative;
-    margin: 12px 0 0;
-    font-size: 1rem;
-    color: var(--tinta-2);
-  }
-
   /* Con un resultado en pantalla el encabezado se recoge: ya cumplio su
      papel de explicar que hacer, y el espacio le toca al estatus. El
      buscador se queda, mas apretado, para consultar otra guia. */
@@ -124,21 +106,12 @@
 
   body.compacto .hero__titulo { font-size: clamp(1.3rem, 2.6vw, 1.7rem); }
 
-  body.compacto .hero__sub {
-    margin-top: 0;
-    max-height: 0;
-    opacity: 0;
-    overflow: hidden;
-  }
-
   body.compacto .buscador { margin-top: 16px; padding: 14px; }
-  body.compacto .buscador__nota { margin-top: 10px; }
   body.compacto .campo input,
   body.compacto .btn-rastrear { height: 48px; }
 
   .hero { transition: padding-top 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
   .hero__titulo { transition: font-size 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-  .hero__sub { transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s, margin-top 0.4s; max-height: 60px; }
   .buscador { transition: margin-top 0.4s cubic-bezier(0.4, 0, 0.2, 1), padding 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
   .campo input, .btn-rastrear { transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.15s, box-shadow 0.15s, background-color 0.15s, transform 0.15s; }
 
@@ -149,7 +122,7 @@
   .buscador {
     position: relative;
     max-width: 790px;
-    margin: 28px auto 0;
+    margin: 32px auto 0;
     padding: 22px;
     background: var(--papel);
     border: 1px solid var(--linea);
@@ -217,18 +190,6 @@
   .btn-rastrear:disabled { background: #E38C92; cursor: wait; transform: none; box-shadow: none; }
   .btn-rastrear svg { width: 17px; height: 17px; transition: transform 0.2s; }
   .btn-rastrear:hover:not(:disabled) svg { transform: translateX(3px); }
-
-  .buscador__nota {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    margin: 14px 0 0;
-    font-size: 0.82rem;
-    color: var(--tinta-3);
-  }
-
-  .buscador__nota svg { width: 15px; height: 15px; }
 
   .error {
     display: none;
@@ -586,7 +547,6 @@
     body.compacto .hero__marca img { width: 108px; }
     body.compacto .hero__titulo { font-size: 1.2rem; }
     body.compacto .buscador { margin-top: 12px; padding: 12px; }
-    body.compacto .buscador__nota { display: none; }
     body.compacto .campo input,
     body.compacto .btn-rastrear { height: 44px; }
   }
@@ -624,7 +584,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .resultados { animation: none; }
-    .hero, .hero__titulo, .hero__sub, .buscador, .campo input, .btn-rastrear,
+    .hero, .hero__titulo, .buscador, .campo input, .btn-rastrear,
     .hero__marca img, .hero__lema { transition: none; }
     .paso.cargando::before, .paso.actual .circulo { animation: none; }
     .btn-rastrear svg { transition: none; }
@@ -639,7 +599,6 @@
     <span class="hero__lema">Carga consolidada a domicilio</span>
   </a>
   <h1 class="hero__titulo">Rastrea tu <em>envío</em></h1>
-  <p class="hero__sub">Ingresa tu número de guía para consultar su estado en tiempo real.</p>
 </section>
 
 <main class="wrap">
@@ -656,10 +615,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
       </button>
     </div>
-    <p class="buscador__nota">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l7.5 3v6c0 4.6-3.1 8.6-7.5 10-4.4-1.4-7.5-5.4-7.5-10v-6z"/></svg>
-      Información segura y actualizada en tiempo real.
-    </p>
   </div>
 
   <div class="error" id="error" role="alert"></div>
