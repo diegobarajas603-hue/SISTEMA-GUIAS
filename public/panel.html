@@ -200,13 +200,14 @@
             <div class="pills" id="pillsPlaza"></div>
           </div>
 
-          <div class="escaner__bloque">
+          <div class="escaner__bloque" id="modoWrap" style="display:none">
             <span class="escaner__label">Tipo de operacion</span>
             <div class="pills" id="toggleModo">
               <button class="pill" data-modo="bodega" aria-pressed="false">Bodega MTY &harr; CDMX</button>
               <button class="pill" data-modo="domicilio" aria-pressed="false">Entrega a domicilio</button>
               <button class="pill" data-modo="ocurre" aria-pressed="false">Ocurre (recoge en bodega)</button>
             </div>
+            <p class="modo-unico" id="modoUnico" hidden></p>
           </div>
 
           <div class="captura-wrap">
@@ -544,9 +545,50 @@
     );
   }
 
+  const NOMBRE_MODO = {
+    bodega: 'Bodega MTY \u2194 CDMX',
+    domicilio: 'Entrega a domicilio',
+    ocurre: 'Ocurre (recoge en bodega)',
+  };
+
+  // Cada rol hace un solo tipo de escaneo, asi que solo se le muestra el suyo.
+  // El servidor ya rechaza los demas; esto evita que el operador elija una
+  // opcion que le va a rebotar.
+  function modosPermitidos() {
+    const m = usuarioActual && usuarioActual.modos;
+    // Sesiones viejas o la integracion por APP_TOKEN no traen la lista
+    return Array.isArray(m) && m.length ? m : ['bodega', 'domicilio', 'ocurre'];
+  }
+
   function pintarToggles() {
-    document.querySelectorAll('#toggleModo .pill')
-      .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.modo === modo)));
+    // Hasta saber quien entro no se muestra ningun tipo de operacion: si no,
+    // al cargar se alcanzan a ver por un instante opciones que no le tocan
+    if (!usuarioActual) {
+      $('modoWrap').style.display = 'none';
+      return;
+    }
+
+    const permitidos = modosPermitidos();
+    // Si el modo guardado ya no le corresponde (le cambiaron el rol), se pasa
+    // al primero que si puede
+    if (!permitidos.includes(modo)) {
+      modo = permitidos[0];
+      localStorage.setItem('modo', modo);
+    }
+
+    $('modoWrap').style.display = '';
+    document.querySelectorAll('#toggleModo .pill').forEach((b) => {
+      b.style.display = permitidos.includes(b.dataset.modo) ? '' : 'none';
+      b.setAttribute('aria-pressed', String(b.dataset.modo === modo));
+    });
+
+    // Con un solo tipo permitido no hay nada que elegir: se dice cual es y se
+    // quitan los botones, para que la pantalla quede en lo unico que importa,
+    // que es el numero de guia
+    const unico = permitidos.length === 1;
+    $('toggleModo').style.display = unico ? 'none' : '';
+    $('modoUnico').hidden = !unico;
+    if (unico) $('modoUnico').textContent = NOMBRE_MODO[modo] || modo;
   }
   document.querySelectorAll('#toggleModo .pill').forEach((b) =>
     b.addEventListener('click', () => {
@@ -708,6 +750,9 @@
       !plazaUsuario || plazaUsuario === 'CDMX' ? '' : 'none';
     if (plazaUsuario) setPlaza(plazaUsuario);
     else pintarPillsPlaza();
+
+    // Ya se sabe que rol tiene: se repintan los tipos de escaneo que le tocan
+    pintarToggles();
   }
 
   function mostrarLogin(mensaje) {
