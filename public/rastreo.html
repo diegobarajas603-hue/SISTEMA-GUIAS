@@ -185,6 +185,31 @@
     color: var(--tinta-2);
   }
 
+  /* Con un resultado en pantalla el encabezado se recoge: ya cumplio su
+     papel de explicar que hacer, y el espacio le toca al estatus. El
+     buscador se queda, mas apretado, para consultar otra guia. */
+  body.compacto .hero { padding-top: 20px; }
+
+  body.compacto .hero__titulo { font-size: clamp(1.3rem, 2.6vw, 1.7rem); }
+
+  body.compacto .hero__sub {
+    margin-top: 0;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+
+  body.compacto .buscador { margin-top: 16px; padding: 14px; }
+  body.compacto .buscador__nota { margin-top: 10px; }
+  body.compacto .campo input,
+  body.compacto .btn-rastrear { height: 48px; }
+
+  .hero { transition: padding-top 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+  .hero__titulo { transition: font-size 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+  .hero__sub { transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s, margin-top 0.4s; max-height: 60px; }
+  .buscador { transition: margin-top 0.4s cubic-bezier(0.4, 0, 0.2, 1), padding 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+  .campo input, .btn-rastrear { transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.15s, box-shadow 0.15s, background-color 0.15s, transform 0.15s; }
+
   /* ---------- Buscador ---------- */
 
   .wrap { max-width: 1160px; margin: 0 auto; padding: 0 20px 44px; }
@@ -621,6 +646,28 @@
   .wa__boton:hover { background: #16A34A; transform: translateY(-2px); }
   .wa__boton svg { width: 31px; height: 31px; fill: #fff; }
 
+  /* En ventanas bajas el encabezado se recoge todavia mas: ahi cada pixel de
+     alto se lo lleva el estatus. */
+  @media (max-height: 720px) {
+    body.compacto .hero { padding-top: 10px; }
+    body.compacto .hero__titulo { font-size: 1.2rem; }
+    body.compacto .buscador { margin-top: 12px; padding: 12px; }
+    body.compacto .buscador__nota { display: none; }
+    body.compacto .campo input,
+    body.compacto .btn-rastrear { height: 44px; }
+  }
+
+  /* Por debajo de 640 px de alto no basta con recoger el encabezado: tambien
+     se aprieta la tarjeta, para que el estatus y las etapas quepan juntos. */
+  @media (max-height: 640px) {
+    body.compacto .tarjeta { padding: 18px; }
+    body.compacto .estatus { margin-top: 16px; padding: 14px; gap: 14px; }
+    body.compacto .estatus__ico { width: 48px; height: 48px; }
+    body.compacto .estatus__ico svg { width: 26px; height: 26px; }
+    body.compacto .stepper { margin-top: 18px; }
+    body.compacto .actualizado { margin-top: 16px; padding-top: 12px; }
+  }
+
   /* ---------- Adaptacion a pantallas chicas ---------- */
 
   @media (max-width: 940px) {
@@ -647,6 +694,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .resultados, .ayuda { animation: none; }
+    .hero, .hero__titulo, .hero__sub, .buscador, .campo input, .btn-rastrear { transition: none; }
     .paso.cargando::before, .paso.actual .circulo { animation: none; }
     .btn-rastrear svg, .btn-texto .chevron { transition: none; }
   }
@@ -985,6 +1033,8 @@
   // ---------- Consulta ----------
 
   function mostrarError(texto) {
+    // Sin resultado no hay nada que destacar: el encabezado vuelve a su sitio
+    document.body.classList.remove('compacto');
     $('resultados').classList.remove('visible');
     $('error').textContent = texto;
     $('error').style.display = 'block';
@@ -1025,6 +1075,7 @@
       $('cardHistorial').style.display = data.historial.length ? '' : 'none';
       $('resultados').style.gridTemplateColumns = data.historial.length ? '' : 'minmax(0, 1fr)';
       $('resultados').classList.add('visible');
+      document.body.classList.add('compacto');
 
       actualizarWhatsApp(data.numeroGuia);
     } catch (e) {
