@@ -106,6 +106,16 @@ Hay dos roles:
   sistema**, cambiar su propia contraseña, y revertir escaneos equivocados
   desde el detalle de la guia (boton **Revertir ultimo escaneo**; la guia
   regresa a su estatus anterior y la correccion queda en el historial).
+  Al revertir, el panel pregunta que paso con la guia:
+  - **Solo corregir un escaneo equivocado**: la guia regresa a su estatus
+    anterior y conserva su numero.
+  - **La guia se cancelo y se hizo una nueva** (p. ej. el cliente no pago):
+    se captura el numero de la guia nueva y la guia toma ese numero
+    conservando todo su historial; el numero anterior queda registrado
+    (evento `CAMBIO_NUMERO` y campo "Numero anterior") y deja de rastrear.
+  - **Se hizo un complemento**: se captura el numero del complemento y la
+    guia conserva sus dos numeros (evento `COMPLEMENTO`); cualquiera de los
+    dos sirve para rastrear por web/WhatsApp y para escanear con la pistola.
 - **Operador**: puede escanear y consultar guias y eventos. No puede cambiar
   su contraseña; si la necesita cambiar, un administrador se la restablece.
 
@@ -169,7 +179,11 @@ integraciones fijas como la pistola de escaneo).
   `PUT /api/usuarios/:id/password` -> gestion de usuarios (solo rol `admin`).
 - `POST /api/guias/:numeroGuia/revertir` -> revierte el ultimo escaneo de la
   guia y la regresa a su estatus anterior (solo rol `admin`); agrega un
-  evento `CORRECCION` al historial.
+  evento `CORRECCION` al historial. Acepta una resolucion opcional en el
+  cuerpo: `{ resolucion: "cancelada", numero: "<guia nueva>" }` (la guia toma
+  el numero nuevo y conserva el historial) o
+  `{ resolucion: "complemento", numero: "<complemento>" }` (la guia conserva
+  ambos numeros).
 - `POST /api/guias/borrar-todas` `{ confirmar: "BORRAR" }` -> borra todas las
   guias y su historial para dejar el sistema como nuevo (solo rol `admin`; no
   toca usuarios ni sesiones).
@@ -267,3 +281,18 @@ si planeas enviar mensajes fuera de la ventana de 24 horas de respuesta.
 - El campo `numeroGuia` se normaliza a mayusculas.
 - El ciclo de ida y vuelta esta soportado: una guia en bodega puede volver a
   salir hacia la otra plaza y todo queda en el mismo historial.
+
+## Alcance de este repositorio
+
+Este repositorio contiene **unicamente** el sistema de guias: Node + Express +
+PostgreSQL, sin ninguna otra aplicacion adentro.
+
+El **control de herramientas** (la aplicacion web Node + React y su version
+anterior en PHP) vivio aqui un tiempo, en las carpetas `HERRAMIENTA/` y
+`herramientas-web/`. Ya no: es un proyecto distinto, con su propia base de
+datos MySQL y su propio despliegue, y ahora vive completo en su repositorio:
+
+**https://github.com/diegobarajas603-hue/control-herramientas**
+
+Se movio con su historial de git, asi que nada se perdio. Si buscas ese codigo,
+esta alla — la version en PHP quedo archivada en `legacy-php/`.
