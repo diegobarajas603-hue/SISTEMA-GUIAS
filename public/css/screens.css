@@ -1753,9 +1753,12 @@ button.plaza-fila:hover {
   display: flex;
   align-items: center;
   gap: var(--space-12);
+  width: 100%;
   padding: var(--space-8) 0;
   background: var(--bg-base);
   margin-bottom: var(--space-8);
+  text-align: left;
+  cursor: pointer;
 }
 
 .dia__nombre {
@@ -1773,6 +1776,35 @@ button.plaza-fila:hover {
   height: 1px;
   background: var(--border-subtle);
 }
+
+.dia__conteo {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  border-radius: var(--radius-full);
+  padding: var(--space-4) 10px;
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  white-space: nowrap;
+}
+
+.dia__chev {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: transform var(--t-normal) var(--ease);
+}
+
+.dia__chev svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.dia.abierto .dia__chev { transform: rotate(180deg); }
+
+.dia__body { display: none; }
+
+.dia.abierto .dia__body { display: block; }
 
 /* ---------- Registro ---------- */
 

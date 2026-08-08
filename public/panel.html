@@ -2304,20 +2304,35 @@
       // filtro es de la bitacora permanente, no del historial
       if (!bitTipo && !buscar) for (const ev of correcciones) anotar(ev.creado_en, registroHtml(ev));
 
+      const SVG_CHEV_BIT = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>';
+
+      // Solo el dia mas reciente arranca abierto: con varias cancelaciones
+      // diarias, ver los demas dias plegados evita un scroll interminable.
       $('bitacoraLista').innerHTML =
-        [...dias.entries()].map(([dia, filas]) => {
+        [...dias.entries()].map(([dia, filas], i) => {
           filas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-          return `<section class="dia">
-            <header class="dia__head">
+          const abierto = i === 0;
+          return `<section class="dia${abierto ? ' abierto' : ''}">
+            <button class="dia__head" aria-expanded="${abierto}">
               <span class="dia__nombre">${esc(dia)}</span>
               <span class="dia__linea"></span>
-              <span class="dia__nombre">${filas.length}</span>
-            </header>
-            ${filas.map((f) => f.html).join('')}
+              <span class="dia__conteo">${filas.length}</span>
+              <span class="dia__chev">${SVG_CHEV_BIT}</span>
+            </button>
+            <div class="dia__body">
+              ${filas.map((f) => f.html).join('')}
+            </div>
           </section>`;
         }).join('') +
         `<p class="nota" style="margin-top:var(--space-16)">Las eliminaciones y cancelaciones se guardan para siempre. Las correcciones cubren los ultimos ${VENTANA_BITACORA} movimientos del sistema.</p>`;
 
+      $('bitacoraLista').querySelectorAll('.dia__head').forEach((b) =>
+        b.addEventListener('click', () => {
+          const dia = b.closest('.dia');
+          const abierto = dia.classList.toggle('abierto');
+          b.setAttribute('aria-expanded', String(abierto));
+        })
+      );
       $('bitacoraLista').querySelectorAll('[data-guia]').forEach((b) =>
         b.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(b.dataset.guia)))
       );
