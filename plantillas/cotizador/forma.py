@@ -56,11 +56,12 @@ LINEA_MED = "C9C9C9"
 FONDO_ALT = "FAFAFA"
 BLANCO = "FFFFFF"
 
-# Arial: está en cualquier Windows y Mac con Office, y en Linux se sustituye
-# por Liberation Sans, que tiene exactamente las mismas métricas. Así lo que
-# se mide aquí es lo mismo que verá Word en la máquina del usuario.
-FONT = "Arial"
-FONT_SEMI = "Arial"
+# Segoe UI: es la que tiene instalada el usuario. En la vista previa se
+# sustituye por DejaVu Sans, que es MAS ancha, así que lo que se mide aquí
+# siempre pesa más que lo que dibujará Word. La medición queda del lado
+# seguro.
+FONT = "Segoe UI"
+FONT_SEMI = "Segoe UI Semibold"
 
 # Caja de la página
 MARGEN_X = 936          # 0.65"
@@ -106,7 +107,7 @@ def encabezado(rid_logo, cx, cy):
         + para(run("Servicio de autotransporte de carga", font=FONT, sz=16,
                    color=GRIS_TXT, caps=True, spacing=70), jc="right"),
         W - 3600, valign="center", margins=(0, 0, 0, 0))
-    return table([row([izq, der], height=800)], [3600, W - 3600])
+    return table([row([izq, der], height=660)], [3600, W - 3600])
 
 
 def doble_filete():
@@ -156,10 +157,10 @@ def paneles():
                 cs.append(cell(
                     para(run(etiqueta, font=FONT_SEMI, sz=15, color=GRIS_LAB,
                              caps=True, spacing=50, b=True)),
-                    g[base], valign="bottom", margins=(40, 0, 60, 60)))
+                    g[base], valign="bottom", margins=(30, 0, 45, 60)))
                 cs.append(cell(
                     para(campo(tag, marcador)),
-                    g[base + 1], valign="bottom", margins=(40, 60, 60, 60),
+                    g[base + 1], valign="bottom", margins=(30, 60, 45, 60),
                     bd=dict(bottom=border(6, LINEA_MED))))
             else:
                 cs.append(cell(para(run("", sz=2)), g[base],
@@ -200,18 +201,18 @@ def tabla_servicios(n_filas=5):
         filas.append(row([
             cell(para(run(str(i), font=FONT_SEMI, sz=19, color=GRIS_TXT,
                           b=True), jc="center"), g[0], fill=fondo, bd=bd,
-                 margins=(245, 100, 245, 100)),
+                 margins=(130, 100, 130, 100)),
             cell(para(campo("srv_desc_%d" % i, marcador)), g[1], fill=fondo,
-                 bd=bd, margins=(245, 200, 245, 200)),
+                 bd=bd, margins=(130, 200, 130, 200)),
             cell(para(campo("srv_imp_%d" % i, importe,
                             font=FONT_SEMI, b=True), jc="right"), g[2],
-                 fill=fondo, bd=bd, margins=(245, 200, 245, 200)),
+                 fill=fondo, bd=bd, margins=(130, 200, 130, 200)),
         ], height=430))
     return table(filas, g, caption="tblServicios")
 
 
-def linea_escritura(tag, marcador="", after=120):
-    return para(campo(tag, marcador), before=50, after=after,
+def linea_escritura(tag, marcador="", after=85):
+    return para(campo(tag, marcador), before=35, after=after,
                 pbd=dict(bottom=border(6, LINEA_MED, space=4)))
 
 
@@ -272,14 +273,14 @@ def condiciones():
 
     def punto(texto, ancho, ultimo):
         return cell(
-            para(run("▪", font=FONT, sz=13, color=ROJO, b=True)
-                 + run("  ", font=FONT, sz=13)
-                 + run(texto, font=FONT, sz=13, color=GRIS_TXT),
-                 ind_left=250, ind_hanging=250, line=220),
+            para(run("▪", font=FONT, sz=12, color=ROJO, b=True)
+                 + run("  ", font=FONT, sz=12)
+                 + run(texto, font=FONT, sz=12, color=GRIS_TXT),
+                 ind_left=230, ind_hanging=230),
             ancho, valign="top",
-            margins=(40, 200 if ultimo else 90, 40, 160))
+            margins=(30, 200 if ultimo else 90, 30, 160))
 
-    filas = [row([punto(a, g[0], False), punto(b, g[1], True)], height=250)
+    filas = [row([punto(a, g[0], False), punto(b, g[1], True)], height=210)
              for a, b in CONDICIONES]
     return barra + para(run("", sz=10), after=90) + table(filas, g)
 
@@ -417,7 +418,7 @@ def construir(destino):
     ftr = "word/footer1.xml"
     rid_gt = pkg.rel(ftr, B.REL + "image", "media/logo_gt.png")
 
-    ft_cx, ft_cy = B.emu_for(os.path.join(ASSETS, "logo_ft.png"), 1.26)
+    ft_cx, ft_cy = B.emu_for(os.path.join(ASSETS, "logo_ft.png"), 1.02)
     gt_cx, gt_cy = B.emu_for(os.path.join(ASSETS, "logo_gt.png"), 0.40)
     wm_cx, wm_cy = B.emu_for(os.path.join(ASSETS, "watermark.png"), 5.30)
 
@@ -428,18 +429,18 @@ def construir(destino):
         marca_de_agua(rid_wm, wm_cx, wm_cy),
         encabezado(rid_ft, ft_cx, ft_cy),
         doble_filete(),
-        para(run("", sz=6), after=40),
+        para(run("", sz=6), after=30),
         paneles(),
-        para(run("", sz=8), after=70),
+        para(run("", sz=6), after=50),
         tabla_servicios(),
-        para(run("", sz=8), after=70),
+        para(run("", sz=6), after=50),
         totales(),
         para(run("", sz=6), after=40),
         condiciones(),
         para(run("La aceptación de esta cotización implica la conformidad con "
                  "las condiciones comerciales aquí descritas.",
                  font=FONT, sz=13, color=GRIS_TXT, i=True), jc="center",
-             before=170, after=0),
+             before=120, after=0),
         O.sect_pr(top=MARGEN_TOP, bottom=MARGEN_BOT, left=MARGEN_X,
                   right=MARGEN_X, header=440, footer=340,
                   ftr_rid=rid_footer, kind=None),
