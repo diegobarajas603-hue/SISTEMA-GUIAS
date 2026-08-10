@@ -1,2 +1,6 @@
 node_modules/
 .env
+
+# Salidas temporales del generador de cotizaciones
+plantillas/cotizador/render/
+plantillas/cotizador/__pycache__/
