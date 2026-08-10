@@ -7,6 +7,7 @@ pedidos:
   * fuera el folio (del encabezado y del bloque de datos)
   * fuera las columnas TIPO DE UNIDAD, CANT. y TARIFA UNITARIA
   * fuera SUBTOTAL, I.V.A. 16% y RET. I.V.A. 4%: queda sólo el TOTAL
+  * fuera el apartado de firmas (ELABORÓ / ACEPTACIÓN DEL CLIENTE)
   * la página es www.fletestauro.com.mx
 
 Uso:  python3 forma.py [directorio_salida]
@@ -196,18 +197,18 @@ def tabla_servicios(n_filas=5):
         filas.append(row([
             cell(para(run(str(i), font=FONT_SEMI, sz=19, color=GRIS_TXT,
                           b=True), jc="center"), g[0], fill=fondo, bd=bd,
-                 margins=(185, 100, 185, 100)),
+                 margins=(190, 100, 190, 100)),
             cell(para(campo("srv_desc_%d" % i, marcador)), g[1], fill=fondo,
-                 bd=bd, margins=(185, 200, 185, 200)),
+                 bd=bd, margins=(190, 200, 190, 200)),
             cell(para(campo("srv_imp_%d" % i, importe,
                             font=FONT_SEMI, b=True), jc="right"), g[2],
-                 fill=fondo, bd=bd, margins=(185, 200, 185, 200)),
+                 fill=fondo, bd=bd, margins=(190, 200, 190, 200)),
         ], height=430))
     return table(filas, g, caption="tblServicios")
 
 
-def linea_escritura(tag, marcador="", after=90):
-    return para(campo(tag, marcador), before=40, after=after,
+def linea_escritura(tag, marcador="", after=120):
+    return para(campo(tag, marcador), before=50, after=after,
                 pbd=dict(bottom=border(6, LINEA_MED, space=4)))
 
 
@@ -278,23 +279,6 @@ def condiciones():
     filas = [row([punto(a, g[0], False), punto(b, g[1], True)], height=250)
              for a, b in CONDICIONES]
     return barra + para(run("", sz=10), after=90) + table(filas, g)
-
-
-def firmas():
-    g = [W // 2, W - W // 2]
-
-    def lado(titulo, pie):
-        return cell(
-            para(run("", sz=2), before=120, ind_left=700, ind_right=700,
-                 pbd=dict(top=border(6, NEGRO)))
-            + para(run(titulo, font=FONT_SEMI, sz=17, color=NEGRO, caps=True,
-                       spacing=70, b=True), jc="center", before=110, after=50)
-            + para(run(pie, font=FONT, sz=15, color=GRIS_TXT), jc="center"),
-            g[0], valign="top", margins=(0, 200, 0, 200))
-
-    return table([row([lado("Elaboró", "Ejecutivo de cuenta · Fletes Tauro"),
-                       lado("Aceptación del cliente", "Nombre, firma y sello")])],
-                 g)
 
 
 WEB = "www.fletestauro.com.mx"
@@ -449,11 +433,10 @@ def construir(destino):
         totales(),
         para(run("", sz=6), after=40),
         condiciones(),
-        firmas(),
         para(run("La aceptación de esta cotización implica la conformidad con "
                  "las condiciones comerciales aquí descritas.",
                  font=FONT, sz=13, color=GRIS_TXT, i=True), jc="center",
-             before=20, after=0),
+             before=170, after=0),
         O.sect_pr(top=MARGEN_TOP, bottom=MARGEN_BOT, left=MARGEN_X,
                   right=MARGEN_X, header=440, footer=340,
                   ftr_rid=rid_footer, kind=None),
