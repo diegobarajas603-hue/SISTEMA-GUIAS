@@ -265,10 +265,10 @@ si planeas enviar mensajes fuera de la ventana de 24 horas de respuesta.
 ## Formato de cotizaciones
 
 En `formatos/cotizacion/` esta el formato corporativo de cotizacion en Word
-(`COTIZACION_FLETES_TAURO_2026.docx`), con el logotipo y los datos de las dos
-plazas ya puestos. No forma parte del servidor: es un documento aparte que se
-llena en Word. El README de esa carpeta explica que campos se sustituyen y como
-regenerarlo si se cambia el diseno.
+(`COTIZACION_FLETES_TAURO_2026.docx`): una sola hoja, con el logotipo y los
+datos de las dos plazas ya puestos. No forma parte del servidor, es un
+documento aparte que se llena en Word. El README de esa carpeta explica que
+campos se sustituyen y como regenerarlo si se cambia el diseno.
 
 ## Notas
 
