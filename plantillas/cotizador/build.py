@@ -177,7 +177,7 @@ def header_cotizacion(rid_logo, cx, cy):
         + para(run(X.WEB, font=FONT_SEMI, sz=18, color=NAVY, b=True),
                jc="right"),
         CONTENT_W - 4200, valign="center", margins=(0, 0, 0, 0))
-    tbl = table([row([left, right], height=1060)], [4200, CONTENT_W - 4200])
+    tbl = table([row([left, right], height=940)], [4200, CONTENT_W - 4200])
     return tbl + rule(before=60) + para(run("", sz=8), after=0)
 
 
@@ -193,8 +193,8 @@ def footer_cotizacion(rid_grupo, cx, cy, campo_total="NUMPAGES"):
 
     def direccion(info, lineas):
         return (para(run(info["titulo"], font=FONT_SEMI, sz=13, color=NAVY,
-                         caps=True, spacing=70, b=True), before=90, after=30)
-                + "".join(para(run(l, font=FONT, sz=13, color=GRAY_TXT), after=8)
+                         caps=True, spacing=70, b=True), before=70, after=25)
+                + "".join(para(run(l, font=FONT, sz=12, color=GRAY_TXT), after=6)
                           for l in lineas))
 
     g = [2100, 3990, CONTENT_W - 2100 - 3990]
@@ -256,65 +256,21 @@ def footer_interno():
 # ==========================================================================
 # SECCION 2 - LA COTIZACION (lo que ve el cliente)
 # ==========================================================================
-def barra_titulo(mode, d):
-    izq = cell(
-        para(run("COTIZACIÓN", font=FONT_LIGHT, sz=44, color=WHITE, spacing=120),
-             after=0),
-        5600, fill=NAVY, valign="center", margins=(220, 300, 220, 300))
-    der = cell(
-        para(run("Propuesta económica", font=FONT, sz=16, color="A9BDD1",
-                 caps=True, spacing=60), jc="right", after=20)
-        + para(run("Servicios de transporte terrestre de carga", font=FONT,
-                   sz=15, color="8FA6BE"), jc="right"),
-        CONTENT_W - 5600, fill=NAVY, valign="center", margins=(220, 300, 220, 300))
-    return table([row([izq, der], height=1000)], [5600, CONTENT_W - 5600])
-
-
-def tira_meta(mode, d):
-    grid = [2100, 2960, 2320, CONTENT_W - 2100 - 2960 - 2320]
-    campos = [
-        ("Folio", "doc_folio", d["folio"]),
-        ("Fecha de emisión", "doc_fecha", d["fecha"]),
-        ("Vigencia", "doc_vigencia", d["vigencia"]),
-        ("Ejecutivo", "doc_ejecutivo", d["ejecutivo"]),
-    ]
-    cells = []
-    for i, (lab, tag, val) in enumerate(campos):
-        bd = dict(bottom=border(4, LINE),
-                  right=border(4, LINE) if i < 3 else None)
-        cells.append(label_value(lab, fld(mode, tag, val, **VAL), grid[i],
-                                 fill=BG, bd=bd, margins=(150, 200, 150, 200)))
-    return table([row(cells, height=760)], grid)
-
-
-def bloque_cliente(mode, d):
-    g = [CONTENT_W // 2, CONTENT_W - CONTENT_W // 2]
-    bd_mid = dict(bottom=border(4, LINE_SOFT), right=border(4, LINE_SOFT))
-    bd_mid_r = dict(bottom=border(4, LINE_SOFT))
-    bd_low = dict(right=border(4, LINE_SOFT))
-    r1 = row([
-        label_value("Empresa", fld(mode, "cli_empresa", d["empresa"], **VAL),
-                    g[0], bd=bd_mid, margins=(150, 0, 150, 200)),
-        label_value("Atención", fld(mode, "cli_atencion", d["atencion"], **VAL),
-                    g[1], bd=bd_mid_r, margins=(150, 200, 150, 0)),
-    ], height=640)
-    r2 = row([
-        label_value("Contacto", fld(mode, "cli_contacto", d["contacto"], **VAL_SM),
-                    g[0], bd=bd_low, margins=(150, 0, 60, 200)),
-        label_value("Origen / Destino",
-                    fld(mode, "srv_origen", d["origen"], **VAL_SM)
-                    + run("   →   ", font=FONT, sz=19, color=CHAMPAGNE, b=True)
-                    + fld(mode, "srv_destino", d["destino"], **VAL_SM),
-                    g[1], margins=(150, 200, 60, 0)),
-    ], height=640)
-    return table([r1, r2], g)
+def barra_titulo():
+    return table(
+        [row([cell(
+            para(run("COTIZACIÓN", font=FONT_LIGHT, sz=40, color=WHITE,
+                     spacing=120), after=0),
+            CONTENT_W, fill=NAVY, valign="center",
+            margins=(170, 300, 170, 300))], height=760)],
+        [CONTENT_W])
 
 
 def bloque_servicio(mode, d):
     p = []
     p.append(para(run(X.SALUDO, font=FONT_SEMI, sz=20, color=NAVY, b=True),
                   after=140))
-    p.append(para(run(X.INTRO_1, **BODY), after=130, line=268))
+    p.append(para(run(X.INTRO_1, **BODY), after=120, line=258))
     # El parrafo con las cifras de la mercancia conserva la redaccion original.
     a, rest = X.INTRO_2.split("{tarimas}")
     b, rest = rest.split("{largo}")
@@ -323,62 +279,14 @@ def bloque_servicio(mode, d):
     g, h = f.split("{peso}")
     strong = dict(font=FONT_SEMI, sz=20, color=NAVY, b=True)
     p.append(para(
-        run(a, **BODY) + fld(mode, "n_tarimas", d["tarimas"], **strong)
-        + run(b, **BODY) + fld(mode, "n_largo", d["largo"], **strong)
-        + run(c, **BODY) + fld(mode, "n_ancho", d["ancho"], **strong)
-        + run(e, **BODY) + fld(mode, "n_alto", d["alto"], **strong)
-        + run(g, **BODY) + fld(mode, "n_peso", d["peso"], **strong)
-        + run(h, **BODY), after=130, line=268, jc="both"))
-    p.append(para(run(X.INTRO_3, **BODY), after=0, line=268, jc="both"))
+        run(a, **BODY) + fld(mode, "merc_tarimas", d["tarimas"], **strong)
+        + run(b, **BODY) + fld(mode, "merc_largo", d["largo"], **strong)
+        + run(c, **BODY) + fld(mode, "merc_ancho", d["ancho"], **strong)
+        + run(e, **BODY) + fld(mode, "merc_alto", d["alto"], **strong)
+        + run(g, **BODY) + fld(mode, "merc_peso", d["peso"], **strong)
+        + run(h, **BODY), after=120, line=258, jc="both"))
+    p.append(para(run(X.INTRO_3, **BODY), after=0, line=258, jc="both"))
     return "".join(p)
-
-
-def ficha_mercancia(mode, d):
-    grid = [2180, 2960, 2280, CONTENT_W - 2180 - 2960 - 2280]
-    q = grid[0]
-    bd_top = dict(top=border(8, NAVY), bottom=border(4, LINE))
-    r1 = row([
-        label_value("Descripción de la mercancía",
-                    fld(mode, "merc_descripcion", d["descripcion"], **VAL_SM),
-                    grid[0] + grid[1] + grid[2], fill=BG, keep=True,
-                    bd=dict(top=border(8, NAVY), bottom=border(4, LINE),
-                            right=border(4, LINE)),
-                    margins=(150, 200, 150, 200)),
-        label_value("Tipo de unidad",
-                    fld(mode, "srv_unidad", d["unidad"], kind="drop",
-                        items=X.UNIDADES, **VAL_SM),
-                    grid[3], fill=BG, bd=bd_top, keep=True,
-                    margins=(150, 200, 150, 200)),
-    ], height=680)
-    dims = (fld(mode, "merc_largo", d["largo"], **VAL)
-            + run(" × ", font=FONT, sz=18, color=GRAY_SOFT)
-            + fld(mode, "merc_ancho", d["ancho"], **VAL)
-            + run(" × ", font=FONT, sz=18, color=GRAY_SOFT)
-            + fld(mode, "merc_alto", d["alto"], **VAL)
-            + run(" m", font=FONT, sz=17, color=GRAY_TXT))
-    cells = [
-        label_value("Cantidad de tarimas",
-                    fld(mode, "merc_tarimas", d["tarimas"], **VAL), grid[0],
-                    fill=BG,
-                    bd=dict(bottom=border(8, NAVY), right=border(4, LINE)),
-                    margins=(150, 200, 150, 200)),
-        label_value("Dimensiones por tarima", dims, grid[1], fill=BG,
-                    bd=dict(bottom=border(8, NAVY), right=border(4, LINE)),
-                    margins=(150, 200, 150, 200)),
-        label_value("Peso aproximado",
-                    fld(mode, "merc_peso", d["peso"], **VAL)
-                    + run(" kg", font=FONT, sz=17, color=GRAY_TXT), grid[2],
-                    fill=BG,
-                    bd=dict(bottom=border(8, NAVY), right=border(4, LINE)),
-                    margins=(150, 200, 150, 200)),
-        label_value("Valor declarado",
-                    run("$ ", font=FONT, sz=17, color=GRAY_TXT)
-                    + fld(mode, "merc_valor", d["valor"], **VAL),
-                    grid[3], fill=BG,
-                    bd=dict(bottom=border(8, NAVY)),
-                    margins=(150, 200, 150, 200)),
-    ]
-    return table([r1, row(cells, height=680)], grid)
 
 
 def tabla_conceptos(conceptos, total, show_iva=False, mode=MODE_DOC):
@@ -390,8 +298,8 @@ def tabla_conceptos(conceptos, total, show_iva=False, mode=MODE_DOC):
              margins=(140, 220, 140, 220)),
         cell(para(run("Costo", font=FONT_SEMI, sz=17, color=WHITE, caps=True,
                       spacing=70, b=True), jc="right"), grid[1], fill=NAVY,
-             margins=(140, 220, 140, 220)),
-    ], height=620, header=True)]
+             margins=(120, 220, 120, 220)),
+    ], height=540, header=True)]
 
     for i, (etiqueta, importe) in enumerate(conceptos):
         fill = WHITE if i % 2 == 0 else BG
@@ -402,8 +310,8 @@ def tabla_conceptos(conceptos, total, show_iva=False, mode=MODE_DOC):
             cell(para(run(T.money(importe), font=FONT_SEMI, sz=20, color=NAVY,
                           b=True), jc="right"), grid[1], fill=fill,
                  bd=dict(bottom=border(4, LINE_SOFT)),
-                 margins=(130, 220, 130, 220)),
-        ], height=560))
+                 margins=(110, 220, 110, 220)),
+        ], height=480))
 
     if show_iva:
         subtotal = total
@@ -425,95 +333,36 @@ def tabla_conceptos(conceptos, total, show_iva=False, mode=MODE_DOC):
     rows.append(row([
         cell(para(run("Total", font=FONT_SEMI, sz=22, color=WHITE, caps=True,
                       spacing=90, b=True)), grid[0], fill=NAVY,
-             bd=dict(top=border(12, CHAMPAGNE)), margins=(180, 220, 180, 220)),
+             bd=dict(top=border(12, CHAMPAGNE)), margins=(150, 220, 150, 220)),
         cell(para(run(T.money(total), font=FONT_SEMI, sz=28, color=WHITE, b=True),
                   jc="right"), grid[1], fill=NAVY,
-             bd=dict(top=border(12, CHAMPAGNE)), margins=(180, 220, 180, 220)),
-    ], height=800))
+             bd=dict(top=border(12, CHAMPAGNE)), margins=(150, 220, 150, 220)),
+    ], height=700))
     return table(rows, grid, caption="tblConceptos")
 
 
 def bloque_consideraciones():
     out = []
     for texto in X.CONSIDERACIONES:
-        out.append(para(run(texto, font=FONT, sz=17, color=GRAPHITE),
-                        num=(1, 0), after=70, line=250, ind_left=420,
+        out.append(para(run(texto, font=FONT, sz=16, color=GRAPHITE),
+                        num=(1, 0), after=60, line=232, ind_left=420,
                         ind_hanging=420, contextual=True, jc="both"))
     return "".join(out)
 
 
-def bloque_corporativo(rid_grupo, cx, cy):
-    g = [2560, 3900, CONTENT_W - 2560 - 3900]
-
-    def direccion(info):
-        return (para(run(info["titulo"], font=FONT_SEMI, sz=15, color=NAVY,
-                         caps=True, spacing=70, b=True), after=90)
-                + "".join(para(run(l, font=FONT, sz=16, color=GRAY_TXT), after=10)
-                          for l in info["lineas"])
-                + para(run(info["tel"], font=FONT_SEMI, sz=16, color=GRAPHITE,
-                           b=True), before=40))
-
-    c1 = cell(
-        para(run("Una empresa de", font=FONT, sz=13, color=GRAY_SOFT, caps=True,
-                 spacing=60), after=80)
-        + para(O.image_run(rid_grupo, cx, cy, "Grupo Tauro"), after=90)
-        + para(run(X.WEB, font=FONT_SEMI, sz=15, color=NAVY, b=True)),
-        g[0], fill=BG_WARM, valign="top", margins=(150, 200, 150, 160),
-        bd=dict(top=border(8, NAVY), right=border(4, LINE)))
-    c2 = cell(direccion(X.MATRIZ), g[1], fill=BG_WARM, valign="top",
-              margins=(150, 240, 150, 240),
-              bd=dict(top=border(8, NAVY), right=border(4, LINE)))
-    c3 = cell(direccion(X.MEXICO), g[2], fill=BG_WARM, valign="top",
-              margins=(150, 240, 150, 240), bd=dict(top=border(8, NAVY)))
-    return table([row([c1, c2, c3])], g)
-
-
-def bloque_firma(mode, d):
-    g = [5600, CONTENT_W - 5600]
-    izq = cell(
-        para(run("Atentamente", font=FONT, sz=15, color=GRAY_SOFT, caps=True,
-                 spacing=60), before=150, after=170)
-        + para(fld(mode, "doc_ejecutivo_firma", d["ejecutivo"],
-                   font=FONT_SEMI, sz=19, color=NAVY, b=True)
-               + run("   ·   Ejecutivo de cuenta", font=FONT, sz=16,
-                     color=GRAY_TXT),
-               pbd=dict(top=border(4, LINE, space=5)), before=0, after=0),
-        g[0], valign="bottom", margins=(0, 0, 0, 260))
-    der = cell(
-        para(run("Aceptación del cliente", font=FONT, sz=15, color=GRAY_SOFT,
-                 caps=True, spacing=60), before=150, after=170)
-        + para(run("Nombre y firma", font=FONT, sz=16, color=GRAY_TXT),
-               pbd=dict(top=border(4, LINE, space=5)), before=0, after=0),
-        g[1], valign="bottom", margins=(0, 260, 0, 0))
-    return table([row([izq, der])], g)
-
-
 def seccion_cotizacion(mode, d):
+    """Una sola hoja con el contenido literal del formato de Fletes Tauro."""
     conceptos = d["conceptos"]
     total = round(sum(c[1] for c in conceptos), 2)
     out = []
-    out.append(barra_titulo(mode, d))
+    out.append(barra_titulo())
     out.append(para(run("", sz=6), after=0))
-    out.append(tira_meta(mode, d))
-
-    out.append(section_label("Datos del cliente"))
-    out.append(bloque_cliente(mode, d))
-
-    out.append(section_label("Descripción del servicio"))
     out.append(bloque_servicio(mode, d))
-
-    out.append(section_label("Detalles de la mercancía"))
-    out.append(ficha_mercancia(mode, d))
-
-    out.append(section_label("Propuesta económica"))
-    out.append(tabla_conceptos(conceptos, total, d.get("iva", False), mode))
-    out.append(para(run(X.NOTA_TABLA, font=FONT, sz=15, color=GRAY_TXT, i=True),
-                    before=110))
-
-    out.append(section_label("Consideraciones importantes"))
+    out.append(section_label("Propuesta económica", before=280, after=130))
+    out.append(tabla_conceptos(conceptos, total, d.get("iva", False)))
+    out.append(section_label("Consideraciones importantes", before=280,
+                             after=130))
     out.append(bloque_consideraciones())
-
-    out.append(bloque_firma(mode, d))
     return "".join(out)
 
 
@@ -521,9 +370,9 @@ def seccion_cotizacion(mode, d):
 # SECCION 1 - PANEL DE COTIZACION
 # ==========================================================================
 PASOS = [
-    "Captura los datos del cliente y de la mercancía directamente en la "
-    "cotización (páginas siguientes). Los campos sombreados son controles de "
-    "Word: haz clic y escribe.",
+    "Captura las cifras de la mercancía —tarimas, medidas y peso— "
+    "directamente en el párrafo de la cotización. Los campos sombreados son "
+    "controles de Word: haz clic y escribe.",
     "En la tabla CONCEPTOS A INCLUIR marca la casilla ☒ de cada concepto que "
     "deba aparecer en la cotización y elige su modalidad y su tabulador en las "
     "listas desplegables.",
@@ -543,7 +392,7 @@ def caja_instrucciones():
             run("%d." % i, font=FONT_SEMI, sz=18, color=CHAMPAGNE, b=True)
             + run("   ", font=FONT, sz=18)
             + run(paso, font=FONT, sz=18, color=GRAPHITE),
-            after=90, line=260, ind_left=340, ind_hanging=340))
+            after=75, line=248, ind_left=340, ind_hanging=340))
     contenido.append(para(
         run("Si Word bloquea las macros: cierra el archivo, clic derecho ▸ "
             "Propiedades ▸ marca «Desbloquear» y vuelve a abrirlo.",
@@ -596,8 +445,8 @@ def panel_conceptos(mode, seleccion=None):
                  grid[3], fill=fill, bd=bd, margins=(100, 150, 100, 150)),
             cell(para(fld(mode, "imp_%s" % clave, imp, font=FONT_SEMI, sz=18,
                           color=NAVY, b=True), jc="right"),
-                 grid[4], fill=fill, bd=bd_last, margins=(90, 150, 90, 150)),
-        ], height=540))
+                 grid[4], fill=fill, bd=bd_last, margins=(70, 150, 70, 150)),
+        ], height=450))
     return table(rows, grid, caption="panelConceptos")
 
 
@@ -607,7 +456,9 @@ def panel_opciones(mode, d):
     filas = [
         ("Mostrar desglose de IVA", "opt_iva", "Sí" if d.get("iva") else "No",
          ["No", "Sí"],
-         "Si eliges «Sí» la tabla mostrará Subtotal, IVA 16% y Total."),
+         "Agrega Subtotal e IVA 16% antes del Total."),
+        ("Valor declarado", "merc_valor", d["valor"], None,
+         "Sólo se usa para calcular el seguro."),
     ]
     rows = [row([
         cell(para(run(h, font=FONT_SEMI, sz=15, color=WHITE, caps=True,
@@ -619,13 +470,13 @@ def panel_opciones(mode, d):
         rows.append(row([
             cell(para(run(etiqueta, font=FONT_SEMI, sz=18, color=NAVY, b=True)),
                  grid[0], bd=bd, margins=(110, 150, 110, 150)),
-            cell(para(fld(mode, tag, val, kind="drop", items=items,
-                          font=FONT, sz=17, color=GRAPHITE)),
+            cell(para(fld(mode, tag, val, kind="drop" if items else "text",
+                          items=items, font=FONT, sz=17, color=GRAPHITE)),
                  grid[1], bd=bd, margins=(110, 150, 110, 150)),
             cell(para(run(ayuda, font=FONT, sz=16, color=GRAY_TXT)),
                  grid[2], bd=dict(bottom=border(4, LINE_SOFT)),
-                 margins=(90, 150, 90, 150)),
-        ], height=460))
+                 margins=(80, 150, 80, 150)),
+        ], height=420))
     return table(rows, grid, caption="panelOpciones")
 
 
@@ -647,13 +498,12 @@ def seccion_panel(mode, d):
                         "completo de la tabla final.", font=FONT, sz=17,
                         color=GRAY_TXT), after=130))
     out.append(panel_conceptos(mode, d.get("seleccion")))
-    out.append(para(run("Para agregar un concepto nuevo: copia una fila de esta "
-                        "tabla, cambia su nombre, elige «Importe manual» en "
-                        "Modalidad y captura el costo en la columna Importe.",
-                        font=FONT, sz=16, color=GRAY_TXT, i=True), before=140))
+    out.append(para(run("Para agregar un concepto: copia una fila, cámbiale el "
+                        "nombre y elige «Importe manual» en Modalidad.",
+                        font=FONT, sz=16, color=GRAY_TXT, i=True), before=100))
 
-    out.append(section_label("Opciones del documento", before=190,
-                             after=110))
+    out.append(section_label("Opciones del documento", before=160,
+                             after=100))
     out.append(panel_opciones(mode, d))
     return "".join(out)
 
@@ -925,7 +775,7 @@ def construir(path, d, con_panel, con_vba, titulo):
     grupo_path = os.path.join(ASSETS, "logo_grupo_tauro.png")
     pkg.add("word/media/logo_fletes_tauro.png", open(logo_path, "rb").read())
     pkg.add("word/media/logo_grupo_tauro.png", open(grupo_path, "rb").read())
-    logo_cx, logo_cy = emu_for(logo_path, 1.38)
+    logo_cx, logo_cy = emu_for(logo_path, 1.18)
     grupo_cx, grupo_cy = emu_for(grupo_path, 0.62)
 
     # Encabezados y pies
@@ -958,8 +808,8 @@ def construir(path, d, con_panel, con_vba, titulo):
     sect_panel = O.sect_pr(top=1500, bottom=1200, left=1080, right=1080,
                            header=620, footer=520, hdr_rid=rid_h1,
                            ftr_rid=rid_f1, page_num_start=1)
-    sect_cot = O.sect_pr(top=1980, bottom=1900, left=1080, right=1080,
-                         header=620, footer=520, hdr_rid=rid_h2,
+    sect_cot = O.sect_pr(top=1820, bottom=1780, left=1080, right=1080,
+                         header=520, footer=440, hdr_rid=rid_h2,
                          ftr_rid=rid_f2, page_num_start=1)
     sect_tab = O.sect_pr(top=1500, bottom=1200, left=1080, right=1080,
                          header=620, footer=520, hdr_rid=rid_h3,
@@ -1061,23 +911,12 @@ def num(txt):
     return float(str(txt).replace(",", "").replace("$", "").strip() or 0)
 
 
+# Los tres ejemplos usan EXACTAMENTE la mercancia del formato original
+# (2 tarimas, 1.20 x 1.00 x 1.50 m, 2,000 kg); lo unico que cambia entre ellos
+# son los conceptos seleccionados.
 EJEMPLOS = [
     {
         "titulo": "EJEMPLO 1 · Recolección + Flete + Entrega",
-        "datos": {
-            "folio": "FT-2026-0114",
-            "fecha": "10 de agosto de 2026",
-            "empresa": "Industrias del Norte, S.A. de C.V.",
-            "atencion": "Ing. Laura Medina",
-            "contacto": "compras@industriasdelnorte.mx · (81) 8123-4500",
-            "origen": "Monterrey, N.L.",
-            "destino": "Ciudad de México",
-            "descripcion": "Refacciones metálicas paletizadas",
-            "ejecutivo": "Carlos Treviño",
-            "unidad": X.UNIDADES[3],
-            "tarimas": "2", "largo": "1.20", "ancho": "1.00", "alto": "1.50",
-            "peso": "2,000", "valor": "250,000.00",
-        },
         "seleccion": {
             "RECOLECCION": {"check": True, "modalidad": T.DENTRO,
                             "opcion": T.AUTO_PESO},
@@ -1089,56 +928,28 @@ EJEMPLOS = [
     },
     {
         "titulo": "EJEMPLO 2 · Recolección + Flete + Maniobras + Seguro",
-        "datos": {
-            "folio": "FT-2026-0115",
-            "fecha": "10 de agosto de 2026",
-            "empresa": "Química Peninsular, S. de R.L. de C.V.",
-            "atencion": "Lic. Roberto Salinas",
-            "contacto": "logistica@quimicapeninsular.com · (55) 5544-2200",
-            "origen": "Ciudad de México",
-            "destino": "Monterrey, N.L.",
-            "descripcion": "Material peligroso clase 8 debidamente envasado",
-            "ejecutivo": "Mariana Cepeda",
-            "unidad": X.UNIDADES[1],
-            "tarimas": "4", "largo": "1.20", "ancho": "1.00", "alto": "1.40",
-            "peso": "3,400", "valor": "780,000.00",
-        },
         "seleccion": {
-            "RECOLECCION": {"check": True, "modalidad": T.FUERA,
-                            "opcion": "Zona 2"},
-            "FLETE": {"check": True, "modalidad": T.RUTAS[1],
-                      "opcion": T.SERVICIOS[1]},
+            "RECOLECCION": {"check": True, "modalidad": T.DENTRO,
+                            "opcion": T.AUTO_PESO},
             "MANIOBRAS_CARGA": {"check": True, "modalidad": "Según tabulador",
-                                "opcion": "Maniobra con montacargas"},
+                                "opcion": "Maniobra estándar (hasta 2 tarimas)"},
+            "FLETE": {"check": True, "modalidad": T.RUTAS[0],
+                      "opcion": T.SERVICIOS[0]},
             "MANIOBRAS_DESCARGA": {"check": True, "modalidad": "Según tabulador",
-                                   "opcion": "Maniobra estándar (3 a 6 tarimas)"},
+                                   "opcion": "Maniobra estándar (hasta 2 tarimas)"},
             "SEGURO": {"check": True, "modalidad": "Sobre valor declarado",
                        "opcion": "Cobertura estándar"},
         },
     },
     {
         "titulo": "EJEMPLO 3 · Recolección + Flete + Entrega + Cita",
-        "datos": {
-            "folio": "FT-2026-0116",
-            "fecha": "10 de agosto de 2026",
-            "empresa": "Comercializadora Altavista, S.A. de C.V.",
-            "atencion": "C.P. Diana Ruiz",
-            "contacto": "druiz@altavista.com.mx · (55) 4020-8811",
-            "origen": "Monterrey, N.L.",
-            "destino": "Ciudad de México",
-            "descripcion": "Producto terminado de consumo, cajas en tarima",
-            "ejecutivo": "Carlos Treviño",
-            "unidad": X.UNIDADES[2],
-            "tarimas": "6", "largo": "1.20", "ancho": "1.00", "alto": "1.60",
-            "peso": "4,800", "valor": "1,150,000.00",
-        },
         "seleccion": {
             "RECOLECCION": {"check": True, "modalidad": T.DENTRO,
                             "opcion": T.AUTO_PESO},
             "FLETE": {"check": True, "modalidad": T.RUTAS[0],
-                      "opcion": T.SERVICIOS[2]},
-            "ENTREGA": {"check": True, "modalidad": T.FUERA,
-                        "opcion": "Zona 3"},
+                      "opcion": T.SERVICIOS[0]},
+            "ENTREGA": {"check": True, "modalidad": T.DENTRO,
+                        "opcion": T.AUTO_PESO},
             "CITA": {"check": True, "modalidad": "Según tabulador",
                      "opcion": "Cita programada (48 h de anticipación)"},
         },
@@ -1180,7 +991,6 @@ def main():
     # --- Ejemplos --------------------------------------------------------
     for i, ej in enumerate(EJEMPLOS, 1):
         d = base_datos()
-        d.update(ej["datos"])
         conceptos, resuelta = calcular(ej["seleccion"], num(d["peso"]),
                                        num(d["valor"]))
         d["conceptos"] = conceptos

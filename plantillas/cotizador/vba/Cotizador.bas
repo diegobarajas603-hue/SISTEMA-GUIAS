@@ -139,14 +139,6 @@ Public Sub GenerarCotizacion()
     dest.Cell(dest.Rows.Count, 1).Range.Text = "TOTAL"
     dest.Cell(dest.Rows.Count, 2).Range.Text = Moneda(total)
 
-    ' -- Sincronizar las cifras del parrafo con la ficha de mercancia
-    CopiarControl doc, "merc_tarimas", "n_tarimas"
-    CopiarControl doc, "merc_largo", "n_largo"
-    CopiarControl doc, "merc_ancho", "n_ancho"
-    CopiarControl doc, "merc_alto", "n_alto"
-    CopiarControl doc, "merc_peso", "n_peso"
-    CopiarControl doc, "doc_ejecutivo", "doc_ejecutivo_firma"
-
     Application.ScreenUpdating = True
 
     If Len(avisos) > 0 Then
@@ -549,13 +541,9 @@ End Function
 
 
 Private Function NombreArchivo(ByVal doc As Document) As String
-    Dim folio As String, cliente As String, s As String
-    folio = TextoControl(doc, "doc_folio")
-    cliente = TextoControl(doc, "cli_empresa")
-    s = "Cotizacion"
-    If Len(folio) > 0 Then s = s & "_" & folio
-    If Len(cliente) > 0 Then s = s & "_" & Left$(cliente, 40)
-    NombreArchivo = SoloNombreValido(s)
+    ' El formato de Fletes Tauro no lleva folio ni razon social, asi que el
+    ' archivo se nombra por fecha y hora.
+    NombreArchivo = SoloNombreValido("Cotizacion_" & Format$(Now, "yyyymmdd_hhnn"))
 End Function
 
 
@@ -593,18 +581,12 @@ End Function
 Public Sub NuevaCotizacion()
     Dim doc As Document, panel As Table, i As Long, cc As ContentControl
 
-    If MsgBox("Se van a limpiar los datos del cliente, la mercancia y los " & _
-              "conceptos marcados." & vbCrLf & vbCrLf & "Continuar?", _
+    If MsgBox("Se van a desmarcar todos los conceptos y a borrar los " & _
+              "importes calculados." & vbCrLf & vbCrLf & "Continuar?", _
               vbQuestion + vbOKCancel, "Cotizador Fletes Tauro") <> vbOK Then Exit Sub
 
     Set doc = ActiveDocument
     Application.ScreenUpdating = False
-
-    LimpiarControl doc, "cli_empresa", "Nombre del cliente, S.A. de C.V."
-    LimpiarControl doc, "cli_atencion", "Nombre del contacto"
-    LimpiarControl doc, "cli_contacto", "correo@cliente.com"
-    LimpiarControl doc, "merc_descripcion", "Mercancia general paletizada"
-    LimpiarControl doc, "doc_folio", "FT-"
 
     Set panel = TablaPorTitulo(doc, T_PANEL)
     If Not panel Is Nothing Then
@@ -618,8 +600,8 @@ Public Sub NuevaCotizacion()
     End If
 
     Application.ScreenUpdating = True
-    MsgBox "Listo. Captura los datos de la nueva cotizacion y ejecuta " & _
-           "GenerarCotizacion (Ctrl+Shift+G).", vbInformation, _
+    MsgBox "Listo. Captura las cifras de la mercancia, marca los conceptos " & _
+           "y ejecuta GenerarCotizacion (Ctrl+Shift+G).", vbInformation, _
            "Cotizador Fletes Tauro"
 End Sub
 

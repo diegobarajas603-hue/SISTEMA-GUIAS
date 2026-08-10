@@ -1,7 +1,14 @@
 # Plantilla de cotizaciones · Fletes Tauro
 
-Plantilla de Word que genera cotizaciones seleccionando conceptos con casillas y
-listas desplegables, calculando los importes contra tabuladores editables.
+Plantilla de Word que genera cotizaciones **en una sola hoja**, seleccionando
+conceptos con casillas y listas desplegables y calculando los importes contra
+tabuladores editables.
+
+La hoja que ve el cliente contiene **exactamente** el contenido del formato
+original de Fletes Tauro: logotipo, «A quien corresponda:», los tres párrafos de
+presentación, la tabla CONCEPTO / COSTO, las seis consideraciones importantes y
+los datos corporativos. No se agregó ningún dato que el formato no tuviera (no
+hay folio, ni razón social del cliente, ni bloque de firmas).
 
 ## Archivos que se entregan (`salida/`)
 
@@ -10,8 +17,12 @@ listas desplegables, calculando los importes contra tabuladores editables.
 | `PLANTILLA_COTIZACION_FLETES_TAURO.docm` | **La herramienta.** Plantilla con el macro que calcula y arma la tabla. |
 | `PLANTILLA_COTIZACION_FLETES_TAURO.docx` | La misma plantilla sin macro, por si se prefiere trabajar a mano. |
 | `EJEMPLO_1_COTIZACION_FLETES_TAURO.docx` | Recolección + Flete + Entrega — **$ 7,850.00** |
-| `EJEMPLO_2_COTIZACION_FLETES_TAURO.docx` | Recolección + Maniobras carga + Flete + Maniobras descarga + Seguro — **$ 18,190.00** |
-| `EJEMPLO_3_COTIZACION_FLETES_TAURO.docx` | Recolección + Flete + Entrega + Cita — **$ 37,700.00** |
+| `EJEMPLO_2_COTIZACION_FLETES_TAURO.docx` | Recolección + Maniobras carga + Flete + Maniobras descarga + Seguro — **$ 9,650.00** |
+| `EJEMPLO_3_COTIZACION_FLETES_TAURO.docx` | Recolección + Flete + Entrega + Cita — **$ 8,300.00** |
+
+Los tres ejemplos usan la misma mercancía del formato original (2 tarimas,
+1.20 × 1.00 × 1.50 m, 2,000 kg); lo único que cambia es qué conceptos se
+marcaron.
 
 Los ejemplos son cotizaciones ya generadas: sólo traen la sección que ve el
 cliente, sin panel, sin tabuladores y sin controles de contenido.
@@ -21,16 +32,18 @@ cliente, sin panel, sin tabuladores y sin controles de contenido.
 La plantilla tiene tres secciones de Word:
 
 1. **Panel de cotización** (pág. 1) — uso interno. Casillas de los siete
-   conceptos, listas desplegables de modalidad y tabulador, columna de importe.
-2. **Cotización** (págs. 2-3) — lo que ve el cliente.
-3. **Tabuladores y tarifas** (págs. 4-6) — uso interno. Aquí se editan precios.
+   conceptos, listas desplegables de modalidad y tabulador, columna de importe,
+   y el valor declarado que sirve para calcular el seguro.
+2. **Cotización** (pág. 2) — una sola hoja, lo que ve el cliente.
+3. **Tabuladores y tarifas** (págs. 3-5) — uso interno. Aquí se editan precios.
 
 Al exportar, las secciones 1 y 3 se eliminan automáticamente.
 
 ## Uso diario
 
-1. Captura los datos del cliente y de la mercancía **en la cotización misma**
-   (los campos sombreados son controles de contenido de Word).
+1. Captura las cifras de la mercancía —tarimas, medidas y peso— **en el párrafo
+   de la cotización** (los campos sombreados son controles de contenido de
+   Word). El valor declarado va en el panel, porque sólo sirve para el seguro.
 2. En el panel marca ☒ los conceptos que apliquen y elige modalidad y tabulador.
 3. `Ctrl + Shift + G` → calcula importes y arma la tabla de conceptos.
 4. `Ctrl + Shift + P` → genera el `.docx` limpio y el `.pdf` listos para enviar.
