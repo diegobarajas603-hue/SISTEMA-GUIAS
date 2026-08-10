@@ -56,8 +56,11 @@ LINEA_MED = "C9C9C9"
 FONDO_ALT = "FAFAFA"
 BLANCO = "FFFFFF"
 
-FONT = "Segoe UI"
-FONT_SEMI = "Segoe UI Semibold"
+# Arial: está en cualquier Windows y Mac con Office, y en Linux se sustituye
+# por Liberation Sans, que tiene exactamente las mismas métricas. Así lo que
+# se mide aquí es lo mismo que verá Word en la máquina del usuario.
+FONT = "Arial"
+FONT_SEMI = "Arial"
 
 # Caja de la página
 MARGEN_X = 936          # 0.65"
@@ -197,12 +200,12 @@ def tabla_servicios(n_filas=5):
         filas.append(row([
             cell(para(run(str(i), font=FONT_SEMI, sz=19, color=GRIS_TXT,
                           b=True), jc="center"), g[0], fill=fondo, bd=bd,
-                 margins=(190, 100, 190, 100)),
+                 margins=(245, 100, 245, 100)),
             cell(para(campo("srv_desc_%d" % i, marcador)), g[1], fill=fondo,
-                 bd=bd, margins=(190, 200, 190, 200)),
+                 bd=bd, margins=(245, 200, 245, 200)),
             cell(para(campo("srv_imp_%d" % i, importe,
                             font=FONT_SEMI, b=True), jc="right"), g[2],
-                 fill=fondo, bd=bd, margins=(190, 200, 190, 200)),
+                 fill=fondo, bd=bd, margins=(245, 200, 245, 200)),
         ], height=430))
     return table(filas, g, caption="tblServicios")
 
