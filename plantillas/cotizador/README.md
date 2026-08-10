@@ -14,6 +14,7 @@ hay folio, ni razón social del cliente, ni bloque de firmas).
 
 | Archivo | Para qué sirve |
 |---|---|
+| `FORMATO_COTIZACION_FLETES_TAURO.docx` | **Formato rellenable de una hoja** (rojo/negro), reconstruido del PDF `COTIZACION_FLETES_TAURO_2026`. Se llena a mano en Word; no lleva macro. |
 | `PLANTILLA_COTIZACION_FLETES_TAURO.docm` | **La herramienta.** Plantilla con el macro que calcula y arma la tabla. |
 | `PLANTILLA_COTIZACION_FLETES_TAURO.docx` | La misma plantilla sin macro, por si se prefiere trabajar a mano. |
 | `EJEMPLO_1_COTIZACION_FLETES_TAURO.docx` | Recolección + Flete + Entrega — **$ 7,850.00** |
@@ -103,7 +104,8 @@ python3 build.py salida
 
 | Archivo fuente | Contenido |
 |---|---|
-| `build.py` | Arma el documento (diseño, secciones, controles de contenido). |
+| `build.py` | Arma la plantilla con panel y macro. |
+| `forma.py` | Arma el formato rellenable de una hoja (rojo/negro). |
 | `ooxml.py` | Utilerías para escribir WordprocessingML. |
 | `tarifas.py` | Tabuladores iniciales y espejo en Python de la lógica de cálculo. |
 | `textos.py` | Textos comerciales del formato original, literales. |
@@ -111,6 +113,7 @@ python3 build.py salida
 | `vba/Cotizador.bas` | Módulo principal del macro. |
 | `vba/ThisDocument.cls` | Eventos del documento (atajos y listas dependientes). |
 | `assets/` | Logotipos recortados de la papelería original. |
+| `assets2/` | Logotipos y marca de agua del formato rojo/negro. |
 
 ## Si Word bloquea las macros
 
@@ -121,3 +124,22 @@ y vuelve a abrirlo.
 Si el proyecto VBA no cargara, el `.docm` sigue funcionando como documento
 normal y el código puede importarse a mano: `Alt + F11` ▸ Archivo ▸ Importar
 archivo, y se seleccionan `vba/Cotizador.bas` y `vba/ThisDocument.cls`.
+
+
+## Formato rellenable de una hoja (`forma.py`)
+
+Reconstrucción en Word del PDF `COTIZACION_FLETES_TAURO_2026`, con los cambios
+solicitados:
+
+* sin folio (ni en el encabezado ni en DATOS DE LA COTIZACIÓN)
+* la tabla de servicios queda en **No. · Descripción del servicio · Importe**
+  (fuera TIPO DE UNIDAD, CANT. y TARIFA UNITARIA)
+* de los totales queda sólo **TOTAL** (fuera SUBTOTAL, I.V.A. 16% y RET. I.V.A. 4%)
+* la página es **www.fletestauro.com.mx**
+
+Los campos son controles de contenido de Word con texto de marcador de posición
+real: se ven en gris cursiva y al escribir encima toman el formato definitivo.
+
+```bash
+python3 forma.py salida
+```
