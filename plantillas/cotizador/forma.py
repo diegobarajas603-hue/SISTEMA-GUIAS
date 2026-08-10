@@ -14,8 +14,28 @@ Uso:  python3 forma.py [directorio_salida]
 import os
 import sys
 
+import re
+
 import ooxml as O
-from ooxml import border, cell, para, row, run, table
+from ooxml import border, cell, row, run, table
+
+
+def para(content="", **kw):
+    """Igual que ooxml.para pero con interlineado EXACTO por omisión.
+
+    Word y LibreOffice calculan alturas de línea distintas (Segoe UI pide
+    ~1.33 em y DejaVu ~1.17 em). Fijando el interlineado en 1.26 em ambos
+    miden lo mismo y el formato cabe en una hoja en los dos.
+
+    Los párrafos que sólo llevan una imagen no se tocan: un interlineado
+    exacto recortaría el logotipo.
+    """
+    if "line" not in kw:
+        tam = [int(t) for t in re.findall(r'<w:sz w:val="(\d+)"/>', content)]
+        if tam:
+            kw["line"] = int(max(tam) * 12.6)
+            kw["line_rule"] = "exact"
+    return O.para(content, **kw)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(HERE, "assets2")
@@ -145,7 +165,7 @@ def paneles():
             if lado == 0:
                 cs.insert(2, cell(para(run("", sz=2)), g[2],
                                   margins=(0, 0, 0, 0)))
-        filas.append(row(cs, height=282))
+        filas.append(row(cs, height=300))
     return table(filas, g)
 
 
@@ -176,13 +196,13 @@ def tabla_servicios(n_filas=5):
         filas.append(row([
             cell(para(run(str(i), font=FONT_SEMI, sz=19, color=GRIS_TXT,
                           b=True), jc="center"), g[0], fill=fondo, bd=bd,
-                 margins=(120, 100, 120, 100)),
+                 margins=(185, 100, 185, 100)),
             cell(para(campo("srv_desc_%d" % i, marcador)), g[1], fill=fondo,
-                 bd=bd, margins=(120, 200, 120, 200)),
+                 bd=bd, margins=(185, 200, 185, 200)),
             cell(para(campo("srv_imp_%d" % i, importe,
                             font=FONT_SEMI, b=True), jc="right"), g[2],
-                 fill=fondo, bd=bd, margins=(120, 200, 120, 200)),
-        ], height=365))
+                 fill=fondo, bd=bd, margins=(185, 200, 185, 200)),
+        ], height=430))
     return table(filas, g, caption="tblServicios")
 
 
@@ -207,11 +227,13 @@ def totales():
         [row([
             cell(para(run("Total", font=FONT_SEMI, sz=22, color=BLANCO,
                           caps=True, spacing=100, b=True)), 1700, fill=ROJO,
-                 margins=(170, 220, 170, 120)),
+                 margins=(170, 220, 170, 120),
+                 bd=dict(right=border(4, ROJO))),
             cell(para(campo("total", "$ 0.00", sz=26, color=BLANCO,
                             font=FONT_SEMI, b=True, color_ph="F3C9C9"),
                       jc="right"),
-                 g[1] - 1700, fill=ROJO, margins=(170, 120, 170, 220)),
+                 g[1] - 1700, fill=ROJO, margins=(170, 120, 170, 220),
+                 bd=dict(left=border(4, ROJO))),
         ], height=680)],
         [1700, g[1] - 1700])
     der = cell(barra + para(run("", sz=2), after=0), g[1], valign="bottom",
@@ -253,7 +275,7 @@ def condiciones():
             ancho, valign="top",
             margins=(40, 200 if ultimo else 90, 40, 160))
 
-    filas = [row([punto(a, g[0], False), punto(b, g[1], True)], height=235)
+    filas = [row([punto(a, g[0], False), punto(b, g[1], True)], height=250)
              for a, b in CONDICIONES]
     return barra + para(run("", sz=10), after=90) + table(filas, g)
 
