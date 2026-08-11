@@ -32,14 +32,46 @@ Se sigue la de la carátula, que evita el bloque oscuro continuo:
 Antes había negro `#111111` y rojo `#C21112` compitiendo entre sí; ahora hay una
 sola tinta oscura y el rojo solo aparece en el logotipo, que conserva su color de marca.
 
+## El Total se suma solo
+
+El renglón de Total lleva un campo de Word `{ =SUM(C2:C6) \# "$ #,##0.00" }`
+que suma la columna Importe de los cinco servicios.
+
+**Word no recalcula al momento.** Después de capturar los importes hay que
+actualizar el campo:
+
+- Selecciona todo el documento (`Ctrl+E`, o `Ctrl+A` según el idioma de Word) y presiona `F9`, o
+- clic derecho sobre el Total → *Actualizar campos*.
+
+El documento queda con `updateFields`, así que también se actualiza solo al
+abrirlo. Aun así conviene dar `F9` antes de imprimir o mandar el PDF.
+
+### Por qué el Total se movió de lugar
+
+Estaba en una tabla aparte, junto a "Importe con letra". Word solo resuelve
+fórmulas dentro de una misma tabla, así que desde ahí ninguna fórmula alcanzaba
+la columna de importes: se probó y daba 0. Ahora el Total es el último renglón
+de la tabla de servicios, que además es donde lo pone la carátula
+(`VALOR TOTAL DE LAS MERCANCIAS` va bajo su tabla).
+
+### Por qué los importes ya no son control de contenido
+
+Las cinco celdas de Importe eran controles de contenido (`srv_imp_1`…`srv_imp_5`).
+Word no lee el texto de un control de contenido al evaluar una fórmula: con
+control el Total daba 0, sin control y con el mismo texto dio 24,450.50. Se
+quitaron solo esas cinco; los otros 17 campos del formulario siguen siendo
+controles. Las celdas se ven igual — se escribe encima del texto de ejemplo.
+
+Se puede capturar con formato: `$ 12,500.00` se suma correctamente.
+
 ## Regenerar
 
-Si el formato base cambia, `recolorear_cotizacion.py` vuelve a aplicar la paleta
-sin tocar nada más:
+Si el formato base cambia, los dos scripts lo reconstruyen:
 
 ```bash
 mkdir base && cd base && unzip -q ../FORMATO_COTIZACION_ORIGINAL.docx
-python3 ../recolorear_cotizacion.py .
+python3 ../recolorear_cotizacion.py .    # paleta
+python3 ../agregar_suma.py .             # Total automático
 zip -Xq -D ../FORMATO_COTIZACION.docx '[Content_Types].xml'
 zip -Xrq -D ../FORMATO_COTIZACION.docx . -x '[Content_Types].xml'
 ```
