@@ -8,6 +8,8 @@ pedidos:
   * fuera las columnas TIPO DE UNIDAD, CANT. y TARIFA UNITARIA
   * fuera SUBTOTAL, I.V.A. 16% y RET. I.V.A. 4%: queda sólo el TOTAL
   * fuera el apartado de firmas (ELABORÓ / ACEPTACIÓN DEL CLIENTE)
+  * las condiciones comerciales se sustituyen por las seis consideraciones
+    importantes que entregó el cliente
   * la página es www.fletestauro.com.mx
 
 Uso:  python3 forma.py [directorio_salida]
@@ -246,43 +248,50 @@ def totales():
     return table([row([izq, der])], g)
 
 
-CONDICIONES = [
-    ("Vigencia de la cotización: 15 días naturales a partir de la fecha de "
-     "emisión.",
-     "Maniobras de carga y descarga por cuenta del cliente."),
-    ("Tarifas en pesos mexicanos (MXN); no incluyen I.V.A. ni retenciones.",
-     "Seguro de mercancía sujeto a cobertura contratada; excedente cotizable."),
-    ("Incluye operador, combustible y casetas en la ruta cotizada.",
-     "Falso flete: 50% de la tarifa si la cancelación es con menos de 12 horas."),
-    ("Tiempo libre de carga y descarga: 6 horas por maniobra.",
-     "El cliente proporcionará los datos de la mercancía para la Carta Porte."),
-    ("Estadías después del tiempo libre: se cotizan por cada 24 horas o "
-     "fracción.",
-     "Servicio sujeto a disponibilidad de unidades al confirmar el embarque."),
+# Texto tal cual lo entregó Fletes Tauro.
+CONSIDERACIONES = [
+    "La presente cotización se emite con base en las características de la "
+    "mercancía proporcionadas por el cliente.",
+
+    "Todos los importes indicados son más IVA.",
+
+    "Los precios están sujetos a validación del peso, dimensiones y condiciones "
+    "reales de la mercancía al momento de la recolección.",
+
+    "El seguro de mercancía es opcional. En caso de requerir que el embarque "
+    "viaje asegurado por Fletes Tauro, el costo será de $.008 por cada millar "
+    "del valor comercial declarado de la mercancía.",
+
+    "La cotización no incluye servicios adicionales como maniobras, almacenajes, "
+    "reexpediciones, citas de entrega (las cuales deberán solicitarse con un "
+    "mínimo de 48 horas de anticipación) ni cualquier otro concepto "
+    "extraordinario que pudiera generarse durante la operación.",
+
+    "Para las recolecciones y entregas locales se utilizan unidades tipo rabón, "
+    "mientras que el traslado entre Monterrey y Ciudad de México se realiza en "
+    "tráiler con caja seca de 48 o 53 pies, de acuerdo con la disponibilidad "
+    "operativa.",
 ]
 
 
 def condiciones():
+    """Barra negra + las consideraciones a todo el ancho de la hoja."""
     barra = table(
         [row([cell(
-            para(run("Condiciones comerciales", font=FONT_SEMI, sz=17,
+            para(run("Consideraciones importantes", font=FONT_SEMI, sz=17,
                      color=BLANCO, caps=True, spacing=80, b=True)),
             W, fill=NEGRO, margins=(90, 170, 90, 170))], height=350)],
         [W])
-    g = [W // 2, W - W // 2]
 
-    def punto(texto, ancho, ultimo):
-        return cell(
-            para(run("▪", font=FONT, sz=12, color=ROJO, b=True)
-                 + run("  ", font=FONT, sz=12)
-                 + run(texto, font=FONT, sz=12, color=GRIS_TXT),
-                 ind_left=230, ind_hanging=230),
-            ancho, valign="top",
-            margins=(30, 200 if ultimo else 90, 30, 160))
+    puntos = "".join(
+        para(run("▪", font=FONT, sz=15, color=ROJO, b=True)
+             + O.tab_run(font=FONT, sz=15)
+             + run(texto, font=FONT, sz=15, color=GRIS_TXT),
+             ind_left=340, ind_hanging=340, ind_right=120,
+             before=0, after=90, tabs=[("left", 340, None)])
+        for texto in CONSIDERACIONES)
 
-    filas = [row([punto(a, g[0], False), punto(b, g[1], True)], height=210)
-             for a, b in CONDICIONES]
-    return barra + para(run("", sz=10), after=90) + table(filas, g)
+    return barra + para(run("", sz=10), after=130) + puntos
 
 
 WEB = "www.fletestauro.com.mx"
@@ -438,7 +447,7 @@ def construir(destino):
         para(run("", sz=6), after=40),
         condiciones(),
         para(run("La aceptación de esta cotización implica la conformidad con "
-                 "las condiciones comerciales aquí descritas.",
+                 "las consideraciones aquí descritas.",
                  font=FONT, sz=13, color=GRIS_TXT, i=True), jc="center",
              before=120, after=0),
         O.sect_pr(top=MARGEN_TOP, bottom=MARGEN_BOT, left=MARGEN_X,
