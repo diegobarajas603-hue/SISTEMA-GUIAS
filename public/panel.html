@@ -161,19 +161,8 @@
       <!-- ==================================================== Dashboard -->
       <section id="v-dashboard" style="display:none">
         <div class="kpis" id="kpis"></div>
-
-        <div class="card corredor">
-          <div class="corredor__head">
-            <div>
-              <span class="corredor__label">Corredor unico</span>
-              <h2 class="corredor__titulo">Monterrey <span class="corredor__flecha">&#8646;</span> Ciudad de Mexico</h2>
-            </div>
-            <div class="corredor__total">
-              <div class="corredor__total-num" id="corredorTotal">0</div>
-              <div class="corredor__total-txt">Guias en el sistema</div>
-            </div>
-          </div>
-          <div class="corredor__plazas" id="corredorPlazas"></div>
+        <div class="card">
+          <h2 class="titulo-card">Donde esta la mercancia</h2>
           <div class="flujo" id="flujo"></div>
         </div>
 
@@ -1110,15 +1099,14 @@
          ${UI.skeleton('skeleton--num', 'width:56%')}
          <div style="margin-top:var(--space-8)">${UI.skeleton('skeleton--label', 'width:82%')}</div>
        </div>`).join('');
-    $('corredorPlazas').innerHTML =
-      `${UI.skeleton('skeleton--text', 'width:140px')}${UI.skeleton('skeleton--text', 'width:140px')}`;
     $('flujo').innerHTML = `
-      <div class="flujo__col">${UI.skeleton('skeleton--text', 'width:90%;margin-bottom:var(--space-12)')}
+      <div class="plaza-col">${UI.skeleton('skeleton--text', 'width:60%;margin-bottom:var(--space-16)')}
+        ${UI.skeleton('skeleton--text', 'width:90%;margin-bottom:var(--space-12)')}
         ${UI.skeleton('skeleton--text', 'width:75%;margin-bottom:var(--space-12)')}
         ${UI.skeleton('skeleton--text', 'width:85%')}</div>
-      <div class="flujo__transitos">${UI.skeleton('skeleton--text', 'width:100%;margin-bottom:var(--space-16)')}
-        ${UI.skeleton('skeleton--text', 'width:100%')}</div>
-      <div class="flujo__col">${UI.skeleton('skeleton--text', 'width:88%;margin-bottom:var(--space-12)')}
+      <div class="transitos">${UI.skeleton('skeleton--text', 'width:100%')}</div>
+      <div class="plaza-col">${UI.skeleton('skeleton--text', 'width:60%;margin-bottom:var(--space-16)')}
+        ${UI.skeleton('skeleton--text', 'width:88%;margin-bottom:var(--space-12)')}
         ${UI.skeleton('skeleton--text', 'width:70%;margin-bottom:var(--space-12)')}
         ${UI.skeleton('skeleton--text', 'width:92%')}</div>`;
     $('graficaEtapa').innerHTML = UI.skeleton('skeleton--row', 'height:220px');
@@ -1159,7 +1147,6 @@
         })
       );
 
-      UI.countUp($('corredorTotal'), r.totalGuias || 0);
       pintarFlujo(p);
       pintarGraficaEtapa(p);
       pintarGraficaMezcla(p);
@@ -1167,7 +1154,6 @@
       revisarDetenidas();
     } catch (e) {
       UI.montarError($('kpis'), e.message, cargarDashboard);
-      $('corredorPlazas').innerHTML = '';
       $('flujo').innerHTML = '';
       $('graficaEtapa').innerHTML = '';
       $('graficaMezcla').innerHTML = '';
@@ -1182,64 +1168,54 @@
   const tabDeEstatus = (est) => (est.endsWith('_MTY') ? 'CDMX' : 'MTY');
 
   function filaFlujo(estatus, texto, total) {
-    return `<button class="flujo__fila" data-est="${estatus}" title="Ver estas guias">
+    return `<button class="plaza-fila" data-est="${estatus}" title="Ver estas guias">
       <span class="dot dot--${UI.statusKind(estatus)}"></span>
-      <span class="flujo__fila-num">${total}</span>
-      <span class="flujo__fila-txt">${texto}</span>
+      <span class="plaza-fila__num">${total}</span>
+      <span class="plaza-fila__txt">${texto}</span>
     </button>`;
   }
 
-  function columnaPlaza(plaza, p) {
+  function columnaPlaza(plaza, nombre, p) {
     const bodega = p['EN_BODEGA_' + plaza] || 0;
     const reparto = p['EN_RUTA_ENTREGA_' + plaza] || 0;
     const entregadas = p['ENTREGADO_' + plaza] || 0;
-    const html = `<div class="flujo__col flujo__col--${plaza === 'MTY' ? 'izq' : 'der'}">
+    return `<div class="plaza-col">
+      <div class="plaza-col__head">
+        <span class="dot dot--accent"></span>
+        <span class="plaza-col__nombre">${nombre}</span>
+      </div>
       ${filaFlujo('EN_BODEGA_' + plaza, 'En bodega', bodega)}
       ${filaFlujo('EN_RUTA_ENTREGA_' + plaza, 'En reparto', reparto)}
       ${filaFlujo('ENTREGADO_' + plaza, 'Entregadas', entregadas)}
+      <div class="plaza-fila plaza-fila--total">
+        <span class="plaza-fila__num">${bodega + reparto + entregadas}</span>
+        <span class="plaza-fila__txt">En la plaza</span>
+      </div>
     </div>`;
-    return { html, total: bodega + reparto + entregadas };
   }
 
-  function barraTransito(estatus, ruta, dir, total, tope) {
-    const pct = total > 0 ? Math.max(10, Math.round((total / tope) * 100)) : 0;
-    const cabecera = dir === 'der'
-      ? `<span class="flujo__transito-ruta">${ruta}</span><span class="flujo__transito-num">${total}</span>`
-      : `<span class="flujo__transito-num">${total}</span><span class="flujo__transito-ruta">${ruta}</span>`;
-    return `<button class="flujo__transito flujo__transito--${dir} ${total > 0 ? 'is-activa' : ''}"
-                     data-est="${estatus}" title="Ver estas guias">
-      <span class="flujo__transito-cab">${cabecera}</span>
-      <span class="flujo__transito-pista"><span class="flujo__transito-relleno" style="width:${pct}%"></span></span>
-    </button>`;
+  function flechaTransito(estatus, ruta, dir, total) {
+    const punta = dir === 'der' ? 'flecha--der' : 'flecha--izq';
+    return `<div class="flecha ${punta} ${total > 0 ? 'is-activa' : ''}" data-est="${estatus}">
+      <span class="flecha__ruta">${ruta}</span>
+      <span class="flecha__pista">
+        <span class="flecha__linea"><span class="flecha__luz"></span></span>
+        <svg class="flecha__punta" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5L7.5 5L4 8.5"/></svg>
+        <span class="flecha__chip">${total}</span>
+      </span>
+    </div>`;
   }
 
   function pintarFlujo(p) {
     const aCDMX = p.EN_TRANSITO_A_CDMX || 0;
     const aMTY = p.EN_TRANSITO_A_MTY || 0;
-    const tope = Math.max(aCDMX, aMTY, 1);
-
-    const mty = columnaPlaza('MTY', p);
-    const cdmx = columnaPlaza('CDMX', p);
-
-    $('corredorPlazas').innerHTML = `
-      <div class="corredor__plaza corredor__plaza--izq">
-        <span class="dot dot--mty"></span>
-        <span class="corredor__plaza-nombre">Monterrey</span>
-        <span class="corredor__plaza-total"><b>${mty.total}</b> en plaza</span>
-      </div>
-      <div class="corredor__plaza corredor__plaza--der">
-        <span class="corredor__plaza-total"><b>${cdmx.total}</b> en plaza</span>
-        <span class="corredor__plaza-nombre">Ciudad de Mexico</span>
-        <span class="dot dot--cdmx"></span>
-      </div>`;
-
     $('flujo').innerHTML =
-      mty.html +
-      `<div class="flujo__transitos">
-        ${barraTransito('EN_TRANSITO_A_CDMX', 'MTY &rarr; CDMX', 'der', aCDMX, tope)}
-        ${barraTransito('EN_TRANSITO_A_MTY', 'CDMX &rarr; MTY', 'izq', aMTY, tope)}
+      columnaPlaza('MTY', 'Monterrey', p) +
+      `<div class="transitos">
+        ${flechaTransito('EN_TRANSITO_A_CDMX', 'MTY &rarr; CDMX', 'der', aCDMX)}
+        ${flechaTransito('EN_TRANSITO_A_MTY', 'CDMX &rarr; MTY', 'izq', aMTY)}
       </div>` +
-      cdmx.html;
+      columnaPlaza('CDMX', 'Ciudad de Mexico', p);
 
     $('flujo').querySelectorAll('[data-est]').forEach((el) =>
       el.addEventListener('click', () => irAGuias(tabDeEstatus(el.dataset.est), el.dataset.est))
