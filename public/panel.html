@@ -2480,7 +2480,7 @@
           }
         })
       );
-      document.querySelectorAll('#tbodyUsuarios [data-id]').forEach((b) =>
+      document.querySelectorAll('#tbodyUsuarios .btn--danger-ghost[data-id]').forEach((b) =>
         b.addEventListener('click', async () => {
           const ok = await UI.confirmar({
             titulo: `¿Eliminar al usuario "${b.dataset.usuario}"?`,
