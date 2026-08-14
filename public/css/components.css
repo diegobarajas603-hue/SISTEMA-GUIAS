@@ -136,6 +136,8 @@
 .dot--cancelada { background: var(--st-cancelada-color); }
 .dot--eliminada { background: var(--st-eliminada-color); }
 .dot--accent    { background: var(--accent); }
+.dot--mty       { background: var(--plaza-mty); }
+.dot--cdmx      { background: var(--plaza-cdmx); }
 
 /* ============================================================================
    BUTTON

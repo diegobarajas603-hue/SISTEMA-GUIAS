@@ -331,34 +331,61 @@ tbody tr.clic:hover {
 }
 
 /* ============================================================================
-   DASHBOARD — Donde esta la mercancia
+   DASHBOARD — Corredor unico
+   Una sola card: el total del sistema, cuanto hay en cada plaza y cuanto
+   viaja entre ellas. Sustituye a las dos plazas en cajas separadas por una
+   lectura de un vistazo, de izquierda (MTY) a derecha (CDMX).
    ==========================================================================*/
 
-.flujo {
-  display: grid;
-  grid-template-columns: 1fr 200px 1fr;
-  gap: var(--space-16);
-  align-items: stretch;
-}
-
-/* ---------- Columna de plaza ---------- */
-
-.plaza-col {
-  background: var(--bg-inset);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-16);
-}
-
-.plaza-col__head {
+.corredor__head {
   display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  padding-bottom: var(--space-12);
-  border-bottom: 1px solid var(--border-subtle);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-16);
+  margin-bottom: var(--space-20);
 }
 
-.plaza-col__nombre {
+.corredor__label {
+  display: block;
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.corredor__titulo {
+  font-size: var(--t-h1-size);
+  line-height: var(--t-h1-line);
+  font-weight: var(--t-h1-weight);
+  letter-spacing: var(--t-h1-tracking);
+  color: var(--text-primary);
+}
+
+.corredor__flecha {
+  display: inline-block;
+  padding: 0 var(--space-4);
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.corredor__total {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.corredor__total-num {
+  font-size: var(--t-display-size);
+  line-height: var(--t-display-line);
+  font-weight: var(--t-display-weight);
+  letter-spacing: var(--t-display-tracking);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.corredor__total-txt {
   font-size: var(--t-label-size);
   line-height: var(--t-label-line);
   font-weight: var(--t-label-weight);
@@ -367,85 +394,127 @@ tbody tr.clic:hover {
   color: var(--text-secondary);
 }
 
-.plaza-fila {
+/* ---------- Fila con el total de cada plaza ---------- */
+
+.corredor__plazas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+  padding-bottom: var(--space-16);
+  margin-bottom: var(--space-20);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.corredor__plaza {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--t-body-size);
+  white-space: nowrap;
+}
+
+.corredor__plaza-nombre {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.corredor__plaza-total {
+  color: var(--text-secondary);
+}
+
+.corredor__plaza-total b {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ---------- Cuerpo: columnas de estatus + transitos ---------- */
+
+.flujo {
+  display: grid;
+  grid-template-columns: 1fr 180px 1fr;
+  gap: var(--space-24);
+  align-items: center;
+}
+
+.flujo__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.flujo__col--der {
+  align-items: flex-end;
+}
+
+.flujo__col--der .flujo__fila {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.flujo__fila {
   display: flex;
   width: 100%;
-  align-items: baseline;
-  gap: var(--space-12);
-  padding: var(--space-12) var(--space-8);
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8);
   margin: 0 calc(var(--space-8) * -1);
   border-radius: var(--radius-sm);
-  border-bottom: 1px solid var(--border-subtle);
   text-align: left;
   transition: background-color var(--t-fast) var(--ease);
 }
 
-button.plaza-fila:hover {
+button.flujo__fila:hover {
   background: var(--overlay-hover);
 }
 
-.plaza-fila:last-child {
-  border-bottom: 0;
-}
-
-.plaza-fila .dot {
-  align-self: center;
-}
-
-.plaza-fila__num {
+.flujo__fila-num {
   font-family: var(--font-mono);
-  font-size: 18px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--text-primary);
   min-width: 2.5ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.flujo__col--der .flujo__fila-num {
   text-align: right;
 }
 
-.plaza-fila__txt {
+.flujo__fila-txt {
   font-size: 13px;
   color: var(--text-secondary);
 }
 
-/* Fila de total: separada del resto */
-.plaza-fila--total {
-  margin-top: var(--space-4);
-  padding-top: var(--space-12);
-  border-top: 1px solid var(--border-default);
-  border-bottom: 0;
-}
+/* ---------- Columna central: barras de transito ---------- */
 
-.plaza-fila--total .plaza-fila__txt {
-  font-size: var(--t-label-size);
-  font-weight: var(--t-label-weight);
-  letter-spacing: var(--t-label-tracking);
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-
-/* ---------- Columna central: las dos flechas de transito ---------- */
-
-.transitos {
+.flujo__transitos {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: var(--space-32);
+  gap: var(--space-24);
 }
 
-/* El rotulo de la ruta va en su propio renglon, no encima de la linea:
-   posicionado en absoluto se montaba sobre el chip del conteo. */
-.flecha {
+.flujo__transito {
   display: flex;
   flex-direction: column;
+  width: 100%;
   gap: var(--space-8);
-  --flecha-color: var(--text-tertiary);
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 
-.flecha.is-activa {
-  --flecha-color: var(--st-transito-color);
+.flujo__transito-cab {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
 }
 
-.flecha__ruta {
-  text-align: center;
+.flujo__transito-ruta {
   font-size: var(--t-label-size);
   line-height: var(--t-label-line);
   font-weight: var(--t-label-weight);
@@ -454,114 +523,54 @@ button.plaza-fila:hover {
   color: var(--text-tertiary);
 }
 
-/* La pista: linea, punta, chip y luz comparten este sistema de referencia */
-.flecha__pista {
-  position: relative;
-  display: flex;
-  align-items: center;
-  height: var(--space-32);
-}
-
-/* Linea de 1px que se desvanece en los extremos */
-.flecha__linea {
-  position: relative;
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent 0%, var(--flecha-color) 22%, var(--flecha-color) 78%, transparent 100%);
-  opacity: 0.55;
-}
-
-.flecha.is-activa .flecha__linea {
-  opacity: 1;
-}
-
-.flecha__punta {
-  position: absolute;
-  top: 50%;
-  width: 10px;
-  height: 10px;
-  margin-top: -5px;
-  color: var(--flecha-color);
-}
-
-.flecha--der .flecha__punta { right: 0; }
-.flecha--izq .flecha__punta { left: 0; transform: rotate(180deg); }
-
-.flecha__chip {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) 10px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
+.flujo__transito-num {
   font-family: var(--font-mono);
-  font-size: var(--t-small-size);
-  color: var(--text-secondary);
-  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
-.flecha.is-activa .flecha__chip {
+.flujo__transito.is-activa .flujo__transito-num {
   color: var(--st-transito-text);
-  border-color: var(--st-transito-border);
 }
 
-/* Punto de luz que recorre la linea.
-   Unico loop permitido en toda la aplicacion.
-   Se anima "left" en vez de translateX: el porcentaje se mide contra la
-   pista, asi que recorre justo su ancho sea cual sea, en vez de una
-   distancia fija en pixeles que se quedaba corta o se pasaba. */
-.flecha__luz {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 4px;
-  height: 4px;
-  margin: -2px 0 0 -2px;
+.flujo__transito-pista {
+  display: flex;
+  height: 6px;
   border-radius: var(--radius-full);
-  background: var(--st-transito-color);
-  opacity: 0;
+  background: var(--bg-inset);
+  overflow: hidden;
 }
 
-/* Cada sentido tiene su propio recorrido en vez de reproducir uno al reves.
-   Con animation-direction:reverse las dos luces arrancaban en fases opuestas
-   —una empezaba cuando la otra iba terminando— y ademas la curva de easing,
-   invertida, frenaba el punto en los extremos y parecia que se trababa.
-   Con dos juegos de fotogramas y avance lineal las dos salen a la vez, cada
-   una hacia su lado, y a velocidad pareja de punta a punta. */
-.flecha.is-activa .flecha__luz {
-  animation: recorrer-der 4s linear infinite;
+.flujo__transito--izq .flujo__transito-pista {
+  justify-content: flex-end;
 }
 
-.flecha.is-activa.flecha--izq .flecha__luz {
-  animation-name: recorrer-izq;
+.flujo__transito-relleno {
+  height: 100%;
+  width: 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(to right, transparent, var(--st-transito-color));
+  transition: width var(--t-normal) var(--ease);
 }
 
-@keyframes recorrer-der {
-  0%   { left: 0;    opacity: 0; }
-  12%  { opacity: 0.55; }
-  88%  { opacity: 0.55; }
-  100% { left: 100%; opacity: 0; }
-}
-
-@keyframes recorrer-izq {
-  0%   { left: 100%; opacity: 0; }
-  12%  { opacity: 0.55; }
-  88%  { opacity: 0.55; }
-  100% { left: 0;    opacity: 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .flecha.is-activa .flecha__luz { animation: none; }
+.flujo__transito--izq .flujo__transito-relleno {
+  background: linear-gradient(to left, transparent, var(--st-transito-color));
 }
 
 @media (max-width: 900px) {
+  .corredor__head { flex-direction: column; }
+  .corredor__total { text-align: left; }
+
+  .corredor__plazas { flex-wrap: wrap; row-gap: var(--space-8); }
+
   .flujo { grid-template-columns: 1fr; }
-  .transitos { gap: var(--space-16); }
+  .flujo__transitos { gap: var(--space-16); }
+
+  .flujo__col--der { align-items: flex-start; }
+  .flujo__col--der .flujo__fila { flex-direction: row; text-align: left; }
+  .flujo__col--der .flujo__fila-num { text-align: left; }
 }
 
 /* ============================================================================
