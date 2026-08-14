@@ -100,9 +100,9 @@ app.get('/api/usuarios', requireAuth, requireAdmin, seguro(async (req, res) => {
 }));
 
 app.post('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
-  const { usuario, nombre, password, rol, plaza } = req.body || {};
+  const { usuario, nombre, password, roles, plaza } = req.body || {};
   try {
-    res.status(201).json(await auth.crearUsuario({ usuario, nombre, password, rol: rol || 'operador', plaza }));
+    res.status(201).json(await auth.crearUsuario({ usuario, nombre, password, roles, plaza }));
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
@@ -117,9 +117,9 @@ app.put('/api/usuarios/:id/plaza', requireAuth, requireAdmin, async (req, res) =
   }
 });
 
-app.put('/api/usuarios/:id/rol', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/usuarios/:id/roles', requireAuth, requireAdmin, async (req, res) => {
   try {
-    await auth.actualizarRol(Number(req.params.id), (req.body || {}).rol, req.usuario);
+    await auth.actualizarRoles(Number(req.params.id), (req.body || {}).roles, req.usuario);
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -167,11 +167,11 @@ app.post('/api/guias/escanear', requireAuth, async (req, res) => {
   // domicilio). El panel ya oculta los demas, pero se valida aqui tambien:
   // esconder un boton no es una restriccion.
   const modoPedido = String(modo || 'bodega').trim().toLowerCase();
-  if (!auth.puedeModo(req.usuario.rol, modoPedido)) {
-    const permitidos = auth.modosDeRol(req.usuario.rol);
+  if (!auth.puedeModo(req.usuario.roles, modoPedido)) {
+    const permitidos = auth.modosDeRoles(req.usuario.roles);
     return res.status(403).json({
       error: permitidos.length
-        ? `Tu usuario (${auth.nombreDeRol(req.usuario.rol)}) no puede hacer escaneos de tipo "${modoPedido}"`
+        ? `Tu usuario (${auth.nombresDeRoles(req.usuario.roles).join(', ')}) no puede hacer escaneos de tipo "${modoPedido}"`
         : 'Tu usuario no tiene permitido escanear guias',
     });
   }

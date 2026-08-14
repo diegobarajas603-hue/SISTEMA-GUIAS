@@ -438,13 +438,6 @@
                   <input class="input" type="password" id="nuPassword" autocomplete="new-password" required minlength="6" />
                 </label>
                 <label class="field">
-                  <span class="field__label">Rol</span>
-                  <select class="select" id="nuRol">
-                    <option value="operador">Operador</option>
-                    <option value="admin">Administrador</option>
-                  </select>
-                </label>
-                <label class="field">
                   <span class="field__label">Plaza (donde trabaja)</span>
                   <select class="select" id="nuPlaza">
                     <option value="MTY">Monterrey (solo escanea en MTY)</option>
@@ -452,6 +445,10 @@
                     <option value="">Ambas plazas</option>
                   </select>
                 </label>
+                <div class="field" style="grid-column:1 / -1;">
+                  <span class="field__label">Roles (elige uno o mas)</span>
+                  <div class="roles-chooser" id="nuRoles"></div>
+                </div>
               </div>
               <div class="msg-form" id="msgUsuarios"></div>
               <button class="btn btn--primary" type="submit" style="margin-top:var(--space-16);">Crear usuario</button>
@@ -674,18 +671,53 @@
   let ROLES = [];
 
   async function cargarRoles() {
-    if (ROLES.length) return;
+    if (ROLES.length) return ROLES;
     try { ROLES = await api('/api/roles'); } catch { ROLES = []; }
-    if (!ROLES.length) return;
-    const sel = $('nuRol');
-    sel.innerHTML = ROLES.map((r) => `<option value="${r.id}">${esc(r.nombre)}</option>`).join('');
-    if (ROLES.some((r) => r.id === 'salidas')) sel.value = 'salidas';
+    return ROLES;
   }
 
   function nombreRol(id) {
     const r = ROLES.find((x) => x.id === id);
     if (r) return r.nombre;
     return id === 'admin' ? 'Administrador' : id === 'operador' ? 'Operador (todos los escaneos)' : id;
+  }
+
+  function nombresRoles(roles) {
+    return roles && roles.length ? roles.map(nombreRol).join(', ') : 'Sin rol';
+  }
+
+  // Grupo de chips para elegir uno o mas roles: se usa tanto en "Agregar
+  // usuario" como en el modal de editar roles de un usuario existente.
+  function pintarRolesChooser(el, seleccionados) {
+    const marcados = seleccionados || [];
+    el.innerHTML = ROLES.map((r) =>
+      `<button type="button" class="chip rol-chip" data-rol="${r.id}" aria-pressed="${marcados.includes(r.id)}"
+               title="${esc(r.descripcion || '')}">${esc(r.nombre)}</button>`
+    ).join('');
+    el.querySelectorAll('.rol-chip').forEach((b) =>
+      b.addEventListener('click', () => b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')))
+    );
+  }
+
+  function rolesElegidos(el) {
+    return [...el.querySelectorAll('.rol-chip[aria-pressed="true"]')].map((b) => b.dataset.rol);
+  }
+
+  // Modal para editar los roles de un usuario existente (checkboxes serian
+  // mas convencionales, pero los chips reusan el mismo patron visual y
+  // codigo que "Agregar usuario", asi que no hay dos formas de elegir rol).
+  function editarRoles(nombreUsuario, rolesActuales) {
+    return UI.confirmar({
+      titulo: `Roles de "${nombreUsuario}"`,
+      descripcion: 'Puedes elegir mas de uno.',
+      cuerpo: '<div class="roles-chooser" id="rolesEditChooser"></div>',
+      confirmar: 'Guardar',
+      alAbrir: (panel) => {
+        pintarRolesChooser(panel.querySelector('#rolesEditChooser'), rolesActuales);
+        panel.querySelector('[data-accion="confirmar"]').focus();
+      },
+      alCerrar: (panel, ok) => (ok ? rolesElegidos(panel.querySelector('#rolesEditChooser')) : null),
+    });
   }
 
   // ---------- Modo eliminacion (oculto tras un atajo de teclado) ----------
@@ -697,7 +729,7 @@
   let modoEliminar = false;
 
   function aplicarModoEliminar() {
-    const activo = !!(usuarioActual && usuarioActual.rol === 'admin' && modoEliminar);
+    const activo = !!(usuarioActual && usuarioActual.roles.includes('admin') && modoEliminar);
     $('btnEliminarGuia').style.display = activo && guiaDetalleActual ? '' : 'none';
     // Se oculta la tarjeta entera, no solo el boton: asi nada delata que existe
     $('cardBorrar').style.display = activo ? '' : 'none';
@@ -706,7 +738,7 @@
   document.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey) || !e.altKey) return;
     if ((e.key || '').toLowerCase() !== 'e') return;
-    if (!usuarioActual || usuarioActual.rol !== 'admin') return;
+    if (!usuarioActual || !usuarioActual.roles.includes('admin')) return;
     e.preventDefault();
     modoEliminar = !modoEliminar;
     aplicarModoEliminar();
@@ -721,18 +753,18 @@
 
   function pintarUsuario() {
     if (!usuarioActual) return;
-    const esAdmin = usuarioActual.rol === 'admin';
+    const esAdmin = usuarioActual.roles.includes('admin');
     const plazaUsuario = usuarioActual.plaza || '';
 
     $('usuarioAvatar').innerHTML = UI.avatar(usuarioActual.nombre, { sm: true });
     $('usuarioNombre').textContent = usuarioActual.nombre;
-    $('usuarioRol').textContent = usuarioActual.rol + (plazaUsuario ? ' · ' + plazaUsuario : '');
+    $('usuarioRol').textContent = nombresRoles(usuarioActual.roles) + (plazaUsuario ? ' · ' + plazaUsuario : '');
 
     $('cfgAvatar').innerHTML = UI.avatar(usuarioActual.nombre);
     $('cfgUsuario').textContent = usuarioActual.nombre;
     $('cfgAlias').textContent = usuarioActual.usuario;
     $('cfgRol').textContent =
-      (esAdmin ? 'Rol: administrador' : 'Rol: operador') +
+      'Rol: ' + nombresRoles(usuarioActual.roles) +
       (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
     $('cardUsuarios').style.display = esAdmin ? '' : 'none';
     $('cardPassword').style.display = esAdmin ? '' : 'none';
@@ -786,6 +818,7 @@
       sesionToken = data.token;
       usuarioActual = data.usuario;
       localStorage.setItem('sesionToken', sesionToken);
+      await cargarRoles();
       pintarUsuario();
       ocultarLogin();
       render();
@@ -843,7 +876,7 @@
     if (!VISTAS.includes(vista)) { vista = 'dashboard'; }
 
     // La bitacora es solo para administradores
-    if (vista === 'bitacora' && usuarioActual && usuarioActual.rol !== 'admin') {
+    if (vista === 'bitacora' && usuarioActual && !usuarioActual.roles.includes('admin')) {
       UI.toast({ tipo: 'warn', titulo: 'Solo administradores', descripcion: 'La bitacora de correcciones esta reservada al rol de administrador.' });
       location.hash = '#/dashboard';
       return;
@@ -2018,7 +2051,7 @@
       const d = await api('/api/guias/' + encodeURIComponent(numeroGuia));
       guiaDetalleActual = d.numero_guia;
       guiaDetalle = d;
-      const esAdminDet = !!(usuarioActual && usuarioActual.rol === 'admin');
+      const esAdminDet = !!(usuarioActual && usuarioActual.roles.includes('admin'));
       $('btnRevertir').style.display = esAdminDet && d.historial.length ? '' : 'none';
       aplicarModoEliminar();
       $('detNumero').textContent = d.numero_guia;
@@ -2359,7 +2392,7 @@
 
   function cargarConfig() {
     pintarUsuario();
-    if (usuarioActual && usuarioActual.rol === 'admin') cargarUsuarios();
+    if (usuarioActual && usuarioActual.roles.includes('admin')) cargarUsuarios();
   }
 
   $('formPassword').addEventListener('submit', async (e) => {
@@ -2383,16 +2416,15 @@
     $('tbodyUsuarios').innerHTML = UI.skeletonRows(3, 4);
     try {
       await cargarRoles();
+      if (!$('nuRoles').children.length) pintarRolesChooser($('nuRoles'), ['salidas']);
       const usuarios = await api('/api/usuarios');
-      // Si alguien conserva un rol que ya no se asigna, su fila debe seguir
-      // mostrandolo: se agrega a la lista solo para ese select
-      const opcionesRol = (sel) => {
-        const lista = ROLES.some((r) => r.id === sel) ? ROLES : [...ROLES, { id: sel, nombre: nombreRol(sel) }];
-        return lista.map((r) => `<option value="${r.id}" ${r.id === sel ? 'selected' : ''}>${esc(r.nombre)}</option>`).join('');
-      };
       const opcionesPlaza = (sel) =>
         [['MTY', 'MTY'], ['CDMX', 'CDMX'], ['', 'Ambas']]
           .map(([v, t]) => `<option value="${v}" ${v === (sel || '') ? 'selected' : ''}>${t}</option>`).join('');
+      const tagsRol = (roles) =>
+        (roles && roles.length ? roles : ['']).map((r) =>
+          `<span class="rol-tag ${r === 'admin' ? 'rol-tag--admin' : ''}">${esc(r ? nombreRol(r) : 'Sin rol')}</span>`
+        ).join('');
       $('tbodyUsuarios').innerHTML = usuarios.map((u) => `<tr>
         <td>
           <span class="celda-usuario">
@@ -2404,9 +2436,11 @@
           </span>
         </td>
         <td>${u.id === usuarioActual.id
-          ? `<span class="rol-tag ${u.rol === 'admin' ? 'rol-tag--admin' : ''}">${esc(nombreRol(u.rol))}</span>`
-          : `<select class="select select--quiet sel-rol" data-id="${u.id}" data-usuario="${esc(u.usuario)}"
-                     aria-label="Rol de ${esc(u.usuario)}">${opcionesRol(u.rol)}</select>`}</td>
+          ? `<span class="roles-chooser">${tagsRol(u.roles)}</span>`
+          : `<button type="button" class="btn-roles" data-uid="${u.id}" data-usuario="${esc(u.usuario)}"
+                     data-roles='${esc(JSON.stringify(u.roles || []))}' aria-label="Editar roles de ${esc(u.usuario)}">
+               ${tagsRol(u.roles)}
+             </button>`}</td>
         <td><select class="select select--quiet sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}"
                     aria-label="Plaza de ${esc(u.usuario)}">${opcionesPlaza(u.plaza)}</select></td>
         <td class="celda-acciones">${u.id === usuarioActual.id
@@ -2419,15 +2453,19 @@
                      title="Eliminar usuario" aria-label="Eliminar a ${esc(u.usuario)}">
                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 9.5a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9L13.5 6"/></svg>
              </button>`}</td></tr>`).join('');
-      document.querySelectorAll('#tbodyUsuarios .sel-rol').forEach((s) =>
-        s.addEventListener('change', async () => {
+      document.querySelectorAll('#tbodyUsuarios .btn-roles').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          const actuales = JSON.parse(btn.dataset.roles || '[]');
+          const nuevos = await editarRoles(btn.dataset.usuario, actuales);
+          if (nuevos === null) return;
+          if (!nuevos.length) { msgForm('msgUsuarios', 'Selecciona al menos un rol', 'err'); return; }
           try {
-            await api('/api/usuarios/' + s.dataset.id + '/rol', { method: 'PUT', body: JSON.stringify({ rol: s.value }) });
-            msgForm('msgUsuarios', `"${s.dataset.usuario}" ahora es ${nombreRol(s.value)}. Aplica en cuanto vuelva a entrar o recargue.`, 'ok');
+            await api('/api/usuarios/' + btn.dataset.uid + '/roles', { method: 'PUT', body: JSON.stringify({ roles: nuevos }) });
+            msgForm('msgUsuarios', `Roles de "${btn.dataset.usuario}" actualizados. Aplica en cuanto vuelva a entrar o recargue.`, 'ok');
           } catch (err2) {
             msgForm('msgUsuarios', err2.message, 'err');
-            cargarUsuarios();
           }
+          cargarUsuarios();
         })
       );
       document.querySelectorAll('#tbodyUsuarios .sel-plaza').forEach((s) =>
@@ -2482,6 +2520,8 @@
 
   $('formNuevoUsuario').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const roles = rolesElegidos($('nuRoles'));
+    if (!roles.length) return msgForm('msgUsuarios', 'Selecciona al menos un rol', 'err');
     try {
       await api('/api/usuarios', {
         method: 'POST',
@@ -2489,11 +2529,12 @@
           usuario: $('nuUsuario').value.trim(),
           nombre: $('nuNombre').value.trim(),
           password: $('nuPassword').value,
-          rol: $('nuRol').value,
+          roles,
           plaza: $('nuPlaza').value,
         }),
       });
       $('formNuevoUsuario').reset();
+      pintarRolesChooser($('nuRoles'), ['salidas']);
       msgForm('msgUsuarios', 'Usuario creado correctamente', 'ok');
       cargarUsuarios();
     } catch (err2) {
@@ -2531,6 +2572,7 @@
     try {
       const me = await api('/api/auth/me');
       usuarioActual = me.usuario;
+      await cargarRoles();
       pintarUsuario();
       ocultarLogin();
       render();
