@@ -158,12 +158,15 @@ async function obtenerHistorial(numeroGuia) {
   return rows;
 }
 
+// Devuelve la guia ya actualizada (RETURNING) para que quien la llama no
+// tenga que hacer un SELECT aparte: cada ida y vuelta a la base de datos
+// cuenta cuando se estan escaneando guias una tras otra.
 async function actualizarEstatus(numeroGuia, estatus) {
-  await pool.query('UPDATE guias SET estatus = $1, actualizado_en = $2 WHERE numero_guia = $3', [
-    estatus,
-    now(),
-    numeroGuia,
-  ]);
+  const { rows } = await pool.query(
+    'UPDATE guias SET estatus = $1, actualizado_en = $2 WHERE numero_guia = $3 RETURNING *',
+    [estatus, now(), numeroGuia]
+  );
+  return rows[0];
 }
 
 // Prefijo del numero de guia segun la plaza de la que sale:
@@ -188,13 +191,13 @@ function validarPrefijoSalida(numeroGuia, plaza) {
 async function marcarSalida(numeroGuia, plaza, destino, usuario) {
   validarPrefijoSalida(numeroGuia, plaza);
   const estatus = enTransitoA(destino);
-  await pool.query(
-    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
+  const { rows } = await pool.query(
+    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5 RETURNING *',
     [plaza, destino, estatus, now(), numeroGuia]
   );
   const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
   await registrarEvento(numeroGuia, ACCIONES.SALIDA, estatus, plaza, descripcion, pool, usuario);
-  return { guia: await obtenerGuia(numeroGuia), tipo: 'salida', mensaje: descripcion };
+  return { guia: rows[0], tipo: 'salida', mensaje: descripcion };
 }
 
 // Escaneo inteligente: segun la plaza donde se escanea, el modo de operacion y
@@ -236,22 +239,22 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null) 
     // corresponder a la plaza (AN sale de MTY, BN sale de CDMX)
     validarPrefijoSalida(numeroGuia, plaza);
     const estatus = enTransitoA(destino);
-    await pool.query(
+    const { rows } = await pool.query(
       `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en)
-       VALUES ($1, $2, $3, $4, $5, $5)`,
+       VALUES ($1, $2, $3, $4, $5, $5) RETURNING *`,
       [numeroGuia, plaza, destino, estatus, now()]
     );
     const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
     await registrarEvento(numeroGuia, ACCIONES.SALIDA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'salida', mensaje: descripcion };
+    return { guia: rows[0], tipo: 'salida', mensaje: descripcion };
   }
 
   if (guia.estatus === enTransitoA(plaza)) {
     const estatus = enBodega(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
+    const guiaActualizada = await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Llego a bodega ${plaza}`;
     await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
+    return { guia: guiaActualizada, tipo: 'llegada', mensaje: descripcion };
   }
 
   if (guia.estatus === enBodega(plaza) || guia.estatus === entregado(plaza) || guia.estatus === entregado(destino)) {
@@ -260,10 +263,10 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null) 
 
   if (guia.estatus === enRutaEntrega(plaza)) {
     const estatus = enBodega(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
+    const guiaActualizada = await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Regreso a bodega ${plaza} (entrega no completada)`;
     await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
+    return { guia: guiaActualizada, tipo: 'llegada', mensaje: descripcion };
   }
 
   if (guia.estatus === enTransitoA(destino)) {
@@ -274,13 +277,13 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null) 
 
   // EN_BODEGA_Q o EN_RUTA_ENTREGA_Q: aparecio en P sin los escaneos previos en Q
   const estatus = enBodega(plaza);
-  await pool.query(
-    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
+  const { rows } = await pool.query(
+    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5 RETURNING *',
     [destino, plaza, estatus, now(), numeroGuia]
   );
   const descripcion = `Llego a bodega ${plaza} (sin registro de salida de bodega ${destino})`;
   await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion, pool, usuario);
-  return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
+  return { guia: rows[0], tipo: 'llegada', mensaje: descripcion };
 }
 
 // Escaneos de entrega (a domicilio o en ocurre) en la plaza donde esta el paquete
@@ -306,18 +309,18 @@ async function escanearEntrega(numeroGuia, plaza, modo, usuario = null) {
 
   if (modo === 'domicilio' && guia.estatus === enBodega(plaza)) {
     const estatus = enRutaEntrega(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
+    const guiaActualizada = await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Paquete en ruta de entrega en ${plaza}`;
     await registrarEvento(numeroGuia, ACCIONES.RUTA_ENTREGA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'ruta', mensaje: descripcion };
+    return { guia: guiaActualizada, tipo: 'ruta', mensaje: descripcion };
   }
 
   if (modo === 'domicilio' && guia.estatus === enRutaEntrega(plaza)) {
     const estatus = entregado(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
+    const guiaActualizada = await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Entregado a domicilio en ${plaza}`;
     await registrarEvento(numeroGuia, ACCIONES.ENTREGA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'entregado', mensaje: descripcion };
+    return { guia: guiaActualizada, tipo: 'entregado', mensaje: descripcion };
   }
 
   // Ocurre solo aplica a paquetes que estan fisicamente en la bodega: si el
@@ -331,10 +334,10 @@ async function escanearEntrega(numeroGuia, plaza, modo, usuario = null) {
 
   if (modo === 'ocurre' && guia.estatus === enBodega(plaza)) {
     const estatus = entregado(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
+    const guiaActualizada = await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Entregado en ocurre (bodega ${plaza})`;
     await registrarEvento(numeroGuia, ACCIONES.ENTREGA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'entregado', mensaje: descripcion };
+    return { guia: guiaActualizada, tipo: 'entregado', mensaje: descripcion };
   }
 
   throw new Error(`La guia no esta disponible para entrega en ${plaza} (estatus actual: ${guia.estatus})`);

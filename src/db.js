@@ -44,6 +44,11 @@ async function init() {
 
     CREATE INDEX IF NOT EXISTS idx_eventos_numero_guia ON eventos (numero_guia);
     CREATE INDEX IF NOT EXISTS idx_guias_actualizado_en ON guias (actualizado_en DESC);
+    -- Cada escaneo busca la guia por numero_guia (ya es PK) O por complemento.
+    -- Sin este indice esa segunda rama fuerza un recorrido completo de la
+    -- tabla en cada escaneo, y se pone mas lento a medida que crecen las
+    -- guias. Parcial porque casi ninguna guia tiene complemento.
+    CREATE INDEX IF NOT EXISTS idx_guias_complemento ON guias (complemento) WHERE complemento IS NOT NULL;
 
     -- Bitacora de eliminaciones y cancelaciones.
     --
