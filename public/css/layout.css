@@ -449,7 +449,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-4);
-  height: var(--h-chip);
+  height: var(--h-search);
   padding: 0 var(--space-12) 0 10px;
   border: 1px solid var(--st-transito-border);
   border-radius: var(--radius-full);
@@ -457,8 +457,20 @@
   color: var(--st-transito-text);
   cursor: pointer;
   white-space: nowrap;
-  animation: alerta-latido 2.4s var(--ease) infinite,
-             alerta-insistir 9s var(--ease) infinite;
+  position: relative;
+  animation: alerta-latido 1.6s var(--ease) infinite,
+             alerta-insistir 6s var(--ease) infinite;
+}
+
+/* La onda va en un pseudo-elemento y no en la pastilla: asi puede salir
+   despedida y reaparecer desde cero en cada latido, sin encogerse de vuelta */
+.alerta-estancadas::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: alerta-onda 1.6s var(--ease) infinite;
 }
 
 /* El display de la clase le gana al del atributo, asi que hay que apagarlo
@@ -476,32 +488,50 @@
 }
 
 .alerta-estancadas__ico {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  width: var(--icon-md);
+  height: var(--icon-md);
   flex-shrink: 0;
 }
 
 .alerta-estancadas__n {
   font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--t-body-size);
+  font-weight: 700;
   line-height: 1;
 }
 
-/* Latido: el halo se expande y se apaga, como el indicador de "listo" del
-   escaner pero en ambar */
+/* Latido: la pastilla se enciende entera, en ambar solido y con el numero en
+   oscuro. Es el destello mas fuerte del panel a proposito: no es decoracion,
+   es la unica senal de que hay mercancia parada y se mira de reojo mientras se
+   escanea. El pico se sostiene un momento (45-62%) para que se alcance a leer
+   y no sea un parpadeo. */
 @keyframes alerta-latido {
-  0%, 100% { box-shadow: 0 0 0 0 var(--st-transito-halo); }
-  50%      { box-shadow: 0 0 0 6px transparent; }
+  0%, 100% {
+    background: var(--alerta-ico-bg);
+    border-color: var(--st-transito-border);
+    color: var(--st-transito-text);
+  }
+  45%, 62% {
+    background: var(--alerta-pico-bg);
+    border-color: var(--alerta-pico-bg);
+    color: var(--alerta-pico-texto);
+  }
 }
 
-/* Sacudida corta cada 9 s: el 93% del ciclo esta quieto, de modo que llama
-   la atencion sin convertirse en ruido de fondo */
+/* Onda: sale de la pastilla y se apaga a 14 px */
+@keyframes alerta-onda {
+  0%   { box-shadow: 0 0 0 0 var(--alerta-onda); }
+  70%  { box-shadow: 0 0 0 14px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* Sacudida corta cada 6 s: el 92% del ciclo esta quieto, de modo que vuelve
+   a llamar la atencion sin convertirse en ruido de fondo */
 @keyframes alerta-insistir {
-  0%, 4%, 100% { transform: translateX(0); }
-  1%           { transform: translateX(-3px); }
-  2%           { transform: translateX(3px); }
-  3%           { transform: translateX(-2px); }
+  0%, 8%, 100% { transform: translateX(0); }
+  2%           { transform: translateX(-4px); }
+  4%           { transform: translateX(4px); }
+  6%           { transform: translateX(-2px); }
 }
 
 /* ---------- Reloj ---------- */
