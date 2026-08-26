@@ -68,6 +68,31 @@ fecha/hora. En el panel web, pestaña **"Guias e historial"**, puedes:
 - Buscar por numero de guia y filtrar por estatus.
 - Dar clic en cualquier guia para ver su linea de tiempo completa.
 
+## Aviso de guias estancadas
+
+Una guia que se queda parada no la reclama nadie hasta que llama el cliente.
+Por eso el panel vigila solo, sin que haya que ir a buscarlo: junto al reloj de
+la barra superior aparece un **triangulo ambar con el numero de guias que
+llevan 2 dias o mas sin cambiar de estatus**.
+
+- Cuenta el tiempo **en el mismo estatus**, no desde el ultimo escaneo: un
+  escaneo repetido o el alta de un complemento tocan la guia sin sacarla de
+  donde esta y no reinician el reloj. Para eso existe la columna
+  `estatus_desde` de la tabla `guias`.
+- Vigila los tres estatus en proceso: en transito, en bodega y en ruta de
+  entrega. Las **entregadas quedan fuera**: ya llegaron a su destino y llevar
+  semanas asi no es una anomalia.
+- **No se puede cerrar ni silenciar**: late mientras haya guias detenidas y se
+  va solo cuando alguien las mueve. Se revisa al entrar, despues de cada
+  escaneo, cada 5 minutos y al volver a la pestaña.
+- Al darle clic lleva al listado de esas guias, de la mas atrasada a la menos,
+  con el chip **"Estancadas +2 dias"** puesto. Desde ahi se pueden acotar por
+  plaza o por estatus, y el chip lo quita.
+
+Es distinto de la campana de notificaciones, que avisa de lo que lleva mas de
+24 h **en transito**: este vigila todos los estatus en proceso con un umbral
+mas alto, para que una guia dormida dos dias en bodega tampoco pase inadvertida.
+
 ## Instalacion
 
 Requiere PostgreSQL (local o en un servicio como Railway/Render/Supabase).
@@ -84,7 +109,8 @@ npm start
 ```
 
 El servidor crea automaticamente las tablas (`guias`, `eventos`, `usuarios`,
-`sesiones`) al arrancar.
+`sesiones`) al arrancar, y aplica las migraciones que falten. Las guias que ya
+existan sin `estatus_desde` la toman de su ultimo movimiento la primera vez.
 
 El servidor corre en `http://localhost:3000`. Abre esa URL en una
 computadora/tablet conectada a la pistola escaner (la pistola funciona
@@ -193,6 +219,10 @@ integraciones fijas como la pistola de escaneo).
 - `GET /api/guias?buscar=<texto>&estatus=<estatus>` -> lista de guias
   recientes, con busqueda por numero y filtro por estatus (ambos opcionales).
 - `GET /api/guias/resumen` -> conteo de guias por estatus.
+- `GET /api/guias/estancadas?dias=<n>` -> guias que llevan `n` dias o mas en el
+  mismo estatus (2 por omision, entre 1 y 90), de la mas atrasada a la menos.
+  Regresa `{ dias, total, guias }`; las entregadas no cuentan. Alimenta el
+  aviso de la barra superior del panel.
 - `GET /api/guias/:numeroGuia` -> estatus actual, mensaje en lenguaje
   natural e historial completo de eventos.
 

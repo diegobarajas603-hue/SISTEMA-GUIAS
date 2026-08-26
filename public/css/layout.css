@@ -436,6 +436,74 @@
   opacity: 0;
 }
 
+/* ---------- Aviso de guias estancadas ----------
+   Pastilla ambar a la izquierda del reloj. El ambar es el color de "atencion
+   sin alarma" del sistema; el rojo sigue reservado a lo destructivo.
+
+   Es deliberadamente insistente: late sin parar y cada 9 s se sacude. Una
+   guia parada dos dias no la reclama nadie hasta que llama el cliente, asi
+   que el aviso no se puede cerrar ni silenciar: desaparece solo cuando las
+   guias se mueven. */
+
+.alerta-estancadas {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--h-chip);
+  padding: 0 var(--space-12) 0 10px;
+  border: 1px solid var(--st-transito-border);
+  border-radius: var(--radius-full);
+  background: var(--alerta-ico-bg);
+  color: var(--st-transito-text);
+  cursor: pointer;
+  white-space: nowrap;
+  animation: alerta-latido 2.4s var(--ease) infinite,
+             alerta-insistir 9s var(--ease) infinite;
+}
+
+/* El display de la clase le gana al del atributo, asi que hay que apagarlo
+   a mano cuando no hay nada estancado */
+.alerta-estancadas[hidden] { display: none; }
+
+.alerta-estancadas:hover {
+  background: var(--st-transito-bg);
+  border-color: var(--st-transito-color);
+}
+
+.alerta-estancadas:focus-visible {
+  outline: 2px solid var(--st-transito-color);
+  outline-offset: 2px;
+}
+
+.alerta-estancadas__ico {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+}
+
+.alerta-estancadas__n {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Latido: el halo se expande y se apaga, como el indicador de "listo" del
+   escaner pero en ambar */
+@keyframes alerta-latido {
+  0%, 100% { box-shadow: 0 0 0 0 var(--st-transito-halo); }
+  50%      { box-shadow: 0 0 0 6px transparent; }
+}
+
+/* Sacudida corta cada 9 s: el 93% del ciclo esta quieto, de modo que llama
+   la atencion sin convertirse en ruido de fondo */
+@keyframes alerta-insistir {
+  0%, 4%, 100% { transform: translateX(0); }
+  1%           { transform: translateX(-3px); }
+  2%           { transform: translateX(3px); }
+  3%           { transform: translateX(-2px); }
+}
+
 /* ---------- Reloj ---------- */
 
 .reloj {

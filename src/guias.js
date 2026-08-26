@@ -163,7 +163,7 @@ async function obtenerHistorial(numeroGuia) {
 // cuenta cuando se estan escaneando guias una tras otra.
 async function actualizarEstatus(numeroGuia, estatus) {
   const { rows } = await pool.query(
-    'UPDATE guias SET estatus = $1, actualizado_en = $2 WHERE numero_guia = $3 RETURNING *',
+    'UPDATE guias SET estatus = $1, actualizado_en = $2, estatus_desde = $2 WHERE numero_guia = $3 RETURNING *',
     [estatus, now(), numeroGuia]
   );
   return rows[0];
@@ -192,7 +192,7 @@ async function marcarSalida(numeroGuia, plaza, destino, usuario) {
   validarPrefijoSalida(numeroGuia, plaza);
   const estatus = enTransitoA(destino);
   const { rows } = await pool.query(
-    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5 RETURNING *',
+    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4, estatus_desde = $4 WHERE numero_guia = $5 RETURNING *',
     [plaza, destino, estatus, now(), numeroGuia]
   );
   const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
@@ -240,8 +240,8 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null) 
     validarPrefijoSalida(numeroGuia, plaza);
     const estatus = enTransitoA(destino);
     const { rows } = await pool.query(
-      `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en)
-       VALUES ($1, $2, $3, $4, $5, $5) RETURNING *`,
+      `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, estatus_desde)
+       VALUES ($1, $2, $3, $4, $5, $5, $5) RETURNING *`,
       [numeroGuia, plaza, destino, estatus, now()]
     );
     const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
@@ -278,7 +278,7 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null) 
   // EN_BODEGA_Q o EN_RUTA_ENTREGA_Q: aparecio en P sin los escaneos previos en Q
   const estatus = enBodega(plaza);
   const { rows } = await pool.query(
-    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5 RETURNING *',
+    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4, estatus_desde = $4 WHERE numero_guia = $5 RETURNING *',
     [destino, plaza, estatus, now(), numeroGuia]
   );
   const descripcion = `Llego a bodega ${plaza} (sin registro de salida de bodega ${destino})`;
@@ -411,7 +411,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
       const estatus = pila[pila.length - 2].estatus;
       const plazaDelEstatus = estatus.endsWith('_MTY') ? 'MTY' : 'CDMX';
       await client.query(
-        'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
+        'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4, estatus_desde = $4 WHERE numero_guia = $5',
         [otraPlaza(plazaDelEstatus), plazaDelEstatus, estatus, now(), numeroGuia]
       );
 
@@ -449,8 +449,8 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
       // nuevo, traslada los eventos y elimina la fila anterior (la llave
       // foranea de eventos impide cambiar el numero con un UPDATE directo).
       await client.query(
-        `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, numero_anterior, complemento)
-         SELECT $1, origen, destino, estatus, creado_en, $3, numero_guia, $4 FROM guias WHERE numero_guia = $2`,
+        `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, numero_anterior, complemento, estatus_desde)
+         SELECT $1, origen, destino, estatus, creado_en, $3, numero_guia, $4, estatus_desde FROM guias WHERE numero_guia = $2`,
         [nuevo, numeroGuia, now(), complemento]
       );
       await client.query('UPDATE eventos SET numero_guia = $1 WHERE numero_guia = $2', [nuevo, numeroGuia]);
@@ -463,7 +463,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
       if (estatusElegido) {
         const plazaDestino = plazaDeEstatus(estatusElegido);
         await client.query(
-          'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
+          'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4, estatus_desde = $4 WHERE numero_guia = $5',
           [otraPlaza(plazaDestino), plazaDestino, estatusElegido, now(), nuevo]
         );
         estatusFinal = estatusElegido;
@@ -661,6 +661,44 @@ async function listarGuias({ buscar, estatus, plaza, desde, hasta, campoFecha, l
   return rows;
 }
 
+// ---------- Guias estancadas ----------
+//
+// Una guia estancada es la que lleva DIAS o mas sin cambiar de estatus: sigue
+// en transito, en bodega o en reparto y nadie la ha movido. Es la falla que
+// antes solo se descubria cuando llamaba el cliente.
+//
+// Se mide con estatus_desde, no con actualizado_en: un escaneo repetido o el
+// alta de un complemento tocan la guia sin sacarla de donde esta, y no deben
+// reiniciar el conteo.
+//
+// Las entregadas quedan fuera: ya llegaron a su destino y llevar semanas asi
+// es lo normal, no una anomalia. La condicion se escribe igual que el indice
+// parcial idx_guias_estancadas de db.js para que Postgres pueda usarlo.
+const NO_ENTREGADAS = "estatus NOT IN ('ENTREGADO_MTY', 'ENTREGADO_CDMX')";
+
+const DIAS_ESTANCADA = 2;
+
+async function listarEstancadas({ dias = DIAS_ESTANCADA, limit = 200 } = {}) {
+  const d = Math.min(Math.max(Number(dias) || DIAS_ESTANCADA, 1), 90);
+  const limite = new Date(Date.now() - d * 24 * 3600 * 1000);
+  // El COUNT sobre la ventana viaja en cada fila y se calcula antes del LIMIT:
+  // asi el aviso puede decir "213 guias" aunque solo se manden las 200
+  // primeras, y todo sale en una sola consulta.
+  const { rows } = await pool.query(
+    `SELECT *, COUNT(*) OVER ()::int AS total
+       FROM guias
+      WHERE ${NO_ENTREGADAS} AND estatus_desde <= $1
+      ORDER BY estatus_desde ASC
+      LIMIT $2`,
+    [limite, limit]
+  );
+  return {
+    dias: d,
+    total: rows.length ? rows[0].total : 0,
+    guias: rows.map(({ total, ...guia }) => guia),
+  };
+}
+
 async function listarEventos({ limit = 50 } = {}) {
   const { rows } = await pool.query(
     `SELECT e.numero_guia, e.accion, e.estatus, e.plaza, e.descripcion, e.revertido, e.usuario,
@@ -826,6 +864,7 @@ module.exports = {
   buscarGuia,
   obtenerHistorial,
   listarGuias,
+  listarEstancadas,
   listarEventos,
   resumen,
   estadisticas,

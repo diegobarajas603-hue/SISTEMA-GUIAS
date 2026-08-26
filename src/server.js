@@ -283,6 +283,13 @@ app.get('/api/guias/estadisticas', requireAuth, seguro(async (req, res) => {
   res.json(await guias.estadisticas(req.query.dias));
 }));
 
+// Guias estancadas: las que llevan ?dias o mas sin cambiar de estatus. De aqui
+// come el aviso de la barra superior del panel. Va ANTES de /api/guias/:numero,
+// o esa ruta se llevaria "estancadas" como si fuera un numero de guia.
+app.get('/api/guias/estancadas', requireAuth, seguro(async (req, res) => {
+  res.json(await guias.listarEstancadas({ dias: req.query.dias }));
+}));
+
 app.get('/api/eventos', requireAuth, seguro(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
   res.json(await guias.listarEventos({ limit }));

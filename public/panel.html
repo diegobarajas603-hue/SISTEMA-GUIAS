@@ -126,6 +126,17 @@
       </div>
 
       <div class="topbar__derecha">
+        <!-- Aviso de guias estancadas. Vive pegado al reloj a proposito: la
+             pregunta que contesta ("cuanto lleva esto parado") es del mismo
+             tipo que la hora. No se puede cerrar ni silenciar: parpadea
+             mientras haya guias detenidas y se va solo cuando se mueven. -->
+        <button class="alerta-estancadas" id="btnEstancadas" type="button" hidden>
+          <svg class="alerta-estancadas__ico" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+               stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10 2.8L18.4 17H1.6z"/><path d="M10 8v3.4"/><path d="M10 14.2h.01"/>
+          </svg>
+          <span class="alerta-estancadas__n" id="estancadasN">0</span>
+        </button>
         <div class="reloj" aria-hidden="true">
           <span class="reloj__hora" id="relojHora">--:--</span>
           <span class="reloj__fecha" id="relojFecha"></span>
@@ -258,6 +269,7 @@
               Favoritas
             </button>
             <span id="avisoDetenidas"></span>
+            <span id="avisoEstancadas"></span>
             <span class="spacer"></span>
             <span class="filtros__contador" id="contadorGuias"></span>
             <div class="vista-toggle" id="vistaToggle" role="group" aria-label="Vista">
@@ -663,6 +675,85 @@
 
   $('btnIrEscanear').addEventListener('click', () => { location.hash = '#/escanear'; });
 
+  // ---------- Shell: aviso de guias estancadas ----------
+  // Una guia que lleva dias en el mismo estatus no la reclama nadie hasta que
+  // llama el cliente. El aviso vive junto al reloj, no se puede cerrar y no
+  // deja de parpadear mientras haya guias detenidas; al tocarlo lleva directo
+  // al listado de esas guias, de la mas atrasada a la menos.
+  //
+  // Es distinto de la campana: aquella avisa de lo que lleva mas de 24 h EN
+  // TRANSITO; esta vigila TODOS los estatus en proceso (transito, bodega y
+  // reparto) con un umbral mas alto. Una guia dormida dos dias en bodega no
+  // salia por ningun lado.
+  const DIAS_ESTANCADA = 2;
+  const MIN_REVISAR_ESTANCADAS = 5;   // cada cuanto se vuelve a preguntar
+
+  let estancadas = [];
+  let totalEstancadas = 0;
+  let timerEstancadas = null;
+  let ultimaRevisionEstancadas = 0;
+
+  const diasEnEstatus = (g) =>
+    Math.floor((Date.now() - new Date(g.estatus_desde || g.actualizado_en).getTime()) / 86400000);
+
+  async function revisarEstancadas() {
+    if (!sesionToken) return;
+    ultimaRevisionEstancadas = Date.now();
+    try {
+      const r = await api('/api/guias/estancadas?dias=' + DIAS_ESTANCADA);
+      estancadas = r.guias || [];
+      totalEstancadas = r.total || 0;
+    } catch {
+      return; // sin red o sesion caida: se deja el aviso como estaba
+    }
+    pintarAlertaEstancadas();
+  }
+
+  function pintarAlertaEstancadas() {
+    const btn = $('btnEstancadas');
+    btn.hidden = totalEstancadas === 0;
+    if (!totalEstancadas) return;
+
+    const n = totalEstancadas;
+    $('estancadasN').textContent = n > 99 ? '99+' : n;
+    // El servidor decide quien esta estancada con su reloj y el navegador
+    // cuenta los dias con el suyo: si van desfasados, el piso lo pone el umbral
+    // para que el aviso no se contradiga solo ("1 guia lleva 1 dia... +2 dias")
+    const peor = Math.max(estancadas.length ? diasEnEstatus(estancadas[0]) : 0, DIAS_ESTANCADA);
+    const texto =
+      n === 1
+        ? `1 guia lleva ${peor} dias sin cambiar de estatus. Clic para verla.`
+        : `${n} guias llevan ${DIAS_ESTANCADA} dias o mas sin cambiar de estatus` +
+          ` (la mas atrasada, ${peor} dias). Clic para verlas.`;
+    btn.title = texto;
+    btn.setAttribute('aria-label', texto);
+  }
+
+  $('btnEstancadas').addEventListener('click', () => irAEstancadas());
+
+  // La vigilancia arranca con la sesion y se apaga al salir: sin token no hay
+  // a quien preguntarle.
+  function arrancarVigilancia() {
+    revisarEstancadas();
+    clearInterval(timerEstancadas);
+    timerEstancadas = setInterval(revisarEstancadas, MIN_REVISAR_ESTANCADAS * 60 * 1000);
+  }
+
+  function detenerVigilancia() {
+    clearInterval(timerEstancadas);
+    timerEstancadas = null;
+    estancadas = [];
+    totalEstancadas = 0;
+    $('btnEstancadas').hidden = true;
+  }
+
+  // Al volver a la pestaña despues de un rato, mejor preguntar de nuevo que
+  // mostrar un conteo viejo (la pantalla del panel se queda abierta todo el dia)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !sesionToken) return;
+    if (Date.now() - ultimaRevisionEstancadas > MIN_REVISAR_ESTANCADAS * 60 * 1000) revisarEstancadas();
+  });
+
   // ---------- Sesion ----------
   // ---------- Roles ----------
   // Los roles los define el servidor (nombre visible y que escaneos hace cada
@@ -791,6 +882,7 @@
     sesionToken = '';
     usuarioActual = null;
     localStorage.removeItem('sesionToken');
+    detenerVigilancia();
     $('loginOverlay').style.display = 'flex';
     const err = $('loginError');
     err.textContent = mensaje || '';
@@ -822,6 +914,7 @@
       pintarUsuario();
       ocultarLogin();
       render();
+      arrancarVigilancia();
     } catch (err2) {
       $('loginError').textContent = err2.message;
       $('loginError').classList.add('is-visible');
@@ -1362,7 +1455,24 @@
     }
   });
 
+  // Del aviso de la barra al listado. Se limpian los demas filtros a proposito:
+  // si quedara puesto "Hoy" o una plaza, el listado saldria vacio y parecia que
+  // el aviso mentia.
+  function irAEstancadas() {
+    soloEstancadas = true;
+    soloDetenidas = false;
+    filtroFecha = '';
+    filtroFav = false;
+    plazaTab = '';
+    localStorage.setItem('plazaTab', '');
+    estatusPendiente = '';
+    $('buscar').value = '';
+    if (location.hash === '#/guias') setPlazaTab('');
+    else location.hash = '#/guias';
+  }
+
   function irADetenidas() {
+    soloEstancadas = false;
     soloDetenidas = true;
     plazaTab = '';
     localStorage.setItem('plazaTab', '');
@@ -1460,6 +1570,9 @@
       );
       logRow(numeroGuia, data.mensaje);
       beep(data.tipo === 'repetido' ? 'warn' : 'ok');
+      // Mover una guia puede sacarla de la lista de estancadas: el aviso se
+      // actualiza en el momento, sin esperar a la siguiente revision
+      if (data.tipo !== 'repetido') revisarEstancadas();
     } catch (e) {
       mostrarResultado(cardResultado(numeroGuia, null, e.message, 'error'), 'error');
       logRow(numeroGuia, e.message);
@@ -1504,6 +1617,7 @@
 
   let estatusPendiente = null; // filtro que viene de un clic en el dashboard
   let soloDetenidas = false;   // filtro de "detenidas +24 h", se aplica en cliente
+  let soloEstancadas = false;  // filtro del aviso de la barra: lo resuelve el servidor
 
   function setPlazaTab(p) {
     plazaTab = p;
@@ -1520,6 +1634,7 @@
 
   function irAGuias(tab, estatus) {
     soloDetenidas = false;
+    soloEstancadas = false;
     plazaTab = tab;
     localStorage.setItem('plazaTab', tab);
     estatusPendiente = estatus || '';
@@ -1605,6 +1720,20 @@
     });
   }
 
+  // Aviso de que el listado esta acotado a las guias estancadas
+  function pintarAvisoEstancadas() {
+    const cont = $('avisoEstancadas');
+    if (!soloEstancadas) { cont.innerHTML = ''; return; }
+    cont.innerHTML = `<button class="chip is-active" id="chipEstancadas">
+      Estancadas +${DIAS_ESTANCADA} dias <span class="chip__count">quitar &times;</span>
+    </button>`;
+    $('chipEstancadas').addEventListener('click', () => {
+      soloEstancadas = false;
+      pintarAvisoEstancadas();
+      cargarGuias();
+    });
+  }
+
   // ---------- Filtros de cliente: fecha y favoritas ----------
   let filtroFecha = '';   // '' | 'hoy' | '7d'
   let filtroFav = false;
@@ -1645,6 +1774,13 @@
 
   function filtrarCliente(data) {
     let out = data;
+    // El listado de estancadas lo arma el servidor sin pestaña ni estatus, asi
+    // que esos dos filtros se aplican aqui: si no, mover la pestaña de plaza no
+    // hacia nada y parecia que el filtro estaba descompuesto.
+    if (soloEstancadas) {
+      if (plazaTab) out = out.filter((g) => tabDeEstatus(g.estatus) === plazaTab);
+      if ($('filtroEstatus').value) out = out.filter((g) => g.estatus === $('filtroEstatus').value);
+    }
     if (soloDetenidas) {
       const limite = Date.now() - HORAS_DETENIDA * 3600 * 1000;
       out = out.filter((g) => esDetenida(g, limite));
@@ -1711,8 +1847,12 @@
     if (!n) {
       cont.innerHTML = `<div class="card">${UI.emptyState({
         icono: 'busqueda',
-        titulo: soloDetenidas ? 'Ninguna guia detenida' : filtroFav ? 'Sin favoritas' : 'Sin guias',
-        descripcion: soloDetenidas
+        titulo: soloEstancadas
+          ? 'Ninguna guia estancada'
+          : soloDetenidas ? 'Ninguna guia detenida' : filtroFav ? 'Sin favoritas' : 'Sin guias',
+        descripcion: soloEstancadas
+          ? `Ninguna guia lleva ${DIAS_ESTANCADA} dias o mas en el mismo estatus. Todo va avanzando.`
+          : soloDetenidas
           ? `Ninguna guia en transito lleva mas de ${HORAS_DETENIDA} h sin escaneo. Todo va en movimiento.`
           : filtroFav
           ? 'Marca una guia con la estrella para tenerla a la mano aqui.'
@@ -1731,6 +1871,9 @@
   async function cargarGuias() {
     const params = new URLSearchParams();
     const buscar = $('buscar').value.trim();
+    // Buscar un numero manda sobre el filtro de estancadas: quien lo escribe
+    // quiere esa guia, no la lista acotada
+    if (buscar) soloEstancadas = false;
     if (buscar) {
       // La busqueda por numero revisa todas las guias, sin importar la pestaña
       params.set('buscar', buscar);
@@ -1740,12 +1883,18 @@
       params.set('plaza', plazaTab);
     }
     pintarAvisoDetenidas();
+    pintarAvisoEstancadas();
     pintarChipsFiltro();
     $('guiasContenido').innerHTML =
       `<div class="card card--flush"><div class="tabla-scroll"><table><tbody>${UI.skeletonRows(6, 5)}</tbody></table></div></div>`;
     try {
-      const data = filtrarCliente(await api('/api/guias?' + params));
-      pintarGuias(data);
+      // Las estancadas las decide el servidor (mira desde cuando lleva cada
+      // guia el mismo estatus), no un filtro sobre la pagina ya cargada: si no,
+      // se quedarian fuera las que no cupieron en el listado.
+      const crudas = soloEstancadas
+        ? (await api('/api/guias/estancadas?dias=' + DIAS_ESTANCADA)).guias
+        : await api('/api/guias?' + params);
+      pintarGuias(filtrarCliente(crudas));
     } catch (e) {
       UI.montarError($('guiasContenido'), e.message, cargarGuias);
       $('contadorGuias').innerHTML = '';
@@ -2577,6 +2726,7 @@
       ocultarLogin();
       render();
       moverIndicador(true);
+      arrancarVigilancia();
     } catch (e2) {
       // Si la sesion expiro, api() ya mostro el login; si fue error de red, tambien lo pedimos
       if (e2.message !== 'Sesion expirada') mostrarLogin('No se pudo validar la sesion. Revisa tu conexion e intenta de nuevo.');

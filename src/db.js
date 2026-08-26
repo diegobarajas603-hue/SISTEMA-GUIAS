@@ -41,6 +41,11 @@ async function init() {
     ALTER TABLE guias ADD COLUMN IF NOT EXISTS numero_anterior TEXT;
     -- Numero del complemento (cobro adicional); la guia conserva ambos numeros
     ALTER TABLE guias ADD COLUMN IF NOT EXISTS complemento TEXT;
+    -- Momento en que la guia entro al estatus que tiene ahora. No es lo mismo
+    -- que actualizado_en: un escaneo repetido o el alta de un complemento
+    -- tocan la guia sin moverla de estatus. De aqui sale el aviso de guias
+    -- estancadas ("lleva 3 dias en bodega MTY y nadie la ha sacado").
+    ALTER TABLE guias ADD COLUMN IF NOT EXISTS estatus_desde TIMESTAMPTZ;
 
     CREATE INDEX IF NOT EXISTS idx_eventos_numero_guia ON eventos (numero_guia);
     CREATE INDEX IF NOT EXISTS idx_guias_actualizado_en ON guias (actualizado_en DESC);
@@ -49,6 +54,12 @@ async function init() {
     -- tabla en cada escaneo, y se pone mas lento a medida que crecen las
     -- guias. Parcial porque casi ninguna guia tiene complemento.
     CREATE INDEX IF NOT EXISTS idx_guias_complemento ON guias (complemento) WHERE complemento IS NOT NULL;
+    -- El aviso de estancadas pregunta por las guias mas viejas que siguen en
+    -- proceso. Las entregadas quedan fuera del indice a proposito: son la
+    -- mayoria de la tabla con el tiempo, y que lleven meses entregadas no es
+    -- ninguna anomalia. La condicion se escribe igual en listarEstancadas().
+    CREATE INDEX IF NOT EXISTS idx_guias_estancadas ON guias (estatus_desde)
+      WHERE estatus NOT IN ('ENTREGADO_MTY', 'ENTREGADO_CDMX');
 
     -- Bitacora de eliminaciones y cancelaciones.
     --
@@ -80,6 +91,11 @@ async function init() {
     UPDATE guias SET estatus = 'EN_BODEGA_CDMX' WHERE estatus = 'LLEGO_CDMX';
     UPDATE guias SET estatus = 'EN_BODEGA_MTY' WHERE estatus = 'LLEGO_MTY';
   `);
+
+  // Guias anteriores a la columna estatus_desde: lo mejor que se sabe de ellas
+  // es su ultimo movimiento, asi que se toma como el momento en que entraron a
+  // su estatus actual. Solo corre una vez; despues la mantiene cada escaneo.
+  await pool.query('UPDATE guias SET estatus_desde = actualizado_en WHERE estatus_desde IS NULL');
 }
 
 module.exports = { pool, init };
