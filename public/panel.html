@@ -80,6 +80,10 @@
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
         <span class="nav-item__texto">Eventos</span>
       </button>
+      <button class="nav-item" data-ruta="reportes" title="Reportes">
+        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>
+        <span class="nav-item__texto">Reportes</span>
+      </button>
 
       <span class="nav-group">Sistema</span>
       <button class="nav-item" data-ruta="bitacora" title="Bitacora">
@@ -348,6 +352,51 @@
           <span class="nota" id="resumenEventos"></span>
         </div>
         <div id="gruposEventos"></div>
+      </section>
+
+      <!-- ===================================================== Reportes -->
+      <section id="v-reportes" style="display:none">
+        <div class="card card--flush" style="max-width:760px;">
+          <div class="card__header"><h2 class="t-label">Salidas del dia (PDF)</h2></div>
+          <div class="card__body">
+            <p class="nota">Todas las guias a las que se les dio salida el dia elegido, con la hora exacta
+            del escaneo y quien lo hizo. Descarga el PDF para cotejarlo contra el manifiesto y detectar
+            las guias que faltaron por escanear.</p>
+            <div style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:flex-end; margin-top:var(--space-16);">
+              <label class="field" style="margin:0;">
+                <span class="field__label">Dia del reporte</span>
+                <input class="input" type="date" id="repFecha" />
+              </label>
+              <label class="field" style="margin:0;">
+                <span class="field__label">Plaza de salida</span>
+                <select class="select" id="repPlaza">
+                  <option value="">Ambas (MTY y CDMX)</option>
+                  <option value="MTY">Solo Monterrey (AN)</option>
+                  <option value="CDMX">Solo Ciudad de Mexico (BN)</option>
+                </select>
+              </label>
+              <div style="display:flex; gap:var(--space-8); padding-bottom:2px;">
+                <button class="chip" id="repHoy" type="button" aria-pressed="false">Hoy</button>
+                <button class="chip" id="repAyer" type="button" aria-pressed="false">Ayer</button>
+              </div>
+              <span class="spacer"></span>
+              <button class="btn btn--primary" id="btnPdfSalidas" type="button" style="align-self:flex-end;">
+                Descargar PDF
+              </button>
+            </div>
+            <div class="msg-form" id="msgReporte"></div>
+          </div>
+          <div class="card__header" style="border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:baseline; gap:var(--space-12);">
+            <h2 class="t-label">Lo que va a traer el PDF</h2>
+            <span class="nota" id="repResumen"></span>
+          </div>
+          <div class="tabla-scroll" style="max-height:440px; overflow-y:auto;">
+            <table>
+              <thead><tr><th style="text-align:right;">#</th><th>Guia</th><th>Salio de</th><th>Hora</th><th>Operador</th><th>Estatus actual</th></tr></thead>
+              <tbody id="repTbody"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <!-- ====================================================== Bitacora -->
@@ -946,8 +995,8 @@
   }
 
   // ---------- Router ----------
-  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', bitacora: 'Bitacora', config: 'Configuracion', detalle: 'Detalle de guia' };
-  const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'bitacora', 'config'];
+  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', reportes: 'Reportes', bitacora: 'Bitacora', config: 'Configuracion', detalle: 'Detalle de guia' };
+  const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'reportes', 'bitacora', 'config'];
 
   function render() {
     let ruta = location.hash.replace(/^#\/?/, '') || 'dashboard';
@@ -985,6 +1034,7 @@
     if (vista === 'dashboard') cargarDashboard();
     if (vista === 'guias') setPlazaTab(plazaTab);
     if (vista === 'eventos') cargarEventos();
+    if (vista === 'reportes') cargarReportes();
     if (vista === 'bitacora') cargarBitacora();
     if (vista === 'detalle') cargarDetalle(arg);
     if (vista === 'escanear') setTimeout(enfocarCaptura, 50);
@@ -1003,9 +1053,9 @@
 
   // ---------- Atajos de teclado ----------
   // "/" busca · "Esc" sale del campo · "g d" dashboard, "g g" guias,
-  // "g e" eventos, "g s" escanear, "g c" configuracion.
+  // "g e" eventos, "g r" reportes, "g s" escanear, "g c" configuracion.
   let teclaG = 0;
-  const RUTAS_G = { d: 'dashboard', g: 'guias', e: 'eventos', s: 'escanear', b: 'bitacora', c: 'config' };
+  const RUTAS_G = { d: 'dashboard', g: 'guias', e: 'eventos', r: 'reportes', s: 'escanear', b: 'bitacora', c: 'config' };
 
   function escribiendo(el) {
     return el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
@@ -2356,6 +2406,122 @@
 
   let timerEventos;
   $('buscarEvento').addEventListener('input', () => { clearTimeout(timerEventos); timerEventos = setTimeout(pintarGruposEventos, 200); });
+
+  // ---------- Reportes ----------
+  // El corte de salidas del dia: la lista se enseña primero en pantalla (lo
+  // que va a traer el PDF) y el boton descarga el mismo reporte con el logo
+  // y el formato de la casa. La pregunta que contesta es la del cotejo contra
+  // el manifiesto: "¿cuales si se escanearon y cuales faltaron?".
+
+  // Fecha local del navegador como AAAA-MM-DD. Las dos plazas operan en el
+  // mismo huso, asi que la fecha de la computadora del operador es la buena.
+  function fechaLocalISO(diasAtras = 0) {
+    const d = new Date(Date.now() - diasAtras * 86400000);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  function consultaReporte() {
+    const fecha = $('repFecha').value || fechaLocalISO();
+    const plaza = $('repPlaza').value;
+    return `fecha=${encodeURIComponent(fecha)}${plaza ? `&plaza=${plaza}` : ''}`;
+  }
+
+  function pintarChipsReporte() {
+    const f = $('repFecha').value;
+    $('repHoy').setAttribute('aria-pressed', String(f === fechaLocalISO()));
+    $('repAyer').setAttribute('aria-pressed', String(f === fechaLocalISO(1)));
+  }
+
+  function cargarReportes() {
+    if (!$('repFecha').value) $('repFecha').value = fechaLocalISO();
+    pintarChipsReporte();
+    cargarSalidasReporte();
+  }
+
+  let versionReporte = 0;
+  async function cargarSalidasReporte() {
+    const version = ++versionReporte;
+    $('repResumen').textContent = '';
+    $('repTbody').innerHTML = UI.skeletonRows(4, 6);
+    try {
+      const r = await api('/api/reportes/salidas?' + consultaReporte());
+      if (version !== versionReporte) return; // llego una consulta mas nueva
+      $('btnPdfSalidas').disabled = r.total === 0;
+      $('repResumen').textContent = r.total === 0
+        ? 'Sin salidas registradas ese dia'
+        : r.plaza
+          ? `${r.total} salida${r.total === 1 ? '' : 's'} de ${r.plaza}`
+          : `${r.total} salida${r.total === 1 ? '' : 's'}: ${r.porPlaza.MTY || 0} de MTY y ${r.porPlaza.CDMX || 0} de CDMX`;
+      if (r.total === 0) {
+        $('repTbody').innerHTML = `<tr><td colspan="6">${UI.emptyState({
+          titulo: 'Ninguna guia salio ese dia',
+          descripcion: 'Cambia el dia o revisa que los escaneos de salida se hayan hecho.',
+        })}</td></tr>`;
+        return;
+      }
+      $('repTbody').innerHTML = r.salidas.map((s, i) => `
+        <tr class="clic" data-guia="${esc(s.numero_guia)}">
+          <td style="text-align:right;"><span class="mono t-tertiary">${i + 1}</span></td>
+          <td><span class="mono t-primary">${esc(s.numero_guia)}</span>${s.complemento ? ` <span class="nota">(comp. ${esc(s.complemento)})</span>` : ''}</td>
+          <td>${s.plaza}</td>
+          <td><span class="mono t-tertiary">${UI.fmtHora(s.creado_en)}</span></td>
+          <td>${s.operador ? esc(s.operador) : '<span class="nota">sin registrar</span>'}</td>
+          <td>${badge(s.estatus_actual)}</td>
+        </tr>`).join('');
+      $('repTbody').querySelectorAll('.clic').forEach((el) =>
+        el.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(el.dataset.guia)))
+      );
+    } catch (e) {
+      if (version !== versionReporte) return;
+      $('repTbody').innerHTML = `<tr><td colspan="6">${UI.errorState(e.message)}</td></tr>`;
+    }
+  }
+
+  $('repFecha').addEventListener('change', () => { pintarChipsReporte(); cargarSalidasReporte(); });
+  $('repPlaza').addEventListener('change', cargarSalidasReporte);
+  $('repHoy').addEventListener('click', () => { $('repFecha').value = fechaLocalISO(); pintarChipsReporte(); cargarSalidasReporte(); });
+  $('repAyer').addEventListener('click', () => { $('repFecha').value = fechaLocalISO(1); pintarChipsReporte(); cargarSalidasReporte(); });
+
+  // La descarga va con fetch y no con un <a href> directo porque el PDF exige
+  // el token de sesion en el header; el blob resultante se entrega al
+  // navegador como archivo con su nombre.
+  $('btnPdfSalidas').addEventListener('click', async () => {
+    const btn = $('btnPdfSalidas');
+    const fecha = $('repFecha').value || fechaLocalISO();
+    const plaza = $('repPlaza').value;
+    btn.disabled = true;
+    const textoOriginal = btn.textContent;
+    btn.textContent = 'Generando PDF...';
+    msgForm('msgReporte', '', '');
+    try {
+      const res = await fetch('/api/reportes/salidas.pdf?' + consultaReporte(), {
+        headers: { Authorization: 'Bearer ' + sesionToken },
+      });
+      if (res.status === 401) { mostrarLogin('Tu sesion expiro. Inicia sesion de nuevo.'); return; }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo generar el PDF');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `salidas-${fecha}${plaza ? '-' + plaza.toLowerCase() : ''}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Se revoca despues de un momento: hacerlo de inmediato cancela la
+      // descarga en algunos navegadores
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      UI.toast({ tipo: 'ok', titulo: 'Reporte descargado', descripcion: `Salidas del ${fecha}${plaza ? ` · ${plaza}` : ''}.` });
+    } catch (e) {
+      msgForm('msgReporte', e.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  });
 
   // ---------- Bitacora ----------
   // Registro inmutable de correcciones. Se arma con los eventos CORRECCION

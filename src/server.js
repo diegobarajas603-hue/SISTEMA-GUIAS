@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const { init } = require('./db');
 const guias = require('./guias');
+const reportes = require('./reportes');
 const auth = require('./auth');
 const { mensajeEstatus } = require('./estatus');
 const { extraerNumeroGuia, enviarMensaje } = require('./whatsapp');
@@ -294,6 +295,42 @@ app.get('/api/eventos', requireAuth, seguro(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
   res.json(await guias.listarEventos({ limit }));
 }));
+
+// ---------- Reportes ----------
+
+// Salidas de un dia (JSON): alimenta la vista previa de la pantalla de
+// reportes antes de descargar el PDF. ?fecha=AAAA-MM-DD (hoy por omision)
+// y ?plaza=MTY|CDMX (ambas por omision).
+app.get('/api/reportes/salidas', requireAuth, async (req, res) => {
+  try {
+    res.json(await reportes.salidasDelDia({ fecha: req.query.fecha, plaza: req.query.plaza }));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// El mismo reporte como PDF descargable, con el logo y el formato de la casa.
+// Es el corte del dia: las guias a las que se les dio salida, con hora y
+// operador, para cotejar contra el manifiesto y encontrar las que faltaron.
+app.get('/api/reportes/salidas.pdf', requireAuth, async (req, res) => {
+  let datos;
+  try {
+    datos = await reportes.salidasDelDia({ fecha: req.query.fecha, plaza: req.query.plaza });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${reportes.nombreArchivo(datos)}"`);
+  try {
+    await reportes.generarPdfSalidas(datos, req.usuario.nombre || req.usuario.usuario, res);
+  } catch (e) {
+    // Si el PDF falla a medio camino ya no se puede responder JSON; se corta
+    // la conexion y el error queda en el log del servidor.
+    console.error('Error generando el PDF de salidas:', e);
+    if (!res.headersSent) res.status(500).json({ error: 'No se pudo generar el PDF' });
+    else res.destroy();
+  }
+});
 
 app.get('/api/guias/:numeroGuia', requireAuth, seguro(async (req, res) => {
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();

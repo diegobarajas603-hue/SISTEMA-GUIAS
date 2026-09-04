@@ -93,6 +93,25 @@ Es distinto de la campana de notificaciones, que avisa de lo que lleva mas de
 24 h **en transito**: este vigila todos los estatus en proceso con un umbral
 mas alto, para que una guia dormida dos dias en bodega tampoco pase inadvertida.
 
+## Reporte de salidas en PDF
+
+El corte del dia: en el panel, pestaña **Reportes**, se elige un dia (con
+accesos rapidos "Hoy" y "Ayer") y opcionalmente una sola plaza, se ve en
+pantalla la lista de guias a las que se les dio salida y se descarga el mismo
+listado como **PDF con el logo de la empresa**, listo para imprimir y cotejar
+contra el manifiesto: si ayer salieron 25 y en el reporte hay 23, esas 2
+faltaron por escanear.
+
+- Sale del **historial de escaneos** (eventos `SALIDA`), no del estatus
+  actual: una guia que salio ayer y hoy ya esta entregada sigue apareciendo
+  en el reporte de ayer.
+- Cada guia trae su **hora exacta de salida** (horario de Mexico) y **quien
+  la escaneo**; las guias con complemento muestran los dos numeros.
+- Las salidas **revertidas por un administrador quedan fuera**: una salida
+  deshecha no fue una salida.
+- Con las dos plazas, el PDF trae una seccion por plaza (MTY con guias AN y
+  CDMX con guias BN) y el total de cada una.
+
 ## Instalacion
 
 Requiere PostgreSQL (local o en un servicio como Railway/Render/Supabase).
@@ -223,6 +242,13 @@ integraciones fijas como la pistola de escaneo).
   mismo estatus (2 por omision, entre 1 y 90), de la mas atrasada a la menos.
   Regresa `{ dias, total, guias }`; las entregadas no cuentan. Alimenta el
   aviso de la barra superior del panel.
+- `GET /api/reportes/salidas?fecha=AAAA-MM-DD&plaza=MTY|CDMX` -> salidas
+  registradas ese dia (hoy por omision; plaza opcional), con hora exacta y
+  operador. Regresa `{ fecha, plaza, total, porPlaza, salidas }`; las salidas
+  revertidas no cuentan. Alimenta la vista previa de la pestaña Reportes.
+- `GET /api/reportes/salidas.pdf?fecha=AAAA-MM-DD&plaza=MTY|CDMX` -> el mismo
+  reporte como PDF descargable con el logo, una seccion por plaza y el
+  operador de cada escaneo.
 - `GET /api/guias/:numeroGuia` -> estatus actual, mensaje en lenguaje
   natural e historial completo de eventos.
 
