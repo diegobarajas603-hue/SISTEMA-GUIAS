@@ -196,7 +196,10 @@ tbody tr.clic:hover {
 
 .graficas {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  /* min(380px, 100%): en un telefono el minimo cede al ancho disponible; con
+     380px a secas la reticula no podia encogerse y estiraba la pagina entera,
+     que el celular mostraba alejada (todo se veia chiquito). */
+  grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr));
   gap: var(--card-gap);
   margin-bottom: var(--card-gap);
 }
@@ -805,6 +808,9 @@ button.plaza-fila:hover {
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--accent-hover);
+  /* Absoluto con left:50% solo dispone de media caja antes de ajustarse: en
+     telefono el texto se doblaba a dos lineas y se encimaba con el campo */
+  white-space: nowrap;
 }
 
 .escaner__listo .dot {
@@ -2241,4 +2247,41 @@ button.plaza-fila:hover {
     padding-left: var(--space-8);
     padding-right: var(--space-8);
   }
+}
+
+/* ============================================================================
+   AJUSTES DE TELEFONO (<= 700 px) que cruzan varias pantallas
+   ==========================================================================*/
+
+@media (max-width: 700px) {
+  /* Escanear: los tipos de operacion se apilan a lo ancho. En un renglon las
+     tres pastillas se encogian por debajo de su texto —"Ocurre (recoge en
+     bodega)" quedaba cortado y saliendose de la pantalla—. Apiladas, cada
+     una se lee completa y es un blanco facil de tocar. */
+  #modoWrap .pills {
+    flex-direction: column;
+  }
+
+  #modoWrap .pill {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Las pastillas de plaza (Monterrey / Ciudad de Mexico) si caben en un
+     renglon, pero no deben poder desbordar su texto */
+  .pill {
+    min-width: 0;
+  }
+
+  /* El segmentado de la bitacora ("Todo | Eliminaciones | Cancelaciones")
+     no cabia con el padding de escritorio y estiraba la pagina 3 px */
+  .seg__option {
+    padding: 0 var(--space-8);
+  }
+}
+
+/* iOS centra el texto de los campos de fecha; alineado a la izquierda,
+   como todos los demas campos del panel */
+.input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
 }
