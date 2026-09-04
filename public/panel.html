@@ -362,12 +362,12 @@
             <p class="nota">Todas las guias a las que se les dio salida el dia elegido, con la hora exacta
             del escaneo y quien lo hizo. Descarga el PDF para cotejarlo contra el manifiesto y detectar
             las guias que faltaron por escanear.</p>
-            <div style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:flex-end; margin-top:var(--space-16);">
-              <label class="field" style="margin:0;">
+            <div class="reporte-controles">
+              <label class="field">
                 <span class="field__label">Dia del reporte</span>
                 <input class="input" type="date" id="repFecha" />
               </label>
-              <label class="field" style="margin:0;">
+              <label class="field">
                 <span class="field__label">Plaza de salida</span>
                 <select class="select" id="repPlaza">
                   <option value="">Ambas (MTY y CDMX)</option>
@@ -375,24 +375,24 @@
                   <option value="CDMX">Solo Ciudad de Mexico (BN)</option>
                 </select>
               </label>
-              <div style="display:flex; gap:var(--space-8); padding-bottom:2px;">
+              <div class="reporte-chips">
                 <button class="chip" id="repHoy" type="button" aria-pressed="false">Hoy</button>
                 <button class="chip" id="repAyer" type="button" aria-pressed="false">Ayer</button>
               </div>
               <span class="spacer"></span>
-              <button class="btn btn--primary" id="btnPdfSalidas" type="button" style="align-self:flex-end;">
+              <button class="btn btn--primary" id="btnPdfSalidas" type="button">
                 Descargar PDF
               </button>
             </div>
             <div class="msg-form" id="msgReporte"></div>
           </div>
-          <div class="card__header" style="border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:baseline; gap:var(--space-12);">
+          <div class="card__header reporte-previa-head">
             <h2 class="t-label">Lo que va a traer el PDF</h2>
             <span class="nota" id="repResumen"></span>
           </div>
-          <div class="tabla-scroll" style="max-height:440px; overflow-y:auto;">
+          <div class="tabla-scroll reporte-tabla">
             <table>
-              <thead><tr><th style="text-align:right;">#</th><th>Guia</th><th>Salio de</th><th>Hora</th><th>Escaneó</th><th>Estatus actual</th></tr></thead>
+              <thead><tr><th class="rep-num">#</th><th>Guia</th><th class="rep-movil-oculta">Salio de</th><th>Hora</th><th>Escaneó</th><th class="rep-movil-oculta">Estatus actual</th></tr></thead>
               <tbody id="repTbody"></tbody>
             </table>
           </div>
@@ -2462,12 +2462,12 @@
       }
       $('repTbody').innerHTML = r.salidas.map((s, i) => `
         <tr class="clic" data-guia="${esc(s.numero_guia)}">
-          <td style="text-align:right;"><span class="mono t-tertiary">${i + 1}</span></td>
+          <td class="rep-num"><span class="mono t-tertiary">${i + 1}</span></td>
           <td><span class="mono t-primary">${esc(s.numero_guia)}</span>${s.complemento ? ` <span class="nota">(comp. ${esc(s.complemento)})</span>` : ''}</td>
-          <td>${s.plaza}</td>
+          <td class="rep-movil-oculta">${s.plaza}</td>
           <td><span class="mono t-tertiary">${UI.fmtHora(s.creado_en)}</span></td>
           <td>${s.operador ? esc(s.operador) : '<span class="nota">sin registrar</span>'}</td>
-          <td>${badge(s.estatus_actual)}</td>
+          <td class="rep-movil-oculta">${badge(s.estatus_actual)}</td>
         </tr>`).join('');
       $('repTbody').querySelectorAll('.clic').forEach((el) =>
         el.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(el.dataset.guia)))

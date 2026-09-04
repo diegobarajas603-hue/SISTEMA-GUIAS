@@ -673,3 +673,23 @@
     padding: var(--space-16);
   }
 }
+
+/* En telefono la barra superior guarda solo lo esencial: la hora ya la trae
+   la barra del propio celular, los accesos a escanear viven en el riel de
+   navegacion y el sidebar ya esta colapsado, asi que su boton no hace nada
+   util. Sin esto, el reloj se encimaba con el buscador. */
+@media (max-width: 700px) {
+  .reloj,
+  #btnIrEscanear,
+  #btnColapsar {
+    display: none;
+  }
+
+  .topbar {
+    gap: var(--space-8);
+  }
+
+  .topbar__centro {
+    justify-content: flex-start;
+  }
+}

@@ -2161,3 +2161,84 @@ button.plaza-fila:hover {
   font-weight: 600;
   color: var(--text-primary);
 }
+
+/* ============================================================================
+   REPORTES
+   El corte de salidas del dia: controles arriba, vista previa abajo y el
+   boton de descarga como unica accion primaria.
+   ==========================================================================*/
+
+.reporte-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-12);
+  margin-top: var(--space-16);
+}
+
+.reporte-controles .field {
+  margin: 0;
+}
+
+.reporte-chips {
+  display: flex;
+  gap: var(--space-8);
+  padding-bottom: 2px;
+}
+
+.reporte-previa-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.reporte-tabla {
+  max-height: 440px;
+  overflow-y: auto;
+}
+
+.rep-num {
+  text-align: right;
+}
+
+/* En telefono los controles se apilan a lo ancho —el boton de descargar se
+   vuelve un blanco facil para el pulgar— y la tabla se queda con lo que se
+   coteja de un vistazo: guia, hora y quien escaneo. La plaza y el estatus
+   actual no caben y ya vienen completos en el propio PDF. */
+@media (max-width: 700px) {
+  .reporte-controles {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reporte-controles .spacer {
+    display: none;
+  }
+
+  .reporte-controles .field .input,
+  .reporte-controles .field .select {
+    width: 100%;
+  }
+
+  .reporte-chips .chip {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .rep-movil-oculta {
+    display: none;
+  }
+}
+
+/* Celdas mas apretadas en telefono, para que las cuatro columnas de la vista
+   previa del reporte quepan sin scroll lateral. */
+@media (max-width: 700px) {
+  .reporte-tabla th,
+  .reporte-tabla td {
+    padding-left: var(--space-8);
+    padding-right: var(--space-8);
+  }
+}
