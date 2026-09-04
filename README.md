@@ -243,12 +243,13 @@ integraciones fijas como la pistola de escaneo).
   Regresa `{ dias, total, guias }`; las entregadas no cuentan. Alimenta el
   aviso de la barra superior del panel.
 - `GET /api/reportes/salidas?fecha=AAAA-MM-DD&plaza=MTY|CDMX` -> salidas
-  registradas ese dia (hoy por omision; plaza opcional), con hora exacta y
-  operador. Regresa `{ fecha, plaza, total, porPlaza, salidas }`; las salidas
-  revertidas no cuentan. Alimenta la vista previa de la pestaña Reportes.
+  registradas ese dia (hoy por omision; plaza opcional), con la hora exacta y
+  quien escaneo cada una. Regresa `{ fecha, plaza, total, porPlaza, salidas }`;
+  las salidas revertidas no cuentan. Alimenta la vista previa de la pestaña
+  Reportes.
 - `GET /api/reportes/salidas.pdf?fecha=AAAA-MM-DD&plaza=MTY|CDMX` -> el mismo
-  reporte como PDF descargable con el logo, una seccion por plaza y el
-  operador de cada escaneo.
+  reporte como PDF descargable con el logo, una seccion por plaza y quien
+  escaneo cada guia (columna "Escaneó").
 - `GET /api/guias/:numeroGuia` -> estatus actual, mensaje en lenguaje
   natural e historial completo de eventos.
 

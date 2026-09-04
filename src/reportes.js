@@ -105,12 +105,12 @@ const MARGEN = 46.8;
 const ANCHO = 612 - MARGEN * 2; // 518.4
 const PIE = 40; // reservado al pie de cada pagina
 
-// Columnas de la tabla: numero consecutivo, guia, hora y operador
+// Columnas de la tabla: numero consecutivo, guia, hora y quien escaneo
 const COL = [
   { titulo: '#', ancho: 30, alinear: 'right' },
   { titulo: 'GUIA', ancho: 190, alinear: 'left' },
   { titulo: 'HORA DE SALIDA', ancho: 110, alinear: 'left' },
-  { titulo: 'OPERADOR', ancho: ANCHO - 30 - 190 - 110, alinear: 'left' },
+  { titulo: 'ESCANEÓ', ancho: ANCHO - 30 - 190 - 110, alinear: 'left' },
 ];
 const ALTO_FILA = 19;
 
