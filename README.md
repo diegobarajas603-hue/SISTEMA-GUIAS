@@ -19,7 +19,8 @@ Estando en la plaza P (la otra plaza es Q):
 | `EN_TRANSITO_A_P` (venia hacia aqui) | **Llego**: queda en bodega de P, lista (`EN_BODEGA_P`) |
 | `EN_BODEGA_P` (estaba aqui) | **Vuelve a salir** de P hacia Q (`EN_TRANSITO_A_Q`) |
 | `EN_TRANSITO_A_Q` (ya salio de aqui) | Escaneo repetido: no cambia nada, solo se registra en el historial |
-| `EN_BODEGA_Q` (figuraba en la otra plaza) | Llego a P aunque no se escaneo su salida en Q (`EN_BODEGA_P`) |
+| `EN_BODEGA_Q` / `EN_RUTA_ENTREGA_Q`, y la guia **sale** de P por su prefijo | **Vuelve a salir** de P hacia Q (`EN_TRANSITO_A_Q`) |
+| `EN_BODEGA_Q` / `EN_RUTA_ENTREGA_Q`, y la guia **viene** hacia P | Llego a P aunque no se escaneo su salida en Q (`EN_BODEGA_P`) |
 
 Ejemplo: estas en MTY y escaneas una guia nueva -> el sistema registra que
 salio hacia CDMX. Cuando esa guia llega a CDMX y la escanean alla -> el
@@ -29,6 +30,14 @@ sistema detecta que ya esta en bodega de CDMX, lista.
 `AN` y las que salen de CDMX con `BN`. El sistema rechaza registrar una
 salida con el prefijo equivocado (una BN no puede salir de MTY ni viceversa);
 las llegadas y entregas en la plaza destino si se escanean normalmente.
+
+El prefijo no es solo una validacion al dar de alta: es **la direccion del
+viaje**, y por eso decide que significa cada escaneo. Una `AN` sale de MTY y va
+hacia CDMX, asi que **una `AN` escaneada en MTY solo puede ser una salida** —
+a MTY no llega, de MTY sale— y una `BN` escaneada en CDMX, tambien. Vale
+aunque el sistema creyera la guia en la otra plaza: si MTY vuelve a despachar
+una `AN` que figuraba en bodega CDMX, eso es una salida nueva, no una llegada
+a MTY. La regla la cuida `npm run prueba:escaneo`.
 
 ## Modos de operacion
 
@@ -130,6 +139,13 @@ npm start
 El servidor crea automaticamente las tablas (`guias`, `eventos`, `usuarios`,
 `sesiones`) al arrancar, y aplica las migraciones que falten. Las guias que ya
 existan sin `estatus_desde` la toman de su ultimo movimiento la primera vez.
+
+Para correr las pruebas del escaneo (crean y destruyen su propia base, no
+tocan la de desarrollo):
+
+```bash
+npm run prueba:escaneo
+```
 
 El servidor corre en `http://localhost:3000`. Abre esa URL en una
 computadora/tablet conectada a la pistola escaner (la pistola funciona
