@@ -211,7 +211,7 @@
           </div>
 
           <div class="captura-wrap">
-            <span class="escaner__listo"><span class="dot"></span>Listo para escanear</span>
+            <span class="escaner__listo" id="estadoCaptura"><span class="dot"></span><span id="estadoCapturaTxt">Listo para escanear</span></span>
             <input class="captura" type="text" id="guia" autocomplete="off"
                    autocapitalize="characters" spellcheck="false"
                    placeholder="Escanea el numero de guia"
@@ -224,6 +224,18 @@
           </div>
 
           <div class="escaner__resultado" id="resultado" aria-live="polite"></div>
+
+          <!-- Guias cuyo escaneo fallo. Se quedan aqui hasta que el operador
+               las revisa: una tarjeta que se borra sola se pierde entre
+               escaneos rapidos y la guia se da por registrada sin estarlo. -->
+          <div class="fallidas" id="fallidas" role="alert" hidden>
+            <div class="fallidas__head">
+              <strong id="fallidasTitulo">Guias que NO se registraron</strong>
+              <button class="btn btn--ghost btn--sm" id="btnFallidasOk" type="button">Ya las revise</button>
+            </div>
+            <div id="fallidasLista"></div>
+          </div>
+
           <div class="recientes" id="log"></div>
 
         </div>
@@ -806,10 +818,22 @@
 
   // ---------- API ----------
   async function api(ruta, opciones = {}) {
-    const res = await fetch(ruta, {
-      ...opciones,
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sesionToken, ...(opciones.headers || {}) },
-    });
+    const { timeoutMs, ...resto } = opciones;
+    let res;
+    try {
+      res = await fetch(ruta, {
+        ...resto,
+        // Con tiempo limite: una peticion que nunca regresa no se queda
+        // colgada en silencio, se reporta como error.
+        signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sesionToken, ...(resto.headers || {}) },
+      });
+    } catch (e) {
+      if (e && e.name === 'TimeoutError') {
+        throw new Error(`El servidor no respondio en ${Math.round(timeoutMs / 1000)} s`);
+      }
+      throw new Error('Sin conexion con el servidor');
+    }
     if (res.status === 401) {
       mostrarLogin('Tu sesion expiro. Inicia sesion de nuevo.');
       throw new Error('Sesion expirada');
@@ -1404,9 +1428,9 @@
     </div>`;
   }
 
-  function logRow(numeroGuia, texto) {
+  function logRow(numeroGuia, texto, esError = false) {
     const div = document.createElement('div');
-    div.className = 'reciente';
+    div.className = 'reciente' + (esError ? ' reciente--error' : '');
     div.innerHTML = `<span class="reciente__guia"></span><span class="reciente__txt"></span>
                      <span class="reciente__hora">${new Date().toLocaleTimeString('es-MX', { hour12: false })}</span>`;
     div.children[0].textContent = numeroGuia;
@@ -1416,9 +1440,53 @@
     while ($('log').children.length > 5) $('log').lastChild.remove();
   }
 
+  // Los escaneos se atienden EN ORDEN, uno a la vez. Si cada Enter disparara
+  // su peticion por su cuenta, las respuestas llegarian desordenadas y la
+  // tarjeta de una guia que fallo se pisaria con la de la siguiente que si
+  // entro: el operador da por registrada una guia que no lo esta.
+  const colaEscaneos = [];
+  let escaneoEnCurso = false;
+  // Si el servidor tarda mas que esto, el escaneo se reporta como fallido
+  const LIMITE_ESCANEO_MS = 20000;
+
+  function pintarEstadoCaptura() {
+    const ocupado = escaneoEnCurso || colaEscaneos.length > 0;
+    $('estadoCaptura').classList.toggle('escaner__listo--ocupado', ocupado);
+    $('estadoCapturaTxt').textContent = !ocupado
+      ? 'Listo para escanear'
+      : colaEscaneos.length
+        ? `Procesando... ${colaEscaneos.length} en espera`
+        : 'Procesando...';
+  }
+
+  function encolarEscaneo(numeroGuia) {
+    colaEscaneos.push(numeroGuia);
+    pintarEstadoCaptura();
+    procesarCola();
+  }
+
+  async function procesarCola() {
+    if (escaneoEnCurso) return;
+    escaneoEnCurso = true;
+    try {
+      while (colaEscaneos.length) {
+        const numeroGuia = colaEscaneos.shift();
+        pintarEstadoCaptura();
+        await escanear(numeroGuia);
+      }
+    } finally {
+      escaneoEnCurso = false;
+      pintarEstadoCaptura();
+    }
+  }
+
   async function escanear(numeroGuia) {
     try {
-      const data = await api('/api/guias/escanear', { method: 'POST', body: JSON.stringify({ numeroGuia, plaza, modo }) });
+      const data = await api('/api/guias/escanear', {
+        method: 'POST',
+        body: JSON.stringify({ numeroGuia, plaza, modo }),
+        timeoutMs: LIMITE_ESCANEO_MS,
+      });
       const estatus = data.guia && data.guia.estatus;
       const kind = data.tipo === 'repetido' ? 'neutro' : UI.statusKind(estatus);
       mostrarResultado(
@@ -1428,18 +1496,72 @@
       logRow(numeroGuia, data.mensaje);
       beep(data.tipo === 'repetido' ? 'warn' : 'ok');
     } catch (e) {
-      mostrarResultado(cardResultado(numeroGuia, null, e.message, 'error'), 'error');
-      logRow(numeroGuia, e.message);
+      // Sin respuesta no se sabe si el servidor alcanzo a registrarla: el
+      // operador debe verificar la guia antes de volver a escanearla, porque
+      // un segundo escaneo sobre una llegada ya registrada la vuelve a sacar.
+      const sinRespuesta = /no respondio|Sin conexion/.test(e.message);
+      const motivo = sinRespuesta
+        ? `${e.message}. Busca la guia en la lista antes de volver a escanearla.`
+        : e.message;
+      mostrarResultado(cardResultado(numeroGuia, null, motivo, 'error'), 'error');
+      logRow(numeroGuia, motivo, true);
+      agregarFallida(numeroGuia, motivo);
       beep('err');
     }
   }
 
-  $('guia').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const numeroGuia = $('guia').value.trim();
-      if (numeroGuia) escanear(numeroGuia.toUpperCase());
-      $('guia').value = '';
+  // ---- Guias que no entraron ----
+  // Se conservan en sessionStorage para que sobrevivan a una recarga
+  // accidental de la pagina, pero no a cerrar la pestaña.
+  let fallidas = [];
+  try { fallidas = JSON.parse(sessionStorage.getItem('escaneosFallidos') || '[]'); } catch {}
+
+  function guardarFallidas() {
+    try { sessionStorage.setItem('escaneosFallidos', JSON.stringify(fallidas)); } catch {}
+  }
+
+  function pintarFallidas() {
+    const caja = $('fallidas');
+    caja.hidden = fallidas.length === 0;
+    if (!fallidas.length) return;
+    $('fallidasTitulo').textContent = fallidas.length === 1
+      ? '1 guia NO se registro'
+      : `${fallidas.length} guias NO se registraron`;
+    const lista = $('fallidasLista');
+    lista.innerHTML = '';
+    for (const f of fallidas) {
+      const div = document.createElement('div');
+      div.className = 'fallida';
+      div.innerHTML = '<span class="fallida__guia"></span><span class="fallida__txt"></span><span class="fallida__hora"></span>';
+      div.children[0].textContent = f.guia;
+      div.children[1].textContent = f.motivo;
+      div.children[2].textContent = f.hora;
+      lista.appendChild(div);
     }
+  }
+
+  function agregarFallida(numeroGuia, motivo) {
+    fallidas.unshift({ guia: numeroGuia, motivo, hora: new Date().toLocaleTimeString('es-MX', { hour12: false }) });
+    if (fallidas.length > 20) fallidas.length = 20;
+    guardarFallidas();
+    pintarFallidas();
+  }
+
+  $('btnFallidasOk').addEventListener('click', () => {
+    fallidas = [];
+    guardarFallidas();
+    pintarFallidas();
+    enfocarCaptura();
+  });
+  pintarFallidas();
+
+  $('guia').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const numeroGuia = $('guia').value.trim();
+    if (!numeroGuia) return;
+    $('guia').value = '';
+    encolarEscaneo(numeroGuia.toUpperCase());
   });
 
   // ---------- Guias ----------
