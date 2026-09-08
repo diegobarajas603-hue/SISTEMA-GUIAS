@@ -210,7 +210,11 @@ async function marcarSalida(numeroGuia, plaza, destino, usuario) {
 //  - EN_RUTA_ENTREGA_P          -> regreso de un intento de entrega (EN_BODEGA_P)
 //  - ENTREGADO_*                -> nuevo embarque: sale de P hacia Q (EN_TRANSITO_A_Q)
 //  - EN_TRANSITO_A_Q            -> escaneo repetido: ya se registro su salida, no cambia
-//  - EN_BODEGA_Q                -> llego a P sin escaneo de salida en Q: queda EN_BODEGA_P
+//  - EN_BODEGA_Q / EN_RUTA_ENTREGA_Q, y la guia SALE de P por su prefijo
+//                               -> es una salida de P (EN_TRANSITO_A_Q): una AN
+//                                  escaneada en MTY nunca es una llegada
+//  - EN_BODEGA_Q / EN_RUTA_ENTREGA_Q, y la guia VIENE hacia P
+//                               -> llego a P sin escaneo de salida en Q: queda EN_BODEGA_P
 //
 // Modo "domicilio" (entrega a domicilio), estando en la plaza P:
 //  - EN_BODEGA_P                -> paquete en ruta de entrega (EN_RUTA_ENTREGA_P)
@@ -275,7 +279,23 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null) 
     return { guia, tipo: 'repetido', mensaje: descripcion };
   }
 
-  // EN_BODEGA_Q o EN_RUTA_ENTREGA_Q: aparecio en P sin los escaneos previos en Q
+  // La guia figura en la otra plaza (EN_BODEGA_Q o EN_RUTA_ENTREGA_Q) y se
+  // escanea aqui. Que significa lo dice el prefijo, porque el prefijo es la
+  // direccion del viaje: una AN sale de MTY y va hacia CDMX, asi que una AN
+  // escaneada en MTY solo puede ser una SALIDA. Nunca una llegada: a MTY no
+  // llega, de MTY sale.
+  //
+  // Sin esta comprobacion el escaneo caia en la rama de llegada y dejaba la
+  // guia EN_BODEGA_MTY, que es un estado imposible para una AN. Peor aun: la
+  // salida que el operador quiso registrar no quedaba, y tenia que escanear
+  // la misma guia dos veces para que saliera de verdad.
+  if (numeroGuia.startsWith(PREFIJO_PLAZA[plaza])) {
+    return marcarSalida(numeroGuia, plaza, destino, usuario);
+  }
+
+  // Con el prefijo de la otra plaza (una BN escaneada en MTY) el escaneo si es
+  // una llegada: la guia venia hacia aca y le falto el escaneo de salida alla.
+  // Las guias antiguas sin prefijo se siguen tratando igual que siempre.
   const estatus = enBodega(plaza);
   const { rows } = await pool.query(
     'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4, estatus_desde = $4 WHERE numero_guia = $5 RETURNING *',

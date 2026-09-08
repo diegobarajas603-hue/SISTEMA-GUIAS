@@ -5,7 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "prueba:escaneo": "node pruebas/escaneo.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
