@@ -819,6 +819,75 @@ button.plaza-fila:hover {
   50%      { box-shadow: 0 0 0 5px transparent; }
 }
 
+/* Mientras hay escaneos en proceso el punto cambia a ambar y late mas
+   rapido: el operador sabe que el sistema sigue trabajando y no que se trabo. */
+.escaner__listo--ocupado {
+  color: var(--st-transito-color);
+  background: var(--st-transito-bg);
+}
+
+.escaner__listo--ocupado .dot {
+  background: var(--st-transito-color);
+  animation: latido-ocupado 0.8s var(--ease) infinite;
+}
+
+@keyframes latido-ocupado {
+  0%, 100% { box-shadow: 0 0 0 0 var(--st-transito-halo); }
+  50%      { box-shadow: 0 0 0 5px transparent; }
+}
+
+/* ---------- Guias que no se registraron ----------
+   Se queda en pantalla hasta que el operador la descarta: es el aviso que
+   no se puede perder entre escaneos rapidos. */
+
+.fallidas {
+  width: 100%;
+  max-width: 640px;
+  padding: var(--space-12) var(--space-16);
+  border: 1px solid var(--st-eliminada-border);
+  border-left-width: 4px;
+  border-radius: var(--radius-md, 10px);
+  background: var(--st-eliminada-bg);
+}
+
+.fallidas__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-bottom: var(--space-8);
+  color: var(--st-eliminada-color);
+  font-size: 14px;
+}
+
+.fallida {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-4, 4px) 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.fallida__guia {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.fallida__txt {
+  flex: 1;
+  min-width: 0;
+}
+
+.fallida__hora {
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
 /* ---------- Card de resultado ----------
    El contenedor necesita ancho propio: dentro de un flex con align-items
    center no se estira, y la card acabaria midiendo lo que su contenido. */
@@ -913,6 +982,10 @@ button.plaza-fila:hover {
 
 .reciente:last-child { border-bottom: 0; }
 
+/* Un escaneo fallido se distingue aunque ya no sea el mas reciente */
+.reciente--error,
+.reciente--error .reciente__guia { color: var(--st-eliminada-color); }
+
 /* Opacidad decreciente: lo mas viejo se apaga */
 .reciente:nth-child(1) { opacity: 1; }
 .reciente:nth-child(2) { opacity: 0.8; }
@@ -943,6 +1016,7 @@ button.plaza-fila:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .escaner__listo .dot,
+  .escaner__listo--ocupado .dot,
   .captura.flash,
   .captura.sacudir,
   .resultado-card { animation: none; }
