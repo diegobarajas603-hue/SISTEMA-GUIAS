@@ -819,6 +819,51 @@ button.plaza-fila:hover {
   50%      { box-shadow: 0 0 0 5px transparent; }
 }
 
+/* ---------- Escaneos pendientes de confirmar ----------
+   Solo aparece cuando algo no va al ritmo normal: un escaneo que lleva mas
+   de un segundo sin respuesta, reenvios en curso o escaneos en espera de
+   sesion. Ambar porque no es un error, es "espera": el sistema los va a
+   entregar solo. */
+
+.cola-aviso {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--st-transito-bg);
+  border: 1px solid var(--st-transito-border);
+  color: var(--st-transito-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+/* display:flex de arriba le ganaria al [hidden] del navegador */
+.cola-aviso[hidden] { display: none; }
+
+.cola-aviso strong {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.cola-aviso__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--st-transito-color);
+  animation: latido-cola 1.2s var(--ease) infinite;
+}
+
+@keyframes latido-cola {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
 /* ---------- Card de resultado ----------
    El contenedor necesita ancho propio: dentro de un flex con align-items
    center no se estira, y la card acabaria midiendo lo que su contenido. */
@@ -889,6 +934,8 @@ button.plaza-fila:hover {
 
 .resultado-card--error .resultado-card__barra { background: var(--st-eliminada-color); }
 
+.resultado-card--error .resultado-card__barra { animation-duration: 8s; }
+
 @keyframes consumir {
   from { transform: scaleX(1); }
   to   { transform: scaleX(0); }
@@ -943,10 +990,12 @@ button.plaza-fila:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .escaner__listo .dot,
+  .cola-aviso__dot,
   .captura.flash,
   .captura.sacudir,
   .resultado-card { animation: none; }
   .resultado-card__barra { animation: consumir 4s linear forwards; }
+  .resultado-card--error .resultado-card__barra { animation-duration: 8s; }
 }
 
 /* Tablet: la zona de captura se adapta sin perder tamaño de toque */

@@ -122,18 +122,46 @@ async function login(usuario, password, ip) {
 
 async function logout(token) {
   await pool.query('DELETE FROM sesiones WHERE token = $1', [token]);
+  cacheSesiones.delete(token);
+}
+
+// Cache de sesiones en memoria. Cada peticion del panel (y cada escaneo)
+// validaba el token contra la base de datos: una consulta entera, con su
+// viaje de ida y vuelta, antes de empezar a trabajar. Aqui una sesion ya
+// validada se recuerda unos minutos; cualquier cambio en usuarios o sesiones
+// (logout, contraseña, roles, plaza, baja) vacia el cache para que el cambio
+// aplique de inmediato.
+const CACHE_SESION_MS = 5 * 60 * 1000;
+const cacheSesiones = new Map(); // token -> { usuario, vence }
+
+function olvidarSesiones() {
+  cacheSesiones.clear();
 }
 
 async function validarSesion(token) {
   if (!token) return null;
+  const enCache = cacheSesiones.get(token);
+  // Copia: cada peticion recibe su propio objeto y nadie modifica el del cache
+  if (enCache && enCache.vence > Date.now()) return { ...enCache.usuario };
+
   const { rows } = await pool.query(
-    `SELECT u.id, u.usuario, u.nombre, u.roles, u.plaza
+    `SELECT u.id, u.usuario, u.nombre, u.roles, u.plaza, s.expira_en
        FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id
       WHERE s.token = $1 AND s.expira_en > now()`,
     [token]
   );
-  if (!rows[0]) return null;
-  return { ...rows[0], modos: modosDeRoles(rows[0].roles) };
+  if (!rows[0]) {
+    cacheSesiones.delete(token);
+    return null;
+  }
+  const { expira_en, ...datos } = rows[0];
+  const usuario = { ...datos, modos: modosDeRoles(datos.roles) };
+  // Nunca mas alla de la expiracion real de la sesion
+  const vence = Math.min(Date.now() + CACHE_SESION_MS, new Date(expira_en).getTime());
+  // Que no crezca sin limite si alguien manda tokens inventados
+  if (cacheSesiones.size > 5000) cacheSesiones.clear();
+  cacheSesiones.set(token, { usuario, vence });
+  return usuario;
 }
 
 // ---------- Middlewares ----------
@@ -276,6 +304,7 @@ async function actualizarPlaza(id, plaza) {
     id,
   ]);
   if (!rowCount) throw new Error('Usuario no encontrado');
+  olvidarSesiones();
 }
 
 // Cambia los roles de un usuario. No se permite cambiar los propios (para no
@@ -290,6 +319,7 @@ async function actualizarRoles(id, roles, solicitante) {
     if (admins[0].n <= 1) throw new Error('No puedes quitarle el rol al ultimo administrador');
   }
   await pool.query('UPDATE usuarios SET roles = $1 WHERE id = $2', [rolesValidos, id]);
+  olvidarSesiones();
 }
 
 async function eliminarUsuario(id, solicitante) {
@@ -301,6 +331,7 @@ async function eliminarUsuario(id, solicitante) {
     if (admins[0].n <= 1) throw new Error('No puedes eliminar al ultimo administrador');
   }
   await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
+  olvidarSesiones();
 }
 
 async function cambiarPassword(usuarioId, actual, nueva, tokenActual) {
@@ -312,6 +343,7 @@ async function cambiarPassword(usuarioId, actual, nueva, tokenActual) {
   await pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [await hashPassword(nueva), usuarioId]);
   // Cierra las demas sesiones del usuario por seguridad (conserva la actual)
   await pool.query('DELETE FROM sesiones WHERE usuario_id = $1 AND token <> $2', [usuarioId, tokenActual || '']);
+  olvidarSesiones();
 }
 
 // Restablece la contraseña de cualquier usuario (accion de administrador,
@@ -324,6 +356,7 @@ async function resetPassword(usuarioId, nueva) {
   ]);
   if (!rowCount) throw new Error('Usuario no encontrado');
   await pool.query('DELETE FROM sesiones WHERE usuario_id = $1', [usuarioId]);
+  olvidarSesiones();
 }
 
 module.exports = {

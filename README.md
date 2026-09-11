@@ -93,6 +93,38 @@ Es distinto de la campana de notificaciones, que avisa de lo que lleva mas de
 24 h **en transito**: este vigila todos los estatus en proceso con un umbral
 mas alto, para que una guia dormida dos dias en bodega tampoco pase inadvertida.
 
+## Escaneo rapido y sin perdidas
+
+El escaneo esta pensado para una base de datos remota (Railway, Render,
+Supabase...), donde cada viaje a la base cuesta mas que la consulta en si:
+
+- **Dos viajes por escaneo**, no cuatro: la sesion del usuario se recuerda en
+  memoria unos minutos (cualquier cambio de usuario, contraseña, rol o plaza
+  la vuelve a pedir), y el cambio de estatus y su evento se escriben en una
+  sola consulta.
+- **Conexiones siempre listas**: el pool abre `DB_POOL_MIN` conexiones al
+  arrancar, las mantiene vivas y no las cierra por inactividad, asi el primer
+  escaneo despues de un rato no paga abrir la conexion.
+- **Cola de escaneos en el panel**: cada escaneo entra a una cola guardada en
+  el navegador y se envia en orden. Si el servidor no contesta (red caida,
+  hosting dormido, tiempo agotado) el panel avisa en ambar bajo el visor
+  ("3 escaneos sin confirmar... se reintenta solo") y **reintenta hasta que
+  conteste**, incluso si se recarga la pagina o expira la sesion. El operador
+  puede seguir escaneando mientras tanto: el campo nunca se bloquea.
+- **Reintentar es seguro**: cada escaneo lleva un id unico (`idEscaneo`). Si
+  el servidor ya lo aplico pero la respuesta se perdio, al reenviarlo contesta
+  lo mismo que la primera vez en lugar de mover la guia otra vez (una llegada
+  reenviada no se convierte en salida).
+- Un rechazo del servidor (prefijo equivocado, guia no disponible) **no se
+  reintenta**: se muestra en rojo durante 8 segundos y queda en la lista de
+  movimientos recientes.
+
+Para saber donde se va el tiempo: `GET /health` responde con `bd_ms` (lo que
+tarda un viaje redondo a la base de datos) y el estado del pool, y cada escaneo
+deja en el log del servidor una linea `[escaneo] usuario plaza modo guia ->
+tipo N ms`. Si `bd_ms` sale alto (mas de 50 ms), la base esta lejos del
+servidor: conviene tenerlos en el mismo proveedor y region.
+
 ## Reporte de salidas en PDF
 
 El corte del dia: en el panel, pestaña **Reportes**, se elige un dia (con
@@ -232,9 +264,14 @@ integraciones fijas como la pistola de escaneo).
 - `POST /api/guias/borrar-todas` `{ confirmar: "BORRAR" }` -> borra todas las
   guias y su historial para dejar el sistema como nuevo (solo rol `admin`; no
   toca usuarios ni sesiones).
-- `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX", modo?: "bodega"|"domicilio"|"ocurre" }`
-  -> aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje }`, donde
-  `tipo` es `salida`, `llegada`, `ruta`, `entregado` o `repetido`.
+- `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX", modo?: "bodega"|"domicilio"|"ocurre", idEscaneo?, reintento? }`
+  -> aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje, ms }`, donde
+  `tipo` es `salida`, `llegada`, `ruta`, `entregado` o `repetido`. `idEscaneo`
+  es un id unico por escaneo (de 8 a 64 letras, numeros, guion o guion bajo);
+  con `reintento: true`, si ese id ya se aplico se regresa el mismo resultado
+  con `yaAplicado: true` en vez de mover la guia de nuevo.
+- `GET /health` -> `{ status, bd_ms, pool }`: latencia de un viaje a la base
+  de datos y conexiones del pool (sin autenticacion).
 - `GET /api/guias?buscar=<texto>&estatus=<estatus>` -> lista de guias
   recientes, con busqueda por numero y filtro por estatus (ambos opcionales).
 - `GET /api/guias/resumen` -> conteo de guias por estatus.

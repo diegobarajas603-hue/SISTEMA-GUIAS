@@ -238,6 +238,11 @@
             </svg>
           </div>
 
+          <div class="cola-aviso" id="colaAviso" hidden role="status" aria-live="polite">
+            <span class="cola-aviso__dot"></span>
+            <span id="colaAvisoTxt"></span>
+          </div>
+
           <div class="escaner__resultado" id="resultado" aria-live="polite"></div>
           <div class="recientes" id="log"></div>
 
@@ -932,6 +937,7 @@
     usuarioActual = null;
     localStorage.removeItem('sesionToken');
     detenerVigilancia();
+    if (typeof pintarCola === 'function') pintarCola();
     $('loginOverlay').style.display = 'flex';
     const err = $('loginError');
     err.textContent = mensaje || '';
@@ -964,6 +970,7 @@
       ocultarLogin();
       render();
       arrancarVigilancia();
+      procesarCola();
     } catch (err2) {
       $('loginError').textContent = err2.message;
       $('loginError').classList.add('is-visible');
@@ -980,17 +987,36 @@
   });
 
   // ---------- API ----------
+  // opciones.timeout: ms maximos de espera; pasado ese tiempo la peticion se
+  // corta. Los errores en los que la peticion no llego o no volvio (sin red,
+  // servidor caido o dormido, tiempo agotado, 5xx del hosting) salen con
+  // reintentable = true: la cola de escaneos los reenvia sola. Un rechazo del
+  // servidor (400: prefijo equivocado, guia no disponible...) es definitivo.
   async function api(ruta, opciones = {}) {
-    const res = await fetch(ruta, {
-      ...opciones,
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sesionToken, ...(opciones.headers || {}) },
-    });
+    const { timeout, ...resto } = opciones;
+    let res;
+    try {
+      res = await fetch(ruta, {
+        ...resto,
+        signal: timeout && typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(timeout) : undefined,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sesionToken, ...(resto.headers || {}) },
+      });
+    } catch (e) {
+      const agotado = e.name === 'TimeoutError' || e.name === 'AbortError';
+      const err = new Error(agotado ? 'El servidor no respondio a tiempo' : 'Sin conexion con el servidor');
+      err.reintentable = true;
+      throw err;
+    }
     if (res.status === 401) {
       mostrarLogin('Tu sesion expiro. Inicia sesion de nuevo.');
       throw new Error('Sesion expirada');
     }
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Error de conexion');
+    if (!res.ok) {
+      const err = new Error(data.error || 'Error de conexion');
+      err.reintentable = res.status >= 500;
+      throw err;
+    }
     return data;
   }
 
@@ -1577,9 +1603,10 @@
     void cap.offsetWidth;   // reinicia la animacion
     cap.classList.add(kind === 'error' ? 'sacudir' : 'flash', 'flash--' + kind);
 
-    // La card se autodescarta a los 4 s, al ritmo de su barra de progreso
+    // La card se autodescarta a los 4 s, al ritmo de su barra de progreso;
+    // un rechazo se queda el doble: es lo que el operador tiene que leer
     clearTimeout(timerResultado);
-    timerResultado = setTimeout(() => { r.innerHTML = ''; }, 4000);
+    timerResultado = setTimeout(() => { r.innerHTML = ''; }, kind === 'error' ? 8000 : 4000);
 
     // La lista de movimientos se sigue limpiando sola a los 30 s, como antes
     clearTimeout(timerLimpieza);
@@ -1609,31 +1636,152 @@
     while ($('log').children.length > 5) $('log').lastChild.remove();
   }
 
-  async function escanear(numeroGuia) {
+  // ---------- Cola de escaneos ----------
+  //
+  // Ningun escaneo se pierde por lentitud. Cada escaneo entra a una cola
+  // guardada en localStorage y se envia en orden, uno a la vez. Si el servidor
+  // no contesta (red caida, hosting dormido, tiempo agotado) se reintenta solo
+  // con espera creciente hasta que conteste, y la cola sobrevive a recargar la
+  // pagina o a que expire la sesion. Cada escaneo lleva un id unico que el
+  // servidor reconoce en los reenvios, asi que reintentar nunca aplica un
+  // movimiento dos veces (una llegada reenviada no se vuelve salida).
+  //
+  // Mientras tanto el operador sigue escaneando: el campo nunca se bloquea.
+  const TIEMPO_LIMITE_ESCANEO = 15000; // ms sin respuesta para dar el envio por perdido
+  const ESPERA_REINTENTO_MAX = 30000;
+  const AVISAR_LENTO_MS = 1000;        // a partir de aqui se avisa que el servidor tarda
+
+  let cola = leerCola();               // [{ id, numeroGuia, plaza, modo, intentos, creadoEn }]
+  let enviando = null;                 // escaneo en vuelo
+  let timerReintento = null;
+  let timerLento = null;
+
+  function leerCola() {
     try {
-      const data = await api('/api/guias/escanear', { method: 'POST', body: JSON.stringify({ numeroGuia, plaza, modo }) });
-      const estatus = data.guia && data.guia.estatus;
-      const kind = data.tipo === 'repetido' ? 'neutro' : UI.statusKind(estatus);
-      mostrarResultado(
-        cardResultado(numeroGuia, estatus, TITULO_TIPO[data.tipo] || data.mensaje, kind),
-        kind
-      );
-      logRow(numeroGuia, data.mensaje);
-      beep(data.tipo === 'repetido' ? 'warn' : 'ok');
-      // Mover una guia puede sacarla de la lista de estancadas: el aviso se
-      // actualiza en el momento, sin esperar a la siguiente revision
-      if (data.tipo !== 'repetido') revisarEstancadas();
+      const c = JSON.parse(localStorage.getItem('colaEscaneos') || '[]');
+      return Array.isArray(c) ? c : [];
+    } catch { return []; }
+  }
+
+  function guardarCola() {
+    try { localStorage.setItem('colaEscaneos', JSON.stringify(cola)); } catch {}
+  }
+
+  function idEscaneo() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+  }
+
+  function encolarEscaneo(numeroGuia) {
+    cola.push({ id: idEscaneo(), numeroGuia, plaza, modo, intentos: 0, creadoEn: Date.now() });
+    guardarCola();
+    pintarCola();
+    procesarCola();
+  }
+
+  function quitarDeCola(item) {
+    cola = cola.filter((x) => x.id !== item.id);
+    guardarCola();
+  }
+
+  async function procesarCola() {
+    if (enviando || !cola.length || !sesionToken) return;
+    clearTimeout(timerReintento);
+    timerReintento = null;
+    const item = cola[0];
+    enviando = item;
+    item.desde = Date.now();
+    clearTimeout(timerLento);
+    timerLento = setTimeout(pintarCola, AVISAR_LENTO_MS);
+    try {
+      const data = await api('/api/guias/escanear', {
+        method: 'POST',
+        timeout: TIEMPO_LIMITE_ESCANEO,
+        body: JSON.stringify({
+          numeroGuia: item.numeroGuia,
+          plaza: item.plaza,
+          modo: item.modo,
+          idEscaneo: item.id,
+          reintento: item.intentos > 0,
+        }),
+      });
+      quitarDeCola(item);
+      mostrarEscaneoOk(item, data);
     } catch (e) {
-      mostrarResultado(cardResultado(numeroGuia, null, e.message, 'error'), 'error');
-      logRow(numeroGuia, e.message);
-      beep('err');
+      if (e.reintentable) {
+        item.intentos++;
+        guardarCola();
+        // 2 s, 4 s, 8 s, 16 s y de ahi cada 30 s, hasta que conteste
+        const espera = Math.min(1000 * 2 ** Math.min(item.intentos, 5), ESPERA_REINTENTO_MAX);
+        timerReintento = setTimeout(procesarCola, espera);
+      } else if (e.message === 'Sesion expirada') {
+        // Se queda en la cola y sigue en cuanto el usuario vuelva a entrar
+      } else {
+        quitarDeCola(item);
+        mostrarEscaneoError(item, e.message);
+      }
+    } finally {
+      clearTimeout(timerLento);
+      enviando = null;
+      pintarCola();
+      if (!timerReintento) procesarCola();
     }
   }
+
+  function mostrarEscaneoOk(item, data) {
+    const estatus = data.guia && data.guia.estatus;
+    const kind = data.tipo === 'repetido' ? 'neutro' : UI.statusKind(estatus);
+    mostrarResultado(cardResultado(item.numeroGuia, estatus, TITULO_TIPO[data.tipo] || data.mensaje, kind), kind);
+    logRow(item.numeroGuia, data.mensaje);
+    beep(data.tipo === 'repetido' ? 'warn' : 'ok');
+    // Mover una guia puede sacarla de la lista de estancadas: el aviso se
+    // actualiza en el momento, sin esperar a la siguiente revision. Si no hay
+    // ninguna estancada no hay nada que actualizar (mover una guia no la
+    // estanca), y se ahorra una peticion por escaneo.
+    if (data.tipo !== 'repetido' && totalEstancadas > 0) revisarEstancadas();
+  }
+
+  function mostrarEscaneoError(item, mensaje) {
+    mostrarResultado(cardResultado(item.numeroGuia, null, mensaje, 'error'), 'error');
+    logRow(item.numeroGuia, mensaje);
+    beep('err');
+  }
+
+  // El aviso solo aparece cuando algo no va al ritmo normal: un escaneo que
+  // lleva mas de un segundo sin respuesta, reenvios en curso o escaneos en
+  // espera de que el usuario vuelva a entrar. Se oculta solo al vaciarse.
+  function pintarCola() {
+    const aviso = $('colaAviso');
+    const n = cola.length;
+    if (!n) { aviso.hidden = true; return; }
+
+    const reintentando = cola[0].intentos > 0;
+    const lento = enviando && Date.now() - enviando.desde >= AVISAR_LENTO_MS - 50;
+    if (!reintentando && !lento && sesionToken) { aviso.hidden = true; return; }
+
+    const numeros = cola.slice(0, 3).map((x) => `<strong>${esc(x.numeroGuia)}</strong>`).join(', ') + (n > 3 ? ` y ${n - 3} mas` : '');
+    let texto;
+    if (!sesionToken) {
+      texto = `${n} escaneo${n > 1 ? 's' : ''} en espera (${numeros}). Inicia sesion para enviarlos.`;
+    } else if (reintentando) {
+      texto = `${n} escaneo${n > 1 ? 's' : ''} sin confirmar (${numeros}). El servidor no responde; se reintenta solo. No cierres esta pagina.`;
+    } else {
+      texto = `Enviando ${numeros}... el servidor tarda en responder${n > 1 ? `; ${n - 1} en espera` : ''}. Puedes seguir escaneando.`;
+    }
+    $('colaAvisoTxt').innerHTML = texto;
+    aviso.hidden = false;
+  }
+
+  // En cuanto vuelve la red se reintenta sin esperar el siguiente turno
+  window.addEventListener('online', () => {
+    if (timerReintento) { clearTimeout(timerReintento); timerReintento = null; }
+    procesarCola();
+  });
 
   $('guia').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       const numeroGuia = $('guia').value.trim();
-      if (numeroGuia) escanear(numeroGuia.toUpperCase());
+      if (numeroGuia) encolarEscaneo(numeroGuia.toUpperCase());
       $('guia').value = '';
     }
   });
@@ -2893,6 +3041,7 @@
       render();
       moverIndicador(true);
       arrancarVigilancia();
+      procesarCola();
     } catch (e2) {
       // Si la sesion expiro, api() ya mostro el login; si fue error de red, tambien lo pedimos
       if (e2.message !== 'Sesion expirada') mostrarLogin('No se pudo validar la sesion. Revisa tu conexion e intenta de nuevo.');

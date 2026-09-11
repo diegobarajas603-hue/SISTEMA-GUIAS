@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const { init } = require('./db');
+const { init, latenciaBd, estadoPool } = require('./db');
 const guias = require('./guias');
 const reportes = require('./reportes');
 const auth = require('./auth');
@@ -56,7 +56,16 @@ const { requireAuth, requireAdmin } = auth;
 // caida un instante) responda un error 500 en lugar de tumbar el proceso.
 const seguro = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+// Salud del servicio, con el tiempo de un viaje redondo a la base de datos y
+// el estado del pool. Si el escaneo se siente lento, aqui se ve de un vistazo
+// si el problema es la distancia a la base (bd_ms alto) o el hosting.
+app.get('/health', async (req, res) => {
+  try {
+    res.json({ status: 'ok', bd_ms: await latenciaBd(), pool: estadoPool() });
+  } catch (e) {
+    res.status(503).json({ status: 'sin base de datos', error: e.message, pool: estadoPool() });
+  }
+});
 
 // ---------- Autenticacion (login del panel) ----------
 
@@ -157,9 +166,15 @@ app.put('/api/usuarios/:id/password', requireAuth, requireAdmin, async (req, res
 // Escaneo inteligente: se indica en que plaza estas (MTY o CDMX) y el modo de
 // operacion (bodega, domicilio u ocurre); el sistema decide que significa el
 // escaneo segun el estado actual de la guia.
+//
+// idEscaneo (opcional): id unico del escaneo generado por el panel. Con
+// reintento: true el panel avisa que esta reenviando un escaneo del que no
+// recibio respuesta; si ya se aplico, se contesta lo mismo que la primera
+// vez en lugar de mover la guia otra vez.
 app.post('/api/guias/escanear', requireAuth, async (req, res) => {
-  const { numeroGuia, plaza, modo } = req.body || {};
+  const { numeroGuia, plaza, modo, idEscaneo, reintento } = req.body || {};
   if (!numeroGuia || !plaza) return res.status(400).json({ error: 'numeroGuia y plaza son requeridos' });
+  const inicio = performance.now();
   // Si el usuario tiene plaza asignada, solo puede escanear en esa plaza
   if (req.usuario.plaza && String(plaza).trim().toUpperCase() !== req.usuario.plaza) {
     return res.status(403).json({ error: `Tu usuario solo puede escanear en ${req.usuario.plaza}` });
@@ -177,17 +192,24 @@ app.post('/api/guias/escanear', requireAuth, async (req, res) => {
     });
   }
   try {
-    const resultado = await guias.escanearGuia(
-      String(numeroGuia).trim().toUpperCase(),
-      String(plaza).trim().toUpperCase(),
-      modoPedido,
-      req.usuario.usuario
-    );
+    const numero = String(numeroGuia).trim().toUpperCase();
+    const resultado = await guias.escanearGuia(numero, String(plaza).trim().toUpperCase(), modoPedido, req.usuario.usuario, {
+      idEscaneo,
+      reintento: reintento === true,
+    });
     // El panel muestra quien y cuando en la confirmacion del escaneo
     resultado.operador = req.usuario.nombre || req.usuario.usuario;
     resultado.hora = new Date().toISOString();
+    // Cuanto tardo el servidor en atenderlo (sin contar la red hasta el
+    // navegador). Queda en el log para saber donde se va el tiempo.
+    resultado.ms = Math.round(performance.now() - inicio);
+    console.log(
+      `[escaneo] ${req.usuario.usuario} ${plaza} ${modoPedido} ${numero} -> ${resultado.tipo}` +
+        `${resultado.yaAplicado ? ' (reintento, ya aplicado)' : ''} ${resultado.ms} ms`
+    );
     res.json(resultado);
   } catch (e) {
+    console.log(`[escaneo] ${req.usuario.usuario} ${plaza} ${modoPedido} ${String(numeroGuia).trim().toUpperCase()} -> rechazado: ${e.message}`);
     res.status(400).json({ error: e.message });
   }
 });
