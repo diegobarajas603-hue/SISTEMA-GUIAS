@@ -17,7 +17,9 @@ Estando en la plaza P (la otra plaza es Q):
 | --- | --- |
 | No existe en el sistema | La registra: **salio de P hacia Q** (`EN_TRANSITO_A_Q`) |
 | `EN_TRANSITO_A_P` (venia hacia aqui) | **Llego**: queda en bodega de P, lista (`EN_BODEGA_P`) |
-| `EN_BODEGA_P` (estaba aqui) | **Vuelve a salir** de P hacia Q (`EN_TRANSITO_A_Q`) |
+| `EN_BODEGA_P` y la guia es una salida de P | **Vuelve a salir** de P hacia Q (`EN_TRANSITO_A_Q`) |
+| `EN_BODEGA_P` y P es su destino | **Se rechaza**: ahi termina su viaje; lo que sigue es entregarla en modo domicilio u ocurre |
+| `ENTREGADO_*` | **Se rechaza**: la guia ya termino su recorrido; nada cambia |
 | `EN_TRANSITO_A_Q` (ya salio de aqui) | Escaneo repetido: no cambia nada, solo se registra en el historial |
 | `EN_BODEGA_Q` y la guia es una salida de P (AN en MTY, BN en CDMX) | **Se rechaza**: la guia ya llego a su destino Q; el escaneo no cambia nada |
 | `EN_BODEGA_Q` y la guia es una salida de Q | Llego a P aunque no se escaneo su salida en Q (`EN_BODEGA_P`) |
@@ -38,8 +40,9 @@ Ademas de la plaza, en el panel se elige el tipo de operacion:
 - **Bodega (MTY <-> CDMX)**: transito entre plazas, con la logica de la tabla
   de arriba. Ademas, si se escanea en bodega un paquete que estaba
   `EN_RUTA_ENTREGA_P`, se interpreta como regreso por entrega no completada
-  (vuelve a `EN_BODEGA_P`); un paquete `ENTREGADO_*` escaneado en bodega
-  inicia un nuevo embarque hacia la otra plaza.
+  (vuelve a `EN_BODEGA_P`). Una guia tiene un solo viaje: sale de su plaza
+  de origen (AN de MTY, BN de CDMX), se entrega en la otra y ahi termina;
+  una guia `ENTREGADO_*` ya no se mueve con ningun escaneo.
 - **Entrega a domicilio**: `EN_BODEGA_P` -> `EN_RUTA_ENTREGA_P` (paquete en
   ruta de entrega) y `EN_RUTA_ENTREGA_P` -> `ENTREGADO_P`.
 - **Ocurre (el cliente recoge en bodega)**: `EN_BODEGA_P` -> `ENTREGADO_P`

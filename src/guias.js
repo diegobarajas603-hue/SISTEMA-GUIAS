@@ -300,9 +300,14 @@ async function marcarSalida(numeroGuia, plaza, destino, usuario, idEscaneo) {
 // Modo "bodega" (transito MTY <-> CDMX), estando en la plaza P (la otra es Q):
 //  - La guia no existe          -> se registra y sale de P hacia Q (EN_TRANSITO_A_Q)
 //  - EN_TRANSITO_A_P            -> llego: queda en bodega de P (EN_BODEGA_P)
-//  - EN_BODEGA_P                -> vuelve a salir de P hacia Q (EN_TRANSITO_A_Q)
+//  - EN_BODEGA_P, siendo la guia una salida de P
+//                               -> vuelve a salir de P hacia Q (EN_TRANSITO_A_Q)
+//  - EN_BODEGA_P, siendo P su destino
+//                               -> error: ahi termina su viaje; lo que sigue es
+//                                  entregarla (modo domicilio u ocurre)
 //  - EN_RUTA_ENTREGA_P          -> regreso de un intento de entrega (EN_BODEGA_P)
-//  - ENTREGADO_*                -> nuevo embarque: sale de P hacia Q (EN_TRANSITO_A_Q)
+//  - ENTREGADO_*                -> error: la guia ya termino su recorrido; el
+//                                  escaneo se rechaza y no cambia nada
 //  - EN_TRANSITO_A_Q            -> escaneo repetido: ya se registro su salida, no cambia
 //  - EN_BODEGA_Q / EN_RUTA_ENTREGA_Q, siendo la guia una salida de P (AN en
 //    MTY, BN en CDMX)          -> error: la guia ya llego a su destino Q; el
@@ -360,7 +365,27 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null, 
     return { guia: g, tipo: 'llegada', mensaje: descripcion };
   }
 
-  if (guia.estatus === enBodega(plaza) || guia.estatus === entregado(plaza) || guia.estatus === entregado(destino)) {
+  // Una guia tiene un solo viaje: sale de su plaza de origen, se entrega en
+  // la otra y ahi termina. Entregada, ya no se mueve con ningun escaneo.
+  if (guia.estatus === entregado(plaza) || guia.estatus === entregado(destino)) {
+    const plazaEntrega = plazaDeEstatus(guia.estatus);
+    const desde = fechaHora(guia.estatus_desde);
+    throw new Error(
+      `La guia ${numeroGuia} ya fue entregada en ${plazaEntrega}${desde ? ` el ${desde}` : ''}: su recorrido termino. ` +
+        `Si el escaneo de entrega fue un error, pide a un administrador que lo corrija.`
+    );
+  }
+
+  if (guia.estatus === enBodega(plaza)) {
+    // En bodega de su destino la guia ya no sale hacia ningun lado: lo que
+    // sigue es entregarla (domicilio u ocurre), no volverla a embarcar.
+    if (plazaDeSalida(numeroGuia, guia) !== plaza) {
+      const desde = fechaHora(guia.estatus_desde);
+      throw new Error(
+        `La guia ${numeroGuia} esta en bodega ${plaza}${desde ? ` desde el ${desde}` : ''} y ${plaza} es su destino: ` +
+          `ya no sale hacia ${destino}. Para entregarla, escaneala en modo domicilio u ocurre.`
+      );
+    }
     return marcarSalida(numeroGuia, plaza, destino, usuario, idEscaneo);
   }
 
