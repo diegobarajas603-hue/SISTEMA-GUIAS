@@ -258,6 +258,29 @@ function validarPrefijoSalida(numeroGuia, plaza) {
   throw new Error(`Numero de guia invalido: las salidas de ${plaza} empiezan con ${propio}`);
 }
 
+// Plaza de la que sale una guia: la dice el prefijo (AN = MTY, BN = CDMX) y,
+// en guias antiguas sin prefijo, la columna origen.
+function plazaDeSalida(numeroGuia, guia) {
+  for (const plaza of PLAZAS) {
+    if (numeroGuia.startsWith(PREFIJO_PLAZA[plaza])) return plaza;
+  }
+  return guia && guia.origen;
+}
+
+const fmtFechaHora = new Intl.DateTimeFormat('es-MX', {
+  timeZone: 'America/Mexico_City',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+function fechaHora(fecha) {
+  return fecha ? fmtFechaHora.format(new Date(fecha)) : null;
+}
+
 async function marcarSalida(numeroGuia, plaza, destino, usuario, idEscaneo) {
   validarPrefijoSalida(numeroGuia, plaza);
   const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
@@ -281,7 +304,11 @@ async function marcarSalida(numeroGuia, plaza, destino, usuario, idEscaneo) {
 //  - EN_RUTA_ENTREGA_P          -> regreso de un intento de entrega (EN_BODEGA_P)
 //  - ENTREGADO_*                -> nuevo embarque: sale de P hacia Q (EN_TRANSITO_A_Q)
 //  - EN_TRANSITO_A_Q            -> escaneo repetido: ya se registro su salida, no cambia
-//  - EN_BODEGA_Q                -> llego a P sin escaneo de salida en Q: queda EN_BODEGA_P
+//  - EN_BODEGA_Q / EN_RUTA_ENTREGA_Q, siendo la guia una salida de P (AN en
+//    MTY, BN en CDMX)          -> error: la guia ya llego a su destino Q; el
+//                                  escaneo se rechaza y no cambia nada
+//  - EN_BODEGA_Q / EN_RUTA_ENTREGA_Q, siendo la guia una salida de Q
+//                               -> llego a P sin escaneo de salida en Q: queda EN_BODEGA_P
 //
 // Modo "domicilio" (entrega a domicilio), estando en la plaza P:
 //  - EN_BODEGA_P                -> paquete en ruta de entrega (EN_RUTA_ENTREGA_P)
@@ -349,7 +376,25 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null, 
     return { guia, tipo: 'repetido', mensaje: descripcion };
   }
 
-  // EN_BODEGA_Q o EN_RUTA_ENTREGA_Q: aparecio en P sin los escaneos previos en Q
+  // EN_BODEGA_Q o EN_RUTA_ENTREGA_Q.
+  //
+  // Si la guia es una salida de P (una AN escaneada en MTY, una BN en CDMX),
+  // su recorrido termina en Q: ya llego a su destino y un escaneo en P no la
+  // puede "regresar" a bodega P. Caso real: una AN sale de MTY, en CDMX le
+  // dan llegada y alguien la vuelve a escanear en MTY; antes quedaba
+  // EN_BODEGA_MTY cuando el paquete estaba en CDMX. Se rechaza sin tocar nada.
+  if (plazaDeSalida(numeroGuia, guia) === plaza) {
+    const donde =
+      guia.estatus === enRutaEntrega(destino) ? `en ruta de entrega en ${destino}` : `en bodega ${destino}`;
+    const desde = fechaHora(guia.estatus_desde);
+    throw new Error(
+      `La guia ${numeroGuia} ya esta ${donde}${desde ? ` desde el ${desde}` : ''}. ` +
+        `Es una salida de ${plaza} y su recorrido termina en ${destino}: no se le puede dar llegada en ${plaza}. ` +
+        `Si el paquete de verdad esta en ${plaza}, pide a un administrador que corrija el ultimo escaneo.`
+    );
+  }
+
+  // La guia es una salida de Q: aparecio en P sin los escaneos previos en Q
   const descripcion = `Llego a bodega ${plaza} (sin registro de salida de bodega ${destino})`;
   const g = await moverGuia(
     numeroGuia,

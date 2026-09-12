@@ -19,7 +19,8 @@ Estando en la plaza P (la otra plaza es Q):
 | `EN_TRANSITO_A_P` (venia hacia aqui) | **Llego**: queda en bodega de P, lista (`EN_BODEGA_P`) |
 | `EN_BODEGA_P` (estaba aqui) | **Vuelve a salir** de P hacia Q (`EN_TRANSITO_A_Q`) |
 | `EN_TRANSITO_A_Q` (ya salio de aqui) | Escaneo repetido: no cambia nada, solo se registra en el historial |
-| `EN_BODEGA_Q` (figuraba en la otra plaza) | Llego a P aunque no se escaneo su salida en Q (`EN_BODEGA_P`) |
+| `EN_BODEGA_Q` y la guia es una salida de P (AN en MTY, BN en CDMX) | **Se rechaza**: la guia ya llego a su destino Q; el escaneo no cambia nada |
+| `EN_BODEGA_Q` y la guia es una salida de Q | Llego a P aunque no se escaneo su salida en Q (`EN_BODEGA_P`) |
 
 Ejemplo: estas en MTY y escaneas una guia nueva -> el sistema registra que
 salio hacia CDMX. Cuando esa guia llega a CDMX y la escanean alla -> el
