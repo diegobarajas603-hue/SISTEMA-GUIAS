@@ -481,6 +481,7 @@ init()
   .then(() => guias.marcarRevertidosHistoricos())
   .then(() => guias.marcarDuplicadosHistoricos())
   .then(() => guias.migrarComplementos())
+  .then(() => guias.registrarComplementosEnBitacora())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Sistema de guias escuchando en http://localhost:${PORT}`);

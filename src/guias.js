@@ -725,6 +725,34 @@ async function migrarComplementos() {
   }
 }
 
+// Migracion idempotente al arrancar: los complementos registrados antes de que
+// pasaran por la bitacora solo dejaron su evento COMPLEMENTO en el historial
+// de la guia. De ese evento se recupera el numero anterior y el complemento
+// (el texto era "...la guia conserva sus dos numeros (ANTERIOR y COMPLEMENTO)")
+// y se asientan en la bitacora con su fecha y responsable originales. No
+// tenian motivo, asi que se deja constancia de eso en su lugar.
+async function registrarComplementosEnBitacora() {
+  const { rows } = await pool.query(
+    `SELECT e.estatus, e.usuario, e.descripcion, e.creado_en FROM eventos e
+      WHERE e.accion = $1 AND e.descripcion LIKE '%conserva sus dos numeros (%'
+      ORDER BY e.id ASC`,
+    [ACCIONES.COMPLEMENTO]
+  );
+  for (const ev of rows) {
+    const m = /conserva sus dos numeros \((\S+) y ([^)\s]+)\)/.exec(ev.descripcion);
+    if (!m) continue;
+    const [, anterior, comp] = m;
+    await pool.query(
+      `INSERT INTO bitacora (tipo, numero_guia, numero_nuevo, motivo, usuario, estatus, creado_en)
+       SELECT 'COMPLEMENTO', $1::text, $2::text, $3, $4, $5, $6
+        WHERE NOT EXISTS (
+          SELECT 1 FROM bitacora WHERE tipo = 'COMPLEMENTO' AND numero_guia = $1::text AND numero_nuevo = $2::text
+        )`,
+      [anterior, comp, 'Registrado antes de que el complemento pidiera motivo', ev.usuario, ev.estatus, ev.creado_en]
+    );
+  }
+}
+
 // Migracion idempotente al arrancar: marca como revertidos los escaneos que
 // fueron deshechos por correcciones hechas antes de existir la columna
 // "revertido", para que tampoco se muestren al cliente.
@@ -1073,6 +1101,7 @@ module.exports = {
     conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion)),
   marcarRevertidosHistoricos,
   migrarComplementos,
+  registrarComplementosEnBitacora,
   marcarDuplicadosHistoricos,
   borrarGuia: (numeroGuia, usuario, motivo) => conCandado(numeroGuia, () => borrarGuia(numeroGuia, usuario, motivo)),
   listarBitacora,
