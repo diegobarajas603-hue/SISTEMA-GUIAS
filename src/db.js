@@ -102,7 +102,7 @@ async function init() {
     -- responder "quien la borro y por que" es este registro.
     CREATE TABLE IF NOT EXISTS bitacora (
       id SERIAL PRIMARY KEY,
-      tipo TEXT NOT NULL,              -- ELIMINACION o CANCELACION
+      tipo TEXT NOT NULL,              -- ELIMINACION, CANCELACION o COMPLEMENTO
       numero_guia TEXT NOT NULL,       -- guia eliminada o cancelada
       numero_nuevo TEXT,               -- en una cancelacion, la guia que la reemplaza
       motivo TEXT NOT NULL,

@@ -258,8 +258,8 @@ app.delete('/api/guias/:numeroGuia', requireAuth, requireAdmin, async (req, res)
 //    regresa al estatus anterior al ultimo escaneo) y "conservarComplemento"
 //    (por omision el complemento se queda con la guia cancelada).
 //  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento:
-//    solo queda activa la guia del complemento, que registra la anterior;
-//    la guia conserva ambos numeros y los dos sirven para rastrear.
+//    solo queda activa la guia del complemento, que registra la anterior.
+//    Exige "motivo" y el mismo prefijo (AN/BN) que la guia anterior.
 app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
   const { resolucion, numero, estatus, conservarComplemento, motivo } = req.body || {};
   let r = null;
@@ -268,9 +268,9 @@ app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (re
     if (resolucion === 'cancelada') {
       r.estatus = estatus || null;
       r.conservarComplemento = conservarComplemento === true;
-      // Obligatorio: queda en el historial de la guia y en la bitacora
-      r.motivo = motivo;
     }
+    // Obligatorio en ambos: queda en el historial de la guia y en la bitacora
+    r.motivo = motivo;
   } else if (resolucion) {
     return res.status(400).json({ error: 'Resolucion invalida: usa "cancelada" o "complemento"' });
   }

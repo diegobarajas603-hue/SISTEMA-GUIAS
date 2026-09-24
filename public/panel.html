@@ -424,6 +424,7 @@
             <button class="seg__option" data-value="" aria-selected="true">Todo</button>
             <button class="seg__option" data-value="ELIMINACION" aria-selected="false">Eliminaciones</button>
             <button class="seg__option" data-value="CANCELACION" aria-selected="false">Cancelaciones</button>
+            <button class="seg__option" data-value="COMPLEMENTO" aria-selected="false">Complementos</button>
           </div>
         </div>
         <div id="bitacoraLista"></div>
@@ -2149,8 +2150,8 @@
 
   // Revertir no siempre significa lo mismo: puede ser un escaneo equivocado,
   // una guia cancelada que se reemplaza por otra, o un complemento. El motivo
-  // solo es obligatorio al cancelar, porque es el unico caso donde la guia
-  // cambia de numero y alguien va a tener que explicar por que.
+  // es obligatorio al cancelar y al registrar un complemento, porque en ambos
+  // la guia cambia de numero y alguien va a tener que explicar por que.
   const OPCIONES_REV = [
     {
       id: 'solo',
@@ -2222,7 +2223,7 @@
         <label class="field">
           <span class="field__label">${cancelada ? 'Numero de la guia nueva' : 'Numero del complemento'}</span>
           <input class="input" type="text" id="revNumero" autocomplete="off" spellcheck="false"
-                 placeholder="${cancelada ? (pref ? `Debe empezar con ${pref[1]}, igual que la guia cancelada` : 'AN... o BN...') : ''}" />
+                 placeholder="${pref ? `Debe empezar con ${pref[1]}, igual que ${cancelada ? 'la guia cancelada' : 'la guia anterior'}` : 'AN... o BN...'}" />
         </label>
         ${cancelada ? `
           <label class="field">
@@ -2239,13 +2240,13 @@
                 <span class="opcion__desc">Pasar tambien el complemento ${esc(comp)} a la guia nueva. Si no lo marcas, se queda con la guia cancelada y ese numero vuelve a quedar libre.</span>
               </span>
             </label>` : ''}
-          <label class="field">
-            <span class="field__label">Motivo de la cancelacion</span>
-            <textarea class="input input--area" id="revMotivo" rows="2" maxlength="500"
-                      placeholder="Por ejemplo: el cliente no pago la entrega y se emitio una guia nueva"></textarea>
-          </label>
-          <p class="nota">Queda registrado en el historial de la guia y en la bitacora, junto con tu usuario y la fecha.</p>
         ` : ''}
+        <label class="field">
+          <span class="field__label">${cancelada ? 'Motivo de la cancelacion' : 'Motivo del complemento'}</span>
+          <textarea class="input input--area" id="revMotivo" rows="2" maxlength="500"
+                    placeholder="${cancelada ? 'Por ejemplo: el cliente no pago la entrega y se emitio una guia nueva' : 'Por ejemplo: se cobro un adicional por sobrepeso'}"></textarea>
+        </label>
+        <p class="nota">Queda registrado en el historial de la guia y en la bitacora, junto con tu usuario y la fecha.</p>
         <p class="msg-error" id="revError" hidden></p>`,
       alAbrir: (panel) => {
         const $$ = (id) => panel.querySelector('#' + id);
@@ -2265,17 +2266,21 @@
           if (!$$('revNumero').value.trim()) {
             return error(cancelada ? 'Escribe el numero de la guia nueva.' : 'Escribe el numero del complemento.', $$('revNumero'));
           }
-          if (cancelada && $$('revMotivo').value.trim().length < 5) {
-            return error('Escribe el motivo de la cancelacion: queda en el historial y en la bitacora.', $$('revMotivo'));
+          const pre = pref ? pref[1] : null;
+          const num = $$('revNumero').value.trim().toUpperCase();
+          if (pre ? !num.startsWith(pre) : !/^(AN|BN)/.test(num)) {
+            return error(pre ? `El numero debe empezar con ${pre}.` : 'El numero debe empezar con AN o BN.', $$('revNumero'));
+          }
+          if ($$('revMotivo').value.trim().length < 5) {
+            return error(`Escribe el motivo ${cancelada ? 'de la cancelacion' : 'del complemento'}: queda en el historial y en la bitacora.`, $$('revMotivo'));
           }
         }, true);
       },
       alCerrar: (panel, ok) => {
         if (!ok) return null;
         const $$ = (id) => panel.querySelector('#' + id);
-        const cuerpo = { resolucion: tipo, numero: $$('revNumero').value.trim().toUpperCase() };
+        const cuerpo = { resolucion: tipo, numero: $$('revNumero').value.trim().toUpperCase(), motivo: $$('revMotivo').value.trim() };
         if (cancelada) {
-          cuerpo.motivo = $$('revMotivo').value.trim();
           if ($$('revEstatus').value) cuerpo.estatus = $$('revEstatus').value;
           const chk = $$('revConservarComp');
           if (chk) cuerpo.conservarComplemento = chk.checked;
@@ -2716,8 +2721,8 @@
   }
 
   // Etiquetas e iconos de la bitacora permanente
-  const BIT_TXT = { ELIMINACION: 'Guia eliminada', CANCELACION: 'Guia cancelada' };
-  const BIT_CLASE = { ELIMINACION: 'registro--rojo', CANCELACION: 'registro--ambar' };
+  const BIT_TXT = { ELIMINACION: 'Guia eliminada', CANCELACION: 'Guia cancelada', COMPLEMENTO: 'Complemento' };
+  const BIT_CLASE = { ELIMINACION: 'registro--rojo', CANCELACION: 'registro--ambar', COMPLEMENTO: 'registro--ambar' };
   let bitTipo = '';
   let bitTimer;
 
@@ -2774,6 +2779,10 @@
         <div class="bita-kpi bita-kpi--ambar">
           <div class="kpi-valor">${bit.resumen.cancelaciones}</div>
           <div class="kpi-etiqueta">Guias canceladas</div>
+        </div>
+        <div class="bita-kpi bita-kpi--ambar">
+          <div class="kpi-valor">${bit.resumen.complementos}</div>
+          <div class="kpi-etiqueta">Complementos</div>
         </div>
         <div class="bita-kpi">
           <div class="kpi-valor">${correcciones.length}</div>

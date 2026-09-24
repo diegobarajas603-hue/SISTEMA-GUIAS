@@ -199,6 +199,8 @@ Hay dos roles:
     guia anterior (evento `COMPLEMENTO` y campo "Guia anterior"). El numero
     anterior deja de rastrear y de escanear. Las guias que se registraron con
     el esquema anterior (dos numeros activos) se migran solas al arrancar.
+    Igual que al cancelar, exige **motivo** (queda en el historial y en la
+    bitacora) y el mismo prefijo AN/BN que la guia anterior.
 - **Operador**: puede escanear y consultar guias y eventos. No puede cambiar
   su contraseña; si la necesita cambiar, un administrador se la restablece.
 
@@ -266,7 +268,8 @@ integraciones fijas como la pistola de escaneo).
   cuerpo: `{ resolucion: "cancelada", numero: "<guia nueva>" }` (la guia toma
   el numero nuevo y conserva el historial) o
   `{ resolucion: "complemento", numero: "<complemento>" }` (solo queda activa
-  la guia del complemento, que registra la guia anterior).
+  la guia del complemento, que registra la guia anterior). Ambas exigen
+  `motivo` y el mismo prefijo AN/BN que la guia anterior.
 - `POST /api/guias/borrar-todas` `{ confirmar: "BORRAR" }` -> borra todas las
   guias y su historial para dejar el sistema como nuevo (solo rol `admin`; no
   toca usuarios ni sesiones).

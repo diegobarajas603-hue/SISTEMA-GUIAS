@@ -137,8 +137,8 @@ function normalizarNumero(numero, etiqueta) {
   return n;
 }
 
-// El motivo es obligatorio en las dos acciones que no se pueden deshacer
-// (eliminar y cancelar). Se exige algo escrito de verdad: un motivo de dos
+// El motivo es obligatorio en las acciones que no se pueden deshacer
+// (eliminar, cancelar y registrar un complemento). Se exige algo escrito de verdad: un motivo de dos
 // letras no le sirve a nadie que revise la bitacora meses despues.
 const MOTIVO_MINIMO = 5;
 const MOTIVO_MAXIMO = 500;
@@ -178,7 +178,7 @@ async function registrarBitacora(db, datos) {
 async function listarBitacora({ tipo, buscar, limit = 200 } = {}) {
   const cond = [];
   const params = [];
-  if (tipo === 'ELIMINACION' || tipo === 'CANCELACION') {
+  if (tipo === 'ELIMINACION' || tipo === 'CANCELACION' || tipo === 'COMPLEMENTO') {
     params.push(tipo);
     cond.push(`b.tipo = $${params.length}`);
   }
@@ -202,9 +202,14 @@ async function listarBitacora({ tipo, buscar, limit = 200 } = {}) {
 // Cuantas eliminaciones y cancelaciones hay, para rotular la pantalla
 async function resumenBitacora() {
   const { rows } = await pool.query('SELECT tipo, COUNT(*)::int AS total FROM bitacora GROUP BY tipo');
-  const r = { ELIMINACION: 0, CANCELACION: 0 };
+  const r = { ELIMINACION: 0, CANCELACION: 0, COMPLEMENTO: 0 };
   for (const f of rows) r[f.tipo] = f.total;
-  return { eliminaciones: r.ELIMINACION, cancelaciones: r.CANCELACION, total: r.ELIMINACION + r.CANCELACION };
+  return {
+    eliminaciones: r.ELIMINACION,
+    cancelaciones: r.CANCELACION,
+    complementos: r.COMPLEMENTO,
+    total: r.ELIMINACION + r.CANCELACION + r.COMPLEMENTO,
+  };
 }
 
 function normalizarEstatus(estatus) {
@@ -529,10 +534,13 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
     // nueva. En ese caso no se deshace el ultimo escaneo: el estatus lo decide
     // el administrador y no la reconstruccion del historial.
     const cancelada = resolucion && resolucion.tipo === 'cancelada';
+    const esComplemento = resolucion && resolucion.tipo === 'complemento';
     const estatusElegido = cancelada && resolucion.estatus ? normalizarEstatus(resolucion.estatus) : null;
     // Cancelar una guia es irreversible para el numero anterior: exige motivo,
     // igual que eliminar
     const motivoCancelacion = cancelada ? normalizarMotivo(resolucion.motivo, 'cancelacion') : null;
+    // El complemento tambien retira el numero anterior: exige motivo
+    const motivoComplemento = esComplemento ? normalizarMotivo(resolucion.motivo, 'complemento') : null;
 
     let estatusFinal = guia.estatus;
     let plazaEvento = guia.destino;
@@ -566,18 +574,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
     if (cancelada) {
       const nuevo = normalizarNumero(resolucion.numero, 'El nuevo numero de guia');
       if (nuevo === numeroGuia) throw new Error('El nuevo numero debe ser diferente al numero actual');
-      // El numero nuevo pasa a ser el numero operativo de la guia y debe
-      // conservar el prefijo de la guia cancelada: una AN se reemplaza con
-      // otra AN y una BN con otra BN (el prefijo indica la plaza de salida).
-      const prefijo = /^(AN|BN)/.exec(numeroGuia)?.[1];
-      if (prefijo) {
-        if (!nuevo.startsWith(prefijo)) {
-          throw new Error(`La guia ${numeroGuia} es ${prefijo}: el nuevo numero tambien debe empezar con ${prefijo}`);
-        }
-      } else if (!nuevo.startsWith('AN') && !nuevo.startsWith('BN')) {
-        // Guias antiguas sin prefijo: al menos exigir un prefijo valido
-        throw new Error('El nuevo numero debe empezar con AN (guia de MTY) o BN (guia de CDMX)');
-      }
+      verificarPrefijo(numeroGuia, nuevo, 'el nuevo numero');
       await verificarNumeroDisponible(nuevo, client);
 
       // El complemento pertenece a la guia que se cancelo: la guia nueva
@@ -630,6 +627,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
     if (resolucion && resolucion.tipo === 'complemento') {
       const comp = normalizarNumero(resolucion.numero, 'El numero del complemento');
       if (comp === numeroGuia) throw new Error('El complemento debe ser diferente al numero de la guia');
+      verificarPrefijo(numeroGuia, comp, 'el complemento');
       // Un complemento con el numero que ya tenia la guia como complemento
       // (esquema anterior) no esta ocupado por otra guia: es ella misma
       if (comp !== guia.complemento) await verificarNumeroDisponible(comp, client);
@@ -637,8 +635,16 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
       // Solo queda activa la guia del complemento: toma el historial y
       // registra de que guia viene; la anterior deja de existir como guia
       await renumerarGuia(client, numeroGuia, comp, null);
-      mensaje = `${usuario} registro el complemento ${comp}, que reemplaza a la guia ${numeroGuia}; la guia anterior queda inactiva y el historial se conserva`;
+      mensaje = `${usuario} registro el complemento ${comp}, que reemplaza a la guia ${numeroGuia}; la guia anterior queda inactiva y el historial se conserva. Motivo: ${motivoComplemento}`;
       await registrarEvento(comp, ACCIONES.COMPLEMENTO, estatusFinal, plazaEvento, mensaje, client, usuario);
+      await registrarBitacora(client, {
+        tipo: 'COMPLEMENTO',
+        numeroGuia,
+        numeroNuevo: comp,
+        motivo: motivoComplemento,
+        usuario,
+        estatus: guia.estatus,
+      });
       numeroFinal = comp;
     }
 
@@ -649,6 +655,21 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
     throw e;
   } finally {
     client.release();
+  }
+}
+
+// La guia que reemplaza a otra (por cancelacion o complemento) debe conservar
+// su prefijo: una AN se reemplaza con otra AN y una BN con otra BN (el prefijo
+// indica la plaza de salida).
+function verificarPrefijo(anterior, nuevo, que) {
+  const prefijo = /^(AN|BN)/.exec(anterior)?.[1];
+  if (prefijo) {
+    if (!nuevo.startsWith(prefijo)) {
+      throw new Error(`La guia ${anterior} es ${prefijo}: ${que} tambien debe empezar con ${prefijo}`);
+    }
+  } else if (!nuevo.startsWith('AN') && !nuevo.startsWith('BN')) {
+    // Guias antiguas sin prefijo: al menos exigir un prefijo valido
+    throw new Error(`${que[0].toUpperCase() + que.slice(1)} debe empezar con AN (guia de MTY) o BN (guia de CDMX)`);
   }
 }
 
