@@ -499,9 +499,10 @@ async function escanearEntrega(numeroGuia, plaza, modo, usuario = null, idEscane
 //      · conservarComplemento: por omision la guia nueva arranca SIN el
 //        complemento de la cancelada, porque ese numero pertenecia a la guia
 //        que se cancelo; con true se traslada a la guia nueva.
-//  - { tipo: 'complemento', numero } se emitio un complemento: la guia conserva
-//    su numero y ademas el del complemento (columna complemento + evento
-//    COMPLEMENTO); ambos numeros sirven para rastrear y escanear.
+//  - { tipo: 'complemento', numero } se emitio un complemento: la guia
+//    anterior deja de estar activa y solo queda la del complemento, que toma
+//    todo el historial y registra de que guia viene (columna numero_anterior
+//    + evento COMPLEMENTO). El numero anterior ya no se puede escanear.
 // Todo ocurre en una sola transaccion: si algo falla, no se revierte nada.
 async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
   const client = await pool.connect();
@@ -584,16 +585,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
       // conservarlo expresamente.
       const complemento = resolucion.conservarComplemento ? guia.complemento || null : null;
 
-      // Renumera conservando todo el historial: copia la fila con el numero
-      // nuevo, traslada los eventos y elimina la fila anterior (la llave
-      // foranea de eventos impide cambiar el numero con un UPDATE directo).
-      await client.query(
-        `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, numero_anterior, complemento, estatus_desde)
-         SELECT $1, origen, destino, estatus, creado_en, $3, numero_guia, $4, estatus_desde FROM guias WHERE numero_guia = $2`,
-        [nuevo, numeroGuia, now(), complemento]
-      );
-      await client.query('UPDATE eventos SET numero_guia = $1 WHERE numero_guia = $2', [nuevo, numeroGuia]);
-      await client.query('DELETE FROM guias WHERE numero_guia = $1', [numeroGuia]);
+      await renumerarGuia(client, numeroGuia, nuevo, complemento);
 
       // Estatus elegido a mano: se fija en la guia nueva y se deja el escaneo
       // equivalente en el historial, para que el rastreo del cliente y las
@@ -638,17 +630,16 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
     if (resolucion && resolucion.tipo === 'complemento') {
       const comp = normalizarNumero(resolucion.numero, 'El numero del complemento');
       if (comp === numeroGuia) throw new Error('El complemento debe ser diferente al numero de la guia');
-      await verificarNumeroDisponible(comp, client);
+      // Un complemento con el numero que ya tenia la guia como complemento
+      // (esquema anterior) no esta ocupado por otra guia: es ella misma
+      if (comp !== guia.complemento) await verificarNumeroDisponible(comp, client);
 
-      await client.query('UPDATE guias SET complemento = $1, actualizado_en = $2 WHERE numero_guia = $3', [
-        comp,
-        now(),
-        numeroGuia,
-      ]);
-      mensaje = guia.complemento
-        ? `${usuario} cambio el complemento ${guia.complemento} por ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`
-        : `${usuario} registro el complemento ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`;
-      await registrarEvento(numeroGuia, ACCIONES.COMPLEMENTO, estatusFinal, plazaEvento, mensaje, client, usuario);
+      // Solo queda activa la guia del complemento: toma el historial y
+      // registra de que guia viene; la anterior deja de existir como guia
+      await renumerarGuia(client, numeroGuia, comp, null);
+      mensaje = `${usuario} registro el complemento ${comp}, que reemplaza a la guia ${numeroGuia}; la guia anterior queda inactiva y el historial se conserva`;
+      await registrarEvento(comp, ACCIONES.COMPLEMENTO, estatusFinal, plazaEvento, mensaje, client, usuario);
+      numeroFinal = comp;
     }
 
     await client.query('COMMIT');
@@ -658,6 +649,58 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
     throw e;
   } finally {
     client.release();
+  }
+}
+
+// Renumera una guia conservando todo su historial: copia la fila con el
+// numero nuevo (guardando el anterior en numero_anterior), traslada los
+// eventos y elimina la fila anterior (la llave foranea de eventos impide
+// cambiar el numero con un UPDATE directo). Lo usan la cancelacion y el
+// complemento: en ambos casos solo queda activa la guia nueva.
+async function renumerarGuia(client, anterior, nuevo, complemento) {
+  await client.query(
+    `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, numero_anterior, complemento, estatus_desde)
+     SELECT $1, origen, destino, estatus, creado_en, $3, numero_guia, $4, estatus_desde FROM guias WHERE numero_guia = $2`,
+    [nuevo, anterior, now(), complemento]
+  );
+  await client.query('UPDATE eventos SET numero_guia = $1 WHERE numero_guia = $2', [nuevo, anterior]);
+  await client.query('DELETE FROM guias WHERE numero_guia = $1', [anterior]);
+}
+
+// Migracion idempotente al arrancar: las guias que se registraron con el
+// esquema anterior de complemento (la guia seguia activa con sus dos
+// numeros) pasan al esquema actual: solo queda la guia del complemento, que
+// registra de que guia viene. Cada guia va en su propia transaccion.
+async function migrarComplementos() {
+  const { rows } = await pool.query('SELECT numero_guia, complemento, estatus, destino FROM guias WHERE complemento IS NOT NULL');
+  for (const g of rows) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // El complemento ya no puede estar usado por otra guia (se valida al
+      // registrarlo); si por algun motivo lo esta, se deja la guia como esta
+      const { rows: ocupado } = await client.query('SELECT 1 FROM guias WHERE numero_guia = $1', [g.complemento]);
+      if (ocupado.length) {
+        await client.query('ROLLBACK');
+        continue;
+      }
+      await renumerarGuia(client, g.numero_guia, g.complemento, null);
+      await registrarEvento(
+        g.complemento,
+        ACCIONES.COMPLEMENTO,
+        g.estatus,
+        g.destino,
+        `El complemento ${g.complemento} reemplaza a la guia ${g.numero_guia}; la guia anterior queda inactiva y el historial se conserva`,
+        client,
+        'sistema'
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error(`No se pudo migrar el complemento de ${g.numero_guia}:`, e.message);
+    } finally {
+      client.release();
+    }
   }
 }
 
@@ -1008,6 +1051,7 @@ module.exports = {
   revertirUltimoEscaneo: (numeroGuia, usuario, resolucion) =>
     conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion)),
   marcarRevertidosHistoricos,
+  migrarComplementos,
   marcarDuplicadosHistoricos,
   borrarGuia: (numeroGuia, usuario, motivo) => conCandado(numeroGuia, () => borrarGuia(numeroGuia, usuario, motivo)),
   listarBitacora,

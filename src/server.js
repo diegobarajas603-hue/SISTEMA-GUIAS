@@ -257,7 +257,8 @@ app.delete('/api/guias/:numeroGuia', requireAuth, requireAdmin, async (req, res)
 //    acepta "estatus" (con que estatus arranca la guia nueva; si no se indica,
 //    regresa al estatus anterior al ultimo escaneo) y "conservarComplemento"
 //    (por omision el complemento se queda con la guia cancelada).
-//  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento;
+//  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento:
+//    solo queda activa la guia del complemento, que registra la anterior;
 //    la guia conserva ambos numeros y los dos sirven para rastrear.
 app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
   const { resolucion, numero, estatus, conservarComplemento, motivo } = req.body || {};
@@ -479,6 +480,7 @@ init()
   .then(() => auth.initAuth())
   .then(() => guias.marcarRevertidosHistoricos())
   .then(() => guias.marcarDuplicadosHistoricos())
+  .then(() => guias.migrarComplementos())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Sistema de guias escuchando en http://localhost:${PORT}`);

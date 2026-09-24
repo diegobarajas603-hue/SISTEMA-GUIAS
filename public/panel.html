@@ -310,6 +310,7 @@
               <div><span class="k">Registrada</span><span id="detCreada"></span></div>
               <div><span class="k">Ultima actualizacion</span><span id="detActualizada"></span></div>
               <div><span class="k">Escaneos</span><span id="detEscaneos"></span></div>
+              <div id="detAnteriorFila" style="display:none"><span class="k">Guia anterior</span><span class="mono" id="detAnterior"></span></div>
             </div>
             <div class="det-acciones">
               <button class="btn btn--danger-ghost" id="btnRevertir" style="display:none">Revertir ultimo escaneo</button>
@@ -2164,7 +2165,7 @@
     {
       id: 'complemento',
       titulo: 'Se hizo un complemento',
-      desc: 'La guia conserva sus dos numeros y ambos sirven para rastrear.',
+      desc: 'Solo queda activa la guia del complemento; la anterior queda registrada en ella.',
     },
   ];
 
@@ -2213,7 +2214,7 @@
       titulo: cancelada ? 'La guia se cancelo y se hizo una nueva' : 'Se hizo un complemento',
       descripcion: cancelada
         ? `${guiaDetalleActual} se cancela y su historial pasa a la guia nueva.`
-        : `${guiaDetalleActual} conserva su numero y ademas el del complemento.`,
+        : `${guiaDetalleActual} deja de estar activa: su historial pasa a la guia del complemento, que la marca como guia anterior.`,
       peligro: true,
       confirmar: cancelada ? 'Cancelar la guia' : 'Guardar complemento',
       cancelar: 'Volver',
@@ -2409,6 +2410,9 @@
       $('detCreada').textContent = fmtFecha(d.creado_en);
       $('detActualizada').textContent = fmtFecha(d.actualizado_en);
       $('detEscaneos').textContent = d.historial.length;
+      // Guia a la que reemplazo (por complemento o cancelacion); ya no esta activa
+      $('detAnteriorFila').style.display = d.numero_anterior ? '' : 'none';
+      $('detAnterior').textContent = d.numero_anterior || '';
 
       // Codigo de barras (si la libreria cargo)
       try {
@@ -2470,6 +2474,7 @@
       $('detRuta').textContent = e.message;
       $('detBadge').innerHTML = '';
       $('detCreada').textContent = $('detActualizada').textContent = $('detEscaneos').textContent = '-';
+      $('detAnteriorFila').style.display = 'none';
       $('stepper').innerHTML = '';
       $('barcodeWrap').style.display = 'none';
       UI.montarError($('tbodyDetEventos'), e.message, () => cargarDetalle(numeroGuia),
