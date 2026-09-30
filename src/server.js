@@ -315,9 +315,35 @@ app.get('/api/guias/estancadas', requireAuth, seguro(async (req, res) => {
   res.json(await guias.listarEstancadas({ dias: req.query.dias }));
 }));
 
+const ACCIONES_INTERNAS = ['ESCANEO_REPETIDO', 'CORRECCION', 'CAMBIO_NUMERO', 'COMPLEMENTO'];
+
+// Quien hizo cada movimiento es informacion solo para administradores. A los
+// demas usuarios se les quita el usuario de cada evento y, en las notas
+// administrativas (correccion, cancelacion, complemento), se sustituye el
+// nombre con que arrancan por una referencia generica. Se hace aqui y no en
+// el panel: ocultar una columna no es una restriccion.
+const NOTAS_CON_NOMBRE = [
+  [/^Correccion de .+?: /, 'Correccion del administrador: '],
+  [/^.+? cancelo la guia /, 'Un administrador cancelo la guia '],
+  [/^.+? registro el complemento /, 'Un administrador registro el complemento '],
+  [/^.+? cambio el complemento /, 'Un administrador cambio el complemento '],
+];
+function sinUsuario(eventos, usuarioQueConsulta) {
+  if (auth.esAdmin(usuarioQueConsulta?.roles)) return eventos;
+  return eventos.map(({ usuario, operador, ...ev }) => {
+    let descripcion = ev.descripcion;
+    if (descripcion && ACCIONES_INTERNAS.includes(ev.accion)) {
+      for (const [patron, reemplazo] of NOTAS_CON_NOMBRE) {
+        if (patron.test(descripcion)) { descripcion = descripcion.replace(patron, reemplazo); break; }
+      }
+    }
+    return { ...ev, descripcion };
+  });
+}
+
 app.get('/api/eventos', requireAuth, seguro(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
-  res.json(await guias.listarEventos({ limit }));
+  res.json(sinUsuario(await guias.listarEventos({ limit }), req.usuario));
 }));
 
 // ---------- Reportes ----------
@@ -361,7 +387,7 @@ app.get('/api/guias/:numeroGuia', requireAuth, seguro(async (req, res) => {
   // Busca tambien por el numero de complemento
   const guia = await guias.buscarGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'Guia no encontrada' });
-  const historial = await guias.obtenerHistorial(guia.numero_guia);
+  const historial = sinUsuario(await guias.obtenerHistorial(guia.numero_guia), req.usuario);
   res.json({ ...guia, mensaje: mensajeEstatus(guia.numero_guia, guia.estatus), historial });
 }));
 
@@ -391,7 +417,6 @@ app.get('/api/guias', requireAuth, async (req, res) => {
 // Solo permite consultar una guia por su numero exacto; nunca expone la lista
 // completa ni las operaciones de escaneo. CORS abierto para poder llamarla
 // desde la pagina web de la empresa.
-const ACCIONES_INTERNAS = ['ESCANEO_REPETIDO', 'CORRECCION', 'CAMBIO_NUMERO', 'COMPLEMENTO'];
 
 app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
