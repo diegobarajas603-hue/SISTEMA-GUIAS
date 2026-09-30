@@ -399,3 +399,7 @@ datos MySQL y su propio despliegue, y ahora vive completo en su repositorio:
 
 Se movio con su historial de git, asi que nada se perdio. Si buscas ese codigo,
 esta alla — la version en PHP quedo archivada en `legacy-php/`.
+
+## App móvil Órbita
+
+En [`orbita/`](orbita/README.md) está la app móvil (Android/iOS) de seguridad personal y ubicación con círculos de confianza. Es un proyecto independiente de este servidor.
