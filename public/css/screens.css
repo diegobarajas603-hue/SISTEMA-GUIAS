@@ -1711,6 +1711,20 @@ button.plaza-fila:hover {
   color: var(--text-tertiary);
 }
 
+/* Quien hizo el movimiento, en la tabla del detalle y en el timeline */
+.ev-usuario {
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ev-item__usuario {
+  font-size: var(--t-label-size);
+  color: var(--text-tertiary);
+}
+
+.ev-item__usuario .ev-usuario { font-size: inherit; }
+
 @keyframes ev-in {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }

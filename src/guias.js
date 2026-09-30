@@ -509,7 +509,12 @@ async function escanearEntrega(numeroGuia, plaza, modo, usuario = null, idEscane
 //    todo el historial y registra de que guia viene (columna numero_anterior
 //    + evento COMPLEMENTO). El numero anterior ya no se puede escanear.
 // Todo ocurre en una sola transaccion: si algo falla, no se revierte nada.
-async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
+// `usuario` es el login (queda en la columna usuario de cada evento, que es
+// por la que se cruza con la tabla de usuarios); `nombre` es como se llama la
+// persona y es lo que se escribe en las notas del historial, para que quien
+// lea "Correccion de ..." sepa de quien se trata sin conocer los logins.
+async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nombre = null) {
+  const quien = nombre || usuario;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -563,7 +568,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
         [otraPlaza(plazaDelEstatus), plazaDelEstatus, estatus, now(), numeroGuia]
       );
 
-      mensaje = `Correccion de ${usuario}: se revirtio "${ultimo.descripcion || ultimo.accion}" y la guia regreso a su estatus anterior`;
+      mensaje = `Correccion de ${quien}: se revirtio "${ultimo.descripcion || ultimo.accion}" y la guia regreso a su estatus anterior`;
       await registrarEvento(numeroGuia, ACCIONES.CORRECCION, estatus, ultimo.plaza, mensaje, client, usuario);
       estatusFinal = estatus;
       plazaEvento = ultimo.plaza;
@@ -598,7 +603,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
         plazaEvento = evEstatus.plaza;
       }
 
-      mensaje = `${usuario} cancelo la guia ${numeroGuia} y la reemplazo por la nueva guia ${nuevo}; el historial se conserva`;
+      mensaje = `${quien} cancelo la guia ${numeroGuia} y la reemplazo por la nueva guia ${nuevo}; el historial se conserva`;
       if (guia.complemento && !complemento) {
         mensaje += `. El complemento ${guia.complemento} quedo con la guia cancelada y ya no aplica a ${nuevo}`;
       }
@@ -635,7 +640,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
       // Solo queda activa la guia del complemento: toma el historial y
       // registra de que guia viene; la anterior deja de existir como guia
       await renumerarGuia(client, numeroGuia, comp, null);
-      mensaje = `${usuario} registro el complemento ${comp}, que reemplaza a la guia ${numeroGuia}; la guia anterior queda inactiva y el historial se conserva. Motivo: ${motivoComplemento}`;
+      mensaje = `${quien} registro el complemento ${comp}, que reemplaza a la guia ${numeroGuia}; la guia anterior queda inactiva y el historial se conserva. Motivo: ${motivoComplemento}`;
       await registrarEvento(comp, ACCIONES.COMPLEMENTO, estatusFinal, plazaEvento, mensaje, client, usuario);
       await registrarBitacora(client, {
         tipo: 'COMPLEMENTO',
@@ -812,6 +817,38 @@ async function marcarDuplicadosHistoricos() {
     await pool.query('UPDATE eventos SET revertido = TRUE WHERE id = ANY($1)', [duplicados]);
     console.log(`[guias] ${duplicados.length} escaneo(s) duplicado(s) historicos ocultados del rastreo`);
   }
+}
+
+// Las notas administrativas escritas antes de que llevaran el nombre de la
+// persona empiezan con su login ("Correccion de admin: ..."). Se reescriben
+// con el nombre que tiene esa cuenta en la tabla de usuarios, que es lo que
+// hoy se escribe en las notas nuevas. Solo se toca el arranque de la nota;
+// el resto del texto y la columna usuario (el login) quedan igual. Es
+// idempotente: una nota ya reescrita no empieza con el login y no vuelve a
+// coincidir. Las cuentas que ya no existen no se pueden resolver y se dejan.
+async function reescribirNotasConNombre() {
+  const { rowCount: correcciones } = await pool.query(
+    `UPDATE eventos e
+        SET descripcion = 'Correccion de ' || u.nombre || substr(e.descripcion, length('Correccion de ' || e.usuario) + 1)
+       FROM usuarios u
+      WHERE u.usuario = e.usuario
+        AND u.nombre <> e.usuario
+        AND e.accion = $1
+        AND left(e.descripcion, length('Correccion de ' || e.usuario || ':')) = 'Correccion de ' || e.usuario || ':'`,
+    [ACCIONES.CORRECCION]
+  );
+  const { rowCount: otras } = await pool.query(
+    `UPDATE eventos e
+        SET descripcion = u.nombre || substr(e.descripcion, length(e.usuario) + 1)
+       FROM usuarios u
+      WHERE u.usuario = e.usuario
+        AND u.nombre <> e.usuario
+        AND e.accion IN ($1, $2)
+        AND left(e.descripcion, length(e.usuario || ' ')) = e.usuario || ' '`,
+    [ACCIONES.CAMBIO_NUMERO, ACCIONES.COMPLEMENTO]
+  );
+  const total = correcciones + otras;
+  if (total) console.log(`[guias] ${total} nota(s) administrativa(s) reescritas con el nombre de la persona`);
 }
 
 // Serializa las operaciones sobre una misma guia: si la pistola dispara dos
@@ -1097,12 +1134,13 @@ module.exports = {
         throw e;
       }
     }),
-  revertirUltimoEscaneo: (numeroGuia, usuario, resolucion) =>
-    conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion)),
+  revertirUltimoEscaneo: (numeroGuia, usuario, resolucion, nombre) =>
+    conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion, nombre)),
   marcarRevertidosHistoricos,
   migrarComplementos,
   registrarComplementosEnBitacora,
   marcarDuplicadosHistoricos,
+  reescribirNotasConNombre,
   borrarGuia: (numeroGuia, usuario, motivo) => conCandado(numeroGuia, () => borrarGuia(numeroGuia, usuario, motivo)),
   listarBitacora,
   resumenBitacora,

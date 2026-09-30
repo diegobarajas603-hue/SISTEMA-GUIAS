@@ -278,7 +278,8 @@ app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (re
     const resultado = await guias.revertirUltimoEscaneo(
       req.params.numeroGuia.trim().toUpperCase(),
       req.usuario.usuario,
-      r
+      r,
+      req.usuario.nombre
     );
     res.json(resultado);
   } catch (e) {
@@ -482,6 +483,7 @@ init()
   .then(() => guias.marcarDuplicadosHistoricos())
   .then(() => guias.migrarComplementos())
   .then(() => guias.registrarComplementosEnBitacora())
+  .then(() => guias.reescribirNotasConNombre())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Sistema de guias escuchando en http://localhost:${PORT}`);
