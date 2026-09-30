@@ -414,6 +414,7 @@ init()
   .then(() => auth.initAuth())
   .then(() => guias.marcarRevertidosHistoricos())
   .then(() => guias.marcarDuplicadosHistoricos())
+  .then(() => guias.reescribirNotasConNombre())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Sistema de guias escuchando en http://localhost:${PORT}`);

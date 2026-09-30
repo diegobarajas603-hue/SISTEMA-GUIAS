@@ -585,6 +585,38 @@ async function marcarDuplicadosHistoricos() {
   }
 }
 
+// Las notas administrativas escritas antes de que llevaran el nombre de la
+// persona empiezan con su login ("Correccion de admin: ..."). Se reescriben
+// con el nombre que tiene esa cuenta en la tabla de usuarios, que es lo que
+// hoy se escribe en las notas nuevas. Solo se toca el arranque de la nota;
+// el resto del texto y la columna usuario (el login) quedan igual. Es
+// idempotente: una nota ya reescrita no empieza con el login y no vuelve a
+// coincidir. Las cuentas que ya no existen no se pueden resolver y se dejan.
+async function reescribirNotasConNombre() {
+  const { rowCount: correcciones } = await pool.query(
+    `UPDATE eventos e
+        SET descripcion = 'Correccion de ' || u.nombre || substr(e.descripcion, length('Correccion de ' || e.usuario) + 1)
+       FROM usuarios u
+      WHERE u.usuario = e.usuario
+        AND u.nombre <> e.usuario
+        AND e.accion = $1
+        AND left(e.descripcion, length('Correccion de ' || e.usuario || ':')) = 'Correccion de ' || e.usuario || ':'`,
+    [ACCIONES.CORRECCION]
+  );
+  const { rowCount: otras } = await pool.query(
+    `UPDATE eventos e
+        SET descripcion = u.nombre || substr(e.descripcion, length(e.usuario) + 1)
+       FROM usuarios u
+      WHERE u.usuario = e.usuario
+        AND u.nombre <> e.usuario
+        AND e.accion IN ($1, $2)
+        AND left(e.descripcion, length(e.usuario || ' ')) = e.usuario || ' '`,
+    [ACCIONES.CAMBIO_NUMERO, ACCIONES.COMPLEMENTO]
+  );
+  const total = correcciones + otras;
+  if (total) console.log(`[guias] ${total} nota(s) administrativa(s) reescritas con el nombre de la persona`);
+}
+
 // Serializa las operaciones sobre una misma guia: si la pistola dispara dos
 // veces casi al mismo tiempo, el segundo escaneo espera a que termine el
 // primero y entonces se detecta como repetido en lugar de registrarse doble.
@@ -820,6 +852,7 @@ module.exports = {
     conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion, nombre)),
   marcarRevertidosHistoricos,
   marcarDuplicadosHistoricos,
+  reescribirNotasConNombre,
   borrarGuia: (numeroGuia, usuario, motivo) => conCandado(numeroGuia, () => borrarGuia(numeroGuia, usuario, motivo)),
   listarBitacora,
   resumenBitacora,
