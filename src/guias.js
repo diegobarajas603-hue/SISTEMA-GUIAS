@@ -361,7 +361,12 @@ async function escanearEntrega(numeroGuia, plaza, modo, usuario = null) {
 //    su numero y ademas el del complemento (columna complemento + evento
 //    COMPLEMENTO); ambos numeros sirven para rastrear y escanear.
 // Todo ocurre en una sola transaccion: si algo falla, no se revierte nada.
-async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
+// `usuario` es el login (queda en la columna usuario de cada evento, que es
+// por la que se cruza con la tabla de usuarios); `nombre` es como se llama la
+// persona y es lo que se escribe en las notas del historial, para que quien
+// lea "Correccion de ..." sepa de quien se trata sin conocer los logins.
+async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nombre = null) {
+  const quien = nombre || usuario;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -412,7 +417,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
         [otraPlaza(plazaDelEstatus), plazaDelEstatus, estatus, now(), numeroGuia]
       );
 
-      mensaje = `Correccion de ${usuario}: se revirtio "${ultimo.descripcion || ultimo.accion}" y la guia regreso a su estatus anterior`;
+      mensaje = `Correccion de ${quien}: se revirtio "${ultimo.descripcion || ultimo.accion}" y la guia regreso a su estatus anterior`;
       await registrarEvento(numeroGuia, ACCIONES.CORRECCION, estatus, ultimo.plaza, mensaje, client, usuario);
       estatusFinal = estatus;
       plazaEvento = ultimo.plaza;
@@ -467,7 +472,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
         plazaEvento = evEstatus.plaza;
       }
 
-      mensaje = `${usuario} cancelo la guia ${numeroGuia} y la reemplazo por la nueva guia ${nuevo}; el historial se conserva`;
+      mensaje = `${quien} cancelo la guia ${numeroGuia} y la reemplazo por la nueva guia ${nuevo}; el historial se conserva`;
       if (guia.complemento && !complemento) {
         mensaje += `. El complemento ${guia.complemento} quedo con la guia cancelada y ya no aplica a ${nuevo}`;
       }
@@ -504,8 +509,8 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null) {
         numeroGuia,
       ]);
       mensaje = guia.complemento
-        ? `${usuario} cambio el complemento ${guia.complemento} por ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`
-        : `${usuario} registro el complemento ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`;
+        ? `${quien} cambio el complemento ${guia.complemento} por ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`
+        : `${quien} registro el complemento ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`;
       await registrarEvento(numeroGuia, ACCIONES.COMPLEMENTO, estatusFinal, plazaEvento, mensaje, client, usuario);
     }
 
@@ -811,8 +816,8 @@ async function resumen() {
 
 module.exports = {
   escanearGuia: (numeroGuia, plaza, modo, usuario) => conCandado(numeroGuia, () => escanearGuia(numeroGuia, plaza, modo, usuario)),
-  revertirUltimoEscaneo: (numeroGuia, usuario, resolucion) =>
-    conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion)),
+  revertirUltimoEscaneo: (numeroGuia, usuario, resolucion, nombre) =>
+    conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion, nombre)),
   marcarRevertidosHistoricos,
   marcarDuplicadosHistoricos,
   borrarGuia: (numeroGuia, usuario, motivo) => conCandado(numeroGuia, () => borrarGuia(numeroGuia, usuario, motivo)),

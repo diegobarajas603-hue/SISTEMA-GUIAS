@@ -329,7 +329,7 @@
             <h2 class="titulo-card" style="padding:var(--space-20) var(--space-20) 0; margin-bottom:var(--space-12)">Eventos de la guia</h2>
             <div class="tabla-scroll">
               <table>
-                <thead><tr><th>Fecha y hora</th><th>Evento</th><th>Plaza</th><th>Descripcion</th></tr></thead>
+                <thead><tr><th>Fecha y hora</th><th>Evento</th><th>Plaza</th><th>Usuario</th><th>Descripcion</th></tr></thead>
                 <tbody id="tbodyDetEventos"></tbody>
               </table>
             </div>
@@ -1853,6 +1853,16 @@
   // Un solo componente para el detalle de la guia y para el acordeon de
   // Eventos. Los eventos llegan del mas reciente al mas antiguo: el primero
   // es el nodo relleno con halo, el resto van hundidos.
+  // Quien hizo el movimiento. El servidor manda el nombre de la cuenta
+  // (operador) y, si esa cuenta ya no existe, el login; los eventos
+  // anteriores a que se registrara el usuario quedan "sin registrar".
+  function usuarioEventoHtml(ev) {
+    const quien = ev.operador || ev.usuario;
+    return quien
+      ? `<span class="ev-usuario">${esc(quien)}</span>`
+      : '<span class="t-tertiary">sin registrar</span>';
+  }
+
   function timelineHtml(historial) {
     if (!historial.length) return '';
     return `<div class="ev-timeline">${historial.map((ev, i) => {
@@ -1863,6 +1873,7 @@
         <div class="ev-item__meta">
           <span class="ev-item__hora">${fmtFecha(ev.creado_en)}</span>
           ${ev.plaza ? `<span class="ev-item__plaza">${esc(ev.plaza)}</span>` : ''}
+          <span class="ev-item__usuario">${usuarioEventoHtml(ev)}</span>
           ${ev.revertido ? '<span class="ev-item__plaza">revertido</span>' : ''}
         </div>
       </div>`;
@@ -2133,7 +2144,7 @@
   });
 
   async function cargarDetalle(numeroGuia) {
-    $('tbodyDetEventos').innerHTML = UI.skeletonRows(4, 4);
+    $('tbodyDetEventos').innerHTML = UI.skeletonRows(4, 5);
     $('detTimeline').innerHTML = Array.from({ length: 4 }, () =>
       `<div style="margin-bottom:var(--space-16)">${UI.skeleton('skeleton--text', 'width:78%')}</div>`).join('');
     try {
@@ -2196,8 +2207,9 @@
             <td><span class="mono t-tertiary">${fmtFecha(ev.creado_en)}</span></td>
             <td>${ACCION_TXT[ev.accion] || esc(ev.accion)}${tagRevertido(ev)}</td>
             <td>${esc(ev.plaza || '-')}</td>
+            <td>${usuarioEventoHtml(ev)}</td>
             <td>${esc(ev.descripcion || '')}</td></tr>`).join('')
-        : `<tr><td colspan="4">${UI.emptyState({
+        : `<tr><td colspan="5">${UI.emptyState({
             titulo: 'Sin eventos',
             descripcion: 'Esta guia todavia no tiene movimientos registrados.',
           })}</td></tr>`;

@@ -254,7 +254,8 @@ app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (re
     const resultado = await guias.revertirUltimoEscaneo(
       req.params.numeroGuia.trim().toUpperCase(),
       req.usuario.usuario,
-      r
+      r,
+      req.usuario.nombre
     );
     res.json(resultado);
   } catch (e) {
