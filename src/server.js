@@ -1,8 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const { init } = require('./db');
+const { init, latenciaBd, estadoPool } = require('./db');
 const guias = require('./guias');
+const reportes = require('./reportes');
 const auth = require('./auth');
 const { mensajeEstatus } = require('./estatus');
 const { extraerNumeroGuia, enviarMensaje } = require('./whatsapp');
@@ -55,7 +56,16 @@ const { requireAuth, requireAdmin } = auth;
 // caida un instante) responda un error 500 en lugar de tumbar el proceso.
 const seguro = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+// Salud del servicio, con el tiempo de un viaje redondo a la base de datos y
+// el estado del pool. Si el escaneo se siente lento, aqui se ve de un vistazo
+// si el problema es la distancia a la base (bd_ms alto) o el hosting.
+app.get('/health', async (req, res) => {
+  try {
+    res.json({ status: 'ok', bd_ms: await latenciaBd(), pool: estadoPool() });
+  } catch (e) {
+    res.status(503).json({ status: 'sin base de datos', error: e.message, pool: estadoPool() });
+  }
+});
 
 // ---------- Autenticacion (login del panel) ----------
 
@@ -100,9 +110,9 @@ app.get('/api/usuarios', requireAuth, requireAdmin, seguro(async (req, res) => {
 }));
 
 app.post('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
-  const { usuario, nombre, password, rol, plaza } = req.body || {};
+  const { usuario, nombre, password, roles, plaza } = req.body || {};
   try {
-    res.status(201).json(await auth.crearUsuario({ usuario, nombre, password, rol: rol || 'operador', plaza }));
+    res.status(201).json(await auth.crearUsuario({ usuario, nombre, password, roles, plaza }));
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
@@ -117,9 +127,9 @@ app.put('/api/usuarios/:id/plaza', requireAuth, requireAdmin, async (req, res) =
   }
 });
 
-app.put('/api/usuarios/:id/rol', requireAuth, requireAdmin, async (req, res) => {
+app.put('/api/usuarios/:id/roles', requireAuth, requireAdmin, async (req, res) => {
   try {
-    await auth.actualizarRol(Number(req.params.id), (req.body || {}).rol, req.usuario);
+    await auth.actualizarRoles(Number(req.params.id), (req.body || {}).roles, req.usuario);
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -156,9 +166,15 @@ app.put('/api/usuarios/:id/password', requireAuth, requireAdmin, async (req, res
 // Escaneo inteligente: se indica en que plaza estas (MTY o CDMX) y el modo de
 // operacion (bodega, domicilio u ocurre); el sistema decide que significa el
 // escaneo segun el estado actual de la guia.
+//
+// idEscaneo (opcional): id unico del escaneo generado por el panel. Con
+// reintento: true el panel avisa que esta reenviando un escaneo del que no
+// recibio respuesta; si ya se aplico, se contesta lo mismo que la primera
+// vez en lugar de mover la guia otra vez.
 app.post('/api/guias/escanear', requireAuth, async (req, res) => {
-  const { numeroGuia, plaza, modo } = req.body || {};
+  const { numeroGuia, plaza, modo, idEscaneo, reintento } = req.body || {};
   if (!numeroGuia || !plaza) return res.status(400).json({ error: 'numeroGuia y plaza son requeridos' });
+  const inicio = performance.now();
   // Si el usuario tiene plaza asignada, solo puede escanear en esa plaza
   if (req.usuario.plaza && String(plaza).trim().toUpperCase() !== req.usuario.plaza) {
     return res.status(403).json({ error: `Tu usuario solo puede escanear en ${req.usuario.plaza}` });
@@ -167,26 +183,33 @@ app.post('/api/guias/escanear', requireAuth, async (req, res) => {
   // domicilio). El panel ya oculta los demas, pero se valida aqui tambien:
   // esconder un boton no es una restriccion.
   const modoPedido = String(modo || 'bodega').trim().toLowerCase();
-  if (!auth.puedeModo(req.usuario.rol, modoPedido)) {
-    const permitidos = auth.modosDeRol(req.usuario.rol);
+  if (!auth.puedeModo(req.usuario.roles, modoPedido)) {
+    const permitidos = auth.modosDeRoles(req.usuario.roles);
     return res.status(403).json({
       error: permitidos.length
-        ? `Tu usuario (${auth.nombreDeRol(req.usuario.rol)}) no puede hacer escaneos de tipo "${modoPedido}"`
+        ? `Tu usuario (${auth.nombresDeRoles(req.usuario.roles).join(', ')}) no puede hacer escaneos de tipo "${modoPedido}"`
         : 'Tu usuario no tiene permitido escanear guias',
     });
   }
   try {
-    const resultado = await guias.escanearGuia(
-      String(numeroGuia).trim().toUpperCase(),
-      String(plaza).trim().toUpperCase(),
-      modoPedido,
-      req.usuario.usuario
-    );
+    const numero = String(numeroGuia).trim().toUpperCase();
+    const resultado = await guias.escanearGuia(numero, String(plaza).trim().toUpperCase(), modoPedido, req.usuario.usuario, {
+      idEscaneo,
+      reintento: reintento === true,
+    });
     // El panel muestra quien y cuando en la confirmacion del escaneo
     resultado.operador = req.usuario.nombre || req.usuario.usuario;
     resultado.hora = new Date().toISOString();
+    // Cuanto tardo el servidor en atenderlo (sin contar la red hasta el
+    // navegador). Queda en el log para saber donde se va el tiempo.
+    resultado.ms = Math.round(performance.now() - inicio);
+    console.log(
+      `[escaneo] ${req.usuario.usuario} ${plaza} ${modoPedido} ${numero} -> ${resultado.tipo}` +
+        `${resultado.yaAplicado ? ' (reintento, ya aplicado)' : ''} ${resultado.ms} ms`
+    );
     res.json(resultado);
   } catch (e) {
+    console.log(`[escaneo] ${req.usuario.usuario} ${plaza} ${modoPedido} ${String(numeroGuia).trim().toUpperCase()} -> rechazado: ${e.message}`);
     res.status(400).json({ error: e.message });
   }
 });
@@ -234,8 +257,9 @@ app.delete('/api/guias/:numeroGuia', requireAuth, requireAdmin, async (req, res)
 //    acepta "estatus" (con que estatus arranca la guia nueva; si no se indica,
 //    regresa al estatus anterior al ultimo escaneo) y "conservarComplemento"
 //    (por omision el complemento se queda con la guia cancelada).
-//  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento;
-//    la guia conserva ambos numeros y los dos sirven para rastrear.
+//  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento:
+//    solo queda activa la guia del complemento, que registra la anterior.
+//    Exige "motivo" y el mismo prefijo (AN/BN) que la guia anterior.
 app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
   const { resolucion, numero, estatus, conservarComplemento, motivo } = req.body || {};
   let r = null;
@@ -244,9 +268,9 @@ app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (re
     if (resolucion === 'cancelada') {
       r.estatus = estatus || null;
       r.conservarComplemento = conservarComplemento === true;
-      // Obligatorio: queda en el historial de la guia y en la bitacora
-      r.motivo = motivo;
     }
+    // Obligatorio en ambos: queda en el historial de la guia y en la bitacora
+    r.motivo = motivo;
   } else if (resolucion) {
     return res.status(400).json({ error: 'Resolucion invalida: usa "cancelada" o "complemento"' });
   }
@@ -284,10 +308,53 @@ app.get('/api/guias/estadisticas', requireAuth, seguro(async (req, res) => {
   res.json(await guias.estadisticas(req.query.dias));
 }));
 
+// Guias estancadas: las que llevan ?dias o mas sin cambiar de estatus. De aqui
+// come el aviso de la barra superior del panel. Va ANTES de /api/guias/:numero,
+// o esa ruta se llevaria "estancadas" como si fuera un numero de guia.
+app.get('/api/guias/estancadas', requireAuth, seguro(async (req, res) => {
+  res.json(await guias.listarEstancadas({ dias: req.query.dias }));
+}));
+
 app.get('/api/eventos', requireAuth, seguro(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
   res.json(await guias.listarEventos({ limit }));
 }));
+
+// ---------- Reportes ----------
+
+// Salidas de un dia (JSON): alimenta la vista previa de la pantalla de
+// reportes antes de descargar el PDF. ?fecha=AAAA-MM-DD (hoy por omision)
+// y ?plaza=MTY|CDMX (ambas por omision).
+app.get('/api/reportes/salidas', requireAuth, async (req, res) => {
+  try {
+    res.json(await reportes.salidasDelDia({ fecha: req.query.fecha, plaza: req.query.plaza }));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// El mismo reporte como PDF descargable, con el logo y el formato de la casa.
+// Es el corte del dia: las guias a las que se les dio salida, con hora y
+// operador, para cotejar contra el manifiesto y encontrar las que faltaron.
+app.get('/api/reportes/salidas.pdf', requireAuth, async (req, res) => {
+  let datos;
+  try {
+    datos = await reportes.salidasDelDia({ fecha: req.query.fecha, plaza: req.query.plaza });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${reportes.nombreArchivo(datos)}"`);
+  try {
+    await reportes.generarPdfSalidas(datos, req.usuario.nombre || req.usuario.usuario, res);
+  } catch (e) {
+    // Si el PDF falla a medio camino ya no se puede responder JSON; se corta
+    // la conexion y el error queda en el log del servidor.
+    console.error('Error generando el PDF de salidas:', e);
+    if (!res.headersSent) res.status(500).json({ error: 'No se pudo generar el PDF' });
+    else res.destroy();
+  }
+});
 
 app.get('/api/guias/:numeroGuia', requireAuth, seguro(async (req, res) => {
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
@@ -414,6 +481,8 @@ init()
   .then(() => auth.initAuth())
   .then(() => guias.marcarRevertidosHistoricos())
   .then(() => guias.marcarDuplicadosHistoricos())
+  .then(() => guias.migrarComplementos())
+  .then(() => guias.registrarComplementosEnBitacora())
   .then(() => guias.reescribirNotasConNombre())
   .then(() => {
     app.listen(PORT, () => {

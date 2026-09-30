@@ -80,6 +80,10 @@
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
         <span class="nav-item__texto">Eventos</span>
       </button>
+      <button class="nav-item" data-ruta="reportes" title="Reportes">
+        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>
+        <span class="nav-item__texto">Reportes</span>
+      </button>
 
       <span class="nav-group">Sistema</span>
       <button class="nav-item" data-ruta="bitacora" title="Bitacora">
@@ -126,6 +130,17 @@
       </div>
 
       <div class="topbar__derecha">
+        <!-- Aviso de guias estancadas. Vive pegado al reloj a proposito: la
+             pregunta que contesta ("cuanto lleva esto parado") es del mismo
+             tipo que la hora. No se puede cerrar ni silenciar: parpadea
+             mientras haya guias detenidas y se va solo cuando se mueven. -->
+        <button class="alerta-estancadas" id="btnEstancadas" type="button" hidden>
+          <svg class="alerta-estancadas__ico" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+               stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10 2.8L18.4 17H1.6z"/><path d="M10 8v3.4"/><path d="M10 14.2h.01"/>
+          </svg>
+          <span class="alerta-estancadas__n" id="estancadasN">0</span>
+        </button>
         <div class="reloj" aria-hidden="true">
           <span class="reloj__hora" id="relojHora">--:--</span>
           <span class="reloj__fecha" id="relojFecha"></span>
@@ -211,7 +226,7 @@
           </div>
 
           <div class="captura-wrap">
-            <span class="escaner__listo" id="estadoCaptura"><span class="dot"></span><span id="estadoCapturaTxt">Listo para escanear</span></span>
+            <span class="escaner__listo"><span class="dot"></span>Listo para escanear</span>
             <input class="captura" type="text" id="guia" autocomplete="off"
                    autocapitalize="characters" spellcheck="false"
                    placeholder="Escanea el numero de guia"
@@ -223,19 +238,12 @@
             </svg>
           </div>
 
-          <div class="escaner__resultado" id="resultado" aria-live="polite"></div>
-
-          <!-- Guias cuyo escaneo fallo. Se quedan aqui hasta que el operador
-               las revisa: una tarjeta que se borra sola se pierde entre
-               escaneos rapidos y la guia se da por registrada sin estarlo. -->
-          <div class="fallidas" id="fallidas" role="alert" hidden>
-            <div class="fallidas__head">
-              <strong id="fallidasTitulo">Guias que NO se registraron</strong>
-              <button class="btn btn--ghost btn--sm" id="btnFallidasOk" type="button">Ya las revise</button>
-            </div>
-            <div id="fallidasLista"></div>
+          <div class="cola-aviso" id="colaAviso" hidden role="status" aria-live="polite">
+            <span class="cola-aviso__dot"></span>
+            <span id="colaAvisoTxt"></span>
           </div>
 
+          <div class="escaner__resultado" id="resultado" aria-live="polite"></div>
           <div class="recientes" id="log"></div>
 
         </div>
@@ -270,6 +278,7 @@
               Favoritas
             </button>
             <span id="avisoDetenidas"></span>
+            <span id="avisoEstancadas"></span>
             <span class="spacer"></span>
             <span class="filtros__contador" id="contadorGuias"></span>
             <div class="vista-toggle" id="vistaToggle" role="group" aria-label="Vista">
@@ -301,6 +310,7 @@
               <div><span class="k">Registrada</span><span id="detCreada"></span></div>
               <div><span class="k">Ultima actualizacion</span><span id="detActualizada"></span></div>
               <div><span class="k">Escaneos</span><span id="detEscaneos"></span></div>
+              <div id="detAnteriorFila" style="display:none"><span class="k">Guia anterior</span><span class="mono" id="detAnterior"></span></div>
             </div>
             <div class="det-acciones">
               <button class="btn btn--danger-ghost" id="btnRevertir" style="display:none">Revertir ultimo escaneo</button>
@@ -350,6 +360,51 @@
         <div id="gruposEventos"></div>
       </section>
 
+      <!-- ===================================================== Reportes -->
+      <section id="v-reportes" style="display:none">
+        <div class="card card--flush" style="max-width:760px;">
+          <div class="card__header"><h2 class="t-label">Salidas del dia (PDF)</h2></div>
+          <div class="card__body">
+            <p class="nota">Todas las guias a las que se les dio salida el dia elegido, con la hora exacta
+            del escaneo y quien lo hizo. Descarga el PDF para cotejarlo contra el manifiesto y detectar
+            las guias que faltaron por escanear.</p>
+            <div class="reporte-controles">
+              <label class="field">
+                <span class="field__label">Dia del reporte</span>
+                <input class="input" type="date" id="repFecha" />
+              </label>
+              <label class="field">
+                <span class="field__label">Plaza de salida</span>
+                <select class="select" id="repPlaza">
+                  <option value="">Ambas (MTY y CDMX)</option>
+                  <option value="MTY">Solo Monterrey (AN)</option>
+                  <option value="CDMX">Solo Ciudad de Mexico (BN)</option>
+                </select>
+              </label>
+              <div class="reporte-chips">
+                <button class="chip" id="repHoy" type="button" aria-pressed="false">Hoy</button>
+                <button class="chip" id="repAyer" type="button" aria-pressed="false">Ayer</button>
+              </div>
+              <span class="spacer"></span>
+              <button class="btn btn--primary" id="btnPdfSalidas" type="button">
+                Descargar PDF
+              </button>
+            </div>
+            <div class="msg-form" id="msgReporte"></div>
+          </div>
+          <div class="card__header reporte-previa-head">
+            <h2 class="t-label">Lo que va a traer el PDF</h2>
+            <span class="nota" id="repResumen"></span>
+          </div>
+          <div class="tabla-scroll reporte-tabla">
+            <table>
+              <thead><tr><th class="rep-num">#</th><th>Guia</th><th class="rep-movil-oculta">Salio de</th><th>Hora</th><th>Escaneó</th><th class="rep-movil-oculta">Estatus actual</th></tr></thead>
+              <tbody id="repTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ====================================================== Bitacora -->
       <section id="v-bitacora" style="display:none">
         <div class="bita-kpis" id="bitaKpis"></div>
@@ -369,6 +424,7 @@
             <button class="seg__option" data-value="" aria-selected="true">Todo</button>
             <button class="seg__option" data-value="ELIMINACION" aria-selected="false">Eliminaciones</button>
             <button class="seg__option" data-value="CANCELACION" aria-selected="false">Cancelaciones</button>
+            <button class="seg__option" data-value="COMPLEMENTO" aria-selected="false">Complementos</button>
           </div>
         </div>
         <div id="bitacoraLista"></div>
@@ -450,13 +506,6 @@
                   <input class="input" type="password" id="nuPassword" autocomplete="new-password" required minlength="6" />
                 </label>
                 <label class="field">
-                  <span class="field__label">Rol</span>
-                  <select class="select" id="nuRol">
-                    <option value="operador">Operador</option>
-                    <option value="admin">Administrador</option>
-                  </select>
-                </label>
-                <label class="field">
                   <span class="field__label">Plaza (donde trabaja)</span>
                   <select class="select" id="nuPlaza">
                     <option value="MTY">Monterrey (solo escanea en MTY)</option>
@@ -464,6 +513,10 @@
                     <option value="">Ambas plazas</option>
                   </select>
                 </label>
+                <div class="field" style="grid-column:1 / -1;">
+                  <span class="field__label">Roles (elige uno o mas)</span>
+                  <div class="roles-chooser" id="nuRoles"></div>
+                </div>
               </div>
               <div class="msg-form" id="msgUsuarios"></div>
               <button class="btn btn--primary" type="submit" style="margin-top:var(--space-16);">Crear usuario</button>
@@ -678,6 +731,85 @@
 
   $('btnIrEscanear').addEventListener('click', () => { location.hash = '#/escanear'; });
 
+  // ---------- Shell: aviso de guias estancadas ----------
+  // Una guia que lleva dias en el mismo estatus no la reclama nadie hasta que
+  // llama el cliente. El aviso vive junto al reloj, no se puede cerrar y no
+  // deja de parpadear mientras haya guias detenidas; al tocarlo lleva directo
+  // al listado de esas guias, de la mas atrasada a la menos.
+  //
+  // Es distinto de la campana: aquella avisa de lo que lleva mas de 24 h EN
+  // TRANSITO; esta vigila TODOS los estatus en proceso (transito, bodega y
+  // reparto) con un umbral mas alto. Una guia dormida dos dias en bodega no
+  // salia por ningun lado.
+  const DIAS_ESTANCADA = 2;
+  const MIN_REVISAR_ESTANCADAS = 5;   // cada cuanto se vuelve a preguntar
+
+  let estancadas = [];
+  let totalEstancadas = 0;
+  let timerEstancadas = null;
+  let ultimaRevisionEstancadas = 0;
+
+  const diasEnEstatus = (g) =>
+    Math.floor((Date.now() - new Date(g.estatus_desde || g.actualizado_en).getTime()) / 86400000);
+
+  async function revisarEstancadas() {
+    if (!sesionToken) return;
+    ultimaRevisionEstancadas = Date.now();
+    try {
+      const r = await api('/api/guias/estancadas?dias=' + DIAS_ESTANCADA);
+      estancadas = r.guias || [];
+      totalEstancadas = r.total || 0;
+    } catch {
+      return; // sin red o sesion caida: se deja el aviso como estaba
+    }
+    pintarAlertaEstancadas();
+  }
+
+  function pintarAlertaEstancadas() {
+    const btn = $('btnEstancadas');
+    btn.hidden = totalEstancadas === 0;
+    if (!totalEstancadas) return;
+
+    const n = totalEstancadas;
+    $('estancadasN').textContent = n > 99 ? '99+' : n;
+    // El servidor decide quien esta estancada con su reloj y el navegador
+    // cuenta los dias con el suyo: si van desfasados, el piso lo pone el umbral
+    // para que el aviso no se contradiga solo ("1 guia lleva 1 dia... +2 dias")
+    const peor = Math.max(estancadas.length ? diasEnEstatus(estancadas[0]) : 0, DIAS_ESTANCADA);
+    const texto =
+      n === 1
+        ? `1 guia lleva ${peor} dias sin cambiar de estatus. Clic para verla.`
+        : `${n} guias llevan ${DIAS_ESTANCADA} dias o mas sin cambiar de estatus` +
+          ` (la mas atrasada, ${peor} dias). Clic para verlas.`;
+    btn.title = texto;
+    btn.setAttribute('aria-label', texto);
+  }
+
+  $('btnEstancadas').addEventListener('click', () => irAEstancadas());
+
+  // La vigilancia arranca con la sesion y se apaga al salir: sin token no hay
+  // a quien preguntarle.
+  function arrancarVigilancia() {
+    revisarEstancadas();
+    clearInterval(timerEstancadas);
+    timerEstancadas = setInterval(revisarEstancadas, MIN_REVISAR_ESTANCADAS * 60 * 1000);
+  }
+
+  function detenerVigilancia() {
+    clearInterval(timerEstancadas);
+    timerEstancadas = null;
+    estancadas = [];
+    totalEstancadas = 0;
+    $('btnEstancadas').hidden = true;
+  }
+
+  // Al volver a la pestaña despues de un rato, mejor preguntar de nuevo que
+  // mostrar un conteo viejo (la pantalla del panel se queda abierta todo el dia)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !sesionToken) return;
+    if (Date.now() - ultimaRevisionEstancadas > MIN_REVISAR_ESTANCADAS * 60 * 1000) revisarEstancadas();
+  });
+
   // ---------- Sesion ----------
   // ---------- Roles ----------
   // Los roles los define el servidor (nombre visible y que escaneos hace cada
@@ -686,18 +818,53 @@
   let ROLES = [];
 
   async function cargarRoles() {
-    if (ROLES.length) return;
+    if (ROLES.length) return ROLES;
     try { ROLES = await api('/api/roles'); } catch { ROLES = []; }
-    if (!ROLES.length) return;
-    const sel = $('nuRol');
-    sel.innerHTML = ROLES.map((r) => `<option value="${r.id}">${esc(r.nombre)}</option>`).join('');
-    if (ROLES.some((r) => r.id === 'salidas')) sel.value = 'salidas';
+    return ROLES;
   }
 
   function nombreRol(id) {
     const r = ROLES.find((x) => x.id === id);
     if (r) return r.nombre;
     return id === 'admin' ? 'Administrador' : id === 'operador' ? 'Operador (todos los escaneos)' : id;
+  }
+
+  function nombresRoles(roles) {
+    return roles && roles.length ? roles.map(nombreRol).join(', ') : 'Sin rol';
+  }
+
+  // Grupo de chips para elegir uno o mas roles: se usa tanto en "Agregar
+  // usuario" como en el modal de editar roles de un usuario existente.
+  function pintarRolesChooser(el, seleccionados) {
+    const marcados = seleccionados || [];
+    el.innerHTML = ROLES.map((r) =>
+      `<button type="button" class="chip rol-chip" data-rol="${r.id}" aria-pressed="${marcados.includes(r.id)}"
+               title="${esc(r.descripcion || '')}">${esc(r.nombre)}</button>`
+    ).join('');
+    el.querySelectorAll('.rol-chip').forEach((b) =>
+      b.addEventListener('click', () => b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')))
+    );
+  }
+
+  function rolesElegidos(el) {
+    return [...el.querySelectorAll('.rol-chip[aria-pressed="true"]')].map((b) => b.dataset.rol);
+  }
+
+  // Modal para editar los roles de un usuario existente (checkboxes serian
+  // mas convencionales, pero los chips reusan el mismo patron visual y
+  // codigo que "Agregar usuario", asi que no hay dos formas de elegir rol).
+  function editarRoles(nombreUsuario, rolesActuales) {
+    return UI.confirmar({
+      titulo: `Roles de "${nombreUsuario}"`,
+      descripcion: 'Puedes elegir mas de uno.',
+      cuerpo: '<div class="roles-chooser" id="rolesEditChooser"></div>',
+      confirmar: 'Guardar',
+      alAbrir: (panel) => {
+        pintarRolesChooser(panel.querySelector('#rolesEditChooser'), rolesActuales);
+        panel.querySelector('[data-accion="confirmar"]').focus();
+      },
+      alCerrar: (panel, ok) => (ok ? rolesElegidos(panel.querySelector('#rolesEditChooser')) : null),
+    });
   }
 
   // ---------- Modo eliminacion (oculto tras un atajo de teclado) ----------
@@ -709,7 +876,7 @@
   let modoEliminar = false;
 
   function aplicarModoEliminar() {
-    const activo = !!(usuarioActual && usuarioActual.rol === 'admin' && modoEliminar);
+    const activo = !!(usuarioActual && usuarioActual.roles.includes('admin') && modoEliminar);
     $('btnEliminarGuia').style.display = activo && guiaDetalleActual ? '' : 'none';
     // Se oculta la tarjeta entera, no solo el boton: asi nada delata que existe
     $('cardBorrar').style.display = activo ? '' : 'none';
@@ -718,7 +885,7 @@
   document.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey) || !e.altKey) return;
     if ((e.key || '').toLowerCase() !== 'e') return;
-    if (!usuarioActual || usuarioActual.rol !== 'admin') return;
+    if (!usuarioActual || !usuarioActual.roles.includes('admin')) return;
     e.preventDefault();
     modoEliminar = !modoEliminar;
     aplicarModoEliminar();
@@ -733,18 +900,18 @@
 
   function pintarUsuario() {
     if (!usuarioActual) return;
-    const esAdmin = usuarioActual.rol === 'admin';
+    const esAdmin = usuarioActual.roles.includes('admin');
     const plazaUsuario = usuarioActual.plaza || '';
 
     $('usuarioAvatar').innerHTML = UI.avatar(usuarioActual.nombre, { sm: true });
     $('usuarioNombre').textContent = usuarioActual.nombre;
-    $('usuarioRol').textContent = usuarioActual.rol + (plazaUsuario ? ' · ' + plazaUsuario : '');
+    $('usuarioRol').textContent = nombresRoles(usuarioActual.roles) + (plazaUsuario ? ' · ' + plazaUsuario : '');
 
     $('cfgAvatar').innerHTML = UI.avatar(usuarioActual.nombre);
     $('cfgUsuario').textContent = usuarioActual.nombre;
     $('cfgAlias').textContent = usuarioActual.usuario;
     $('cfgRol').textContent =
-      (esAdmin ? 'Rol: administrador' : 'Rol: operador') +
+      'Rol: ' + nombresRoles(usuarioActual.roles) +
       (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
     $('cardUsuarios').style.display = esAdmin ? '' : 'none';
     $('cardPassword').style.display = esAdmin ? '' : 'none';
@@ -771,6 +938,8 @@
     sesionToken = '';
     usuarioActual = null;
     localStorage.removeItem('sesionToken');
+    detenerVigilancia();
+    if (typeof pintarCola === 'function') pintarCola();
     $('loginOverlay').style.display = 'flex';
     const err = $('loginError');
     err.textContent = mensaje || '';
@@ -798,9 +967,12 @@
       sesionToken = data.token;
       usuarioActual = data.usuario;
       localStorage.setItem('sesionToken', sesionToken);
+      await cargarRoles();
       pintarUsuario();
       ocultarLogin();
       render();
+      arrancarVigilancia();
+      procesarCola();
     } catch (err2) {
       $('loginError').textContent = err2.message;
       $('loginError').classList.add('is-visible');
@@ -817,35 +989,42 @@
   });
 
   // ---------- API ----------
+  // opciones.timeout: ms maximos de espera; pasado ese tiempo la peticion se
+  // corta. Los errores en los que la peticion no llego o no volvio (sin red,
+  // servidor caido o dormido, tiempo agotado, 5xx del hosting) salen con
+  // reintentable = true: la cola de escaneos los reenvia sola. Un rechazo del
+  // servidor (400: prefijo equivocado, guia no disponible...) es definitivo.
   async function api(ruta, opciones = {}) {
-    const { timeoutMs, ...resto } = opciones;
+    const { timeout, ...resto } = opciones;
     let res;
     try {
       res = await fetch(ruta, {
         ...resto,
-        // Con tiempo limite: una peticion que nunca regresa no se queda
-        // colgada en silencio, se reporta como error.
-        signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
+        signal: timeout && typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(timeout) : undefined,
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sesionToken, ...(resto.headers || {}) },
       });
     } catch (e) {
-      if (e && e.name === 'TimeoutError') {
-        throw new Error(`El servidor no respondio en ${Math.round(timeoutMs / 1000)} s`);
-      }
-      throw new Error('Sin conexion con el servidor');
+      const agotado = e.name === 'TimeoutError' || e.name === 'AbortError';
+      const err = new Error(agotado ? 'El servidor no respondio a tiempo' : 'Sin conexion con el servidor');
+      err.reintentable = true;
+      throw err;
     }
     if (res.status === 401) {
       mostrarLogin('Tu sesion expiro. Inicia sesion de nuevo.');
       throw new Error('Sesion expirada');
     }
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Error de conexion');
+    if (!res.ok) {
+      const err = new Error(data.error || 'Error de conexion');
+      err.reintentable = res.status >= 500;
+      throw err;
+    }
     return data;
   }
 
   // ---------- Router ----------
-  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', bitacora: 'Bitacora', config: 'Configuracion', detalle: 'Detalle de guia' };
-  const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'bitacora', 'config'];
+  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', reportes: 'Reportes', bitacora: 'Bitacora', config: 'Configuracion', detalle: 'Detalle de guia' };
+  const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'reportes', 'bitacora', 'config'];
 
   function render() {
     let ruta = location.hash.replace(/^#\/?/, '') || 'dashboard';
@@ -867,7 +1046,7 @@
     if (!VISTAS.includes(vista)) { vista = 'dashboard'; }
 
     // La bitacora es solo para administradores
-    if (vista === 'bitacora' && usuarioActual && usuarioActual.rol !== 'admin') {
+    if (vista === 'bitacora' && usuarioActual && !usuarioActual.roles.includes('admin')) {
       UI.toast({ tipo: 'warn', titulo: 'Solo administradores', descripcion: 'La bitacora de correcciones esta reservada al rol de administrador.' });
       location.hash = '#/dashboard';
       return;
@@ -883,6 +1062,7 @@
     if (vista === 'dashboard') cargarDashboard();
     if (vista === 'guias') setPlazaTab(plazaTab);
     if (vista === 'eventos') cargarEventos();
+    if (vista === 'reportes') cargarReportes();
     if (vista === 'bitacora') cargarBitacora();
     if (vista === 'detalle') cargarDetalle(arg);
     if (vista === 'escanear') setTimeout(enfocarCaptura, 50);
@@ -901,9 +1081,9 @@
 
   // ---------- Atajos de teclado ----------
   // "/" busca · "Esc" sale del campo · "g d" dashboard, "g g" guias,
-  // "g e" eventos, "g s" escanear, "g c" configuracion.
+  // "g e" eventos, "g r" reportes, "g s" escanear, "g c" configuracion.
   let teclaG = 0;
-  const RUTAS_G = { d: 'dashboard', g: 'guias', e: 'eventos', s: 'escanear', b: 'bitacora', c: 'config' };
+  const RUTAS_G = { d: 'dashboard', g: 'guias', e: 'eventos', r: 'reportes', s: 'escanear', b: 'bitacora', c: 'config' };
 
   function escribiendo(el) {
     return el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
@@ -1353,7 +1533,24 @@
     }
   });
 
+  // Del aviso de la barra al listado. Se limpian los demas filtros a proposito:
+  // si quedara puesto "Hoy" o una plaza, el listado saldria vacio y parecia que
+  // el aviso mentia.
+  function irAEstancadas() {
+    soloEstancadas = true;
+    soloDetenidas = false;
+    filtroFecha = '';
+    filtroFav = false;
+    plazaTab = '';
+    localStorage.setItem('plazaTab', '');
+    estatusPendiente = '';
+    $('buscar').value = '';
+    if (location.hash === '#/guias') setPlazaTab('');
+    else location.hash = '#/guias';
+  }
+
   function irADetenidas() {
+    soloEstancadas = false;
     soloDetenidas = true;
     plazaTab = '';
     localStorage.setItem('plazaTab', '');
@@ -1408,9 +1605,10 @@
     void cap.offsetWidth;   // reinicia la animacion
     cap.classList.add(kind === 'error' ? 'sacudir' : 'flash', 'flash--' + kind);
 
-    // La card se autodescarta a los 4 s, al ritmo de su barra de progreso
+    // La card se autodescarta a los 4 s, al ritmo de su barra de progreso;
+    // un rechazo se queda el doble: es lo que el operador tiene que leer
     clearTimeout(timerResultado);
-    timerResultado = setTimeout(() => { r.innerHTML = ''; }, 4000);
+    timerResultado = setTimeout(() => { r.innerHTML = ''; }, kind === 'error' ? 8000 : 4000);
 
     // La lista de movimientos se sigue limpiando sola a los 30 s, como antes
     clearTimeout(timerLimpieza);
@@ -1428,9 +1626,9 @@
     </div>`;
   }
 
-  function logRow(numeroGuia, texto, esError = false) {
+  function logRow(numeroGuia, texto) {
     const div = document.createElement('div');
-    div.className = 'reciente' + (esError ? ' reciente--error' : '');
+    div.className = 'reciente';
     div.innerHTML = `<span class="reciente__guia"></span><span class="reciente__txt"></span>
                      <span class="reciente__hora">${new Date().toLocaleTimeString('es-MX', { hour12: false })}</span>`;
     div.children[0].textContent = numeroGuia;
@@ -1440,128 +1638,154 @@
     while ($('log').children.length > 5) $('log').lastChild.remove();
   }
 
-  // Los escaneos se atienden EN ORDEN, uno a la vez. Si cada Enter disparara
-  // su peticion por su cuenta, las respuestas llegarian desordenadas y la
-  // tarjeta de una guia que fallo se pisaria con la de la siguiente que si
-  // entro: el operador da por registrada una guia que no lo esta.
-  const colaEscaneos = [];
-  let escaneoEnCurso = false;
-  // Si el servidor tarda mas que esto, el escaneo se reporta como fallido
-  const LIMITE_ESCANEO_MS = 20000;
+  // ---------- Cola de escaneos ----------
+  //
+  // Ningun escaneo se pierde por lentitud. Cada escaneo entra a una cola
+  // guardada en localStorage y se envia en orden, uno a la vez. Si el servidor
+  // no contesta (red caida, hosting dormido, tiempo agotado) se reintenta solo
+  // con espera creciente hasta que conteste, y la cola sobrevive a recargar la
+  // pagina o a que expire la sesion. Cada escaneo lleva un id unico que el
+  // servidor reconoce en los reenvios, asi que reintentar nunca aplica un
+  // movimiento dos veces (una llegada reenviada no se vuelve salida).
+  //
+  // Mientras tanto el operador sigue escaneando: el campo nunca se bloquea.
+  const TIEMPO_LIMITE_ESCANEO = 15000; // ms sin respuesta para dar el envio por perdido
+  const ESPERA_REINTENTO_MAX = 30000;
+  const AVISAR_LENTO_MS = 1000;        // a partir de aqui se avisa que el servidor tarda
 
-  function pintarEstadoCaptura() {
-    const ocupado = escaneoEnCurso || colaEscaneos.length > 0;
-    $('estadoCaptura').classList.toggle('escaner__listo--ocupado', ocupado);
-    $('estadoCapturaTxt').textContent = !ocupado
-      ? 'Listo para escanear'
-      : colaEscaneos.length
-        ? `Procesando... ${colaEscaneos.length} en espera`
-        : 'Procesando...';
+  let cola = leerCola();               // [{ id, numeroGuia, plaza, modo, intentos, creadoEn }]
+  let enviando = null;                 // escaneo en vuelo
+  let timerReintento = null;
+  let timerLento = null;
+
+  function leerCola() {
+    try {
+      const c = JSON.parse(localStorage.getItem('colaEscaneos') || '[]');
+      return Array.isArray(c) ? c : [];
+    } catch { return []; }
+  }
+
+  function guardarCola() {
+    try { localStorage.setItem('colaEscaneos', JSON.stringify(cola)); } catch {}
+  }
+
+  function idEscaneo() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
   }
 
   function encolarEscaneo(numeroGuia) {
-    colaEscaneos.push(numeroGuia);
-    pintarEstadoCaptura();
+    cola.push({ id: idEscaneo(), numeroGuia, plaza, modo, intentos: 0, creadoEn: Date.now() });
+    guardarCola();
+    pintarCola();
     procesarCola();
   }
 
-  async function procesarCola() {
-    if (escaneoEnCurso) return;
-    escaneoEnCurso = true;
-    try {
-      while (colaEscaneos.length) {
-        const numeroGuia = colaEscaneos.shift();
-        pintarEstadoCaptura();
-        await escanear(numeroGuia);
-      }
-    } finally {
-      escaneoEnCurso = false;
-      pintarEstadoCaptura();
-    }
+  function quitarDeCola(item) {
+    cola = cola.filter((x) => x.id !== item.id);
+    guardarCola();
   }
 
-  async function escanear(numeroGuia) {
+  async function procesarCola() {
+    if (enviando || !cola.length || !sesionToken) return;
+    clearTimeout(timerReintento);
+    timerReintento = null;
+    const item = cola[0];
+    enviando = item;
+    item.desde = Date.now();
+    clearTimeout(timerLento);
+    timerLento = setTimeout(pintarCola, AVISAR_LENTO_MS);
     try {
       const data = await api('/api/guias/escanear', {
         method: 'POST',
-        body: JSON.stringify({ numeroGuia, plaza, modo }),
-        timeoutMs: LIMITE_ESCANEO_MS,
+        timeout: TIEMPO_LIMITE_ESCANEO,
+        body: JSON.stringify({
+          numeroGuia: item.numeroGuia,
+          plaza: item.plaza,
+          modo: item.modo,
+          idEscaneo: item.id,
+          reintento: item.intentos > 0,
+        }),
       });
-      const estatus = data.guia && data.guia.estatus;
-      const kind = data.tipo === 'repetido' ? 'neutro' : UI.statusKind(estatus);
-      mostrarResultado(
-        cardResultado(numeroGuia, estatus, TITULO_TIPO[data.tipo] || data.mensaje, kind),
-        kind
-      );
-      logRow(numeroGuia, data.mensaje);
-      beep(data.tipo === 'repetido' ? 'warn' : 'ok');
+      quitarDeCola(item);
+      mostrarEscaneoOk(item, data);
     } catch (e) {
-      // Sin respuesta no se sabe si el servidor alcanzo a registrarla: el
-      // operador debe verificar la guia antes de volver a escanearla, porque
-      // un segundo escaneo sobre una llegada ya registrada la vuelve a sacar.
-      const sinRespuesta = /no respondio|Sin conexion/.test(e.message);
-      const motivo = sinRespuesta
-        ? `${e.message}. Busca la guia en la lista antes de volver a escanearla.`
-        : e.message;
-      mostrarResultado(cardResultado(numeroGuia, null, motivo, 'error'), 'error');
-      logRow(numeroGuia, motivo, true);
-      agregarFallida(numeroGuia, motivo);
-      beep('err');
+      if (e.reintentable) {
+        item.intentos++;
+        guardarCola();
+        // 2 s, 4 s, 8 s, 16 s y de ahi cada 30 s, hasta que conteste
+        const espera = Math.min(1000 * 2 ** Math.min(item.intentos, 5), ESPERA_REINTENTO_MAX);
+        timerReintento = setTimeout(procesarCola, espera);
+      } else if (e.message === 'Sesion expirada') {
+        // Se queda en la cola y sigue en cuanto el usuario vuelva a entrar
+      } else {
+        quitarDeCola(item);
+        mostrarEscaneoError(item, e.message);
+      }
+    } finally {
+      clearTimeout(timerLento);
+      enviando = null;
+      pintarCola();
+      if (!timerReintento) procesarCola();
     }
   }
 
-  // ---- Guias que no entraron ----
-  // Se conservan en sessionStorage para que sobrevivan a una recarga
-  // accidental de la pagina, pero no a cerrar la pestaña.
-  let fallidas = [];
-  try { fallidas = JSON.parse(sessionStorage.getItem('escaneosFallidos') || '[]'); } catch {}
-
-  function guardarFallidas() {
-    try { sessionStorage.setItem('escaneosFallidos', JSON.stringify(fallidas)); } catch {}
+  function mostrarEscaneoOk(item, data) {
+    const estatus = data.guia && data.guia.estatus;
+    const kind = data.tipo === 'repetido' ? 'neutro' : UI.statusKind(estatus);
+    mostrarResultado(cardResultado(item.numeroGuia, estatus, TITULO_TIPO[data.tipo] || data.mensaje, kind), kind);
+    logRow(item.numeroGuia, data.mensaje);
+    beep(data.tipo === 'repetido' ? 'warn' : 'ok');
+    // Mover una guia puede sacarla de la lista de estancadas: el aviso se
+    // actualiza en el momento, sin esperar a la siguiente revision. Si no hay
+    // ninguna estancada no hay nada que actualizar (mover una guia no la
+    // estanca), y se ahorra una peticion por escaneo.
+    if (data.tipo !== 'repetido' && totalEstancadas > 0) revisarEstancadas();
   }
 
-  function pintarFallidas() {
-    const caja = $('fallidas');
-    caja.hidden = fallidas.length === 0;
-    if (!fallidas.length) return;
-    $('fallidasTitulo').textContent = fallidas.length === 1
-      ? '1 guia NO se registro'
-      : `${fallidas.length} guias NO se registraron`;
-    const lista = $('fallidasLista');
-    lista.innerHTML = '';
-    for (const f of fallidas) {
-      const div = document.createElement('div');
-      div.className = 'fallida';
-      div.innerHTML = '<span class="fallida__guia"></span><span class="fallida__txt"></span><span class="fallida__hora"></span>';
-      div.children[0].textContent = f.guia;
-      div.children[1].textContent = f.motivo;
-      div.children[2].textContent = f.hora;
-      lista.appendChild(div);
+  function mostrarEscaneoError(item, mensaje) {
+    mostrarResultado(cardResultado(item.numeroGuia, null, mensaje, 'error'), 'error');
+    logRow(item.numeroGuia, mensaje);
+    beep('err');
+  }
+
+  // El aviso solo aparece cuando algo no va al ritmo normal: un escaneo que
+  // lleva mas de un segundo sin respuesta, reenvios en curso o escaneos en
+  // espera de que el usuario vuelva a entrar. Se oculta solo al vaciarse.
+  function pintarCola() {
+    const aviso = $('colaAviso');
+    const n = cola.length;
+    if (!n) { aviso.hidden = true; return; }
+
+    const reintentando = cola[0].intentos > 0;
+    const lento = enviando && Date.now() - enviando.desde >= AVISAR_LENTO_MS - 50;
+    if (!reintentando && !lento && sesionToken) { aviso.hidden = true; return; }
+
+    const numeros = cola.slice(0, 3).map((x) => `<strong>${esc(x.numeroGuia)}</strong>`).join(', ') + (n > 3 ? ` y ${n - 3} mas` : '');
+    let texto;
+    if (!sesionToken) {
+      texto = `${n} escaneo${n > 1 ? 's' : ''} en espera (${numeros}). Inicia sesion para enviarlos.`;
+    } else if (reintentando) {
+      texto = `${n} escaneo${n > 1 ? 's' : ''} sin confirmar (${numeros}). El servidor no responde; se reintenta solo. No cierres esta pagina.`;
+    } else {
+      texto = `Enviando ${numeros}... el servidor tarda en responder${n > 1 ? `; ${n - 1} en espera` : ''}. Puedes seguir escaneando.`;
     }
+    $('colaAvisoTxt').innerHTML = texto;
+    aviso.hidden = false;
   }
 
-  function agregarFallida(numeroGuia, motivo) {
-    fallidas.unshift({ guia: numeroGuia, motivo, hora: new Date().toLocaleTimeString('es-MX', { hour12: false }) });
-    if (fallidas.length > 20) fallidas.length = 20;
-    guardarFallidas();
-    pintarFallidas();
-  }
-
-  $('btnFallidasOk').addEventListener('click', () => {
-    fallidas = [];
-    guardarFallidas();
-    pintarFallidas();
-    enfocarCaptura();
+  // En cuanto vuelve la red se reintenta sin esperar el siguiente turno
+  window.addEventListener('online', () => {
+    if (timerReintento) { clearTimeout(timerReintento); timerReintento = null; }
+    procesarCola();
   });
-  pintarFallidas();
 
   $('guia').addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    const numeroGuia = $('guia').value.trim();
-    if (!numeroGuia) return;
-    $('guia').value = '';
-    encolarEscaneo(numeroGuia.toUpperCase());
+    if (e.key === 'Enter') {
+      const numeroGuia = $('guia').value.trim();
+      if (numeroGuia) encolarEscaneo(numeroGuia.toUpperCase());
+      $('guia').value = '';
+    }
   });
 
   // ---------- Guias ----------
@@ -1593,6 +1817,7 @@
 
   let estatusPendiente = null; // filtro que viene de un clic en el dashboard
   let soloDetenidas = false;   // filtro de "detenidas +24 h", se aplica en cliente
+  let soloEstancadas = false;  // filtro del aviso de la barra: lo resuelve el servidor
 
   function setPlazaTab(p) {
     plazaTab = p;
@@ -1609,6 +1834,7 @@
 
   function irAGuias(tab, estatus) {
     soloDetenidas = false;
+    soloEstancadas = false;
     plazaTab = tab;
     localStorage.setItem('plazaTab', tab);
     estatusPendiente = estatus || '';
@@ -1694,6 +1920,20 @@
     });
   }
 
+  // Aviso de que el listado esta acotado a las guias estancadas
+  function pintarAvisoEstancadas() {
+    const cont = $('avisoEstancadas');
+    if (!soloEstancadas) { cont.innerHTML = ''; return; }
+    cont.innerHTML = `<button class="chip is-active" id="chipEstancadas">
+      Estancadas +${DIAS_ESTANCADA} dias <span class="chip__count">quitar &times;</span>
+    </button>`;
+    $('chipEstancadas').addEventListener('click', () => {
+      soloEstancadas = false;
+      pintarAvisoEstancadas();
+      cargarGuias();
+    });
+  }
+
   // ---------- Filtros de cliente: fecha y favoritas ----------
   let filtroFecha = '';   // '' | 'hoy' | '7d'
   let filtroFav = false;
@@ -1734,6 +1974,13 @@
 
   function filtrarCliente(data) {
     let out = data;
+    // El listado de estancadas lo arma el servidor sin pestaña ni estatus, asi
+    // que esos dos filtros se aplican aqui: si no, mover la pestaña de plaza no
+    // hacia nada y parecia que el filtro estaba descompuesto.
+    if (soloEstancadas) {
+      if (plazaTab) out = out.filter((g) => tabDeEstatus(g.estatus) === plazaTab);
+      if ($('filtroEstatus').value) out = out.filter((g) => g.estatus === $('filtroEstatus').value);
+    }
     if (soloDetenidas) {
       const limite = Date.now() - HORAS_DETENIDA * 3600 * 1000;
       out = out.filter((g) => esDetenida(g, limite));
@@ -1800,8 +2047,12 @@
     if (!n) {
       cont.innerHTML = `<div class="card">${UI.emptyState({
         icono: 'busqueda',
-        titulo: soloDetenidas ? 'Ninguna guia detenida' : filtroFav ? 'Sin favoritas' : 'Sin guias',
-        descripcion: soloDetenidas
+        titulo: soloEstancadas
+          ? 'Ninguna guia estancada'
+          : soloDetenidas ? 'Ninguna guia detenida' : filtroFav ? 'Sin favoritas' : 'Sin guias',
+        descripcion: soloEstancadas
+          ? `Ninguna guia lleva ${DIAS_ESTANCADA} dias o mas en el mismo estatus. Todo va avanzando.`
+          : soloDetenidas
           ? `Ninguna guia en transito lleva mas de ${HORAS_DETENIDA} h sin escaneo. Todo va en movimiento.`
           : filtroFav
           ? 'Marca una guia con la estrella para tenerla a la mano aqui.'
@@ -1820,6 +2071,9 @@
   async function cargarGuias() {
     const params = new URLSearchParams();
     const buscar = $('buscar').value.trim();
+    // Buscar un numero manda sobre el filtro de estancadas: quien lo escribe
+    // quiere esa guia, no la lista acotada
+    if (buscar) soloEstancadas = false;
     if (buscar) {
       // La busqueda por numero revisa todas las guias, sin importar la pestaña
       params.set('buscar', buscar);
@@ -1829,12 +2083,18 @@
       params.set('plaza', plazaTab);
     }
     pintarAvisoDetenidas();
+    pintarAvisoEstancadas();
     pintarChipsFiltro();
     $('guiasContenido').innerHTML =
       `<div class="card card--flush"><div class="tabla-scroll"><table><tbody>${UI.skeletonRows(6, 5)}</tbody></table></div></div>`;
     try {
-      const data = filtrarCliente(await api('/api/guias?' + params));
-      pintarGuias(data);
+      // Las estancadas las decide el servidor (mira desde cuando lleva cada
+      // guia el mismo estatus), no un filtro sobre la pagina ya cargada: si no,
+      // se quedarian fuera las que no cupieron en el listado.
+      const crudas = soloEstancadas
+        ? (await api('/api/guias/estancadas?dias=' + DIAS_ESTANCADA)).guias
+        : await api('/api/guias?' + params);
+      pintarGuias(filtrarCliente(crudas));
     } catch (e) {
       UI.montarError($('guiasContenido'), e.message, cargarGuias);
       $('contadorGuias').innerHTML = '';
@@ -1901,8 +2161,8 @@
 
   // Revertir no siempre significa lo mismo: puede ser un escaneo equivocado,
   // una guia cancelada que se reemplaza por otra, o un complemento. El motivo
-  // solo es obligatorio al cancelar, porque es el unico caso donde la guia
-  // cambia de numero y alguien va a tener que explicar por que.
+  // es obligatorio al cancelar y al registrar un complemento, porque en ambos
+  // la guia cambia de numero y alguien va a tener que explicar por que.
   const OPCIONES_REV = [
     {
       id: 'solo',
@@ -1917,7 +2177,7 @@
     {
       id: 'complemento',
       titulo: 'Se hizo un complemento',
-      desc: 'La guia conserva sus dos numeros y ambos sirven para rastrear.',
+      desc: 'Solo queda activa la guia del complemento; la anterior queda registrada en ella.',
     },
   ];
 
@@ -1966,7 +2226,7 @@
       titulo: cancelada ? 'La guia se cancelo y se hizo una nueva' : 'Se hizo un complemento',
       descripcion: cancelada
         ? `${guiaDetalleActual} se cancela y su historial pasa a la guia nueva.`
-        : `${guiaDetalleActual} conserva su numero y ademas el del complemento.`,
+        : `${guiaDetalleActual} deja de estar activa: su historial pasa a la guia del complemento, que la marca como guia anterior.`,
       peligro: true,
       confirmar: cancelada ? 'Cancelar la guia' : 'Guardar complemento',
       cancelar: 'Volver',
@@ -1974,7 +2234,7 @@
         <label class="field">
           <span class="field__label">${cancelada ? 'Numero de la guia nueva' : 'Numero del complemento'}</span>
           <input class="input" type="text" id="revNumero" autocomplete="off" spellcheck="false"
-                 placeholder="${cancelada ? (pref ? `Debe empezar con ${pref[1]}, igual que la guia cancelada` : 'AN... o BN...') : ''}" />
+                 placeholder="${pref ? `Debe empezar con ${pref[1]}, igual que ${cancelada ? 'la guia cancelada' : 'la guia anterior'}` : 'AN... o BN...'}" />
         </label>
         ${cancelada ? `
           <label class="field">
@@ -1991,13 +2251,13 @@
                 <span class="opcion__desc">Pasar tambien el complemento ${esc(comp)} a la guia nueva. Si no lo marcas, se queda con la guia cancelada y ese numero vuelve a quedar libre.</span>
               </span>
             </label>` : ''}
-          <label class="field">
-            <span class="field__label">Motivo de la cancelacion</span>
-            <textarea class="input input--area" id="revMotivo" rows="2" maxlength="500"
-                      placeholder="Por ejemplo: el cliente no pago la entrega y se emitio una guia nueva"></textarea>
-          </label>
-          <p class="nota">Queda registrado en el historial de la guia y en la bitacora, junto con tu usuario y la fecha.</p>
         ` : ''}
+        <label class="field">
+          <span class="field__label">${cancelada ? 'Motivo de la cancelacion' : 'Motivo del complemento'}</span>
+          <textarea class="input input--area" id="revMotivo" rows="2" maxlength="500"
+                    placeholder="${cancelada ? 'Por ejemplo: el cliente no pago la entrega y se emitio una guia nueva' : 'Por ejemplo: se cobro un adicional por sobrepeso'}"></textarea>
+        </label>
+        <p class="nota">Queda registrado en el historial de la guia y en la bitacora, junto con tu usuario y la fecha.</p>
         <p class="msg-error" id="revError" hidden></p>`,
       alAbrir: (panel) => {
         const $$ = (id) => panel.querySelector('#' + id);
@@ -2017,17 +2277,21 @@
           if (!$$('revNumero').value.trim()) {
             return error(cancelada ? 'Escribe el numero de la guia nueva.' : 'Escribe el numero del complemento.', $$('revNumero'));
           }
-          if (cancelada && $$('revMotivo').value.trim().length < 5) {
-            return error('Escribe el motivo de la cancelacion: queda en el historial y en la bitacora.', $$('revMotivo'));
+          const pre = pref ? pref[1] : null;
+          const num = $$('revNumero').value.trim().toUpperCase();
+          if (pre ? !num.startsWith(pre) : !/^(AN|BN)/.test(num)) {
+            return error(pre ? `El numero debe empezar con ${pre}.` : 'El numero debe empezar con AN o BN.', $$('revNumero'));
+          }
+          if ($$('revMotivo').value.trim().length < 5) {
+            return error(`Escribe el motivo ${cancelada ? 'de la cancelacion' : 'del complemento'}: queda en el historial y en la bitacora.`, $$('revMotivo'));
           }
         }, true);
       },
       alCerrar: (panel, ok) => {
         if (!ok) return null;
         const $$ = (id) => panel.querySelector('#' + id);
-        const cuerpo = { resolucion: tipo, numero: $$('revNumero').value.trim().toUpperCase() };
+        const cuerpo = { resolucion: tipo, numero: $$('revNumero').value.trim().toUpperCase(), motivo: $$('revMotivo').value.trim() };
         if (cancelada) {
-          cuerpo.motivo = $$('revMotivo').value.trim();
           if ($$('revEstatus').value) cuerpo.estatus = $$('revEstatus').value;
           const chk = $$('revConservarComp');
           if (chk) cuerpo.conservarComplemento = chk.checked;
@@ -2151,7 +2415,7 @@
       const d = await api('/api/guias/' + encodeURIComponent(numeroGuia));
       guiaDetalleActual = d.numero_guia;
       guiaDetalle = d;
-      const esAdminDet = !!(usuarioActual && usuarioActual.rol === 'admin');
+      const esAdminDet = !!(usuarioActual && usuarioActual.roles.includes('admin'));
       $('btnRevertir').style.display = esAdminDet && d.historial.length ? '' : 'none';
       aplicarModoEliminar();
       $('detNumero').textContent = d.numero_guia;
@@ -2162,6 +2426,9 @@
       $('detCreada').textContent = fmtFecha(d.creado_en);
       $('detActualizada').textContent = fmtFecha(d.actualizado_en);
       $('detEscaneos').textContent = d.historial.length;
+      // Guia a la que reemplazo (por complemento o cancelacion); ya no esta activa
+      $('detAnteriorFila').style.display = d.numero_anterior ? '' : 'none';
+      $('detAnterior').textContent = d.numero_anterior || '';
 
       // Codigo de barras (si la libreria cargo)
       try {
@@ -2224,6 +2491,7 @@
       $('detRuta').textContent = e.message;
       $('detBadge').innerHTML = '';
       $('detCreada').textContent = $('detActualizada').textContent = $('detEscaneos').textContent = '-';
+      $('detAnteriorFila').style.display = 'none';
       $('stepper').innerHTML = '';
       $('barcodeWrap').style.display = 'none';
       UI.montarError($('tbodyDetEventos'), e.message, () => cargarDetalle(numeroGuia),
@@ -2309,6 +2577,122 @@
   let timerEventos;
   $('buscarEvento').addEventListener('input', () => { clearTimeout(timerEventos); timerEventos = setTimeout(pintarGruposEventos, 200); });
 
+  // ---------- Reportes ----------
+  // El corte de salidas del dia: la lista se enseña primero en pantalla (lo
+  // que va a traer el PDF) y el boton descarga el mismo reporte con el logo
+  // y el formato de la casa. La pregunta que contesta es la del cotejo contra
+  // el manifiesto: "¿cuales si se escanearon y cuales faltaron?".
+
+  // Fecha local del navegador como AAAA-MM-DD. Las dos plazas operan en el
+  // mismo huso, asi que la fecha de la computadora del operador es la buena.
+  function fechaLocalISO(diasAtras = 0) {
+    const d = new Date(Date.now() - diasAtras * 86400000);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  function consultaReporte() {
+    const fecha = $('repFecha').value || fechaLocalISO();
+    const plaza = $('repPlaza').value;
+    return `fecha=${encodeURIComponent(fecha)}${plaza ? `&plaza=${plaza}` : ''}`;
+  }
+
+  function pintarChipsReporte() {
+    const f = $('repFecha').value;
+    $('repHoy').setAttribute('aria-pressed', String(f === fechaLocalISO()));
+    $('repAyer').setAttribute('aria-pressed', String(f === fechaLocalISO(1)));
+  }
+
+  function cargarReportes() {
+    if (!$('repFecha').value) $('repFecha').value = fechaLocalISO();
+    pintarChipsReporte();
+    cargarSalidasReporte();
+  }
+
+  let versionReporte = 0;
+  async function cargarSalidasReporte() {
+    const version = ++versionReporte;
+    $('repResumen').textContent = '';
+    $('repTbody').innerHTML = UI.skeletonRows(4, 6);
+    try {
+      const r = await api('/api/reportes/salidas?' + consultaReporte());
+      if (version !== versionReporte) return; // llego una consulta mas nueva
+      $('btnPdfSalidas').disabled = r.total === 0;
+      $('repResumen').textContent = r.total === 0
+        ? 'Sin salidas registradas ese dia'
+        : r.plaza
+          ? `${r.total} salida${r.total === 1 ? '' : 's'} de ${r.plaza}`
+          : `${r.total} salida${r.total === 1 ? '' : 's'}: ${r.porPlaza.MTY || 0} de MTY y ${r.porPlaza.CDMX || 0} de CDMX`;
+      if (r.total === 0) {
+        $('repTbody').innerHTML = `<tr><td colspan="6">${UI.emptyState({
+          titulo: 'Ninguna guia salio ese dia',
+          descripcion: 'Cambia el dia o revisa que los escaneos de salida se hayan hecho.',
+        })}</td></tr>`;
+        return;
+      }
+      $('repTbody').innerHTML = r.salidas.map((s, i) => `
+        <tr class="clic" data-guia="${esc(s.numero_guia)}">
+          <td class="rep-num"><span class="mono t-tertiary">${i + 1}</span></td>
+          <td><span class="mono t-primary">${esc(s.numero_guia)}</span>${s.complemento ? ` <span class="nota">(comp. ${esc(s.complemento)})</span>` : ''}</td>
+          <td class="rep-movil-oculta">${s.plaza}</td>
+          <td><span class="mono t-tertiary">${UI.fmtHora(s.creado_en)}</span></td>
+          <td>${s.operador ? esc(s.operador) : '<span class="nota">sin registrar</span>'}</td>
+          <td class="rep-movil-oculta">${badge(s.estatus_actual)}</td>
+        </tr>`).join('');
+      $('repTbody').querySelectorAll('.clic').forEach((el) =>
+        el.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(el.dataset.guia)))
+      );
+    } catch (e) {
+      if (version !== versionReporte) return;
+      $('repTbody').innerHTML = `<tr><td colspan="6">${UI.errorState(e.message)}</td></tr>`;
+    }
+  }
+
+  $('repFecha').addEventListener('change', () => { pintarChipsReporte(); cargarSalidasReporte(); });
+  $('repPlaza').addEventListener('change', cargarSalidasReporte);
+  $('repHoy').addEventListener('click', () => { $('repFecha').value = fechaLocalISO(); pintarChipsReporte(); cargarSalidasReporte(); });
+  $('repAyer').addEventListener('click', () => { $('repFecha').value = fechaLocalISO(1); pintarChipsReporte(); cargarSalidasReporte(); });
+
+  // La descarga va con fetch y no con un <a href> directo porque el PDF exige
+  // el token de sesion en el header; el blob resultante se entrega al
+  // navegador como archivo con su nombre.
+  $('btnPdfSalidas').addEventListener('click', async () => {
+    const btn = $('btnPdfSalidas');
+    const fecha = $('repFecha').value || fechaLocalISO();
+    const plaza = $('repPlaza').value;
+    btn.disabled = true;
+    const textoOriginal = btn.textContent;
+    btn.textContent = 'Generando PDF...';
+    msgForm('msgReporte', '', '');
+    try {
+      const res = await fetch('/api/reportes/salidas.pdf?' + consultaReporte(), {
+        headers: { Authorization: 'Bearer ' + sesionToken },
+      });
+      if (res.status === 401) { mostrarLogin('Tu sesion expiro. Inicia sesion de nuevo.'); return; }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo generar el PDF');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `salidas-${fecha}${plaza ? '-' + plaza.toLowerCase() : ''}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Se revoca despues de un momento: hacerlo de inmediato cancela la
+      // descarga en algunos navegadores
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      UI.toast({ tipo: 'ok', titulo: 'Reporte descargado', descripcion: `Salidas del ${fecha}${plaza ? ` · ${plaza}` : ''}.` });
+    } catch (e) {
+      msgForm('msgReporte', e.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  });
+
   // ---------- Bitacora ----------
   // Registro inmutable de correcciones. Se arma con los eventos CORRECCION
   // que ya escribe el backend al revertir un escaneo; no hay endpoint ni
@@ -2349,8 +2733,8 @@
   }
 
   // Etiquetas e iconos de la bitacora permanente
-  const BIT_TXT = { ELIMINACION: 'Guia eliminada', CANCELACION: 'Guia cancelada' };
-  const BIT_CLASE = { ELIMINACION: 'registro--rojo', CANCELACION: 'registro--ambar' };
+  const BIT_TXT = { ELIMINACION: 'Guia eliminada', CANCELACION: 'Guia cancelada', COMPLEMENTO: 'Complemento' };
+  const BIT_CLASE = { ELIMINACION: 'registro--rojo', CANCELACION: 'registro--ambar', COMPLEMENTO: 'registro--ambar' };
   let bitTipo = '';
   let bitTimer;
 
@@ -2408,6 +2792,10 @@
           <div class="kpi-valor">${bit.resumen.cancelaciones}</div>
           <div class="kpi-etiqueta">Guias canceladas</div>
         </div>
+        <div class="bita-kpi bita-kpi--ambar">
+          <div class="kpi-valor">${bit.resumen.complementos}</div>
+          <div class="kpi-etiqueta">Complementos</div>
+        </div>
         <div class="bita-kpi">
           <div class="kpi-valor">${correcciones.length}</div>
           <div class="kpi-etiqueta">Escaneos corregidos</div>
@@ -2438,20 +2826,35 @@
       // filtro es de la bitacora permanente, no del historial
       if (!bitTipo && !buscar) for (const ev of correcciones) anotar(ev.creado_en, registroHtml(ev));
 
+      const SVG_CHEV_BIT = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>';
+
+      // Solo el dia mas reciente arranca abierto: con varias cancelaciones
+      // diarias, ver los demas dias plegados evita un scroll interminable.
       $('bitacoraLista').innerHTML =
-        [...dias.entries()].map(([dia, filas]) => {
+        [...dias.entries()].map(([dia, filas], i) => {
           filas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-          return `<section class="dia">
-            <header class="dia__head">
+          const abierto = i === 0;
+          return `<section class="dia${abierto ? ' abierto' : ''}">
+            <button class="dia__head" aria-expanded="${abierto}">
               <span class="dia__nombre">${esc(dia)}</span>
               <span class="dia__linea"></span>
-              <span class="dia__nombre">${filas.length}</span>
-            </header>
-            ${filas.map((f) => f.html).join('')}
+              <span class="dia__conteo">${filas.length}</span>
+              <span class="dia__chev">${SVG_CHEV_BIT}</span>
+            </button>
+            <div class="dia__body">
+              ${filas.map((f) => f.html).join('')}
+            </div>
           </section>`;
         }).join('') +
         `<p class="nota" style="margin-top:var(--space-16)">Las eliminaciones y cancelaciones se guardan para siempre. Las correcciones cubren los ultimos ${VENTANA_BITACORA} movimientos del sistema.</p>`;
 
+      $('bitacoraLista').querySelectorAll('.dia__head').forEach((b) =>
+        b.addEventListener('click', () => {
+          const dia = b.closest('.dia');
+          const abierto = dia.classList.toggle('abierto');
+          b.setAttribute('aria-expanded', String(abierto));
+        })
+      );
       $('bitacoraLista').querySelectorAll('[data-guia]').forEach((b) =>
         b.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(b.dataset.guia)))
       );
@@ -2478,7 +2881,7 @@
 
   function cargarConfig() {
     pintarUsuario();
-    if (usuarioActual && usuarioActual.rol === 'admin') cargarUsuarios();
+    if (usuarioActual && usuarioActual.roles.includes('admin')) cargarUsuarios();
   }
 
   $('formPassword').addEventListener('submit', async (e) => {
@@ -2502,16 +2905,15 @@
     $('tbodyUsuarios').innerHTML = UI.skeletonRows(3, 4);
     try {
       await cargarRoles();
+      if (!$('nuRoles').children.length) pintarRolesChooser($('nuRoles'), ['salidas']);
       const usuarios = await api('/api/usuarios');
-      // Si alguien conserva un rol que ya no se asigna, su fila debe seguir
-      // mostrandolo: se agrega a la lista solo para ese select
-      const opcionesRol = (sel) => {
-        const lista = ROLES.some((r) => r.id === sel) ? ROLES : [...ROLES, { id: sel, nombre: nombreRol(sel) }];
-        return lista.map((r) => `<option value="${r.id}" ${r.id === sel ? 'selected' : ''}>${esc(r.nombre)}</option>`).join('');
-      };
       const opcionesPlaza = (sel) =>
         [['MTY', 'MTY'], ['CDMX', 'CDMX'], ['', 'Ambas']]
           .map(([v, t]) => `<option value="${v}" ${v === (sel || '') ? 'selected' : ''}>${t}</option>`).join('');
+      const tagsRol = (roles) =>
+        (roles && roles.length ? roles : ['']).map((r) =>
+          `<span class="rol-tag ${r === 'admin' ? 'rol-tag--admin' : ''}">${esc(r ? nombreRol(r) : 'Sin rol')}</span>`
+        ).join('');
       $('tbodyUsuarios').innerHTML = usuarios.map((u) => `<tr>
         <td>
           <span class="celda-usuario">
@@ -2523,9 +2925,11 @@
           </span>
         </td>
         <td>${u.id === usuarioActual.id
-          ? `<span class="rol-tag ${u.rol === 'admin' ? 'rol-tag--admin' : ''}">${esc(nombreRol(u.rol))}</span>`
-          : `<select class="select select--quiet sel-rol" data-id="${u.id}" data-usuario="${esc(u.usuario)}"
-                     aria-label="Rol de ${esc(u.usuario)}">${opcionesRol(u.rol)}</select>`}</td>
+          ? `<span class="roles-chooser">${tagsRol(u.roles)}</span>`
+          : `<button type="button" class="btn-roles" data-uid="${u.id}" data-usuario="${esc(u.usuario)}"
+                     data-roles='${esc(JSON.stringify(u.roles || []))}' aria-label="Editar roles de ${esc(u.usuario)}">
+               ${tagsRol(u.roles)}
+             </button>`}</td>
         <td><select class="select select--quiet sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}"
                     aria-label="Plaza de ${esc(u.usuario)}">${opcionesPlaza(u.plaza)}</select></td>
         <td class="celda-acciones">${u.id === usuarioActual.id
@@ -2538,15 +2942,19 @@
                      title="Eliminar usuario" aria-label="Eliminar a ${esc(u.usuario)}">
                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 9.5a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9L13.5 6"/></svg>
              </button>`}</td></tr>`).join('');
-      document.querySelectorAll('#tbodyUsuarios .sel-rol').forEach((s) =>
-        s.addEventListener('change', async () => {
+      document.querySelectorAll('#tbodyUsuarios .btn-roles').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          const actuales = JSON.parse(btn.dataset.roles || '[]');
+          const nuevos = await editarRoles(btn.dataset.usuario, actuales);
+          if (nuevos === null) return;
+          if (!nuevos.length) { msgForm('msgUsuarios', 'Selecciona al menos un rol', 'err'); return; }
           try {
-            await api('/api/usuarios/' + s.dataset.id + '/rol', { method: 'PUT', body: JSON.stringify({ rol: s.value }) });
-            msgForm('msgUsuarios', `"${s.dataset.usuario}" ahora es ${nombreRol(s.value)}. Aplica en cuanto vuelva a entrar o recargue.`, 'ok');
+            await api('/api/usuarios/' + btn.dataset.uid + '/roles', { method: 'PUT', body: JSON.stringify({ roles: nuevos }) });
+            msgForm('msgUsuarios', `Roles de "${btn.dataset.usuario}" actualizados. Aplica en cuanto vuelva a entrar o recargue.`, 'ok');
           } catch (err2) {
             msgForm('msgUsuarios', err2.message, 'err');
-            cargarUsuarios();
           }
+          cargarUsuarios();
         })
       );
       document.querySelectorAll('#tbodyUsuarios .sel-plaza').forEach((s) =>
@@ -2561,7 +2969,7 @@
           }
         })
       );
-      document.querySelectorAll('#tbodyUsuarios [data-id]').forEach((b) =>
+      document.querySelectorAll('#tbodyUsuarios .btn--danger-ghost[data-id]').forEach((b) =>
         b.addEventListener('click', async () => {
           const ok = await UI.confirmar({
             titulo: `¿Eliminar al usuario "${b.dataset.usuario}"?`,
@@ -2601,6 +3009,8 @@
 
   $('formNuevoUsuario').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const roles = rolesElegidos($('nuRoles'));
+    if (!roles.length) return msgForm('msgUsuarios', 'Selecciona al menos un rol', 'err');
     try {
       await api('/api/usuarios', {
         method: 'POST',
@@ -2608,11 +3018,12 @@
           usuario: $('nuUsuario').value.trim(),
           nombre: $('nuNombre').value.trim(),
           password: $('nuPassword').value,
-          rol: $('nuRol').value,
+          roles,
           plaza: $('nuPlaza').value,
         }),
       });
       $('formNuevoUsuario').reset();
+      pintarRolesChooser($('nuRoles'), ['salidas']);
       msgForm('msgUsuarios', 'Usuario creado correctamente', 'ok');
       cargarUsuarios();
     } catch (err2) {
@@ -2650,10 +3061,13 @@
     try {
       const me = await api('/api/auth/me');
       usuarioActual = me.usuario;
+      await cargarRoles();
       pintarUsuario();
       ocultarLogin();
       render();
       moverIndicador(true);
+      arrancarVigilancia();
+      procesarCola();
     } catch (e2) {
       // Si la sesion expiro, api() ya mostro el login; si fue error de red, tambien lo pedimos
       if (e2.message !== 'Sesion expirada') mostrarLogin('No se pudo validar la sesion. Revisa tu conexion e intenta de nuevo.');

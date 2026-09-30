@@ -17,9 +17,12 @@ Estando en la plaza P (la otra plaza es Q):
 | --- | --- |
 | No existe en el sistema | La registra: **salio de P hacia Q** (`EN_TRANSITO_A_Q`) |
 | `EN_TRANSITO_A_P` (venia hacia aqui) | **Llego**: queda en bodega de P, lista (`EN_BODEGA_P`) |
-| `EN_BODEGA_P` (estaba aqui) | **Vuelve a salir** de P hacia Q (`EN_TRANSITO_A_Q`) |
+| `EN_BODEGA_P` y la guia es una salida de P | **Vuelve a salir** de P hacia Q (`EN_TRANSITO_A_Q`) |
+| `EN_BODEGA_P` y P es su destino | **Se rechaza**: ahi termina su viaje; lo que sigue es entregarla en modo domicilio u ocurre |
+| `ENTREGADO_*` | **Se rechaza**: la guia ya termino su recorrido; nada cambia |
 | `EN_TRANSITO_A_Q` (ya salio de aqui) | Escaneo repetido: no cambia nada, solo se registra en el historial |
-| `EN_BODEGA_Q` (figuraba en la otra plaza) | Llego a P aunque no se escaneo su salida en Q (`EN_BODEGA_P`) |
+| `EN_BODEGA_Q` y la guia es una salida de P (AN en MTY, BN en CDMX) | **Se rechaza**: la guia ya llego a su destino Q; el escaneo no cambia nada |
+| `EN_BODEGA_Q` y la guia es una salida de Q | Llego a P aunque no se escaneo su salida en Q (`EN_BODEGA_P`) |
 
 Ejemplo: estas en MTY y escaneas una guia nueva -> el sistema registra que
 salio hacia CDMX. Cuando esa guia llega a CDMX y la escanean alla -> el
@@ -37,8 +40,9 @@ Ademas de la plaza, en el panel se elige el tipo de operacion:
 - **Bodega (MTY <-> CDMX)**: transito entre plazas, con la logica de la tabla
   de arriba. Ademas, si se escanea en bodega un paquete que estaba
   `EN_RUTA_ENTREGA_P`, se interpreta como regreso por entrega no completada
-  (vuelve a `EN_BODEGA_P`); un paquete `ENTREGADO_*` escaneado en bodega
-  inicia un nuevo embarque hacia la otra plaza.
+  (vuelve a `EN_BODEGA_P`). Una guia tiene un solo viaje: sale de su plaza
+  de origen (AN de MTY, BN de CDMX), se entrega en la otra y ahi termina;
+  una guia `ENTREGADO_*` ya no se mueve con ningun escaneo.
 - **Entrega a domicilio**: `EN_BODEGA_P` -> `EN_RUTA_ENTREGA_P` (paquete en
   ruta de entrega) y `EN_RUTA_ENTREGA_P` -> `ENTREGADO_P`.
 - **Ocurre (el cliente recoge en bodega)**: `EN_BODEGA_P` -> `ENTREGADO_P`
@@ -68,6 +72,82 @@ fecha/hora. En el panel web, pestaña **"Guias e historial"**, puedes:
 - Buscar por numero de guia y filtrar por estatus.
 - Dar clic en cualquier guia para ver su linea de tiempo completa.
 
+## Aviso de guias estancadas
+
+Una guia que se queda parada no la reclama nadie hasta que llama el cliente.
+Por eso el panel vigila solo, sin que haya que ir a buscarlo: junto al reloj de
+la barra superior aparece un **triangulo ambar con el numero de guias que
+llevan 2 dias o mas sin cambiar de estatus**.
+
+- Cuenta el tiempo **en el mismo estatus**, no desde el ultimo escaneo: un
+  escaneo repetido o el alta de un complemento tocan la guia sin sacarla de
+  donde esta y no reinician el reloj. Para eso existe la columna
+  `estatus_desde` de la tabla `guias`.
+- Vigila los tres estatus en proceso: en transito, en bodega y en ruta de
+  entrega. Las **entregadas quedan fuera**: ya llegaron a su destino y llevar
+  semanas asi no es una anomalia.
+- **No se puede cerrar ni silenciar**: late mientras haya guias detenidas y se
+  va solo cuando alguien las mueve. Se revisa al entrar, despues de cada
+  escaneo, cada 5 minutos y al volver a la pestaña.
+- Al darle clic lleva al listado de esas guias, de la mas atrasada a la menos,
+  con el chip **"Estancadas +2 dias"** puesto. Desde ahi se pueden acotar por
+  plaza o por estatus, y el chip lo quita.
+
+Es distinto de la campana de notificaciones, que avisa de lo que lleva mas de
+24 h **en transito**: este vigila todos los estatus en proceso con un umbral
+mas alto, para que una guia dormida dos dias en bodega tampoco pase inadvertida.
+
+## Escaneo rapido y sin perdidas
+
+El escaneo esta pensado para una base de datos remota (Railway, Render,
+Supabase...), donde cada viaje a la base cuesta mas que la consulta en si:
+
+- **Dos viajes por escaneo**, no cuatro: la sesion del usuario se recuerda en
+  memoria unos minutos (cualquier cambio de usuario, contraseña, rol o plaza
+  la vuelve a pedir), y el cambio de estatus y su evento se escriben en una
+  sola consulta.
+- **Conexiones siempre listas**: el pool abre `DB_POOL_MIN` conexiones al
+  arrancar, las mantiene vivas y no las cierra por inactividad, asi el primer
+  escaneo despues de un rato no paga abrir la conexion.
+- **Cola de escaneos en el panel**: cada escaneo entra a una cola guardada en
+  el navegador y se envia en orden. Si el servidor no contesta (red caida,
+  hosting dormido, tiempo agotado) el panel avisa en ambar bajo el visor
+  ("3 escaneos sin confirmar... se reintenta solo") y **reintenta hasta que
+  conteste**, incluso si se recarga la pagina o expira la sesion. El operador
+  puede seguir escaneando mientras tanto: el campo nunca se bloquea.
+- **Reintentar es seguro**: cada escaneo lleva un id unico (`idEscaneo`). Si
+  el servidor ya lo aplico pero la respuesta se perdio, al reenviarlo contesta
+  lo mismo que la primera vez en lugar de mover la guia otra vez (una llegada
+  reenviada no se convierte en salida).
+- Un rechazo del servidor (prefijo equivocado, guia no disponible) **no se
+  reintenta**: se muestra en rojo durante 8 segundos y queda en la lista de
+  movimientos recientes.
+
+Para saber donde se va el tiempo: `GET /health` responde con `bd_ms` (lo que
+tarda un viaje redondo a la base de datos) y el estado del pool, y cada escaneo
+deja en el log del servidor una linea `[escaneo] usuario plaza modo guia ->
+tipo N ms`. Si `bd_ms` sale alto (mas de 50 ms), la base esta lejos del
+servidor: conviene tenerlos en el mismo proveedor y region.
+
+## Reporte de salidas en PDF
+
+El corte del dia: en el panel, pestaña **Reportes**, se elige un dia (con
+accesos rapidos "Hoy" y "Ayer") y opcionalmente una sola plaza, se ve en
+pantalla la lista de guias a las que se les dio salida y se descarga el mismo
+listado como **PDF con el logo de la empresa**, listo para imprimir y cotejar
+contra el manifiesto: si ayer salieron 25 y en el reporte hay 23, esas 2
+faltaron por escanear.
+
+- Sale del **historial de escaneos** (eventos `SALIDA`), no del estatus
+  actual: una guia que salio ayer y hoy ya esta entregada sigue apareciendo
+  en el reporte de ayer.
+- Cada guia trae su **hora exacta de salida** (horario de Mexico) y **quien
+  la escaneo**; las guias con complemento muestran los dos numeros.
+- Las salidas **revertidas por un administrador quedan fuera**: una salida
+  deshecha no fue una salida.
+- Con las dos plazas, el PDF trae una seccion por plaza (MTY con guias AN y
+  CDMX con guias BN) y el total de cada una.
+
 ## Instalacion
 
 Requiere PostgreSQL (local o en un servicio como Railway/Render/Supabase).
@@ -84,7 +164,8 @@ npm start
 ```
 
 El servidor crea automaticamente las tablas (`guias`, `eventos`, `usuarios`,
-`sesiones`) al arrancar.
+`sesiones`) al arrancar, y aplica las migraciones que falten. Las guias que ya
+existan sin `estatus_desde` la toman de su ultimo movimiento la primera vez.
 
 El servidor corre en `http://localhost:3000`. Abre esa URL en una
 computadora/tablet conectada a la pistola escaner (la pistola funciona
@@ -106,6 +187,20 @@ Hay dos roles:
   sistema**, cambiar su propia contraseña, y revertir escaneos equivocados
   desde el detalle de la guia (boton **Revertir ultimo escaneo**; la guia
   regresa a su estatus anterior y la correccion queda en el historial).
+  Al revertir, el panel pregunta que paso con la guia:
+  - **Solo corregir un escaneo equivocado**: la guia regresa a su estatus
+    anterior y conserva su numero.
+  - **La guia se cancelo y se hizo una nueva** (p. ej. el cliente no pago):
+    se captura el numero de la guia nueva y la guia toma ese numero
+    conservando todo su historial; el numero anterior queda registrado
+    (evento `CAMBIO_NUMERO` y campo "Numero anterior") y deja de rastrear.
+  - **Se hizo un complemento**: se captura el numero del complemento y solo
+    queda activa la guia del complemento: toma todo el historial y marca la
+    guia anterior (evento `COMPLEMENTO` y campo "Guia anterior"). El numero
+    anterior deja de rastrear y de escanear. Las guias que se registraron con
+    el esquema anterior (dos numeros activos) se migran solas al arrancar.
+    Igual que al cancelar, exige **motivo** (queda en el historial y en la
+    bitacora) y el mismo prefijo AN/BN que la guia anterior.
 - **Operador**: puede escanear y consultar guias y eventos. No puede cambiar
   su contraseña; si la necesita cambiar, un administrador se la restablece.
 
@@ -169,16 +264,38 @@ integraciones fijas como la pistola de escaneo).
   `PUT /api/usuarios/:id/password` -> gestion de usuarios (solo rol `admin`).
 - `POST /api/guias/:numeroGuia/revertir` -> revierte el ultimo escaneo de la
   guia y la regresa a su estatus anterior (solo rol `admin`); agrega un
-  evento `CORRECCION` al historial.
+  evento `CORRECCION` al historial. Acepta una resolucion opcional en el
+  cuerpo: `{ resolucion: "cancelada", numero: "<guia nueva>" }` (la guia toma
+  el numero nuevo y conserva el historial) o
+  `{ resolucion: "complemento", numero: "<complemento>" }` (solo queda activa
+  la guia del complemento, que registra la guia anterior). Ambas exigen
+  `motivo` y el mismo prefijo AN/BN que la guia anterior.
 - `POST /api/guias/borrar-todas` `{ confirmar: "BORRAR" }` -> borra todas las
   guias y su historial para dejar el sistema como nuevo (solo rol `admin`; no
   toca usuarios ni sesiones).
-- `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX", modo?: "bodega"|"domicilio"|"ocurre" }`
-  -> aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje }`, donde
-  `tipo` es `salida`, `llegada`, `ruta`, `entregado` o `repetido`.
+- `POST /api/guias/escanear` `{ numeroGuia, plaza: "MTY"|"CDMX", modo?: "bodega"|"domicilio"|"ocurre", idEscaneo?, reintento? }`
+  -> aplica el escaneo inteligente y regresa `{ guia, tipo, mensaje, ms }`, donde
+  `tipo` es `salida`, `llegada`, `ruta`, `entregado` o `repetido`. `idEscaneo`
+  es un id unico por escaneo (de 8 a 64 letras, numeros, guion o guion bajo);
+  con `reintento: true`, si ese id ya se aplico se regresa el mismo resultado
+  con `yaAplicado: true` en vez de mover la guia de nuevo.
+- `GET /health` -> `{ status, bd_ms, pool }`: latencia de un viaje a la base
+  de datos y conexiones del pool (sin autenticacion).
 - `GET /api/guias?buscar=<texto>&estatus=<estatus>` -> lista de guias
   recientes, con busqueda por numero y filtro por estatus (ambos opcionales).
 - `GET /api/guias/resumen` -> conteo de guias por estatus.
+- `GET /api/guias/estancadas?dias=<n>` -> guias que llevan `n` dias o mas en el
+  mismo estatus (2 por omision, entre 1 y 90), de la mas atrasada a la menos.
+  Regresa `{ dias, total, guias }`; las entregadas no cuentan. Alimenta el
+  aviso de la barra superior del panel.
+- `GET /api/reportes/salidas?fecha=AAAA-MM-DD&plaza=MTY|CDMX` -> salidas
+  registradas ese dia (hoy por omision; plaza opcional), con la hora exacta y
+  quien escaneo cada una. Regresa `{ fecha, plaza, total, porPlaza, salidas }`;
+  las salidas revertidas no cuentan. Alimenta la vista previa de la pestaña
+  Reportes.
+- `GET /api/reportes/salidas.pdf?fecha=AAAA-MM-DD&plaza=MTY|CDMX` -> el mismo
+  reporte como PDF descargable con el logo, una seccion por plaza y quien
+  escaneo cada guia (columna "Escaneó").
 - `GET /api/guias/:numeroGuia` -> estatus actual, mensaje en lenguaje
   natural e historial completo de eventos.
 
@@ -267,3 +384,22 @@ si planeas enviar mensajes fuera de la ventana de 24 horas de respuesta.
 - El campo `numeroGuia` se normaliza a mayusculas.
 - El ciclo de ida y vuelta esta soportado: una guia en bodega puede volver a
   salir hacia la otra plaza y todo queda en el mismo historial.
+
+## Alcance de este repositorio
+
+Este repositorio contiene **unicamente** el sistema de guias: Node + Express +
+PostgreSQL, sin ninguna otra aplicacion adentro.
+
+El **control de herramientas** (la aplicacion web Node + React y su version
+anterior en PHP) vivio aqui un tiempo, en las carpetas `HERRAMIENTA/` y
+`herramientas-web/`. Ya no: es un proyecto distinto, con su propia base de
+datos MySQL y su propio despliegue, y ahora vive completo en su repositorio:
+
+**https://github.com/diegobarajas603-hue/control-herramientas**
+
+Se movio con su historial de git, asi que nada se perdio. Si buscas ese codigo,
+esta alla — la version en PHP quedo archivada en `legacy-php/`.
+
+## App móvil Órbita
+
+En [`orbita/`](orbita/README.md) está la app móvil (Android/iOS) de seguridad personal y ubicación con círculos de confianza. Es un proyecto independiente de este servidor.

@@ -27,11 +27,92 @@ const ACCIONES_ADMINISTRATIVAS = [
   ACCIONES.COMPLEMENTO,
 ];
 
-async function registrarEvento(numeroGuia, accion, estatus, plaza, descripcion, db = pool, usuario = null) {
+async function registrarEvento(numeroGuia, accion, estatus, plaza, descripcion, db = pool, usuario = null, idEscaneo = null) {
   await db.query(
-    'INSERT INTO eventos (numero_guia, accion, estatus, plaza, descripcion, creado_en, usuario) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-    [numeroGuia, accion, estatus, plaza, descripcion, now(), usuario]
+    'INSERT INTO eventos (numero_guia, accion, estatus, plaza, descripcion, creado_en, usuario, id_escaneo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+    [numeroGuia, accion, estatus, plaza, descripcion, now(), usuario, idEscaneo]
   );
+}
+
+// Columnas que se insertan en eventos desde las consultas combinadas de abajo
+const COLUMNAS_EVENTO = 'numero_guia, accion, estatus, plaza, descripcion, creado_en, usuario, id_escaneo';
+
+// Cambia la guia de estatus y registra el evento en UNA sola consulta.
+//
+// Antes eran dos viajes a la base de datos (UPDATE y luego INSERT); con la
+// base en otro servidor cada viaje cuesta lo mismo que la consulta, asi que
+// juntarlos recorta a la mitad el tiempo de escritura de cada escaneo. Ambas
+// partes viven en la misma sentencia: o se aplican las dos o ninguna.
+//
+// origen/destino solo se tocan cuando se mandan (una salida los fija; una
+// llegada o una entrega los deja como estan).
+async function moverGuia(numeroGuia, { estatus, origen = null, destino = null }, evento, usuario, idEscaneo) {
+  const { rows } = await pool.query(
+    `WITH g AS (
+       UPDATE guias
+          SET estatus = $2, actualizado_en = $3, estatus_desde = $3,
+              origen = COALESCE($4, origen), destino = COALESCE($5, destino)
+        WHERE numero_guia = $1
+        RETURNING *
+     ), e AS (
+       INSERT INTO eventos (${COLUMNAS_EVENTO})
+       SELECT g.numero_guia, $6, $2, $7, $8, $3, $9, $10 FROM g
+     )
+     SELECT * FROM g`,
+    [numeroGuia, estatus, now(), origen, destino, evento.accion, evento.plaza, evento.descripcion, usuario, idEscaneo]
+  );
+  return rows[0];
+}
+
+// Da de alta una guia nueva y registra su salida, tambien en una sola consulta
+async function crearGuiaConSalida(numeroGuia, plaza, destino, evento, usuario, idEscaneo) {
+  const estatus = enTransitoA(destino);
+  const { rows } = await pool.query(
+    `WITH g AS (
+       INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, estatus_desde)
+       VALUES ($1, $2, $3, $4, $5, $5, $5)
+       RETURNING *
+     ), e AS (
+       INSERT INTO eventos (${COLUMNAS_EVENTO})
+       SELECT g.numero_guia, $6, $4, $2, $7, $5, $8, $9 FROM g
+     )
+     SELECT * FROM g`,
+    [numeroGuia, plaza, destino, estatus, now(), evento.accion, evento.descripcion, usuario, idEscaneo]
+  );
+  return rows[0];
+}
+
+// Tipo de resultado que corresponde a cada accion (lo que el panel usa para
+// el titulo de la card y el sonido)
+const TIPO_DE_ACCION = {
+  [ACCIONES.SALIDA]: 'salida',
+  [ACCIONES.LLEGADA]: 'llegada',
+  [ACCIONES.RUTA_ENTREGA]: 'ruta',
+  [ACCIONES.ENTREGA]: 'entregado',
+  [ACCIONES.ESCANEO_REPETIDO]: 'repetido',
+};
+
+// Si un escaneo con este id ya se aplico, devuelve el mismo resultado que se
+// dio entonces. Es lo que hace seguro reintentar: el panel reenvia un escaneo
+// cuando no recibio respuesta, pero no sabe si el servidor lo alcanzo a
+// procesar; sin esto, reenviar una llegada la convertiria en una salida.
+async function resultadoPrevio(idEscaneo) {
+  const { rows } = await pool.query(
+    `SELECT e.accion, e.descripcion, g.*
+       FROM eventos e JOIN guias g ON g.numero_guia = e.numero_guia
+      WHERE e.id_escaneo = $1`,
+    [idEscaneo]
+  );
+  if (!rows[0]) return null;
+  const { accion, descripcion, ...guia } = rows[0];
+  return { guia, tipo: TIPO_DE_ACCION[accion] || 'repetido', mensaje: descripcion, yaAplicado: true };
+}
+
+// Id de escaneo que manda el panel: se acepta solo con forma de identificador
+const FORMATO_ID_ESCANEO = /^[A-Za-z0-9_-]{8,64}$/;
+function normalizarIdEscaneo(id) {
+  const v = String(id || '').trim();
+  return FORMATO_ID_ESCANEO.test(v) ? v : null;
 }
 
 async function obtenerGuia(numeroGuia, db = pool) {
@@ -56,8 +137,8 @@ function normalizarNumero(numero, etiqueta) {
   return n;
 }
 
-// El motivo es obligatorio en las dos acciones que no se pueden deshacer
-// (eliminar y cancelar). Se exige algo escrito de verdad: un motivo de dos
+// El motivo es obligatorio en las acciones que no se pueden deshacer
+// (eliminar, cancelar y registrar un complemento). Se exige algo escrito de verdad: un motivo de dos
 // letras no le sirve a nadie que revise la bitacora meses despues.
 const MOTIVO_MINIMO = 5;
 const MOTIVO_MAXIMO = 500;
@@ -97,7 +178,7 @@ async function registrarBitacora(db, datos) {
 async function listarBitacora({ tipo, buscar, limit = 200 } = {}) {
   const cond = [];
   const params = [];
-  if (tipo === 'ELIMINACION' || tipo === 'CANCELACION') {
+  if (tipo === 'ELIMINACION' || tipo === 'CANCELACION' || tipo === 'COMPLEMENTO') {
     params.push(tipo);
     cond.push(`b.tipo = $${params.length}`);
   }
@@ -121,9 +202,14 @@ async function listarBitacora({ tipo, buscar, limit = 200 } = {}) {
 // Cuantas eliminaciones y cancelaciones hay, para rotular la pantalla
 async function resumenBitacora() {
   const { rows } = await pool.query('SELECT tipo, COUNT(*)::int AS total FROM bitacora GROUP BY tipo');
-  const r = { ELIMINACION: 0, CANCELACION: 0 };
+  const r = { ELIMINACION: 0, CANCELACION: 0, COMPLEMENTO: 0 };
   for (const f of rows) r[f.tipo] = f.total;
-  return { eliminaciones: r.ELIMINACION, cancelaciones: r.CANCELACION, total: r.ELIMINACION + r.CANCELACION };
+  return {
+    eliminaciones: r.ELIMINACION,
+    cancelaciones: r.CANCELACION,
+    complementos: r.COMPLEMENTO,
+    total: r.ELIMINACION + r.CANCELACION + r.COMPLEMENTO,
+  };
 }
 
 function normalizarEstatus(estatus) {
@@ -158,14 +244,6 @@ async function obtenerHistorial(numeroGuia) {
   return rows;
 }
 
-async function actualizarEstatus(numeroGuia, estatus) {
-  await pool.query('UPDATE guias SET estatus = $1, actualizado_en = $2 WHERE numero_guia = $3', [
-    estatus,
-    now(),
-    numeroGuia,
-  ]);
-}
-
 // Prefijo del numero de guia segun la plaza de la que sale:
 // AN = salidas de MTY, BN = salidas de CDMX.
 const PREFIJO_PLAZA = { MTY: 'AN', CDMX: 'BN' };
@@ -185,16 +263,40 @@ function validarPrefijoSalida(numeroGuia, plaza) {
   throw new Error(`Numero de guia invalido: las salidas de ${plaza} empiezan con ${propio}`);
 }
 
-async function marcarSalida(numeroGuia, plaza, destino, usuario) {
+// Plaza de la que sale una guia: la dice el prefijo (AN = MTY, BN = CDMX) y,
+// en guias antiguas sin prefijo, la columna origen.
+function plazaDeSalida(numeroGuia, guia) {
+  for (const plaza of PLAZAS) {
+    if (numeroGuia.startsWith(PREFIJO_PLAZA[plaza])) return plaza;
+  }
+  return guia && guia.origen;
+}
+
+const fmtFechaHora = new Intl.DateTimeFormat('es-MX', {
+  timeZone: 'America/Mexico_City',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+function fechaHora(fecha) {
+  return fecha ? fmtFechaHora.format(new Date(fecha)) : null;
+}
+
+async function marcarSalida(numeroGuia, plaza, destino, usuario, idEscaneo) {
   validarPrefijoSalida(numeroGuia, plaza);
-  const estatus = enTransitoA(destino);
-  await pool.query(
-    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
-    [plaza, destino, estatus, now(), numeroGuia]
-  );
   const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
-  await registrarEvento(numeroGuia, ACCIONES.SALIDA, estatus, plaza, descripcion, pool, usuario);
-  return { guia: await obtenerGuia(numeroGuia), tipo: 'salida', mensaje: descripcion };
+  const guia = await moverGuia(
+    numeroGuia,
+    { estatus: enTransitoA(destino), origen: plaza, destino },
+    { accion: ACCIONES.SALIDA, plaza, descripcion },
+    usuario,
+    idEscaneo
+  );
+  return { guia, tipo: 'salida', mensaje: descripcion };
 }
 
 // Escaneo inteligente: segun la plaza donde se escanea, el modo de operacion y
@@ -203,11 +305,20 @@ async function marcarSalida(numeroGuia, plaza, destino, usuario) {
 // Modo "bodega" (transito MTY <-> CDMX), estando en la plaza P (la otra es Q):
 //  - La guia no existe          -> se registra y sale de P hacia Q (EN_TRANSITO_A_Q)
 //  - EN_TRANSITO_A_P            -> llego: queda en bodega de P (EN_BODEGA_P)
-//  - EN_BODEGA_P                -> vuelve a salir de P hacia Q (EN_TRANSITO_A_Q)
+//  - EN_BODEGA_P, siendo la guia una salida de P
+//                               -> vuelve a salir de P hacia Q (EN_TRANSITO_A_Q)
+//  - EN_BODEGA_P, siendo P su destino
+//                               -> error: ahi termina su viaje; lo que sigue es
+//                                  entregarla (modo domicilio u ocurre)
 //  - EN_RUTA_ENTREGA_P          -> regreso de un intento de entrega (EN_BODEGA_P)
-//  - ENTREGADO_*                -> nuevo embarque: sale de P hacia Q (EN_TRANSITO_A_Q)
+//  - ENTREGADO_*                -> error: la guia ya termino su recorrido; el
+//                                  escaneo se rechaza y no cambia nada
 //  - EN_TRANSITO_A_Q            -> escaneo repetido: ya se registro su salida, no cambia
-//  - EN_BODEGA_Q                -> llego a P sin escaneo de salida en Q: queda EN_BODEGA_P
+//  - EN_BODEGA_Q / EN_RUTA_ENTREGA_Q, siendo la guia una salida de P (AN en
+//    MTY, BN en CDMX)          -> error: la guia ya llego a su destino Q; el
+//                                  escaneo se rechaza y no cambia nada
+//  - EN_BODEGA_Q / EN_RUTA_ENTREGA_Q, siendo la guia una salida de Q
+//                               -> llego a P sin escaneo de salida en Q: queda EN_BODEGA_P
 //
 // Modo "domicilio" (entrega a domicilio), estando en la plaza P:
 //  - EN_BODEGA_P                -> paquete en ruta de entrega (EN_RUTA_ENTREGA_P)
@@ -221,10 +332,23 @@ async function marcarSalida(numeroGuia, plaza, destino, usuario) {
 //                                  escaneando en modo bodega
 //  - EN_RUTA_ENTREGA_P          -> error: el paquete anda en reparto; primero
 //                                  debe registrarse su regreso a bodega
-async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null) {
+//
+// opciones.idEscaneo: id unico que manda el panel por cada escaneo (se guarda
+// en el evento). opciones.reintento: el panel esta reenviando un escaneo del
+// que no recibio respuesta; si ya se aplico, se devuelve el resultado de
+// entonces sin volver a moverla.
+//
+// Cada escaneo cuesta dos viajes a la base de datos: buscar la guia y
+// aplicar el movimiento (guia + evento en una sola consulta).
+async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null, opciones = {}) {
   if (!PLAZAS.includes(plaza)) throw new Error('Plaza invalida, usa MTY o CDMX');
   if (!MODOS.includes(modo)) throw new Error('Modo invalido, usa bodega, domicilio u ocurre');
-  if (modo !== 'bodega') return escanearEntrega(numeroGuia, plaza, modo, usuario);
+  const idEscaneo = normalizarIdEscaneo(opciones.idEscaneo);
+  if (idEscaneo && opciones.reintento) {
+    const previo = await resultadoPrevio(idEscaneo);
+    if (previo) return previo;
+  }
+  if (modo !== 'bodega') return escanearEntrega(numeroGuia, plaza, modo, usuario, idEscaneo);
 
   const destino = otraPlaza(plaza);
   // Si se escanea el numero de complemento, se opera sobre la guia principal
@@ -235,56 +359,85 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null) 
     // Registrar una guia nueva es registrar su salida: el prefijo debe
     // corresponder a la plaza (AN sale de MTY, BN sale de CDMX)
     validarPrefijoSalida(numeroGuia, plaza);
-    const estatus = enTransitoA(destino);
-    await pool.query(
-      `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en)
-       VALUES ($1, $2, $3, $4, $5, $5)`,
-      [numeroGuia, plaza, destino, estatus, now()]
-    );
     const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
-    await registrarEvento(numeroGuia, ACCIONES.SALIDA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'salida', mensaje: descripcion };
+    const nueva = await crearGuiaConSalida(numeroGuia, plaza, destino, { accion: ACCIONES.SALIDA, descripcion }, usuario, idEscaneo);
+    return { guia: nueva, tipo: 'salida', mensaje: descripcion };
   }
 
   if (guia.estatus === enTransitoA(plaza)) {
-    const estatus = enBodega(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Llego a bodega ${plaza}`;
-    await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
+    const g = await moverGuia(numeroGuia, { estatus: enBodega(plaza) }, { accion: ACCIONES.LLEGADA, plaza, descripcion }, usuario, idEscaneo);
+    return { guia: g, tipo: 'llegada', mensaje: descripcion };
   }
 
-  if (guia.estatus === enBodega(plaza) || guia.estatus === entregado(plaza) || guia.estatus === entregado(destino)) {
-    return marcarSalida(numeroGuia, plaza, destino, usuario);
+  // Una guia tiene un solo viaje: sale de su plaza de origen, se entrega en
+  // la otra y ahi termina. Entregada, ya no se mueve con ningun escaneo.
+  if (guia.estatus === entregado(plaza) || guia.estatus === entregado(destino)) {
+    const plazaEntrega = plazaDeEstatus(guia.estatus);
+    const desde = fechaHora(guia.estatus_desde);
+    throw new Error(
+      `La guia ${numeroGuia} ya fue entregada en ${plazaEntrega}${desde ? ` el ${desde}` : ''}: su recorrido termino. ` +
+        `Si el escaneo de entrega fue un error, pide a un administrador que lo corrija.`
+    );
+  }
+
+  if (guia.estatus === enBodega(plaza)) {
+    // En bodega de su destino la guia ya no sale hacia ningun lado: lo que
+    // sigue es entregarla (domicilio u ocurre), no volverla a embarcar.
+    if (plazaDeSalida(numeroGuia, guia) !== plaza) {
+      const desde = fechaHora(guia.estatus_desde);
+      throw new Error(
+        `La guia ${numeroGuia} esta en bodega ${plaza}${desde ? ` desde el ${desde}` : ''} y ${plaza} es su destino: ` +
+          `ya no sale hacia ${destino}. Para entregarla, escaneala en modo domicilio u ocurre.`
+      );
+    }
+    return marcarSalida(numeroGuia, plaza, destino, usuario, idEscaneo);
   }
 
   if (guia.estatus === enRutaEntrega(plaza)) {
-    const estatus = enBodega(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Regreso a bodega ${plaza} (entrega no completada)`;
-    await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
+    const g = await moverGuia(numeroGuia, { estatus: enBodega(plaza) }, { accion: ACCIONES.LLEGADA, plaza, descripcion }, usuario, idEscaneo);
+    return { guia: g, tipo: 'llegada', mensaje: descripcion };
   }
 
   if (guia.estatus === enTransitoA(destino)) {
     const descripcion = `Escaneo repetido en bodega ${plaza}: el envio ya salio con destino a ${destino}`;
-    await registrarEvento(numeroGuia, ACCIONES.ESCANEO_REPETIDO, guia.estatus, plaza, descripcion, pool, usuario);
+    await registrarEvento(numeroGuia, ACCIONES.ESCANEO_REPETIDO, guia.estatus, plaza, descripcion, pool, usuario, idEscaneo);
     return { guia, tipo: 'repetido', mensaje: descripcion };
   }
 
-  // EN_BODEGA_Q o EN_RUTA_ENTREGA_Q: aparecio en P sin los escaneos previos en Q
-  const estatus = enBodega(plaza);
-  await pool.query(
-    'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
-    [destino, plaza, estatus, now(), numeroGuia]
-  );
+  // EN_BODEGA_Q o EN_RUTA_ENTREGA_Q.
+  //
+  // Si la guia es una salida de P (una AN escaneada en MTY, una BN en CDMX),
+  // su recorrido termina en Q: ya llego a su destino y un escaneo en P no la
+  // puede "regresar" a bodega P. Caso real: una AN sale de MTY, en CDMX le
+  // dan llegada y alguien la vuelve a escanear en MTY; antes quedaba
+  // EN_BODEGA_MTY cuando el paquete estaba en CDMX. Se rechaza sin tocar nada.
+  if (plazaDeSalida(numeroGuia, guia) === plaza) {
+    const donde =
+      guia.estatus === enRutaEntrega(destino) ? `en ruta de entrega en ${destino}` : `en bodega ${destino}`;
+    const desde = fechaHora(guia.estatus_desde);
+    throw new Error(
+      `La guia ${numeroGuia} ya esta ${donde}${desde ? ` desde el ${desde}` : ''}. ` +
+        `Es una salida de ${plaza} y su recorrido termina en ${destino}: no se le puede dar llegada en ${plaza}. ` +
+        `Si el paquete de verdad esta en ${plaza}, pide a un administrador que corrija el ultimo escaneo.`
+    );
+  }
+
+  // La guia es una salida de Q: aparecio en P sin los escaneos previos en Q
   const descripcion = `Llego a bodega ${plaza} (sin registro de salida de bodega ${destino})`;
-  await registrarEvento(numeroGuia, ACCIONES.LLEGADA, estatus, plaza, descripcion, pool, usuario);
-  return { guia: await obtenerGuia(numeroGuia), tipo: 'llegada', mensaje: descripcion };
+  const g = await moverGuia(
+    numeroGuia,
+    { estatus: enBodega(plaza), origen: destino, destino: plaza },
+    { accion: ACCIONES.LLEGADA, plaza, descripcion },
+    usuario,
+    idEscaneo
+  );
+  return { guia: g, tipo: 'llegada', mensaje: descripcion };
 }
 
 // Escaneos de entrega (a domicilio o en ocurre) en la plaza donde esta el paquete
-async function escanearEntrega(numeroGuia, plaza, modo, usuario = null) {
+async function escanearEntrega(numeroGuia, plaza, modo, usuario = null, idEscaneo = null) {
   // Si se escanea el numero de complemento, se opera sobre la guia principal
   const guia = await buscarGuia(numeroGuia);
   if (!guia) throw new Error('Guia no registrada; escaneala primero en modo bodega');
@@ -300,24 +453,20 @@ async function escanearEntrega(numeroGuia, plaza, modo, usuario = null) {
 
   if (guia.estatus === entregado(plaza) || guia.estatus === entregado(otraPlaza(plaza))) {
     const descripcion = 'Escaneo repetido: el envio ya fue entregado';
-    await registrarEvento(numeroGuia, ACCIONES.ESCANEO_REPETIDO, guia.estatus, plaza, descripcion, pool, usuario);
+    await registrarEvento(numeroGuia, ACCIONES.ESCANEO_REPETIDO, guia.estatus, plaza, descripcion, pool, usuario, idEscaneo);
     return { guia, tipo: 'repetido', mensaje: descripcion };
   }
 
   if (modo === 'domicilio' && guia.estatus === enBodega(plaza)) {
-    const estatus = enRutaEntrega(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Paquete en ruta de entrega en ${plaza}`;
-    await registrarEvento(numeroGuia, ACCIONES.RUTA_ENTREGA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'ruta', mensaje: descripcion };
+    const g = await moverGuia(numeroGuia, { estatus: enRutaEntrega(plaza) }, { accion: ACCIONES.RUTA_ENTREGA, plaza, descripcion }, usuario, idEscaneo);
+    return { guia: g, tipo: 'ruta', mensaje: descripcion };
   }
 
   if (modo === 'domicilio' && guia.estatus === enRutaEntrega(plaza)) {
-    const estatus = entregado(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Entregado a domicilio en ${plaza}`;
-    await registrarEvento(numeroGuia, ACCIONES.ENTREGA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'entregado', mensaje: descripcion };
+    const g = await moverGuia(numeroGuia, { estatus: entregado(plaza) }, { accion: ACCIONES.ENTREGA, plaza, descripcion }, usuario, idEscaneo);
+    return { guia: g, tipo: 'entregado', mensaje: descripcion };
   }
 
   // Ocurre solo aplica a paquetes que estan fisicamente en la bodega: si el
@@ -330,11 +479,9 @@ async function escanearEntrega(numeroGuia, plaza, modo, usuario = null) {
   }
 
   if (modo === 'ocurre' && guia.estatus === enBodega(plaza)) {
-    const estatus = entregado(plaza);
-    await actualizarEstatus(numeroGuia, estatus);
     const descripcion = `Entregado en ocurre (bodega ${plaza})`;
-    await registrarEvento(numeroGuia, ACCIONES.ENTREGA, estatus, plaza, descripcion, pool, usuario);
-    return { guia: await obtenerGuia(numeroGuia), tipo: 'entregado', mensaje: descripcion };
+    const g = await moverGuia(numeroGuia, { estatus: entregado(plaza) }, { accion: ACCIONES.ENTREGA, plaza, descripcion }, usuario, idEscaneo);
+    return { guia: g, tipo: 'entregado', mensaje: descripcion };
   }
 
   throw new Error(`La guia no esta disponible para entrega en ${plaza} (estatus actual: ${guia.estatus})`);
@@ -357,9 +504,10 @@ async function escanearEntrega(numeroGuia, plaza, modo, usuario = null) {
 //      · conservarComplemento: por omision la guia nueva arranca SIN el
 //        complemento de la cancelada, porque ese numero pertenecia a la guia
 //        que se cancelo; con true se traslada a la guia nueva.
-//  - { tipo: 'complemento', numero } se emitio un complemento: la guia conserva
-//    su numero y ademas el del complemento (columna complemento + evento
-//    COMPLEMENTO); ambos numeros sirven para rastrear y escanear.
+//  - { tipo: 'complemento', numero } se emitio un complemento: la guia
+//    anterior deja de estar activa y solo queda la del complemento, que toma
+//    todo el historial y registra de que guia viene (columna numero_anterior
+//    + evento COMPLEMENTO). El numero anterior ya no se puede escanear.
 // Todo ocurre en una sola transaccion: si algo falla, no se revierte nada.
 // `usuario` es el login (queda en la columna usuario de cada evento, que es
 // por la que se cruza con la tabla de usuarios); `nombre` es como se llama la
@@ -391,10 +539,13 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nom
     // nueva. En ese caso no se deshace el ultimo escaneo: el estatus lo decide
     // el administrador y no la reconstruccion del historial.
     const cancelada = resolucion && resolucion.tipo === 'cancelada';
+    const esComplemento = resolucion && resolucion.tipo === 'complemento';
     const estatusElegido = cancelada && resolucion.estatus ? normalizarEstatus(resolucion.estatus) : null;
     // Cancelar una guia es irreversible para el numero anterior: exige motivo,
     // igual que eliminar
     const motivoCancelacion = cancelada ? normalizarMotivo(resolucion.motivo, 'cancelacion') : null;
+    // El complemento tambien retira el numero anterior: exige motivo
+    const motivoComplemento = esComplemento ? normalizarMotivo(resolucion.motivo, 'complemento') : null;
 
     let estatusFinal = guia.estatus;
     let plazaEvento = guia.destino;
@@ -413,7 +564,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nom
       const estatus = pila[pila.length - 2].estatus;
       const plazaDelEstatus = estatus.endsWith('_MTY') ? 'MTY' : 'CDMX';
       await client.query(
-        'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
+        'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4, estatus_desde = $4 WHERE numero_guia = $5',
         [otraPlaza(plazaDelEstatus), plazaDelEstatus, estatus, now(), numeroGuia]
       );
 
@@ -428,18 +579,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nom
     if (cancelada) {
       const nuevo = normalizarNumero(resolucion.numero, 'El nuevo numero de guia');
       if (nuevo === numeroGuia) throw new Error('El nuevo numero debe ser diferente al numero actual');
-      // El numero nuevo pasa a ser el numero operativo de la guia y debe
-      // conservar el prefijo de la guia cancelada: una AN se reemplaza con
-      // otra AN y una BN con otra BN (el prefijo indica la plaza de salida).
-      const prefijo = /^(AN|BN)/.exec(numeroGuia)?.[1];
-      if (prefijo) {
-        if (!nuevo.startsWith(prefijo)) {
-          throw new Error(`La guia ${numeroGuia} es ${prefijo}: el nuevo numero tambien debe empezar con ${prefijo}`);
-        }
-      } else if (!nuevo.startsWith('AN') && !nuevo.startsWith('BN')) {
-        // Guias antiguas sin prefijo: al menos exigir un prefijo valido
-        throw new Error('El nuevo numero debe empezar con AN (guia de MTY) o BN (guia de CDMX)');
-      }
+      verificarPrefijo(numeroGuia, nuevo, 'el nuevo numero');
       await verificarNumeroDisponible(nuevo, client);
 
       // El complemento pertenece a la guia que se cancelo: la guia nueva
@@ -447,16 +587,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nom
       // conservarlo expresamente.
       const complemento = resolucion.conservarComplemento ? guia.complemento || null : null;
 
-      // Renumera conservando todo el historial: copia la fila con el numero
-      // nuevo, traslada los eventos y elimina la fila anterior (la llave
-      // foranea de eventos impide cambiar el numero con un UPDATE directo).
-      await client.query(
-        `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, numero_anterior, complemento)
-         SELECT $1, origen, destino, estatus, creado_en, $3, numero_guia, $4 FROM guias WHERE numero_guia = $2`,
-        [nuevo, numeroGuia, now(), complemento]
-      );
-      await client.query('UPDATE eventos SET numero_guia = $1 WHERE numero_guia = $2', [nuevo, numeroGuia]);
-      await client.query('DELETE FROM guias WHERE numero_guia = $1', [numeroGuia]);
+      await renumerarGuia(client, numeroGuia, nuevo, complemento);
 
       // Estatus elegido a mano: se fija en la guia nueva y se deja el escaneo
       // equivalente en el historial, para que el rastreo del cliente y las
@@ -465,7 +596,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nom
       if (estatusElegido) {
         const plazaDestino = plazaDeEstatus(estatusElegido);
         await client.query(
-          'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4 WHERE numero_guia = $5',
+          'UPDATE guias SET origen = $1, destino = $2, estatus = $3, actualizado_en = $4, estatus_desde = $4 WHERE numero_guia = $5',
           [otraPlaza(plazaDestino), plazaDestino, estatusElegido, now(), nuevo]
         );
         estatusFinal = estatusElegido;
@@ -501,17 +632,25 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nom
     if (resolucion && resolucion.tipo === 'complemento') {
       const comp = normalizarNumero(resolucion.numero, 'El numero del complemento');
       if (comp === numeroGuia) throw new Error('El complemento debe ser diferente al numero de la guia');
-      await verificarNumeroDisponible(comp, client);
+      verificarPrefijo(numeroGuia, comp, 'el complemento');
+      // Un complemento con el numero que ya tenia la guia como complemento
+      // (esquema anterior) no esta ocupado por otra guia: es ella misma
+      if (comp !== guia.complemento) await verificarNumeroDisponible(comp, client);
 
-      await client.query('UPDATE guias SET complemento = $1, actualizado_en = $2 WHERE numero_guia = $3', [
-        comp,
-        now(),
+      // Solo queda activa la guia del complemento: toma el historial y
+      // registra de que guia viene; la anterior deja de existir como guia
+      await renumerarGuia(client, numeroGuia, comp, null);
+      mensaje = `${quien} registro el complemento ${comp}, que reemplaza a la guia ${numeroGuia}; la guia anterior queda inactiva y el historial se conserva. Motivo: ${motivoComplemento}`;
+      await registrarEvento(comp, ACCIONES.COMPLEMENTO, estatusFinal, plazaEvento, mensaje, client, usuario);
+      await registrarBitacora(client, {
+        tipo: 'COMPLEMENTO',
         numeroGuia,
-      ]);
-      mensaje = guia.complemento
-        ? `${quien} cambio el complemento ${guia.complemento} por ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`
-        : `${quien} registro el complemento ${comp}; la guia conserva sus dos numeros (${numeroGuia} y ${comp})`;
-      await registrarEvento(numeroGuia, ACCIONES.COMPLEMENTO, estatusFinal, plazaEvento, mensaje, client, usuario);
+        numeroNuevo: comp,
+        motivo: motivoComplemento,
+        usuario,
+        estatus: guia.estatus,
+      });
+      numeroFinal = comp;
     }
 
     await client.query('COMMIT');
@@ -521,6 +660,101 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nom
     throw e;
   } finally {
     client.release();
+  }
+}
+
+// La guia que reemplaza a otra (por cancelacion o complemento) debe conservar
+// su prefijo: una AN se reemplaza con otra AN y una BN con otra BN (el prefijo
+// indica la plaza de salida).
+function verificarPrefijo(anterior, nuevo, que) {
+  const prefijo = /^(AN|BN)/.exec(anterior)?.[1];
+  if (prefijo) {
+    if (!nuevo.startsWith(prefijo)) {
+      throw new Error(`La guia ${anterior} es ${prefijo}: ${que} tambien debe empezar con ${prefijo}`);
+    }
+  } else if (!nuevo.startsWith('AN') && !nuevo.startsWith('BN')) {
+    // Guias antiguas sin prefijo: al menos exigir un prefijo valido
+    throw new Error(`${que[0].toUpperCase() + que.slice(1)} debe empezar con AN (guia de MTY) o BN (guia de CDMX)`);
+  }
+}
+
+// Renumera una guia conservando todo su historial: copia la fila con el
+// numero nuevo (guardando el anterior en numero_anterior), traslada los
+// eventos y elimina la fila anterior (la llave foranea de eventos impide
+// cambiar el numero con un UPDATE directo). Lo usan la cancelacion y el
+// complemento: en ambos casos solo queda activa la guia nueva.
+async function renumerarGuia(client, anterior, nuevo, complemento) {
+  await client.query(
+    `INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, numero_anterior, complemento, estatus_desde)
+     SELECT $1, origen, destino, estatus, creado_en, $3, numero_guia, $4, estatus_desde FROM guias WHERE numero_guia = $2`,
+    [nuevo, anterior, now(), complemento]
+  );
+  await client.query('UPDATE eventos SET numero_guia = $1 WHERE numero_guia = $2', [nuevo, anterior]);
+  await client.query('DELETE FROM guias WHERE numero_guia = $1', [anterior]);
+}
+
+// Migracion idempotente al arrancar: las guias que se registraron con el
+// esquema anterior de complemento (la guia seguia activa con sus dos
+// numeros) pasan al esquema actual: solo queda la guia del complemento, que
+// registra de que guia viene. Cada guia va en su propia transaccion.
+async function migrarComplementos() {
+  const { rows } = await pool.query('SELECT numero_guia, complemento, estatus, destino FROM guias WHERE complemento IS NOT NULL');
+  for (const g of rows) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // El complemento ya no puede estar usado por otra guia (se valida al
+      // registrarlo); si por algun motivo lo esta, se deja la guia como esta
+      const { rows: ocupado } = await client.query('SELECT 1 FROM guias WHERE numero_guia = $1', [g.complemento]);
+      if (ocupado.length) {
+        await client.query('ROLLBACK');
+        continue;
+      }
+      await renumerarGuia(client, g.numero_guia, g.complemento, null);
+      await registrarEvento(
+        g.complemento,
+        ACCIONES.COMPLEMENTO,
+        g.estatus,
+        g.destino,
+        `El complemento ${g.complemento} reemplaza a la guia ${g.numero_guia}; la guia anterior queda inactiva y el historial se conserva`,
+        client,
+        'sistema'
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error(`No se pudo migrar el complemento de ${g.numero_guia}:`, e.message);
+    } finally {
+      client.release();
+    }
+  }
+}
+
+// Migracion idempotente al arrancar: los complementos registrados antes de que
+// pasaran por la bitacora solo dejaron su evento COMPLEMENTO en el historial
+// de la guia. De ese evento se recupera el numero anterior y el complemento
+// (el texto era "...la guia conserva sus dos numeros (ANTERIOR y COMPLEMENTO)")
+// y se asientan en la bitacora con su fecha y responsable originales. No
+// tenian motivo, asi que se deja constancia de eso en su lugar.
+async function registrarComplementosEnBitacora() {
+  const { rows } = await pool.query(
+    `SELECT e.estatus, e.usuario, e.descripcion, e.creado_en FROM eventos e
+      WHERE e.accion = $1 AND e.descripcion LIKE '%conserva sus dos numeros (%'
+      ORDER BY e.id ASC`,
+    [ACCIONES.COMPLEMENTO]
+  );
+  for (const ev of rows) {
+    const m = /conserva sus dos numeros \((\S+) y ([^)\s]+)\)/.exec(ev.descripcion);
+    if (!m) continue;
+    const [, anterior, comp] = m;
+    await pool.query(
+      `INSERT INTO bitacora (tipo, numero_guia, numero_nuevo, motivo, usuario, estatus, creado_en)
+       SELECT 'COMPLEMENTO', $1::text, $2::text, $3, $4, $5, $6
+        WHERE NOT EXISTS (
+          SELECT 1 FROM bitacora WHERE tipo = 'COMPLEMENTO' AND numero_guia = $1::text AND numero_nuevo = $2::text
+        )`,
+      [anterior, comp, 'Registrado antes de que el complemento pidiera motivo', ev.usuario, ev.estatus, ev.creado_en]
+    );
   }
 }
 
@@ -695,6 +929,44 @@ async function listarGuias({ buscar, estatus, plaza, desde, hasta, campoFecha, l
   return rows;
 }
 
+// ---------- Guias estancadas ----------
+//
+// Una guia estancada es la que lleva DIAS o mas sin cambiar de estatus: sigue
+// en transito, en bodega o en reparto y nadie la ha movido. Es la falla que
+// antes solo se descubria cuando llamaba el cliente.
+//
+// Se mide con estatus_desde, no con actualizado_en: un escaneo repetido o el
+// alta de un complemento tocan la guia sin sacarla de donde esta, y no deben
+// reiniciar el conteo.
+//
+// Las entregadas quedan fuera: ya llegaron a su destino y llevar semanas asi
+// es lo normal, no una anomalia. La condicion se escribe igual que el indice
+// parcial idx_guias_estancadas de db.js para que Postgres pueda usarlo.
+const NO_ENTREGADAS = "estatus NOT IN ('ENTREGADO_MTY', 'ENTREGADO_CDMX')";
+
+const DIAS_ESTANCADA = 2;
+
+async function listarEstancadas({ dias = DIAS_ESTANCADA, limit = 200 } = {}) {
+  const d = Math.min(Math.max(Number(dias) || DIAS_ESTANCADA, 1), 90);
+  const limite = new Date(Date.now() - d * 24 * 3600 * 1000);
+  // El COUNT sobre la ventana viaja en cada fila y se calcula antes del LIMIT:
+  // asi el aviso puede decir "213 guias" aunque solo se manden las 200
+  // primeras, y todo sale en una sola consulta.
+  const { rows } = await pool.query(
+    `SELECT *, COUNT(*) OVER ()::int AS total
+       FROM guias
+      WHERE ${NO_ENTREGADAS} AND estatus_desde <= $1
+      ORDER BY estatus_desde ASC
+      LIMIT $2`,
+    [limite, limit]
+  );
+  return {
+    dias: d,
+    total: rows.length ? rows[0].total : 0,
+    guias: rows.map(({ total, ...guia }) => guia),
+  };
+}
+
 async function listarEventos({ limit = 50 } = {}) {
   const { rows } = await pool.query(
     `SELECT e.numero_guia, e.accion, e.estatus, e.plaza, e.descripcion, e.revertido, e.usuario,
@@ -847,10 +1119,26 @@ async function resumen() {
 }
 
 module.exports = {
-  escanearGuia: (numeroGuia, plaza, modo, usuario) => conCandado(numeroGuia, () => escanearGuia(numeroGuia, plaza, modo, usuario)),
+  escanearGuia: (numeroGuia, plaza, modo, usuario, opciones = {}) =>
+    conCandado(numeroGuia, async () => {
+      try {
+        return await escanearGuia(numeroGuia, plaza, modo, usuario, opciones);
+      } catch (e) {
+        // El mismo id de escaneo ya quedo registrado (el panel reenvio sin
+        // marcarlo como reintento, o llegaron dos copias): se contesta lo que
+        // se aplico la primera vez en vez de fallar.
+        if (e.code === '23505' && e.constraint === 'idx_eventos_id_escaneo') {
+          const previo = await resultadoPrevio(normalizarIdEscaneo(opciones.idEscaneo));
+          if (previo) return previo;
+        }
+        throw e;
+      }
+    }),
   revertirUltimoEscaneo: (numeroGuia, usuario, resolucion, nombre) =>
     conCandado(numeroGuia, () => revertirUltimoEscaneo(numeroGuia, usuario, resolucion, nombre)),
   marcarRevertidosHistoricos,
+  migrarComplementos,
+  registrarComplementosEnBitacora,
   marcarDuplicadosHistoricos,
   reescribirNotasConNombre,
   borrarGuia: (numeroGuia, usuario, motivo) => conCandado(numeroGuia, () => borrarGuia(numeroGuia, usuario, motivo)),
@@ -861,6 +1149,7 @@ module.exports = {
   buscarGuia,
   obtenerHistorial,
   listarGuias,
+  listarEstancadas,
   listarEventos,
   resumen,
   estadisticas,

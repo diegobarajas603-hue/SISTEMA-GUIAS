@@ -819,73 +819,49 @@ button.plaza-fila:hover {
   50%      { box-shadow: 0 0 0 5px transparent; }
 }
 
-/* Mientras hay escaneos en proceso el punto cambia a ambar y late mas
-   rapido: el operador sabe que el sistema sigue trabajando y no que se trabo. */
-.escaner__listo--ocupado {
-  color: var(--st-transito-color);
-  background: var(--st-transito-bg);
-}
+/* ---------- Escaneos pendientes de confirmar ----------
+   Solo aparece cuando algo no va al ritmo normal: un escaneo que lleva mas
+   de un segundo sin respuesta, reenvios en curso o escaneos en espera de
+   sesion. Ambar porque no es un error, es "espera": el sistema los va a
+   entregar solo. */
 
-.escaner__listo--ocupado .dot {
-  background: var(--st-transito-color);
-  animation: latido-ocupado 0.8s var(--ease) infinite;
-}
-
-@keyframes latido-ocupado {
-  0%, 100% { box-shadow: 0 0 0 0 var(--st-transito-halo); }
-  50%      { box-shadow: 0 0 0 5px transparent; }
-}
-
-/* ---------- Guias que no se registraron ----------
-   Se queda en pantalla hasta que el operador la descarta: es el aviso que
-   no se puede perder entre escaneos rapidos. */
-
-.fallidas {
+.cola-aviso {
   width: 100%;
   max-width: 640px;
-  padding: var(--space-12) var(--space-16);
-  border: 1px solid var(--st-eliminada-border);
-  border-left-width: 4px;
-  border-radius: var(--radius-md, 10px);
-  background: var(--st-eliminada-bg);
-}
-
-.fallidas__head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-12);
-  margin-bottom: var(--space-8);
-  color: var(--st-eliminada-color);
-  font-size: 14px;
-}
-
-.fallida {
-  display: flex;
-  align-items: center;
-  gap: var(--space-12);
-  padding: var(--space-4, 4px) 0;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--st-transito-bg);
+  border: 1px solid var(--st-transito-border);
+  color: var(--st-transito-text);
   font-size: 13px;
-  color: var(--text-secondary);
+  font-weight: 600;
+  line-height: 1.45;
 }
 
-.fallida__guia {
+/* display:flex de arriba le ganaria al [hidden] del navegador */
+.cola-aviso[hidden] { display: none; }
+
+.cola-aviso strong {
   font-family: var(--font-mono);
   font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
 }
 
-.fallida__txt {
-  flex: 1;
-  min-width: 0;
+.cola-aviso__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--st-transito-color);
+  animation: latido-cola 1.2s var(--ease) infinite;
 }
 
-.fallida__hora {
-  font-family: var(--font-mono);
-  font-size: var(--t-label-size);
-  color: var(--text-tertiary);
-  white-space: nowrap;
+@keyframes latido-cola {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
 }
 
 /* ---------- Card de resultado ----------
@@ -958,6 +934,8 @@ button.plaza-fila:hover {
 
 .resultado-card--error .resultado-card__barra { background: var(--st-eliminada-color); }
 
+.resultado-card--error .resultado-card__barra { animation-duration: 8s; }
+
 @keyframes consumir {
   from { transform: scaleX(1); }
   to   { transform: scaleX(0); }
@@ -981,10 +959,6 @@ button.plaza-fila:hover {
 }
 
 .reciente:last-child { border-bottom: 0; }
-
-/* Un escaneo fallido se distingue aunque ya no sea el mas reciente */
-.reciente--error,
-.reciente--error .reciente__guia { color: var(--st-eliminada-color); }
 
 /* Opacidad decreciente: lo mas viejo se apaga */
 .reciente:nth-child(1) { opacity: 1; }
@@ -1016,11 +990,12 @@ button.plaza-fila:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .escaner__listo .dot,
-  .escaner__listo--ocupado .dot,
+  .cola-aviso__dot,
   .captura.flash,
   .captura.sacudir,
   .resultado-card { animation: none; }
   .resultado-card__barra { animation: consumir 4s linear forwards; }
+  .resultado-card--error .resultado-card__barra { animation-duration: 8s; }
 }
 
 /* Tablet: la zona de captura se adapta sin perder tamaño de toque */
@@ -1841,9 +1816,12 @@ button.plaza-fila:hover {
   display: flex;
   align-items: center;
   gap: var(--space-12);
+  width: 100%;
   padding: var(--space-8) 0;
   background: var(--bg-base);
   margin-bottom: var(--space-8);
+  text-align: left;
+  cursor: pointer;
 }
 
 .dia__nombre {
@@ -1861,6 +1839,35 @@ button.plaza-fila:hover {
   height: 1px;
   background: var(--border-subtle);
 }
+
+.dia__conteo {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  border-radius: var(--radius-full);
+  padding: var(--space-4) 10px;
+  font-family: var(--font-mono);
+  font-size: var(--t-label-size);
+  white-space: nowrap;
+}
+
+.dia__chev {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: transform var(--t-normal) var(--ease);
+}
+
+.dia__chev svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.dia.abierto .dia__chev { transform: rotate(180deg); }
+
+.dia__body { display: none; }
+
+.dia.abierto .dia__body { display: block; }
 
 /* ---------- Registro ---------- */
 
@@ -2048,6 +2055,38 @@ button.plaza-fila:hover {
   color: var(--text-primary);
 }
 
+/* ---------- Selector de roles (chips que se pueden marcar varios a la vez) ---------- */
+
+.roles-chooser {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.rol-chip {
+  cursor: pointer;
+}
+
+/* Fila de la tabla de usuarios: los tags de rol envueltos en un boton, para
+   poder editarlos sin convertir la celda entera en un formulario */
+.btn-roles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  margin: calc(var(--space-4) * -1);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+.btn-roles:hover {
+  background: var(--overlay-hover);
+}
+
 @media (max-width: 1100px) {
   .config-grid { grid-template-columns: 1fr; }
 }
@@ -2184,4 +2223,85 @@ button.plaza-fila:hover {
   line-height: var(--h-scan-pill);
   font-weight: 600;
   color: var(--text-primary);
+}
+
+/* ============================================================================
+   REPORTES
+   El corte de salidas del dia: controles arriba, vista previa abajo y el
+   boton de descarga como unica accion primaria.
+   ==========================================================================*/
+
+.reporte-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-12);
+  margin-top: var(--space-16);
+}
+
+.reporte-controles .field {
+  margin: 0;
+}
+
+.reporte-chips {
+  display: flex;
+  gap: var(--space-8);
+  padding-bottom: 2px;
+}
+
+.reporte-previa-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.reporte-tabla {
+  max-height: 440px;
+  overflow-y: auto;
+}
+
+.rep-num {
+  text-align: right;
+}
+
+/* En telefono los controles se apilan a lo ancho —el boton de descargar se
+   vuelve un blanco facil para el pulgar— y la tabla se queda con lo que se
+   coteja de un vistazo: guia, hora y quien escaneo. La plaza y el estatus
+   actual no caben y ya vienen completos en el propio PDF. */
+@media (max-width: 700px) {
+  .reporte-controles {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reporte-controles .spacer {
+    display: none;
+  }
+
+  .reporte-controles .field .input,
+  .reporte-controles .field .select {
+    width: 100%;
+  }
+
+  .reporte-chips .chip {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .rep-movil-oculta {
+    display: none;
+  }
+}
+
+/* Celdas mas apretadas en telefono, para que las cuatro columnas de la vista
+   previa del reporte quepan sin scroll lateral. */
+@media (max-width: 700px) {
+  .reporte-tabla th,
+  .reporte-tabla td {
+    padding-left: var(--space-8);
+    padding-right: var(--space-8);
+  }
 }
