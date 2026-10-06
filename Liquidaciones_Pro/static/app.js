@@ -1,6 +1,6 @@
 /* =========================================================
    app.js — Interacciones de la interfaz (sin lógica de negocio)
-   Tema claro/oscuro, reloj, toasts, Ctrl+K, estados de carga,
+   Tema claro/oscuro, toasts, Ctrl+K (cuadro de folio), estados de carga,
    panel lateral, filtros, orden, exportación de tablas y
    navegación con teclado en listas.
    ========================================================= */
@@ -27,21 +27,6 @@ function cambiarTema(){
     pintarBotonTema();
 }
 pintarBotonTema();
-
-// ---------- Reloj de la barra superior: "Martes 06 oct · 11:37" ----------
-(function(){
-    const el = document.getElementById('reloj');
-    if(!el) return;
-    const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-    const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-    const dos = n => String(n).padStart(2, '0');
-    function pintar(){
-        const d = new Date();
-        el.textContent = DIAS[d.getDay()] + ' ' + dos(d.getDate()) + ' ' + MES[d.getMonth()] + ' · ' + dos(d.getHours()) + ':' + dos(d.getMinutes());
-    }
-    pintar();
-    setInterval(pintar, 15000);
-})();
 
 // ---------- Toasts ----------
 function toast(titulo, detalle, tipo, duracion){
@@ -95,7 +80,7 @@ document.addEventListener('submit', function(e){
     }
 });
 
-// ---------- Ctrl+K para buscar · Esc ----------
+// ---------- Ctrl+K abre el cuadro de folio · Esc ----------
 function enfocarFolio(){
     const campo = document.getElementById('folio') || document.querySelector('[data-buscador]');
     if(campo){ campo.focus(); campo.select && campo.select(); }
@@ -104,7 +89,7 @@ function enfocarFolio(){
 document.addEventListener('keydown', function(e){
     if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){
         e.preventDefault();
-        enfocarFolio();
+        if(!modalAbierto()) abrirModalFolio();
     }
     if(e.key === 'Escape'){
         if(modalAbierto()){ cerrarModalFolio(); return; }
@@ -114,7 +99,7 @@ document.addEventListener('keydown', function(e){
     }
 });
 
-// "Nueva liquidación": en el panel abre el cuadro flotante de folio; en otra pantalla lleva al panel.
+// "Nueva liquidación" y Ctrl+K abren el cuadro flotante de folio en cualquier pantalla.
 function modalAbierto(){
     const m = document.getElementById('modal-folio');
     return !!(m && !m.hidden);
@@ -125,7 +110,7 @@ function abrirModalFolio(){
     cerrarPanel();
     m.hidden = false;
     document.body.classList.add('con-modal');
-    const input = document.getElementById('modal-folio-input');
+    const input = document.getElementById('folio');
     input.value = '';
     input.dispatchEvent(new Event('input'));
     input.focus();

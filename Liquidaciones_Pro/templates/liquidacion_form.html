@@ -2,10 +2,6 @@
 {% from '_iconos.html' import ico %}
 {% block titulo %}Liquidación {{ liq.folio }}{% endblock %}
 {% block main_clase %}formulario{% endblock %}
-{% block header_titulo %}{% if modo == 'editar' %}Editar liquidación{% else %}Nueva liquidación{% endif %} <span class="tenue">/ {{ liq.folio }}</span>{% endblock %}
-{% block header_acciones %}
-<a href="/" class="btn btn-ghost btn-chico" id="btn-cancelar" onclick="return cancelar(event)">Cancelar</a>
-{% endblock %}
 
 {% block contenido %}
 {%- set folio_regreso = (regreso or {}).get('folio') or ((liq.folio ~ '-R') if (regreso or liq.fecha_regreso) else '') -%}
@@ -21,7 +17,7 @@
 
             <!-- Encabezado del viaje -->
             <header class="form-head">
-                <div class="etiqueta">Folio {{ liq.folio }}{% if folio_regreso %} · Regreso {{ folio_regreso }}{% endif %}</div>
+                <div class="etiqueta">{% if modo == 'editar' %}Editando · {% else %}Nueva liquidación · {% endif %}Folio {{ liq.folio }}{% if folio_regreso %} · Regreso {{ folio_regreso }}{% endif %}</div>
                 <h1 class="operador">{{ liq.operador | title }}</h1>
                 <div class="meta-viaje">
                     <span>Salida<b data-dia="{{ liq.fecha_salida or '' }}">{{ (liq.fecha_salida | fecha_corta) or '—' }}</b></span>
@@ -209,7 +205,8 @@
                 <button type="submit" class="btn btn-primario btn-bloque">
                     {% if modo == 'editar' %}Guardar y regenerar PDF{% else %}Guardar y generar PDF{% endif %}
                 </button>
-                <div class="res-pista"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></div>
+                <a href="/" class="btn btn-ghost btn-bloque" id="btn-cancelar" onclick="return cancelar(event)">Cancelar</a>
+                <div class="res-pista"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> guardar · <kbd>Esc</kbd> cancelar</div>
             </div>
         </aside>
 

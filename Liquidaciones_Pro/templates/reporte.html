@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% from '_iconos.html' import ico, cifra %}
 {% block titulo %}Reporte mensual{% endblock %}
-{% block header_titulo %}Reporte mensual{% endblock %}
 
 {% block contenido %}
 {%- set deducciones_mes = totales.gastos + totales.prestamo + totales.infonavit -%}
