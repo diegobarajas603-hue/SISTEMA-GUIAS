@@ -152,3 +152,13 @@ py -m PyInstaller --onefile --add-data "templates;templates" --add-data "static;
 
 Después copia `config_data.py` junto al `.exe` en `dist/`. Las carpetas
 `data/`, `PDFs/` y `backups/` se crean solas junto al ejecutable.
+
+## Usuarios, inicio de sesión y bitácora
+
+- **Primera vez:** al abrir el programa pide crear la cuenta del **administrador** (nombre, usuario y contraseña). No hay contraseña por defecto.
+- **Roles:**
+  - *Administrador:* todo lo demás, más **Usuarios** (dar de alta, desactivar, cambiar contraseñas) y **Bitácora**.
+  - *Capturista:* captura, edita y elimina liquidaciones; ve el reporte y los respaldos.
+- **Bitácora** (solo administrador): registra quién **creó, editó o eliminó** cada liquidación, con fecha, hora, operador y monto, además de las entradas al sistema y los cambios de usuarios. Por defecto muestra las eliminaciones y se puede exportar a CSV.
+- Las contraseñas se guardan cifradas. La clave de la sesión se guarda en `data/clave_sesion` (se crea sola); no la compartas.
+- **Si se olvida la contraseña del único administrador:** cierra el programa, haz una copia de `data/liquidaciones.db` y borra la tabla `usuarios` (por ejemplo con *DB Browser for SQLite*). Al abrir de nuevo pedirá crear el administrador; las liquidaciones y la bitácora no se pierden.

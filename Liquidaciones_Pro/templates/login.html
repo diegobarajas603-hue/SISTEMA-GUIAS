@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ 'Crear administrador' if primera_vez else 'Iniciar sesión' }} · Liquidaciones</title>
+    <script>
+        (function(){
+            var t = null;
+            try { t = localStorage.getItem('lq-tema'); } catch(e){}
+            document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+        })();
+    </script>
+    <link rel="stylesheet" href="/static/estilo.css">
+</head>
+<body class="pagina-login">
+<main class="login">
+    <div class="login-marca"><span class="riel-logo">LQ</span> Liquidaciones</div>
+
+    {% if primera_vez %}
+    <h1 class="titular">Crea la cuenta<br><span class="tenue">del administrador.</span></h1>
+    <p class="login-ayuda">Es la primera vez que se abre el sistema. Esta cuenta podrá dar de alta usuarios y ver la bitácora.</p>
+    {% else %}
+    <h1 class="titular">Inicia sesión.</h1>
+    <p class="login-ayuda">Cada liquidación que se crea, edita o elimina queda registrada con tu usuario.</p>
+    {% endif %}
+
+    {% if error %}<div class="login-error" role="alert"><span class="punto"></span>{{ error }}</div>{% endif %}
+
+    <form method="POST" class="login-form" autocomplete="on">
+        {% if primera_vez %}
+        <div class="campo"><label for="nombre">Nombre</label>
+            <input type="text" id="nombre" name="nombre" value="{{ datos.nombre }}" required autofocus placeholder="Ej. Diego Barajas"></div>
+        {% endif %}
+        <div class="campo"><label for="usuario">Usuario</label>
+            <input type="text" id="usuario" name="usuario" value="{{ datos.usuario }}" required autocapitalize="none" spellcheck="false"
+                   {% if not primera_vez %}autofocus{% endif %} autocomplete="username" placeholder="{{ 'ej. diego' if primera_vez else '' }}"></div>
+        <div class="campo"><label for="contrasena">Contraseña</label>
+            <input type="password" id="contrasena" name="contrasena" required autocomplete="{{ 'new-password' if primera_vez else 'current-password' }}"
+                   {% if primera_vez %}minlength="6" placeholder="Mínimo 6 caracteres"{% endif %}></div>
+        {% if primera_vez %}
+        <div class="campo"><label for="confirmar">Confirmar contraseña</label>
+            <input type="password" id="confirmar" name="confirmar" required minlength="6" autocomplete="new-password"></div>
+        {% endif %}
+        <button type="submit" class="btn btn-primario btn-bloque">{{ 'Crear administrador y entrar' if primera_vez else 'Entrar' }}</button>
+    </form>
+</main>
+</body>
+</html>

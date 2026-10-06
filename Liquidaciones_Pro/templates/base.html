@@ -26,6 +26,11 @@
             <a href="/#nueva" class="riel-btn {% if activo == 'nueva' %}activo{% endif %}" data-tip="Nueva liquidación" aria-label="Nueva liquidación" onclick="return irANueva(event)">{{ ico('nueva', 20) }}</a>
             <a href="/reportes" class="riel-btn {% if activo == 'reportes' %}activo{% endif %}" data-tip="Reporte mensual" aria-label="Reporte mensual">{{ ico('reporte', 20) }}</a>
             <a href="/admin/respaldos" class="riel-btn {% if activo == 'respaldos' %}activo{% endif %}" data-tip="Respaldos" aria-label="Respaldos">{{ ico('respaldo', 20) }}</a>
+            {% if yo and yo.rol == 'admin' %}
+            <span class="riel-sep" aria-hidden="true"></span>
+            <a href="/admin/bitacora" class="riel-btn {% if activo == 'bitacora' %}activo{% endif %}" data-tip="Bitácora" aria-label="Bitácora">{{ ico('lista', 20) }}</a>
+            <a href="/admin/usuarios" class="riel-btn {% if activo == 'usuarios' %}activo{% endif %}" data-tip="Usuarios" aria-label="Usuarios">{{ ico('usuario', 20) }}</a>
+            {% endif %}
         </div>
         <span class="riel-btn riel-enlace {% if not conectado %}error{% endif %}" tabindex="0"
               data-tip="{% if conectado %}Salidas en línea{% else %}Sin enlace con salidas{% endif %}"
@@ -34,6 +39,12 @@
             <span class="solo-oscuro">{{ ico('luna', 20) }}</span>
             <span class="solo-claro">{{ ico('sol', 20) }}</span>
         </button>
+        {% if yo %}
+        {%- set partes = (yo.nombre or yo.usuario).split() -%}
+        <button type="button" class="riel-cuenta" onclick="abrirPanel('panel-cuenta')" data-tip="{{ yo.nombre or yo.usuario }}" aria-label="Mi cuenta: {{ yo.nombre or yo.usuario }}">
+            {{ (partes[0][:1] ~ (partes[1][:1] if partes|length > 1 else '')) | upper }}
+        </button>
+        {% endif %}
     </nav>
 
     <div class="contenido">
@@ -76,14 +87,39 @@
         <div class="modal-cuerpo">
             <h3 id="t-eliminar">¿Eliminar la liquidación del folio <span id="eliminar-folio"></span>?</h3>
             <p id="d-eliminar"><span id="eliminar-operador"></span>Se borran la liquidación, su PDF y sus pagos de Infonavit.
-               Antes se guarda un respaldo automático. El folio vuelve a <b>Por liquidar</b> para capturarlo de nuevo.</p>
+               Antes se guarda un respaldo automático. El folio vuelve a <b>Por liquidar</b> para capturarlo de nuevo.
+               {% if yo %}Quedará registrado que la eliminó <b>{{ yo.nombre or yo.usuario }}</b>.{% endif %}</p>
         </div>
         <div class="modal-acciones">
             <button type="button" class="btn btn-ghost" id="eliminar-cancelar" onclick="cerrarEliminar()">Cancelar</button>
-            <a href="#" class="btn btn-peligro" id="eliminar-ir">Eliminar</a>
+            <form method="POST" id="eliminar-form" style="display:inline;">
+                <button type="submit" class="btn btn-peligro" id="eliminar-ir">Eliminar</button>
+            </form>
         </div>
     </div>
 </div>
+{% if yo %}
+<!-- Panel: mi cuenta -->
+<aside id="panel-cuenta" class="panel-lateral" aria-label="Mi cuenta">
+    <div class="panel-head">
+        <h3>{{ yo.nombre or yo.usuario }}<span class="tenue">{{ 'Administrador' if yo.rol == 'admin' else 'Capturista' }}</span></h3>
+        <button type="button" class="btn-ico" onclick="cerrarPanel()" aria-label="Cerrar">{{ ico('cerrar', 16) }}</button>
+    </div>
+    <form method="POST" action="/cuenta/contrasena" autocomplete="off" style="display:contents;">
+        <input type="hidden" name="volver" value="{{ request.path }}">
+        <div class="panel-cuerpo">
+            <div class="etiqueta">Usuario · {{ yo.usuario }}</div>
+            <div class="campo-grupo"><label for="mc-actual">Contraseña actual</label><input type="password" id="mc-actual" name="actual" required autocomplete="current-password"></div>
+            <div class="campo-grupo"><label for="mc-nueva">Nueva contraseña</label><input type="password" id="mc-nueva" name="nueva" required minlength="6" autocomplete="new-password"></div>
+            <div class="campo-grupo"><label for="mc-confirmar">Confirmar nueva</label><input type="password" id="mc-confirmar" name="confirmar" required minlength="6" autocomplete="new-password"></div>
+            <button type="submit" class="btn btn-secundario">Cambiar contraseña</button>
+        </div>
+    </form>
+    <div class="panel-pie">
+        <form method="POST" action="/logout"><button type="submit" class="btn btn-primario">Cerrar sesión</button></form>
+    </div>
+</aside>
+{% endif %}
 {% block paneles %}{% endblock %}
 <div id="toasts" aria-live="polite"></div>
 

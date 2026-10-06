@@ -179,6 +179,60 @@ def init_db():
             if f"infonavit_folio{i}" not in columnas:
                 conn.execute(f"ALTER TABLE liquidaciones ADD COLUMN infonavit_folio{i} TEXT")
 
+        # Usuarios del sistema (inicio de sesión). Las contraseñas se guardan
+        # cifradas (werkzeug.security), nunca en texto plano.
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario TEXT UNIQUE NOT NULL,
+                nombre TEXT,
+                hash TEXT NOT NULL,
+                rol TEXT NOT NULL DEFAULT 'capturista',
+                activo INTEGER NOT NULL DEFAULT 1,
+                creado TEXT
+            )
+        ''')
+
+        # Bitácora: quién creó, editó o eliminó cada liquidación (y entradas).
+        # Guarda una copia del operador y el monto porque al eliminar la
+        # liquidación ya no existe.
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS bitacora (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha TEXT,
+                usuario TEXT,
+                nombre TEXT,
+                accion TEXT,
+                folio TEXT,
+                detalle TEXT
+            )
+        ''')
+
         # Migración: descripción de la maniobra (texto libre, opcional)
         if "maniobras_descripcion" not in columnas:
             conn.execute("ALTER TABLE liquidaciones ADD COLUMN maniobras_descripcion TEXT")
+
+
+# ---------------------------------------------------------
+# CLAVE DE SESIÓN
+# ---------------------------------------------------------
+def clave_secreta():
+    """
+    Clave para firmar la sesión (cookie de inicio de sesión). Se crea una
+    sola vez en data/clave_sesion y se reutiliza, para que las sesiones
+    sobrevivan a un reinicio del programa.
+    """
+    import secrets
+    asegurar_carpetas()
+    ruta = os.path.join(DATA_DIR, "clave_sesion")
+    try:
+        with open(ruta, "r", encoding="utf-8") as f:
+            clave = f.read().strip()
+        if len(clave) >= 32:
+            return clave
+    except OSError:
+        pass
+    clave = secrets.token_hex(32)
+    with open(ruta, "w", encoding="utf-8") as f:
+        f.write(clave)
+    return clave

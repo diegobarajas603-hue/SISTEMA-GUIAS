@@ -13,13 +13,15 @@
 # =========================================================
 
 import os
+import re
 import sqlite3
 import webbrowser
 import threading
 import time
 import traceback
 
-from flask import Flask, render_template, request, send_file, redirect, url_for
+from flask import Flask, render_template, request, send_file, redirect, url_for, session, g, abort, jsonify
+from werkzeug.security import generate_password_hash, check_password_hash
 
 import database
 import config_data
@@ -31,6 +33,11 @@ app = Flask(__name__)
 database.asegurar_carpetas()
 database.init_db()
 database.iniciar_respaldo_periodico(intervalo_segundos=3600)
+
+# Sesión firmada con una clave guardada en data/ (ver database.clave_secreta).
+# SameSite=Lax: otra página no puede mandar formularios con tu sesión.
+app.secret_key = database.clave_secreta()
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax")
 
 
 # =========================================================
@@ -74,6 +81,16 @@ def error_404(e):
     return pagina_error("Página no encontrada", "La dirección que buscas no existe.")
 
 
+@app.errorhandler(403)
+def error_403(e):
+    return pagina_error("Sin permiso", "Esta sección es solo para administradores.")
+
+
+@app.errorhandler(405)
+def error_405(e):
+    return pagina_error("Acción no permitida", "Esa acción no se puede hacer desde un enlace.")
+
+
 @app.errorhandler(500)
 def error_500(e):
     traceback.print_exc()
@@ -96,7 +113,228 @@ def contexto_global():
         "hoy_texto": pdf_generator.fecha_larga(time.strftime("%Y-%m-%d")),
         "conectado": conectado,
         "estado": estado,
+        "yo": g.get("usuario"),
     }
+
+
+# =========================================================
+# USUARIOS, SESIÓN Y BITÁCORA
+# -----------------------------------------------------------
+# Todo el sistema pide iniciar sesión. Hay dos roles:
+#   admin       -> además administra usuarios y ve la bitácora
+#   capturista  -> captura, edita y elimina liquidaciones
+# Cada alta, edición y eliminación queda en la bitácora con
+# el usuario que la hizo.
+# =========================================================
+
+ROLES = {"admin": "Administrador", "capturista": "Capturista"}
+RUTAS_LIBRES = {"login", "static"}
+PATRON_USUARIO = re.compile(r"^[a-z0-9._-]{3,30}$")
+
+
+def hay_usuarios():
+    with database.get_conn() as conn:
+        return conn.execute("SELECT 1 FROM usuarios LIMIT 1").fetchone() is not None
+
+
+def usuario_por_id(uid):
+    with database.get_conn() as conn:
+        cur = conn.execute("SELECT id, usuario, nombre, rol FROM usuarios WHERE id = ? AND activo = 1", (uid,))
+        return fila_a_dict(cur, cur.fetchone())
+
+
+def registrar(conn, accion, folio="", detalle=""):
+    """Anota un movimiento en la bitácora con el usuario de la sesión."""
+    u = g.get("usuario") or {}
+    conn.execute(
+        "INSERT INTO bitacora (fecha, usuario, nombre, accion, folio, detalle) VALUES (?, ?, ?, ?, ?, ?)",
+        (time.strftime("%Y-%m-%d %H:%M:%S"), u.get("usuario", ""), u.get("nombre", ""), accion, folio, detalle)
+    )
+
+
+def solo_admin():
+    if not g.get("usuario") or g.usuario["rol"] != "admin":
+        abort(403)
+
+
+def siguiente_seguro(destino):
+    """Solo rutas internas ('/algo'), nunca otro sitio."""
+    destino = (destino or "").strip()
+    return destino if destino.startswith("/") and not destino.startswith("//") else "/"
+
+
+@app.before_request
+def requiere_sesion():
+    g.usuario = usuario_por_id(session.get("uid")) if session.get("uid") else None
+    if request.endpoint in RUTAS_LIBRES or g.usuario:
+        return None
+    session.clear()
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Inicia sesión"}), 401
+    destino = request.full_path if request.method == "GET" else "/"
+    return redirect(url_for("login", siguiente=destino.rstrip("?")))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if g.get("usuario") and request.method == "GET":
+        return redirect("/")
+    primera_vez = not hay_usuarios()
+    error = ""
+    datos = {"usuario": "", "nombre": ""}
+    if request.method == "POST":
+        usuario = campo(request.form, "usuario").lower()
+        contrasena = request.form.get("contrasena") or ""
+        datos["usuario"] = usuario
+        if primera_vez:
+            # Primera vez: se crea la cuenta del administrador
+            nombre = campo(request.form, "nombre")
+            datos["nombre"] = nombre
+            error = validar_usuario_nuevo(usuario, nombre, contrasena, request.form.get("confirmar") or "")
+            if not error:
+                with database.get_conn() as conn:
+                    conn.execute(
+                        "INSERT INTO usuarios (usuario, nombre, hash, rol, creado) VALUES (?, ?, ?, 'admin', ?)",
+                        (usuario, nombre, generate_password_hash(contrasena), time.strftime("%Y-%m-%d %H:%M:%S"))
+                    )
+        else:
+            with database.get_conn() as conn:
+                fila = conn.execute(
+                    "SELECT id, hash FROM usuarios WHERE usuario = ? AND activo = 1", (usuario,)
+                ).fetchone()
+            if not fila or not check_password_hash(fila[1], contrasena):
+                error = "Usuario o contraseña incorrectos."
+        if not error:
+            with database.get_conn() as conn:
+                uid = conn.execute("SELECT id FROM usuarios WHERE usuario = ?", (usuario,)).fetchone()[0]
+            session.clear()
+            session["uid"] = uid
+            g.usuario = usuario_por_id(uid)
+            with database.get_conn() as conn:
+                registrar(conn, "entrada")
+            return redirect(siguiente_seguro(request.args.get("siguiente")))
+    return render_template("login.html", primera_vez=primera_vez, error=error, datos=datos)
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+def validar_usuario_nuevo(usuario, nombre, contrasena, confirmar):
+    if not PATRON_USUARIO.match(usuario or ""):
+        return "El usuario debe tener de 3 a 30 letras minúsculas o números (sin espacios)."
+    if not nombre:
+        return "Escribe el nombre de la persona."
+    if len(contrasena) < 6:
+        return "La contraseña debe tener al menos 6 caracteres."
+    if contrasena != confirmar:
+        return "Las contraseñas no coinciden."
+    with database.get_conn() as conn:
+        if conn.execute("SELECT 1 FROM usuarios WHERE usuario = ?", (usuario,)).fetchone():
+            return f"El usuario {usuario} ya existe."
+    return ""
+
+
+@app.route("/admin/usuarios")
+def ver_usuarios():
+    solo_admin()
+    with database.get_conn() as conn:
+        cur = conn.execute("SELECT id, usuario, nombre, rol, activo, creado FROM usuarios ORDER BY activo DESC, nombre")
+        usuarios = [fila_a_dict(cur, f) for f in cur.fetchall()]
+    return render_template("usuarios.html", usuarios=usuarios, roles=ROLES, seccion="usuarios",
+                           mensaje=request.args.get("mensaje", ""))
+
+
+@app.route("/admin/usuarios/nuevo", methods=["POST"])
+def nuevo_usuario():
+    solo_admin()
+    usuario = campo(request.form, "usuario").lower()
+    nombre = campo(request.form, "nombre")
+    contrasena = request.form.get("contrasena") or ""
+    rol = request.form.get("rol") if request.form.get("rol") in ROLES else "capturista"
+    error = validar_usuario_nuevo(usuario, nombre, contrasena, request.form.get("confirmar") or "")
+    if error:
+        return redirect(url_for("ver_usuarios", mensaje=error, tipo="error"))
+    with database.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO usuarios (usuario, nombre, hash, rol, creado) VALUES (?, ?, ?, ?, ?)",
+            (usuario, nombre, generate_password_hash(contrasena), rol, time.strftime("%Y-%m-%d %H:%M:%S"))
+        )
+        registrar(conn, "usuario_nuevo", "", f"{nombre} ({usuario}) · {ROLES[rol]}")
+    return redirect(url_for("ver_usuarios", mensaje=f"Usuario {usuario} creado", tipo="ok"))
+
+
+@app.route("/admin/usuarios/<int:uid>/estado", methods=["POST"])
+def cambiar_estado_usuario(uid):
+    solo_admin()
+    if uid == g.usuario["id"]:
+        return redirect(url_for("ver_usuarios", mensaje="No puedes desactivar tu propia cuenta", tipo="warn"))
+    with database.get_conn() as conn:
+        fila = conn.execute("SELECT usuario, nombre, activo FROM usuarios WHERE id = ?", (uid,)).fetchone()
+        if not fila:
+            abort(404)
+        nuevo = 0 if fila[2] else 1
+        conn.execute("UPDATE usuarios SET activo = ? WHERE id = ?", (nuevo, uid))
+        registrar(conn, "usuario_activado" if nuevo else "usuario_desactivado", "", f"{fila[1]} ({fila[0]})")
+    texto = "activado" if nuevo else "desactivado"
+    return redirect(url_for("ver_usuarios", mensaje=f"Usuario {fila[0]} {texto}", tipo="ok"))
+
+
+@app.route("/admin/usuarios/<int:uid>/contrasena", methods=["POST"])
+def restablecer_contrasena(uid):
+    solo_admin()
+    contrasena = request.form.get("contrasena") or ""
+    if len(contrasena) < 6:
+        return redirect(url_for("ver_usuarios", mensaje="La contraseña debe tener al menos 6 caracteres", tipo="error"))
+    with database.get_conn() as conn:
+        fila = conn.execute("SELECT usuario, nombre FROM usuarios WHERE id = ?", (uid,)).fetchone()
+        if not fila:
+            abort(404)
+        conn.execute("UPDATE usuarios SET hash = ? WHERE id = ?", (generate_password_hash(contrasena), uid))
+        registrar(conn, "contrasena_restablecida", "", f"{fila[1]} ({fila[0]})")
+    return redirect(url_for("ver_usuarios", mensaje=f"Contraseña de {fila[0]} actualizada", tipo="ok"))
+
+
+@app.route("/cuenta/contrasena", methods=["POST"])
+def cambiar_mi_contrasena():
+    actual = request.form.get("actual") or ""
+    nueva = request.form.get("nueva") or ""
+    volver = siguiente_seguro(request.form.get("volver"))
+    with database.get_conn() as conn:
+        fila = conn.execute("SELECT hash FROM usuarios WHERE id = ?", (g.usuario["id"],)).fetchone()
+        if not check_password_hash(fila[0], actual):
+            error = "La contraseña actual no es correcta"
+        elif len(nueva) < 6:
+            error = "La nueva contraseña debe tener al menos 6 caracteres"
+        elif nueva != (request.form.get("confirmar") or ""):
+            error = "Las contraseñas no coinciden"
+        else:
+            error = ""
+            conn.execute("UPDATE usuarios SET hash = ? WHERE id = ?", (generate_password_hash(nueva), g.usuario["id"]))
+            registrar(conn, "contrasena_cambiada")
+    sep = "&" if "?" in volver else "?"
+    if error:
+        return redirect(f"{volver}{sep}mensaje={error}&tipo=error")
+    return redirect(f"{volver}{sep}mensaje=Contraseña actualizada&tipo=ok")
+
+
+ACCIONES = {
+    "creo": "Creó", "edito": "Editó", "elimino": "Eliminó", "entrada": "Inició sesión",
+    "usuario_nuevo": "Alta de usuario", "usuario_activado": "Activó usuario",
+    "usuario_desactivado": "Desactivó usuario", "contrasena_restablecida": "Restableció contraseña",
+    "contrasena_cambiada": "Cambió su contraseña",
+}
+
+
+@app.route("/admin/bitacora")
+def ver_bitacora():
+    solo_admin()
+    with database.get_conn() as conn:
+        cur = conn.execute("SELECT fecha, usuario, nombre, accion, folio, detalle FROM bitacora ORDER BY id DESC LIMIT 2000")
+        movimientos = [fila_a_dict(cur, f) for f in cur.fetchall()]
+    return render_template("bitacora.html", movimientos=movimientos, acciones=ACCIONES, seccion="bitacora")
 
 
 @app.template_filter("dinero")
@@ -432,6 +670,7 @@ def liquidacion_guardar():
                 f"INSERT INTO liquidaciones ({columnas}) VALUES ({marcas})",
                 list(liq.values())
             )
+            registrar(conn, "creo", folio, f"{liq['operador']} · A pagar {pdf_generator.dinero(liq['total_pagar'])}")
     except sqlite3.IntegrityError:
         return pagina_error(
             "Liquidación duplicada",
@@ -467,6 +706,7 @@ def liquidacion_editar(folio):
                 list(liq.values()) + [folio]
             )
             actual.update(liq)
+            registrar(conn, "edito", folio, f"{actual['operador']} · A pagar {pdf_generator.dinero(liq['total_pagar'])}")
 
         error = generar_pdf_seguro(actual, "/")
         if error:
@@ -595,12 +835,20 @@ def reporte_pdf():
 # ADMIN
 # =========================================================
 
-@app.route('/admin/borrar_liquidacion/<folio>')
+@app.route('/admin/borrar_liquidacion/<folio>', methods=['POST'])
 def borrar_liquidacion(folio):
+    with database.get_conn() as conn:
+        fila = conn.execute(
+            "SELECT operador, fecha, total_pagar FROM liquidaciones WHERE folio = ?", (folio,)
+        ).fetchone()
+    if not fila:
+        return pagina_error("Liquidación no encontrada", f"No existe la liquidación del folio {folio}.")
     database.hacer_backup(motivo="antes_de_borrar")
     with database.get_conn() as conn:
         conn.execute("DELETE FROM liquidaciones WHERE folio = ?", (folio,))
         quitar_pagos_de_folio(conn, folio)
+        registrar(conn, "elimino", folio,
+                  f"{fila[0]} · liquidación del {pdf_generator.fecha_corta(fila[1])} · A pagar {pdf_generator.dinero(fila[2])}")
     pdf_path = os.path.join(database.PDF_DIR, f"Liquidacion_{folio}.pdf")
     if os.path.exists(pdf_path):
         os.remove(pdf_path)
