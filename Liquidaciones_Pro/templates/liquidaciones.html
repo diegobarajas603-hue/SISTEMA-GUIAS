@@ -195,7 +195,17 @@
 
 {% block scripts %}
 <script>
-{% if pdf %}window.open('/liquidaciones/pdf/{{ pdf }}', '_blank');{% endif %}
+{% if pdf %}
+// Abre el PDF recién guardado en la pestaña que se preparó al dar Guardar.
+(function(){
+    let w = null;
+    try { w = window.open('/liquidaciones/pdf/{{ pdf }}', 'lq_pdf'); } catch(e){}
+    if(!w) toast('No se pudo abrir el PDF', 'El navegador bloqueó la ventana. Usa "Abrir PDF" arriba.', 'warn', 6000);
+    // Quita ?pdf= de la dirección para que al recargar no se vuelva a abrir
+    const q = new URLSearchParams(location.search); q.delete('pdf');
+    history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
+})();
+{% endif %}
 
 // Periodo del historial (Este mes / Anterior / Todo): se filtra en el navegador
 let periodo = 'actual';
