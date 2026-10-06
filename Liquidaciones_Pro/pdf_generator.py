@@ -1,28 +1,34 @@
 # =========================================================
 # pdf_generator.py — Liquidaciones
 # -----------------------------------------------------------
-# Dibuja el PDF de liquidación con el mismo estilo del sistema
-# de salidas. Se genera primero en un archivo temporal y solo se
-# renombra al nombre final si terminó bien.
+# Dibuja el PDF de liquidación y el reporte mensual con el
+# mismo lenguaje visual del sistema: mucho blanco, líneas
+# finas y jerarquía por tamaño de letra.
+#
+# Pensado para imprimir: solo tinta negra y grises, sin
+# fondos ni bloques de color (ahorra tinta).
+#
+# Se genera primero en un archivo temporal y solo se renombra
+# al nombre final si terminó bien.
 # =========================================================
 
 import os
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.platypus import Table, TableStyle, Paragraph
 
 
-# Paleta (misma que la pantalla): carbón + acento índigo
-VERDE = colors.HexColor("#1D2327")        # carbón (encabezados)
-VERDE_SUAVE = colors.HexColor("#EAF2FA")  # índigo suave (totales)
-DORADO = colors.HexColor("#2271B1")       # índigo (acento)
-DORADO_SUAVE = colors.HexColor("#EAF2FA")
-MARFIL = colors.HexColor("#F6F7F8")
-LINEA = colors.HexColor("#DCDFE3")
-TINTA = colors.HexColor("#1D2327")
-TINTA_2 = colors.HexColor("#50575E")
-GRIS = colors.HexColor("#9CA3AF")
+# Paleta de impresión: solo negro y grises
+TINTA = colors.HexColor("#111114")     # texto principal y cifras
+TINTA_2 = colors.HexColor("#4A4A53")   # texto secundario
+GRIS = colors.HexColor("#85858F")      # etiquetas
+LINEA = colors.HexColor("#D7D7DE")     # divisores finos
+LINEA_FUERTE = TINTA                   # línea de totales
+
+FUENTE = "Helvetica"
+FUENTE_B = "Helvetica-Bold"
 
 
 class ErrorGenerandoPDF(Exception):
@@ -30,35 +36,50 @@ class ErrorGenerandoPDF(Exception):
     pass
 
 
-def _header(c, width, height, titulo, folio):
-    c.setFillColor(colors.white)
-    c.rect(0, 0, width, height, fill=1)
+# ---------------------------------------------------------
+# Utilidades de dibujo
+# ---------------------------------------------------------
+def _etiqueta(c, x, y, texto, tam=6.8, color=GRIS, alinear="izq", espacio=1.1, fuente=FUENTE):
+    """Texto en mayúsculas con espaciado entre letras (como las etiquetas de la pantalla)."""
+    texto = str(texto).upper()
+    ancho = stringWidth(texto, fuente, tam) + espacio * max(len(texto) - 1, 0)
+    if alinear == "der":
+        x -= ancho
+    elif alinear == "centro":
+        x -= ancho / 2
+    t = c.beginText(x, y)
+    t.setFont(fuente, tam)
+    t.setCharSpace(espacio)
+    t.setFillColor(color)
+    t.textOut(texto)
+    t.setCharSpace(0)      # el espaciado no debe pasar al resto del documento
+    c.drawText(t)
+    return ancho
 
-    # Banda verde con línea dorada
-    c.setFillColor(VERDE)
-    c.rect(0, height - 96, width, 96, fill=1, stroke=0)
-    c.setFillColor(DORADO)
-    c.rect(0, height - 99, width, 3, fill=1, stroke=0)
 
-    # Monograma
-    c.setFillColor(DORADO)
-    c.roundRect(40, height - 74, 34, 34, 8, fill=1, stroke=0)
-    c.setFillColor(VERDE)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawCentredString(57, height - 63, "L")
+def _linea(c, x1, x2, y, grosor=0.5, color=LINEA):
+    c.setStrokeColor(color)
+    c.setLineWidth(grosor)
+    c.line(x1, y, x2, y)
 
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 20)
-    c.drawString(88, height - 52, titulo)
-    c.setFont("Helvetica", 9)
-    c.setFillColor(colors.HexColor("#9CA3AF"))
-    c.drawString(89, height - 68, "SISTEMA DE LIQUIDACIONES  ·  CONTROL DE VIAJES")
 
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica", 9)
-    c.drawRightString(width - 40, height - 46, "FOLIO")
-    c.setFont("Helvetica-Bold", 20)
-    c.drawRightString(width - 40, height - 68, str(folio))
+def _monograma(c, x, y, tam=22):
+    """Cuadro "LQ" solo con contorno (no gasta tinta de relleno)."""
+    c.setStrokeColor(TINTA)
+    c.setLineWidth(1)
+    c.roundRect(x, y, tam, tam, 4, fill=0, stroke=1)
+    c.setFillColor(TINTA)
+    c.setFont(FUENTE_B, tam * 0.36)
+    c.drawCentredString(x + tam / 2, y + tam * 0.36, "LQ")
+
+
+def _pie(c, width, margen, izquierda, derecha=""):
+    _linea(c, margen, width - margen, 46)
+    c.setFont(FUENTE, 7)
+    c.setFillColor(GRIS)
+    c.drawString(margen, 32, izquierda)
+    if derecha:
+        c.drawRightString(width - margen, 32, derecha)
 
 
 # =========================================================
@@ -146,38 +167,35 @@ def desglose_estancia(fechas):
     return llegada, pagados, round(total, 2)
 
 
-def _tabla_liquidacion(filas, col_widths, encabezado=None, fila_total=False):
-    datos = ([encabezado] if encabezado else []) + filas
-    table = Table(datos, colWidths=col_widths)
-    estilo = [
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('LEFTPADDING', (0, 0), (-1, -1), 8),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-        ('LINEBELOW', (0, 0), (-1, -1), 0.5, LINEA),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+
+def _estilo_chico(color=TINTA_2, tam=8.5):
+    from reportlab.lib.styles import ParagraphStyle
+    return ParagraphStyle("chico", fontName=FUENTE, fontSize=tam, leading=tam * 1.4, textColor=color)
+
+
+def _tabla_conceptos(filas, col_widths):
+    """Filas concepto · detalle · monto separadas por líneas finas, sin fondos."""
+    table = Table(filas, colWidths=col_widths)
+    table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), FUENTE),
+        ('FONTSIZE', (0, 0), (-1, -1), 9.5),
         ('TEXTCOLOR', (0, 0), (-1, -1), TINTA),
         ('TEXTCOLOR', (1, 0), (1, -1), TINTA_2),
-    ]
-    if encabezado:
-        estilo += [
-            ('BACKGROUND', (0, 0), (-1, 0), VERDE),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('LINEBELOW', (0, 0), (-1, 0), 1.5, DORADO),
-        ]
-    if fila_total:
-        estilo += [
-            ('BACKGROUND', (0, -1), (-1, -1), VERDE_SUAVE),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ('TEXTCOLOR', (0, -1), (-1, -1), VERDE),
-        ]
-    table.setStyle(TableStyle(estilo))
+        ('FONTSIZE', (1, 0), (1, -1), 8.5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING', (1, 0), (1, -1), 8),
+        ('RIGHTPADDING', (1, 0), (1, -1), 12),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.4, LINEA),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
+        # Fila de subtotal: línea negra arriba, negritas
+        ('LINEABOVE', (0, -1), (-1, -1), 0.8, LINEA_FUERTE),
+        ('FONTNAME', (0, -1), (-1, -1), FUENTE_B),
+        ('TOPPADDING', (0, -1), (-1, -1), 8),
+    ]))
     return table
 
 
@@ -186,6 +204,15 @@ def _dibujar_tabla(c, table, x, y_top):
     _, alto = table.wrap(0, 0)
     table.drawOn(c, x, y_top - alto)
     return y_top - alto
+
+
+def _seccion(c, x, y, numero, titulo):
+    """Encabezado de sección numerado: '01  PERCEPCIONES'."""
+    c.setFont(FUENTE, 7.5)
+    c.setFillColor(GRIS)
+    c.drawString(x, y, numero)
+    _etiqueta(c, x + 18, y, titulo, tam=7.5, color=TINTA, fuente=FUENTE_B, espacio=1.3)
+    return y - 8
 
 
 def generar_pdf_liquidacion(filename, liq):
@@ -198,45 +225,50 @@ def generar_pdf_liquidacion(filename, liq):
 
     try:
         c = canvas.Canvas(tmp_filename, pagesize=letter)
+        c.setTitle(f"Liquidación {folio}")
         width, height = letter
-        margen = 40
+        margen = 48
         ancho_util = width - 2 * margen
+        derecha = width - margen
 
-        _header(c, width, height, "LIQUIDACIÓN DE VIAJE", folio)
+        # ---------- Encabezado ----------
+        top = height - 52
+        _monograma(c, margen, top - 18)
+        _etiqueta(c, margen + 34, top - 3, "Liquidación de viaje", tam=7, espacio=1.4)
+        _etiqueta(c, margen + 34, top - 14, "Sistema de liquidaciones · Control de viajes", tam=6, espacio=0.9)
+        _etiqueta(c, derecha, top - 3, "Folio", tam=7, alinear="der", espacio=1.4)
+        c.setFillColor(TINTA)
+        c.setFont(FUENTE_B, 20)
+        c.drawRightString(derecha, top - 24, str(folio))
 
-        # ---------- Datos generales ----------
-        y = height - 115
-        c.setFillColor(DORADO)
-        c.setFont("Helvetica-Bold", 8.5)
-        c.drawString(margen, y, "DATOS DEL VIAJE")
-        y -= 8
+        # Operador como titular
+        y = top - 62
+        c.setFillColor(TINTA)
+        c.setFont(FUENTE_B, 22)
+        c.drawString(margen, y, liq.get("operador", ""))
+        y -= 26
 
-        llegada, estancias_pagadas, _ = desglose_estancia(liq.get("estancia_fechas"))
-        col_datos = [95, ancho_util / 2 - 95, 95, ancho_util / 2 - 95]
+        # ---------- Datos del viaje (4 columnas, etiqueta arriba y valor abajo) ----------
         datos = [
-            ["Operador", liq.get("operador", ""), "Fecha liquidación", fecha_corta(liq.get("fecha"))],
-            ["Folio", str(folio), "Tipo de sueldo", (liq.get("tipo_sueldo") or "").upper()],
-            ["Fecha salida", fecha_corta(liq.get("fecha_salida")), "Fecha regreso", fecha_corta(liq.get("fecha_regreso")) or "—"],
+            ("Fecha liquidación", fecha_corta(liq.get("fecha"))),
+            ("Tipo de sueldo", (liq.get("tipo_sueldo") or "").upper()),
+            ("Fecha salida", fecha_corta(liq.get("fecha_salida"))),
+            ("Fecha regreso", fecha_corta(liq.get("fecha_regreso")) or "—"),
         ]
-        t = Table(datos, colWidths=col_datos)
-        t.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-            ('BACKGROUND', (0, 0), (-1, -1), MARFIL),
-            ('TEXTCOLOR', (0, 0), (0, -1), TINTA_2),
-            ('TEXTCOLOR', (2, 0), (2, -1), TINTA_2),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('LINEBELOW', (0, 0), (-1, -1), 0.5, LINEA),
-            ('BOX', (0, 0), (-1, -1), 0.5, LINEA),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ]))
-        y = _dibujar_tabla(c, t, margen, y) - 18
+        col = ancho_util / 4
+        for i, (lbl, val) in enumerate(datos):
+            x = margen + i * col
+            _etiqueta(c, x, y, lbl)
+            c.setFillColor(TINTA)
+            c.setFont(FUENTE, 10)
+            c.drawString(x, y - 14, val or "—")
+        y -= 30
+        _linea(c, margen, derecha, y)
+        y -= 26
 
-        # ---------- Percepciones ----------
-        col_perc = [130, ancho_util - 130 - 110, 110]
+        # ---------- 01 Percepciones ----------
+        llegada, estancias_pagadas, _ = desglose_estancia(liq.get("estancia_fechas"))
+        col_conc = [120, ancho_util - 120 - 100, 100]
         if not llegada:
             detalle_estancia = "Sin estancia"
         elif not estancias_pagadas:
@@ -256,12 +288,12 @@ def generar_pdf_liquidacion(filename, liq):
             ["Extras", "", dinero(liq.get("extras"))],
             ["Casetas", "", dinero(liq.get("casetas"))],
             ["Rendimiento", rendimiento_txt, dinero(liq.get("rendimiento_monto"))],
-            ["TOTAL", "", dinero(liq.get("total"))],
+            ["Total percepciones", "", dinero(liq.get("total"))],
         ]
-        t = _tabla_liquidacion(filas_perc, col_perc, ["PERCEPCIONES", "Detalle", "Monto"], fila_total=True)
-        y = _dibujar_tabla(c, t, margen, y) - 18
+        y = _seccion(c, margen, y, "01", "Percepciones")
+        y = _dibujar_tabla(c, _tabla_conceptos(filas_perc, col_conc), margen, y) - 22
 
-        # ---------- Deducciones ----------
+        # ---------- 02 Deducciones ----------
         pagos = []
         for i in range(1, 5):
             f = liq.get(f"infonavit_pago{i}")
@@ -272,62 +304,52 @@ def generar_pdf_liquidacion(filename, liq):
                 pagos.append(f"Pago {i}: {fecha_corta(f)} (folio {fo})")
             else:
                 pagos.append(f"Pago {i}: {fecha_corta(f)}")
+        deducciones = sum(float(liq.get(k) or 0) for k in ("gastos", "prestamo", "infonavit"))
         filas_ded = [
             ["Gastos", "", dinero(liq.get("gastos"))],
             ["Préstamo", "", dinero(liq.get("prestamo"))],
-            ["Infonavit", Paragraph("  |  ".join(pagos), _estilo_chico()), dinero(liq.get("infonavit"))],
+            ["Infonavit", Paragraph("  ·  ".join(pagos), _estilo_chico()), dinero(liq.get("infonavit"))],
+            ["Total deducciones", "", dinero(deducciones)],
         ]
-        t = _tabla_liquidacion(filas_ded, col_perc, ["DEDUCCIONES", "Detalle", "Monto"])
-        y = _dibujar_tabla(c, t, margen, y) - 16
+        y = _seccion(c, margen, y, "02", "Deducciones")
+        y = _dibujar_tabla(c, _tabla_conceptos(filas_ded, col_conc), margen, y) - 24
 
-        # ---------- Total a pagar ----------
-        alto_caja = 44
-        c.setFillColor(VERDE)
-        c.roundRect(margen, y - alto_caja, ancho_util, alto_caja, 10, fill=1, stroke=0)
-        c.setFillColor(DORADO)
-        c.rect(margen, y - alto_caja + 8, 4, alto_caja - 16, fill=1, stroke=0)
-        c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 13)
-        c.drawString(margen + 18, y - alto_caja + 17, "TOTAL A PAGAR")
-        c.setFont("Helvetica", 8.5)
-        c.setFillColor(colors.HexColor("#9CA3AF"))
-        c.drawString(margen + 140, y - alto_caja + 18, "Total − Gastos − Préstamo − Infonavit")
-        c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 20)
-        c.drawRightString(width - margen - 16, y - alto_caja + 14, dinero(liq.get("total_pagar")))
-        y -= alto_caja + 14
+        # ---------- Total a pagar (sin fondo: línea doble y cifra grande) ----------
+        _linea(c, margen, derecha, y, grosor=1.2, color=LINEA_FUERTE)
+        _linea(c, margen, derecha, y - 2.5, grosor=0.4, color=LINEA_FUERTE)
+        _etiqueta(c, margen, y - 24, "Total a pagar", tam=8, color=TINTA, fuente=FUENTE_B, espacio=1.5)
+        c.setFont(FUENTE, 7.5)
+        c.setFillColor(GRIS)
+        c.drawString(margen, y - 37, "Total - Gastos - Préstamo - Infonavit")
+        c.setFillColor(TINTA)
+        c.setFont(FUENTE_B, 26)
+        c.drawRightString(derecha, y - 36, dinero(liq.get("total_pagar")))
+        y -= 50
+        _linea(c, margen, derecha, y)
+        y -= 20
 
         # ---------- Observaciones (si hay) ----------
         obs = (liq.get("observaciones") or "").strip()
         if obs:
-            c.setFillColor(TINTA_2)
-            c.setFont("Helvetica-Bold", 9)
-            c.drawString(margen, y, "Observaciones:")
-            p = Paragraph(obs, _estilo_chico())
-            _, alto_p = p.wrap(ancho_util - 90, 60)
-            p.drawOn(c, margen + 85, y - alto_p + 8)
+            _etiqueta(c, margen, y, "Observaciones:")
+            p = Paragraph(obs, _estilo_chico(TINTA, 9))
+            _, alto_p = p.wrap(ancho_util - 100, 60)
+            p.drawOn(c, margen + 100, y - alto_p + 8)
+            y -= max(alto_p, 12)
 
-        # ---------- Firmas ----------
-        firmas_y = 95
-        c.setStrokeColor(TINTA_2)
-        c.setLineWidth(0.8)
-        c.line(margen + 30, firmas_y, margen + 240, firmas_y)
-        c.line(width - margen - 240, firmas_y, width - margen - 30, firmas_y)
-
-        c.setFillColor(VERDE)
-        c.setFont("Helvetica-Bold", 9)
-        c.drawCentredString(margen + 135, firmas_y - 16, "VISTO BUENO")
-        c.drawCentredString(width - margen - 135, firmas_y - 16, "FIRMA DEL OPERADOR")
-
+        # ---------- Firmas (debajo del contenido, sin encimarse) ----------
+        firmas_y = max(86, min(118, y - 46))
+        ancho_firma = 200
+        centros = (margen + ancho_firma / 2, derecha - ancho_firma / 2)
+        for cx in centros:
+            _linea(c, cx - ancho_firma / 2, cx + ancho_firma / 2, firmas_y, grosor=0.7, color=TINTA_2)
+        _etiqueta(c, centros[0], firmas_y - 14, "Visto bueno", tam=7, color=TINTA, alinear="centro", espacio=1.3)
+        _etiqueta(c, centros[1], firmas_y - 14, "Firma del operador", tam=7, color=TINTA, alinear="centro", espacio=1.3)
         c.setFillColor(TINTA_2)
-        c.setFont("Helvetica", 9)
-        c.drawCentredString(width - margen - 135, firmas_y - 30, liq.get("operador", ""))
+        c.setFont(FUENTE, 8.5)
+        c.drawCentredString(centros[1], firmas_y - 28, liq.get("operador", ""))
 
-        c.setFillColor(DORADO)
-        c.rect(0, 0, width, 3, fill=1, stroke=0)
-        c.setFont("Helvetica", 7.5)
-        c.setFillColor(GRIS)
-        c.drawCentredString(width / 2, 34, "Documento generado por el Sistema de Liquidaciones")
+        _pie(c, width, margen, "Documento generado por el Sistema de Liquidaciones", f"Folio {folio}")
 
         c.save()
         os.replace(tmp_filename, filename)
@@ -341,12 +363,6 @@ def generar_pdf_liquidacion(filename, liq):
         raise ErrorGenerandoPDF(f"No se pudo generar el PDF de la liquidación {folio}: {e}") from e
 
 
-def _estilo_chico():
-    from reportlab.lib.styles import ParagraphStyle
-    return ParagraphStyle("chico", fontName="Helvetica", fontSize=9, leading=12,
-                          textColor=TINTA_2)
-
-
 # =========================================================
 # REPORTE MENSUAL POR OPERADOR (hoja carta horizontal)
 # =========================================================
@@ -358,46 +374,61 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
 
     tmp_filename = filename + ".tmp"
     titulo_mes = mes_largo(mes)
+    margen = 40
 
     def encabezado(c, doc):
         width, height = landscape(letter)
         c.saveState()
-        c.setFillColor(VERDE)
-        c.rect(0, height - 70, width, 70, fill=1, stroke=0)
-        c.setFillColor(DORADO)
-        c.rect(0, height - 73, width, 3, fill=1, stroke=0)
-        c.roundRect(36, height - 55, 30, 30, 7, fill=1, stroke=0)
-        c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 14)
-        c.drawCentredString(51, height - 45, "L")
-        c.setFont("Helvetica-Bold", 17)
-        c.drawString(78, height - 38, "REPORTE MENSUAL POR OPERADOR")
-        c.setFont("Helvetica", 8.5)
-        c.setFillColor(colors.HexColor("#9CA3AF"))
-        c.drawString(79, height - 53, "SISTEMA DE LIQUIDACIONES  ·  CONTROL DE VIAJES")
-        c.setFillColor(colors.white)
-        c.setFont("Helvetica", 8.5)
-        c.drawRightString(width - 36, height - 33, "PERIODO")
-        c.setFont("Helvetica-Bold", 16)
-        c.drawRightString(width - 36, height - 52, titulo_mes.upper())
-        c.setFillColor(DORADO)
-        c.rect(0, 0, width, 3, fill=1, stroke=0)
-        c.setFont("Helvetica", 7.5)
-        c.setFillColor(GRIS)
-        c.drawString(36, 16, "Documento generado por el Sistema de Liquidaciones")
-        c.drawRightString(width - 36, 16, f"Página {doc.page}")
+        top = height - 40
+        _monograma(c, margen, top - 18)
+        _etiqueta(c, margen + 34, top - 3, "Reporte mensual por operador", tam=7, espacio=1.4)
+        _etiqueta(c, margen + 34, top - 14, "Sistema de liquidaciones · Control de viajes", tam=6, espacio=0.9)
+        _etiqueta(c, width - margen, top - 3, "Periodo", tam=7, alinear="der", espacio=1.4)
+        c.setFillColor(TINTA)
+        c.setFont(FUENTE_B, 15)
+        c.drawRightString(width - margen, top - 20, titulo_mes)
+        _linea(c, margen, width - margen, top - 32)
+        _pie(c, width, margen, "Documento generado por el Sistema de Liquidaciones", f"Página {doc.page}")
         c.restoreState()
+
+    def estilo_tabla(ultima_es_total=True, col_destacadas=()):
+        estilo = [
+            ('FONTNAME', (0, 0), (-1, -1), FUENTE),
+            ('TEXTCOLOR', (0, 0), (-1, -1), TINTA),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (0, -1), 0),
+            ('RIGHTPADDING', (-1, 0), (-1, -1), 0),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            # Cabecera: texto gris pequeño y línea negra debajo, sin fondo
+            ('FONTNAME', (0, 0), (-1, 0), FUENTE_B),
+            ('TEXTCOLOR', (0, 0), (-1, 0), GRIS),
+            ('FONTSIZE', (0, 0), (-1, 0), 6.5),
+            ('LINEBELOW', (0, 0), (-1, 0), 0.8, LINEA_FUERTE),
+            ('LINEBELOW', (0, 1), (-1, -2 if ultima_es_total else -1), 0.4, LINEA),
+        ]
+        for col in col_destacadas:
+            estilo.append(('FONTNAME', (col, 1), (col, -1), FUENTE_B))
+        if ultima_es_total:
+            estilo += [
+                ('LINEABOVE', (0, -1), (-1, -1), 0.8, LINEA_FUERTE),
+                ('FONTNAME', (0, -1), (-1, -1), FUENTE_B),
+                ('TOPPADDING', (0, -1), (-1, -1), 7),
+            ]
+        return estilo
 
     try:
         doc = SimpleDocTemplate(
             tmp_filename, pagesize=landscape(letter),
-            leftMargin=36, rightMargin=36, topMargin=90, bottomMargin=36,
+            leftMargin=margen, rightMargin=margen, topMargin=92, bottomMargin=62,
             title=f"Reporte mensual {titulo_mes}",
         )
-        estilo_h = ParagraphStyle("h", fontName="Helvetica-Bold", fontSize=13, textColor=TINTA, spaceAfter=4)
-        estilo_sub = ParagraphStyle("sub", fontName="Helvetica", fontSize=8.5, textColor=TINTA_2, spaceAfter=10)
-        estilo_op = ParagraphStyle("op", fontName="Helvetica-Bold", fontSize=9.5, textColor=VERDE, spaceBefore=8, spaceAfter=4)
-        estilo_celda = ParagraphStyle("c", fontName="Helvetica", fontSize=7.5, leading=9, textColor=TINTA)
+        estilo_h = ParagraphStyle("h", fontName=FUENTE_B, fontSize=15, leading=19, textColor=TINTA, spaceAfter=2)
+        estilo_sub = ParagraphStyle("sub", fontName=FUENTE, fontSize=8.5, textColor=TINTA_2, spaceAfter=14)
+        estilo_op = ParagraphStyle("op", fontName=FUENTE_B, fontSize=10, textColor=TINTA, spaceBefore=12, spaceAfter=6)
+        estilo_celda = ParagraphStyle("c", fontName=FUENTE, fontSize=7.5, leading=9, textColor=TINTA)
 
         elementos = []
 
@@ -409,8 +440,8 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
             estilo_sub
         ))
 
-        cabecera = ["Operador", "Viajes", "Sueldo", "Ida", "Regreso", "Estancia", "Maniobras",
-                    "Extras", "Casetas", "Rendim.", "Total", "Gastos", "Préstamo", "Infonavit", "A pagar"]
+        cabecera = ["OPERADOR", "VIAJES", "SUELDO", "IDA", "REGRESO", "ESTANCIA", "MANIOBRAS",
+                    "EXTRAS", "CASETAS", "RENDIM.", "TOTAL", "GASTOS", "PRÉSTAMO", "INFONAVIT", "A PAGAR"]
         filas = [cabecera]
         for o in operadores:
             filas.append([
@@ -430,32 +461,11 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
             dinero(totales["total_pagar"]),
         ])
 
-        anchos = [138, 34] + [44] * 13
+        anchos = [130, 30] + [42] * 13
         tabla = Table(filas, colWidths=anchos, repeatRows=1)
-        tabla.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 7.5),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('LEFTPADDING', (0, 0), (-1, -1), 4),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        tabla.setStyle(TableStyle(estilo_tabla(True, (10, 14)) + [
+            ('FONTSIZE', (0, 1), (-1, -1), 7.5),
             ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('BACKGROUND', (0, 0), (-1, 0), VERDE),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('LINEBELOW', (0, 0), (-1, 0), 1.5, DORADO),
-            ('LINEBELOW', (0, 1), (-1, -2), 0.4, LINEA),
-            ('BACKGROUND', (10, 1), (10, -1), MARFIL),
-            ('FONTNAME', (10, 1), (10, -1), 'Helvetica-Bold'),
-            ('BACKGROUND', (14, 1), (14, -2), VERDE_SUAVE),
-            ('FONTNAME', (14, 1), (14, -1), 'Helvetica-Bold'),
-            ('TEXTCOLOR', (14, 1), (14, -2), VERDE),
-            ('BACKGROUND', (0, -1), (-1, -1), VERDE_SUAVE),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ('LINEABOVE', (0, -1), (-1, -1), 1.2, VERDE),
-            ('BACKGROUND', (14, -1), (14, -1), VERDE),
-            ('TEXTCOLOR', (14, -1), (14, -1), colors.white),
         ]))
         elementos.append(tabla)
 
@@ -469,7 +479,7 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
             lista = por_operador.get(o["operador"], [])
             if not lista:
                 continue
-            filas = [["Folio", "Fecha", "Sueldo", "Total", "Gastos", "Préstamo", "Infonavit", "A pagar"]]
+            filas = [["FOLIO", "FECHA", "SUELDO", "TOTAL", "GASTOS", "PRÉSTAMO", "INFONAVIT", "A PAGAR"]]
             for d in lista:
                 filas.append([
                     d["folio"], fecha_corta(d["fecha"]), (d["tipo_sueldo"] or "").capitalize(),
@@ -478,23 +488,10 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
                 ])
             filas.append(["", "", f"{o['viajes']} viaje(s)", dinero(o["total"]), dinero(o["gastos"]),
                           dinero(o["prestamo"]), dinero(o["infonavit"]), dinero(o["total_pagar"])])
-            t = Table(filas, colWidths=[60, 80, 70, 80, 80, 80, 80, 90], repeatRows=1, hAlign="LEFT")
-            t.setStyle(TableStyle([
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            t = Table(filas, colWidths=[60, 80, 80, 80, 80, 80, 80, 90], repeatRows=1, hAlign="LEFT")
+            t.setStyle(TableStyle(estilo_tabla(True, (0, 7)) + [
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
                 ('ALIGN', (3, 0), (-1, -1), 'RIGHT'),
-                ('BACKGROUND', (0, 0), (-1, 0), MARFIL),
-                ('TEXTCOLOR', (0, 0), (-1, 0), TINTA_2),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('LINEBELOW', (0, 0), (-1, 0), 0.8, DORADO),
-                ('LINEBELOW', (0, 1), (-1, -2), 0.4, LINEA),
-                ('FONTNAME', (0, 1), (0, -2), 'Helvetica-Bold'),
-                ('TEXTCOLOR', (0, 1), (0, -2), VERDE),
-                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-                ('LINEABOVE', (0, -1), (-1, -1), 1, VERDE),
-                ('TEXTCOLOR', (-1, 1), (-1, -1), VERDE),
             ]))
             elementos.append(KeepTogether([Paragraph(o["operador"], estilo_op), t, Spacer(1, 6)]))
 
