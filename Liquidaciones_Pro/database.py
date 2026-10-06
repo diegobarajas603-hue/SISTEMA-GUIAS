@@ -178,3 +178,7 @@ def init_db():
         for i in range(1, 5):
             if f"infonavit_folio{i}" not in columnas:
                 conn.execute(f"ALTER TABLE liquidaciones ADD COLUMN infonavit_folio{i} TEXT")
+
+        # Migración: descripción de la maniobra (texto libre, opcional)
+        if "maniobras_descripcion" not in columnas:
+            conn.execute("ALTER TABLE liquidaciones ADD COLUMN maniobras_descripcion TEXT")

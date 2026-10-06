@@ -136,7 +136,7 @@ CAMPOS_NUMERICOS = (
 CAMPOS_TEXTO = (
     "fecha", "tipo_sueldo", "ida_cliente", "regreso_cliente", "estancia_fechas",
     "infonavit_pago1", "infonavit_pago2", "infonavit_pago3", "infonavit_pago4",
-    "observaciones",
+    "observaciones", "maniobras_descripcion",
 )
 
 
@@ -144,7 +144,7 @@ def leer_liquidacion(form):
     """Arma el diccionario de la liquidación desde el formulario y calcula totales."""
     liq = {}
     for nombre in CAMPOS_TEXTO:
-        liq[nombre] = campo(form, nombre, mayusculas=nombre.endswith("cliente") or nombre == "observaciones")
+        liq[nombre] = campo(form, nombre, mayusculas=nombre.endswith("cliente") or nombre in ("observaciones", "maniobras_descripcion"))
     for nombre in CAMPOS_NUMERICOS:
         liq[nombre] = numero(form, nombre)
 

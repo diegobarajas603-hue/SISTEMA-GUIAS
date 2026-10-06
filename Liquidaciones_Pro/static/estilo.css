@@ -443,6 +443,7 @@ td.vacio{ height:auto; }
 
 .rejilla-4{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:24px 16px; align-items:end; }
 .span-2{ grid-column:span 2; }
+.span-3{ grid-column:span 3; }
 .span-4{ grid-column:1 / -1; }
 
 /* Estancia */
@@ -677,7 +678,7 @@ body.con-modal{ overflow:hidden; }
     .barra-derecha .enlace{ display:none; }
     .buscador-global{ width:180px; }
     .rejilla-4{ grid-template-columns:repeat(2, minmax(0,1fr)); }
-    .span-2{ grid-column:1 / -1; }
+    .span-2, .span-3{ grid-column:1 / -1; }
     .titular{ font-size:28px; }
     .tira{ gap:4px; }
     .fila-lista{ grid-template-columns:1fr auto; }

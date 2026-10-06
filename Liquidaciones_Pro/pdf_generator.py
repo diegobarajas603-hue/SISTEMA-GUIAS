@@ -215,141 +215,162 @@ def _seccion(c, x, y, numero, titulo):
     return y - 8
 
 
+def _fecha_mini(iso):
+    """'2026-09-18' -> '18 sep'"""
+    try:
+        _, m, d = str(iso).split("-")
+        return f"{int(d)} {MESES_LARGO[int(m) - 1][:3]}"
+    except (ValueError, IndexError):
+        return str(iso or "")
+
+
+def _conceptos(c, x, y, ancho, titulo, filas, total_txt, total):
+    """
+    Bloque de conceptos: etiqueta de sección, renglones "concepto · detalle ... monto"
+    con mucho aire y una línea final con el total. Regresa el y inferior.
+    """
+    _etiqueta(c, x, y, titulo, tam=7, espacio=1.4)
+    y -= 10
+    estilo_det = _estilo_chico(TINTA_2, 8.5)
+    datos = [[f[0], Paragraph(f[1], estilo_det) if f[1] else "", f[2]] for f in filas]
+    datos.append([total_txt, "", total])
+    t = Table(datos, colWidths=[110, ancho - 110 - 110, 110])
+    t.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), FUENTE),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (-1, -1), TINTA),
+        ('TOPPADDING', (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (1, 0), (1, -1), 16),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
+        ('LINEBELOW', (0, 0), (-1, -3), 0.4, LINEA),
+        ('LINEABOVE', (0, -1), (-1, -1), 0.8, LINEA_FUERTE),
+        ('FONTNAME', (0, -1), (-1, -1), FUENTE_B),
+        ('TOPPADDING', (0, -1), (-1, -1), 9),
+    ]))
+    return _dibujar_tabla(c, t, x, y)
+
+
 def generar_pdf_liquidacion(filename, liq):
     """
     Genera el PDF de liquidación. `liq` es un diccionario con las
     mismas llaves que las columnas de la tabla `liquidaciones`.
+
+    Diseño de una sola lectura: solo se imprimen los conceptos con
+    monto (el sueldo siempre), con un detalle corto en gris.
     """
     tmp_filename = filename + ".tmp"
     folio = liq.get("folio", "")
+
+    def monto(k):
+        try:
+            return float(liq.get(k) or 0)
+        except (TypeError, ValueError):
+            return 0.0
 
     try:
         c = canvas.Canvas(tmp_filename, pagesize=letter)
         c.setTitle(f"Liquidación {folio}")
         width, height = letter
-        margen = 48
+        margen = 56
         ancho_util = width - 2 * margen
         derecha = width - margen
 
         # ---------- Encabezado ----------
-        top = height - 52
-        _monograma(c, margen, top - 18)
-        _etiqueta(c, margen + 34, top - 3, "Liquidación de viaje", tam=7, espacio=1.4)
-        _etiqueta(c, margen + 34, top - 14, "Sistema de liquidaciones · Control de viajes", tam=6, espacio=0.9)
-        _etiqueta(c, derecha, top - 3, "Folio", tam=7, alinear="der", espacio=1.4)
-        c.setFillColor(TINTA)
-        c.setFont(FUENTE_B, 20)
-        c.drawRightString(derecha, top - 24, str(folio))
-
-        # Operador como titular
-        y = top - 62
+        y = height - 64
+        _etiqueta(c, margen, y, "Liquidación de viaje", tam=7, espacio=1.5)
+        _etiqueta(c, derecha, y, f"Folio {folio}", tam=7, color=TINTA, fuente=FUENTE_B, alinear="der", espacio=1.5)
+        y -= 34
         c.setFillColor(TINTA)
         c.setFont(FUENTE_B, 22)
-        c.drawString(margen, y, liq.get("operador", ""))
-        y -= 26
-
-        # ---------- Datos del viaje (4 columnas, etiqueta arriba y valor abajo) ----------
-        datos = [
-            ("Fecha liquidación", fecha_corta(liq.get("fecha"))),
-            ("Tipo de sueldo", (liq.get("tipo_sueldo") or "").upper()),
-            ("Fecha salida", fecha_corta(liq.get("fecha_salida"))),
-            ("Fecha regreso", fecha_corta(liq.get("fecha_regreso")) or "—"),
-        ]
-        col = ancho_util / 4
-        for i, (lbl, val) in enumerate(datos):
-            x = margen + i * col
-            _etiqueta(c, x, y, lbl)
-            c.setFillColor(TINTA)
-            c.setFont(FUENTE, 10)
-            c.drawString(x, y - 14, val or "—")
-        y -= 30
-        _linea(c, margen, derecha, y)
-        y -= 26
-
-        # ---------- 01 Percepciones ----------
-        llegada, estancias_pagadas, _ = desglose_estancia(liq.get("estancia_fechas"))
-        col_conc = [120, ancho_util - 120 - 100, 100]
-        if not llegada:
-            detalle_estancia = "Sin estancia"
-        elif not estancias_pagadas:
-            detalle_estancia = f"Llegada {fecha_corta(llegada)} · sin días de estancia"
-        else:
-            dias_txt = ", ".join(f"{fecha_corta(f)} ({d} {dinero(m)})" for f, d, m in estancias_pagadas)
-            detalle_estancia = (
-                f"Llegada {fecha_corta(llegada)} · {len(estancias_pagadas)} día(s): {dias_txt}"
-            )
-        rendimiento_txt = "Sí" if int(liq.get("rendimiento_aplica") or 0) else "No aplica"
-        filas_perc = [
-            ["Sueldo", (liq.get("tipo_sueldo") or "").capitalize(), dinero(liq.get("sueldo"))],
-            ["Ida", f"Cliente: {liq.get('ida_cliente') or '—'}", dinero(liq.get("ida_monto"))],
-            ["Regreso", f"Cliente: {liq.get('regreso_cliente') or '—'}", dinero(liq.get("regreso_monto"))],
-            ["Estancia", Paragraph(detalle_estancia, _estilo_chico()), dinero(liq.get("estancia_monto"))],
-            ["Maniobras", "", dinero(liq.get("maniobras"))],
-            ["Extras", "", dinero(liq.get("extras"))],
-            ["Casetas", "", dinero(liq.get("casetas"))],
-            ["Rendimiento", rendimiento_txt, dinero(liq.get("rendimiento_monto"))],
-            ["Total percepciones", "", dinero(liq.get("total"))],
-        ]
-        y = _seccion(c, margen, y, "01", "Percepciones")
-        y = _dibujar_tabla(c, _tabla_conceptos(filas_perc, col_conc), margen, y) - 22
-
-        # ---------- 02 Deducciones ----------
-        pagos = []
-        for i in range(1, 5):
-            f = liq.get(f"infonavit_pago{i}")
-            fo = liq.get(f"infonavit_folio{i}") or ""
-            if not f:
-                pagos.append(f"Pago {i}: ____")
-            elif fo and fo != str(folio):
-                pagos.append(f"Pago {i}: {fecha_corta(f)} (folio {fo})")
-            else:
-                pagos.append(f"Pago {i}: {fecha_corta(f)}")
-        deducciones = sum(float(liq.get(k) or 0) for k in ("gastos", "prestamo", "infonavit"))
-        filas_ded = [
-            ["Gastos", "", dinero(liq.get("gastos"))],
-            ["Préstamo", "", dinero(liq.get("prestamo"))],
-            ["Infonavit", Paragraph("  ·  ".join(pagos), _estilo_chico()), dinero(liq.get("infonavit"))],
-            ["Total deducciones", "", dinero(deducciones)],
-        ]
-        y = _seccion(c, margen, y, "02", "Deducciones")
-        y = _dibujar_tabla(c, _tabla_conceptos(filas_ded, col_conc), margen, y) - 24
-
-        # ---------- Total a pagar (sin fondo: línea doble y cifra grande) ----------
-        _linea(c, margen, derecha, y, grosor=1.2, color=LINEA_FUERTE)
-        _linea(c, margen, derecha, y - 2.5, grosor=0.4, color=LINEA_FUERTE)
-        _etiqueta(c, margen, y - 24, "Total a pagar", tam=8, color=TINTA, fuente=FUENTE_B, espacio=1.5)
-        c.setFont(FUENTE, 7.5)
-        c.setFillColor(GRIS)
-        c.drawString(margen, y - 37, "Total - Gastos - Préstamo - Infonavit")
-        c.setFillColor(TINTA)
-        c.setFont(FUENTE_B, 26)
-        c.drawRightString(derecha, y - 36, dinero(liq.get("total_pagar")))
-        y -= 50
-        _linea(c, margen, derecha, y)
+        c.drawString(margen, y, (liq.get("operador") or "").title())
         y -= 20
+        meta = [f"Salida {fecha_corta(liq.get('fecha_salida')) or '—'}"]
+        if liq.get("fecha_regreso"):
+            meta.append(f"Regreso {fecha_corta(liq.get('fecha_regreso'))}")
+        meta.append(f"Liquidación {fecha_corta(liq.get('fecha')) or '—'}")
+        c.setFont(FUENTE, 9)
+        c.setFillColor(TINTA_2)
+        c.drawString(margen, y, "     ·     ".join(meta))
+        y -= 44
+
+        # ---------- Percepciones (solo lo que tiene monto) ----------
+        llegada, estancias_pagadas, _ = desglose_estancia(liq.get("estancia_fechas"))
+        if estancias_pagadas:
+            n = len(estancias_pagadas)
+            det_estancia = f"{n} {'día' if n == 1 else 'días'} · llegada {_fecha_mini(llegada)}"
+        elif llegada:
+            det_estancia = f"Llegada {_fecha_mini(llegada)}"
+        else:
+            det_estancia = ""
+        tipo = (liq.get("tipo_sueldo") or "").upper()
+        perc = [("Sueldo", "Químico" if tipo == "QUIMICO" else tipo.capitalize(), dinero(liq.get("sueldo")))]
+        for clave, nombre, detalle in (
+            ("ida_monto", "Ida", (liq.get("ida_cliente") or "").title()),
+            ("regreso_monto", "Regreso", (liq.get("regreso_cliente") or "").title()),
+            ("estancia_monto", "Estancia", det_estancia),
+            ("maniobras", "Maniobras", (liq.get("maniobras_descripcion") or "").capitalize()),
+            ("extras", "Extras", ""),
+            ("casetas", "Casetas", ""),
+            ("rendimiento_monto", "Rendimiento", ""),
+        ):
+            if monto(clave):
+                perc.append((nombre, detalle, dinero(liq.get(clave))))
+        y = _conceptos(c, margen, y, ancho_util, "Percepciones", perc,
+                       "Total percepciones", dinero(liq.get("total"))) - 36
+
+        # ---------- Deducciones (solo lo que tiene monto) ----------
+        pagos = [_fecha_mini(liq.get(f"infonavit_pago{i}")) for i in range(1, 5) if liq.get(f"infonavit_pago{i}")]
+        ded = []
+        for clave, nombre, detalle in (
+            ("gastos", "Gastos", ""),
+            ("prestamo", "Préstamo", ""),
+            ("infonavit", "Infonavit", ("Pagos " if len(pagos) > 1 else "Pago ") + ", ".join(pagos) if pagos else ""),
+        ):
+            if monto(clave):
+                ded.append((nombre, detalle, dinero(liq.get(clave))))
+        total_ded = monto("gastos") + monto("prestamo") + monto("infonavit")
+        if ded:
+            y = _conceptos(c, margen, y, ancho_util, "Deducciones", ded,
+                           "Total deducciones", dinero(total_ded)) - 40
+        else:
+            _etiqueta(c, margen, y, "Deducciones", tam=7, espacio=1.4)
+            c.setFont(FUENTE, 10)
+            c.setFillColor(TINTA_2)
+            c.drawString(margen, y - 22, "Sin deducciones")
+            y -= 62
+
+        # ---------- Total a pagar ----------
+        _linea(c, margen, derecha, y, grosor=1.4, color=LINEA_FUERTE)
+        _etiqueta(c, margen, y - 30, "Total a pagar", tam=8, color=TINTA, fuente=FUENTE_B, espacio=1.6)
+        c.setFillColor(TINTA)
+        c.setFont(FUENTE_B, 28)
+        c.drawRightString(derecha, y - 36, dinero(liq.get("total_pagar")))
+        y -= 72
 
         # ---------- Observaciones (si hay) ----------
         obs = (liq.get("observaciones") or "").strip()
         if obs:
-            _etiqueta(c, margen, y, "Observaciones:")
-            p = Paragraph(obs, _estilo_chico(TINTA, 9))
-            _, alto_p = p.wrap(ancho_util - 100, 60)
-            p.drawOn(c, margen + 100, y - alto_p + 8)
-            y -= max(alto_p, 12)
+            _etiqueta(c, margen, y, "Observaciones", tam=7, espacio=1.4)
+            p = Paragraph(obs, _estilo_chico(TINTA_2, 9))
+            _, alto_p = p.wrap(ancho_util, 80)
+            p.drawOn(c, margen, y - 8 - alto_p)
+            y -= 8 + alto_p + 10
 
-        # ---------- Firmas (debajo del contenido, sin encimarse) ----------
-        firmas_y = max(86, min(118, y - 46))
-        ancho_firma = 200
+        # ---------- Firmas ----------
+        firmas_y = max(70, min(120, y - 50))
+        ancho_firma = 190
         centros = (margen + ancho_firma / 2, derecha - ancho_firma / 2)
         for cx in centros:
-            _linea(c, cx - ancho_firma / 2, cx + ancho_firma / 2, firmas_y, grosor=0.7, color=TINTA_2)
-        _etiqueta(c, centros[0], firmas_y - 14, "Visto bueno", tam=7, color=TINTA, alinear="centro", espacio=1.3)
-        _etiqueta(c, centros[1], firmas_y - 14, "Firma del operador", tam=7, color=TINTA, alinear="centro", espacio=1.3)
+            _linea(c, cx - ancho_firma / 2, cx + ancho_firma / 2, firmas_y, grosor=0.6, color=TINTA_2)
+        _etiqueta(c, centros[0], firmas_y - 14, "Visto bueno", tam=6.8, alinear="centro", espacio=1.3)
+        _etiqueta(c, centros[1], firmas_y - 14, "Firma del operador", tam=6.8, alinear="centro", espacio=1.3)
         c.setFillColor(TINTA_2)
         c.setFont(FUENTE, 8.5)
-        c.drawCentredString(centros[1], firmas_y - 28, liq.get("operador", ""))
-
-        _pie(c, width, margen, "Documento generado por el Sistema de Liquidaciones", f"Folio {folio}")
+        c.drawCentredString(centros[1], firmas_y - 27, (liq.get("operador") or "").title())
 
         c.save()
         os.replace(tmp_filename, filename)
