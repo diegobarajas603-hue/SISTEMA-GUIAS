@@ -1,61 +1,59 @@
 {% extends "base.html" %}
-{% from '_iconos.html' import ico %}
+{% from '_iconos.html' import ico, cifra %}
 {% block titulo %}Reporte mensual{% endblock %}
-{% block main_clase %}ancho{% endblock %}
 {% block header_titulo %}Reporte mensual{% endblock %}
-{% block header_sub %}Resumen por operador · {{ mes_nombre }}{% endblock %}
 
 {% block contenido %}
-<div class="topbar">
+{%- set deducciones_mes = totales.gastos + totales.prestamo + totales.infonavit -%}
+
+<header class="encabezado">
     <div>
-        <div class="eyebrow">Periodo</div>
-        <h1 class="titulo">{{ mes_nombre }}</h1>
+        <div class="etiqueta">{{ mes_nombre | upper }}</div>
+        <h1 class="titular">
+            {{ totales.viajes }} {{ 'viaje' if totales.viajes == 1 else 'viajes' }}
+            <span class="tenue">·</span> ${{ '{:,.0f}'.format(totales.total_pagar) }} pagados.
+        </h1>
     </div>
-    <div class="topbar-meta">
+    <div class="encabezado-acciones">
         <form method="GET" action="/reportes" class="selector-mes">
-            <select name="mes" onchange="this.form.submit()">
+            <label for="mes" class="oculto">Mes</label>
+            <select name="mes" id="mes" onchange="this.form.submit()">
                 {% for m in meses %}
                 <option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m | mes_largo }}</option>
                 {% endfor %}
             </select>
-            <a href="/reportes/pdf?mes={{ mes }}" target="_blank" class="btn btn-primario">{{ ico('descargar', 16) }} Descargar PDF</a>
         </form>
+        <a href="/reportes/pdf?mes={{ mes }}" target="_blank" class="btn btn-primario">{{ ico('descargar', 16) }} Descargar PDF</a>
     </div>
-</div>
+</header>
 
-<div class="kpis">
+<section class="kpis tarjeta" aria-label="Indicadores del mes">
     <div class="kpi">
-        <div class="kpi-ico navy">{{ ico('camion', 20) }}</div>
-        <div class="kpi-cuerpo">
-            <div class="kpi-label">Viajes liquidados</div>
-            <div class="kpi-valor">{{ totales.viajes }}</div>
-            <div class="kpi-pie"><span>{{ operadores|length }} operador{{ 'es' if operadores|length != 1 else '' }}</span></div>
-        </div>
+        <div class="etiqueta">Viajes</div>
+        <div class="kpi-valor">{{ totales.viajes }}</div>
+        <div class="kpi-pie">{{ operadores|length }} operador{{ 'es' if operadores|length != 1 else '' }}</div>
     </div>
     <div class="kpi">
-        <div class="kpi-ico">{{ ico('recibo', 20) }}</div>
-        <div class="kpi-cuerpo">
-            <div class="kpi-label">Total percepciones</div>
-            <div class="kpi-valor">{{ totales.total | dinero }}</div>
-            <div class="kpi-pie"><span>Sueldos, viajes, estancias y extras</span></div>
-        </div>
+        <div class="etiqueta">Percepciones</div>
+        <div class="kpi-valor">{{ cifra(totales.total) }}</div>
+        <div class="kpi-pie">Sueldos, viajes, estancias y extras</div>
     </div>
     <div class="kpi">
-        <div class="kpi-ico ok">{{ ico('dinero', 20) }}</div>
-        <div class="kpi-cuerpo">
-            <div class="kpi-label">Total pagado</div>
-            <div class="kpi-valor">{{ totales.total_pagar | dinero }}</div>
-            <div class="kpi-pie"><span>Después de gastos, préstamos e Infonavit</span></div>
-        </div>
+        <div class="etiqueta">Deducciones</div>
+        <div class="kpi-valor">{{ cifra(deducciones_mes) }}</div>
+        <div class="kpi-pie">Gastos, préstamos e Infonavit</div>
     </div>
-</div>
+    <div class="kpi">
+        <div class="etiqueta">Total pagado</div>
+        <div class="kpi-valor">{{ cifra(totales.total_pagar) }}</div>
+        <div class="kpi-pie">Suma de “Total a pagar”</div>
+    </div>
+</section>
 
-<section class="card">
-    <div class="card-head">
-        <div>
-            <h2 class="card-titulo">Resumen por operador</h2>
-            <div class="card-sub">Clic en un operador para ver sus folios del mes.</div>
-        </div>
+<section class="tarjeta" aria-labelledby="t-operadores">
+    <div class="bloque-head">
+        <h2 class="titulo-seccion" id="t-operadores">Por operador</h2>
+        <span class="conteo">Clic en un operador para ver sus folios</span>
     </div>
 
     {% if operadores %}
@@ -65,48 +63,41 @@
             <tr>
                 <th>Operador</th>
                 <th class="num">Viajes</th>
-                <th class="num">Sueldo</th>
-                <th class="num">Ida</th>
-                <th class="num">Regreso</th>
-                <th class="num">Estancia</th>
-                <th class="num">Maniobras</th>
-                <th class="num">Extras</th>
-                <th class="num">Casetas</th>
-                <th class="num">Rendim.</th>
-                <th class="num col-total">Total</th>
-                <th class="num">Gastos</th>
-                <th class="num">Préstamo</th>
-                <th class="num">Infonavit</th>
-                <th class="num col-pagar">A pagar</th>
+                <th class="num">Percepciones</th>
+                <th class="num">Deducciones</th>
+                <th class="num">Total a pagar</th>
             </tr>
         </thead>
         <tbody>
             {% for o in operadores %}
-            <tr class="fila-operador" onclick="toggleDetalle('{{ loop.index }}')">
-                <td class="operador"><span class="flecha" id="flecha-{{ loop.index }}">{{ ico('derecha', 12) }}</span> {{ o.operador | title }}</td>
+            <tr class="fila-operador" tabindex="0" aria-expanded="false" aria-controls="detalle-{{ loop.index }}"
+                onclick="toggleDetalle('{{ loop.index }}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetalle('{{ loop.index }}');}">
+                <td><span class="flecha" id="flecha-{{ loop.index }}">{{ ico('derecha', 12) }}</span>{{ o.operador | title }}</td>
                 <td class="num">{{ o.viajes }}</td>
-                <td class="num">{{ o.sueldo | dinero }}</td>
-                <td class="num">{{ o.ida_monto | dinero }}</td>
-                <td class="num">{{ o.regreso_monto | dinero }}</td>
-                <td class="num">{{ o.estancia_monto | dinero }}</td>
-                <td class="num">{{ o.maniobras | dinero }}</td>
-                <td class="num">{{ o.extras | dinero }}</td>
-                <td class="num">{{ o.casetas | dinero }}</td>
-                <td class="num">{{ o.rendimiento_monto | dinero }}</td>
-                <td class="num col-total">{{ o.total | dinero }}</td>
-                <td class="num">{{ o.gastos | dinero }}</td>
-                <td class="num">{{ o.prestamo | dinero }}</td>
-                <td class="num">{{ o.infonavit | dinero }}</td>
-                <td class="num col-pagar">{{ o.total_pagar | dinero }}</td>
+                <td class="num suave">{{ o.total | dinero }}</td>
+                <td class="num suave">{{ (o.gastos + o.prestamo + o.infonavit) | dinero }}</td>
+                <td class="num pagar {% if o.total_pagar < 0 %}negativo{% endif %}">{{ o.total_pagar | dinero }}</td>
             </tr>
             <tr class="fila-detalle" id="detalle-{{ loop.index }}" style="display:none;">
-                <td colspan="15">
+                <td colspan="5">
+                    <div class="detalle-conceptos">
+                        <div><span class="etiqueta">Sueldo</span><b>{{ o.sueldo | dinero }}</b></div>
+                        <div><span class="etiqueta">Ida</span><b>{{ o.ida_monto | dinero }}</b></div>
+                        <div><span class="etiqueta">Regreso</span><b>{{ o.regreso_monto | dinero }}</b></div>
+                        <div><span class="etiqueta">Estancia</span><b>{{ o.estancia_monto | dinero }}</b></div>
+                        <div><span class="etiqueta">Maniobras</span><b>{{ o.maniobras | dinero }}</b></div>
+                        <div><span class="etiqueta">Extras</span><b>{{ o.extras | dinero }}</b></div>
+                        <div><span class="etiqueta">Casetas</span><b>{{ o.casetas | dinero }}</b></div>
+                        <div><span class="etiqueta">Rendimiento</span><b>{{ o.rendimiento_monto | dinero }}</b></div>
+                        <div class="menos"><span class="etiqueta">Gastos</span><b>{{ o.gastos | dinero }}</b></div>
+                        <div class="menos"><span class="etiqueta">Préstamo</span><b>{{ o.prestamo | dinero }}</b></div>
+                        <div class="menos"><span class="etiqueta">Infonavit</span><b>{{ o.infonavit | dinero }}</b></div>
+                    </div>
                     <table class="tabla-detalle">
                         <thead>
                             <tr>
                                 <th>Folio</th><th>Fecha</th><th>Sueldo</th>
-                                <th class="num">Total</th><th class="num">Gastos</th><th class="num">Préstamo</th>
-                                <th class="num">Infonavit</th><th class="num">A pagar</th><th></th>
+                                <th class="num">Total</th><th class="num">A pagar</th><th><span class="oculto">Acciones</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -114,15 +105,12 @@
                             <tr>
                                 <td class="folio">{{ d.folio }}</td>
                                 <td>{{ d.fecha | fecha_corta }}</td>
-                                <td><span class="tag {% if d.tipo_sueldo == 'QUIMICO' %}quimico{% endif %}">{{ d.tipo_sueldo }}</span></td>
+                                <td>{{ 'Químico' if d.tipo_sueldo == 'QUIMICO' else (d.tipo_sueldo or '') | capitalize }}</td>
                                 <td class="num">{{ d.total | dinero }}</td>
-                                <td class="num">{{ d.gastos | dinero }}</td>
-                                <td class="num">{{ d.prestamo | dinero }}</td>
-                                <td class="num">{{ d.infonavit | dinero }}</td>
-                                <td class="num pagar">{{ d.total_pagar | dinero }}</td>
-                                <td><div class="acciones">
-                                    <a href="/liquidaciones/pdf/{{ d.folio }}" target="_blank" class="accion" data-tip="Ver PDF">{{ ico('ver', 16) }}</a>
-                                    <a href="/liquidaciones/editar/{{ d.folio }}" class="accion" data-tip="Editar">{{ ico('editar', 16) }}</a>
+                                <td class="num pagar {% if d.total_pagar < 0 %}negativo{% endif %}">{{ d.total_pagar | dinero }}</td>
+                                <td class="num"><div class="acciones">
+                                    <a href="/liquidaciones/pdf/{{ d.folio }}" target="_blank" class="accion" data-tip="Ver PDF" aria-label="Ver PDF del folio {{ d.folio }}">{{ ico('ver', 16) }}</a>
+                                    <a href="/liquidaciones/editar/{{ d.folio }}" class="accion" data-tip="Editar" aria-label="Editar folio {{ d.folio }}">{{ ico('editar', 16) }}</a>
                                 </div></td>
                             </tr>
                             {% endfor %}
@@ -136,25 +124,15 @@
             <tr>
                 <td>Total del mes</td>
                 <td class="num">{{ totales.viajes }}</td>
-                <td class="num">{{ totales.sueldo | dinero }}</td>
-                <td class="num">{{ totales.ida_monto | dinero }}</td>
-                <td class="num">{{ totales.regreso_monto | dinero }}</td>
-                <td class="num">{{ totales.estancia_monto | dinero }}</td>
-                <td class="num">{{ totales.maniobras | dinero }}</td>
-                <td class="num">{{ totales.extras | dinero }}</td>
-                <td class="num">{{ totales.casetas | dinero }}</td>
-                <td class="num">{{ totales.rendimiento_monto | dinero }}</td>
-                <td class="num col-total">{{ totales.total | dinero }}</td>
-                <td class="num">{{ totales.gastos | dinero }}</td>
-                <td class="num">{{ totales.prestamo | dinero }}</td>
-                <td class="num">{{ totales.infonavit | dinero }}</td>
-                <td class="num col-pagar">{{ totales.total_pagar | dinero }}</td>
+                <td class="num">{{ totales.total | dinero }}</td>
+                <td class="num">{{ deducciones_mes | dinero }}</td>
+                <td class="num">{{ totales.total_pagar | dinero }}</td>
             </tr>
         </tfoot>
     </table>
     </div>
     {% else %}
-    <div class="vacio">{{ ico('reporte', 28) }} No hay liquidaciones en {{ mes_nombre }}.</div>
+    <div class="vacio">No hay liquidaciones en {{ mes_nombre | lower }}.</div>
     {% endif %}
 </section>
 {% endblock %}
@@ -166,6 +144,7 @@ function toggleDetalle(i){
     const abierto = fila.style.display !== 'none';
     fila.style.display = abierto ? 'none' : '';
     fila.previousElementSibling.classList.toggle('abierta', !abierto);
+    fila.previousElementSibling.setAttribute('aria-expanded', abierto ? 'false' : 'true');
 }
 </script>
 {% endblock %}

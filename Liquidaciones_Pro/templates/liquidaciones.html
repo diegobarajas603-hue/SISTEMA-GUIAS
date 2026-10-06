@@ -1,189 +1,174 @@
 {% extends "base.html" %}
-{% from '_iconos.html' import ico %}
+{% from '_iconos.html' import ico, cifra %}
 {% block titulo %}Liquidaciones{% endblock %}
-{% block header_titulo %}Panel de liquidaciones{% endblock %}
-{% block header_sub %}{{ lista|length }} liquidaciones registradas · {{ pendientes|length if conectado else '—' }} folios por liquidar{% endblock %}
+{% block header_titulo %}Panel{% endblock %}
 
 {% block contenido %}
+{%- set rev = namespace(n=0) -%}
+{%- for l in lista %}{% if l[5] < 0 %}{% set rev.n = rev.n + 1 %}{% endif %}{% endfor -%}
+{%- set n_pend = pendientes|length -%}
 
 {% if mensaje and pdf %}
-<div class="aviso ok">
-    <span>{{ ico('ok', 16) }} {{ mensaje }}</span>
-    <a href="/liquidaciones/pdf/{{ pdf }}" target="_blank" class="btn btn-primario btn-chico">{{ ico('archivo', 15) }} Abrir PDF · {{ pdf }}</a>
+<div class="aviso-pdf">
+    <span><span class="punto"></span>{{ mensaje }}</span>
+    <a href="/liquidaciones/pdf/{{ pdf }}" target="_blank" class="enlace-texto">Abrir PDF · {{ pdf }} →</a>
 </div>
 {% endif %}
 
-<div class="kpis">
-    <div class="kpi">
-        <div class="kpi-ico">{{ ico('recibo', 20) }}</div>
-        <div class="kpi-cuerpo">
-            <div class="kpi-label">Liquidadas este mes</div>
-            <div class="kpi-valor">{{ kpi.mes_cantidad }}</div>
-            <div class="kpi-pie">
-                {% if kpi.ant_cantidad is not none %}
-                {% set d = kpi.mes_cantidad - kpi.ant_cantidad %}
-                <span class="tendencia {% if d > 0 %}sube{% elif d < 0 %}baja{% else %}igual{% endif %}">{{ ico('sube' if d > 0 else ('baja' if d < 0 else 'igual'), 12) }} {{ '%+d' % d if d else '0' }}</span>
-                <span>vs. {{ kpi.ant_nombre }}</span>
-                {% else %}
-                <span>{{ kpi.mes_nombre }}</span>
-                {% endif %}
-            </div>
-        </div>
+<!-- 1. Titular -->
+<header class="encabezado">
+    <div>
+        <div class="etiqueta">{{ kpi.mes_nombre | upper }}</div>
+        <h1 class="titular">
+            {{ kpi.mes_cantidad }} {{ 'viaje liquidado' if kpi.mes_cantidad == 1 else 'viajes liquidados' }}.<br>
+            <span class="tenue">{% if conectado %}{{ n_pend }} {{ 'folio por liquidar' if n_pend == 1 else 'folios por liquidar' }}.{% else %}Sin enlace con salidas.{% endif %}</span>
+        </h1>
     </div>
+    <div class="encabezado-acciones">
+        <a href="/#nueva" class="btn btn-primario" onclick="return irANueva(event)">{{ ico('mas', 16) }} Nueva liquidación</a>
+    </div>
+</header>
+
+<!-- 2. Indicadores -->
+<section class="kpis tarjeta" aria-label="Indicadores del mes">
     <div class="kpi">
-        <div class="kpi-ico ok">{{ ico('dinero', 20) }}</div>
-        <div class="kpi-cuerpo">
-            <div class="kpi-label">Pagado este mes</div>
-            <div class="kpi-valor">{{ kpi.mes_pagado | dinero }}</div>
-            <div class="kpi-pie">
-                {% if kpi.ant_cantidad is not none %}
-                {% set d = kpi.mes_pagado - kpi.ant_pagado %}
-                <span class="tendencia {% if d > 0 %}sube{% elif d < 0 %}baja{% else %}igual{% endif %}">{{ ico('sube' if d > 0 else ('baja' if d < 0 else 'igual'), 12) }} {{ d | dinero }}</span>
-                <span>vs. {{ kpi.ant_nombre }}</span>
-                {% else %}
-                <span>Suma de "Total a pagar"</span>
-                {% endif %}
-            </div>
+        <div class="etiqueta">Liquidadas</div>
+        <div class="kpi-valor">{{ kpi.mes_cantidad }}</div>
+        <div class="kpi-pie">
+            {% if kpi.ant_cantidad is not none %}
+            {% set d = kpi.mes_cantidad - kpi.ant_cantidad %}
+            <span class="{% if d > 0 %}sube{% elif d < 0 %}baja{% endif %}">{{ '%+d' % d if d else 'Igual' }}</span> vs. {{ kpi.ant_nombre }}
+            {% else %}En {{ kpi.mes_nombre | lower }}{% endif %}
         </div>
     </div>
     <div class="kpi">
-        <div class="kpi-ico navy">{{ ico('camion', 20) }}</div>
-        <div class="kpi-cuerpo">
-            <div class="kpi-label">Folios por liquidar</div>
-            <div class="kpi-valor">{{ pendientes|length if conectado else '—' }}</div>
-            <div class="kpi-pie"><span>{% if conectado %}Del sistema de salidas{% else %}Sin enlace con salidas{% endif %}</span></div>
+        <div class="etiqueta">Pagado</div>
+        <div class="kpi-valor">{{ cifra(kpi.mes_pagado) }}</div>
+        <div class="kpi-pie">
+            {% if kpi.ant_cantidad is not none %}
+            {% set d = kpi.mes_pagado - kpi.ant_pagado %}
+            <span class="{% if d > 0 %}sube{% elif d < 0 %}baja{% endif %}">{{ ('+' if d > 0 else '−' if d < 0 else '') ~ (d | abs | dinero) }}</span> vs. {{ kpi.ant_nombre }}
+            {% else %}Suma de “A pagar”{% endif %}
         </div>
     </div>
-</div>
-
-<section class="card destacada" id="nueva">
-    <div class="card-head">
-        <div>
-            <h2 class="card-titulo">Nueva liquidación</h2>
-            <div class="card-sub">Escribe el folio de salida. El operador, las fechas y los clientes se toman del sistema de salidas.</div>
-        </div>
+    <div class="kpi">
+        <div class="etiqueta">Por liquidar</div>
+        <div class="kpi-valor">{{ n_pend if conectado else '—' }}</div>
+        <div class="kpi-pie">{% if conectado %}Del sistema de salidas{% else %}Sin enlace con salidas{% endif %}</div>
     </div>
-
-    <form action="/liquidaciones/buscar" method="POST" class="buscar" autocomplete="off">
-        <div class="campo-ico">
-            {{ ico('buscar', 18) }}
-            <input type="text" name="folio" id="folio" list="folios_pendientes" placeholder="Folio de salida, ej. 50917" autofocus required>
-            <kbd>Ctrl K</kbd>
-            <datalist id="folios_pendientes">
-                {% for p in pendientes %}<option value="{{ p[0] }}">{{ p[1] }} — {{ p[2] | fecha_corta }}</option>{% endfor %}
-            </datalist>
-        </div>
-        <button type="submit" class="btn btn-primario">{{ ico('buscar', 16) }} Buscar folio</button>
-    </form>
-
-    {% if pendientes %}
-    <div class="ayuda" style="margin-top:16px;">Folios sin liquidar, del más reciente al más antiguo. Clic en uno para abrir su liquidación.</div>
-    <div class="folios-grid">
-        {% for p in pendientes[:12] %}
-        <button type="button" class="folio-card" onclick="cargar('{{ p[0] }}')" title="Abrir liquidación del folio {{ p[0] }}">
-            <span class="folio-num">{{ p[0] }}</span>
-            <span class="folio-info">
-                <span class="folio-nombre">{{ p[1].split(' ')[0].capitalize() }} {{ p[1].split(' ')[1].capitalize() if p[1].split(' ')|length > 1 else '' }}</span>
-                <span class="folio-fecha">{{ p[2] | fecha_corta }}</span>
-            </span>
-            {{ ico('derecha', 16, 'flecha-ir') }}
-        </button>
-        {% endfor %}
+    <div class="kpi">
+        <div class="etiqueta">En revisión</div>
+        <div class="kpi-valor">{{ rev.n }}</div>
+        <div class="kpi-pie">{% if rev.n %}<span class="baja">Con “A pagar” negativo</span>{% else %}Ninguna con saldo negativo{% endif %}</div>
     </div>
-    <div class="folios-pie">
-        <span class="ayuda" style="margin:0;">Mostrando {{ [pendientes|length, 12] | min }} de {{ pendientes|length }}</span>
-        <button type="button" class="btn btn-secundario btn-chico" onclick="abrirPanel('panel-folios')">{{ ico('lista', 15) }} Ver todos los folios</button>
-    </div>
-    {% elif conectado %}
-    <div class="vacio">{{ ico('ok', 28) }} Todos los folios de salida ya están liquidados.</div>
-    {% endif %}
 </section>
 
-<section class="card" id="historial">
-    <div class="card-head">
-        <div>
-            <h2 class="card-titulo">Historial</h2>
-            <div class="card-sub">Liquidaciones capturadas. <span id="tabla-historial-conteo">{{ lista|length }} registro{{ '' if lista|length == 1 else 's' }}</span>.</div>
-        </div>
-        <div class="toolbar">
-            <div class="campo-ico">
-                {{ ico('buscar', 16) }}
-                <input type="text" id="buscador" data-buscador placeholder="Buscar folio, operador o cliente">
-            </div>
-            <button type="button" class="btn btn-secundario btn-chico" onclick="abrirPanel('panel-filtros')">{{ ico('filtro', 15) }} Filtros</button>
-            <button type="button" class="btn btn-secundario btn-chico" onclick="exportarTabla('tabla-historial', 'liquidaciones')">{{ ico('descargar', 15) }} Exportar</button>
-        </div>
-    </div>
+<!-- 3. Dos columnas -->
+<div class="columnas">
 
-    <div class="tabla-wrap">
-    <table id="tabla-historial">
-        <thead>
-            <tr>
-                <th class="ordenable" data-sort="folio" onclick="ordenarTabla('tabla-historial', this)">Folio {{ ico('ordenar', 12) }}</th>
-                <th class="ordenable" data-sort="operador" onclick="ordenarTabla('tabla-historial', this)">Operador {{ ico('ordenar', 12) }}</th>
-                <th>Cliente</th>
-                <th class="ordenable" data-sort="fecha" onclick="ordenarTabla('tabla-historial', this)">Fecha {{ ico('ordenar', 12) }}</th>
-                <th>Sueldo</th>
-                <th class="num ordenable" data-sort="total" onclick="ordenarTabla('tabla-historial', this)">Total {{ ico('ordenar', 12) }}</th>
-                <th class="num ordenable" data-sort="pagar" onclick="ordenarTabla('tabla-historial', this)">A pagar {{ ico('ordenar', 12) }}</th>
-                <th>Estado</th>
-                <th data-export=""></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for l in lista %}
-            <tr data-fecha="{{ l[1] }}" data-folio="{{ l[0] }}" data-operador="{{ l[2] }}" data-total="{{ l[4] }}" data-pagar="{{ l[5] }}" data-tipo="{{ l[3] }}">
-                <td class="folio">{{ l[0] }}</td>
-                <td>{{ l[2] | title }}</td>
-                <td class="suave">{{ (l[6] or '—') | title }}</td>
-                <td class="suave">{{ l[1] | fecha_corta }}</td>
-                <td><span class="tag {% if l[3] == 'QUIMICO' %}quimico{% endif %}">{{ l[3] | capitalize }}</span></td>
-                <td class="num">{{ l[4] | dinero }}</td>
-                <td class="num pagar">{{ l[5] | dinero }}</td>
-                <td>
-                    {% if l[5] < 0 %}<span class="badge warn">{{ ico('alerta', 12) }} Revisión</span>
-                    {% else %}<span class="badge ok">{{ ico('check', 12) }} Liquidado</span>{% endif %}
-                </td>
-                <td class="sin-export">
-                    <div class="acciones">
-                        <a href="/liquidaciones/pdf/{{ l[0] }}" target="_blank" class="accion" data-tip="Ver PDF">{{ ico('ver', 16) }}</a>
-                        <a href="/liquidaciones/editar/{{ l[0] }}" class="accion" data-tip="Editar">{{ ico('editar', 16) }}</a>
-                    </div>
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="9" class="vacio">{{ ico('recibo', 28) }} Aún no hay liquidaciones capturadas.</td></tr>
+    <section class="tarjeta" aria-labelledby="t-pendientes">
+        <div class="bloque-head">
+            <h2 class="titulo-seccion" id="t-pendientes">Por liquidar</h2>
+            <span class="conteo">{% if conectado %}{{ n_pend }} {{ 'folio' if n_pend == 1 else 'folios' }}{% else %}—{% endif %}</span>
+        </div>
+        {% if pendientes %}
+        <ul class="lista-folios" id="lista-recientes">
+            {% for p in pendientes[:5] %}
+            {% set partes = p[1].split(' ') %}
+            <li>
+                <button type="button" class="fila-folio" onclick="cargar('{{ p[0] }}')" aria-label="Abrir liquidación del folio {{ p[0] }}, {{ p[1] | title }}">
+                    <span class="f-num">{{ p[0] }}</span>
+                    <span class="f-nombre">{{ partes[0] | capitalize }} {{ partes[1] | capitalize if partes|length > 1 else '' }}</span>
+                    <span class="f-fecha">{{ p[2] | fecha_corta }}</span>
+                </button>
+            </li>
             {% endfor %}
-        </tbody>
-    </table>
-    </div>
-</section>
+        </ul>
+        <div class="lista-pie">
+            <button type="button" class="enlace-texto" onclick="abrirPanel('panel-folios')">Ver {{ 'el folio' if n_pend == 1 else 'los ' ~ n_pend ~ ' folios' }} →</button>
+        </div>
+        {% elif conectado %}
+        <div class="vacio">Todos los folios de salida ya están liquidados.</div>
+        {% else %}
+        <div class="vacio">Sin enlace con salidas.</div>
+        {% endif %}
+    </section>
+
+    <section class="tarjeta" id="historial" aria-labelledby="t-historial">
+        <div class="bloque-head">
+            <h2 class="titulo-seccion" id="t-historial">Historial <span class="conteo" id="tabla-historial-conteo" style="font-weight:400; margin-left:8px;">{{ lista|length }} registro{{ '' if lista|length == 1 else 's' }}</span></h2>
+            <div class="bloque-acciones">
+                <div class="segmento chico" role="radiogroup" aria-label="Periodo" id="periodo">
+                    <button type="button" role="radio" aria-checked="true" data-periodo="actual">Este mes</button>
+                    <button type="button" role="radio" aria-checked="false" tabindex="-1" data-periodo="anterior">Anterior</button>
+                    <button type="button" role="radio" aria-checked="false" tabindex="-1" data-periodo="todo">Todo</button>
+                </div>
+                <button type="button" class="btn-ico tip-arriba" data-tip="Filtros" aria-label="Filtros" onclick="abrirPanel('panel-filtros')">{{ ico('filtro', 16) }}</button>
+                <button type="button" class="btn-ico tip-arriba" data-tip="Exportar" aria-label="Exportar" onclick="exportarTabla('tabla-historial', 'liquidaciones')">{{ ico('descargar', 16) }}</button>
+            </div>
+        </div>
+
+        <div class="tabla-wrap">
+        <table id="tabla-historial">
+            <thead>
+                <tr>
+                    <th class="ordenable" data-sort="folio" onclick="ordenarTabla('tabla-historial', this)">Folio{{ ico('ordenar', 12) }}</th>
+                    <th class="ordenable" data-sort="operador" onclick="ordenarTabla('tabla-historial', this)">Operador{{ ico('ordenar', 12) }}</th>
+                    <th class="ordenable" data-sort="fecha" onclick="ordenarTabla('tabla-historial', this)">Fecha{{ ico('ordenar', 12) }}</th>
+                    <th class="num ordenable" data-sort="total" onclick="ordenarTabla('tabla-historial', this)">Total{{ ico('ordenar', 12) }}</th>
+                    <th class="num ordenable" data-sort="pagar" onclick="ordenarTabla('tabla-historial', this)">A pagar{{ ico('ordenar', 12) }}</th>
+                    <th>Estado</th>
+                    <th data-export=""><span class="oculto">Acciones</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in lista %}
+                <tr data-fecha="{{ l[1] }}" data-folio="{{ l[0] }}" data-operador="{{ l[2] }}" data-total="{{ l[4] }}" data-pagar="{{ l[5] }}" data-tipo="{{ l[3] }}">
+                    <td class="folio">{{ l[0] }}</td>
+                    <td>{{ l[2] | title }}</td>
+                    <td class="suave">{{ l[1] | fecha_corta }}</td>
+                    <td class="num suave">{{ l[4] | dinero }}</td>
+                    <td class="num pagar {% if l[5] < 0 %}negativo{% endif %}">{{ l[5] | dinero }}</td>
+                    <td>
+                        {% if l[5] < 0 %}<span class="estado warn"><span class="punto"></span>Revisión</span>
+                        {% else %}<span class="estado"><span class="punto"></span>Liquidado</span>{% endif %}
+                    </td>
+                    <td class="num sin-export">
+                        <div class="acciones">
+                            <a href="/liquidaciones/pdf/{{ l[0] }}" target="_blank" class="accion" data-tip="Ver PDF" aria-label="Ver PDF del folio {{ l[0] }}">{{ ico('ver', 16) }}</a>
+                            <a href="/liquidaciones/editar/{{ l[0] }}" class="accion" data-tip="Editar" aria-label="Editar folio {{ l[0] }}">{{ ico('editar', 16) }}</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                <tr id="tabla-historial-vacio" {% if lista %}hidden{% endif %}><td colspan="7" class="vacio">{% if lista %}No hay liquidaciones en este periodo.{% else %}Aún no hay liquidaciones capturadas.{% endif %}</td></tr>
+            </tbody>
+        </table>
+        </div>
+    </section>
+</div>
 {% endblock %}
 
 {% block paneles %}
 <!-- Panel: todos los folios pendientes -->
-<aside id="panel-folios" class="panel-lateral" aria-label="Folios pendientes">
+<aside id="panel-folios" class="panel-lateral" aria-label="Folios por liquidar">
     <div class="panel-head">
-        <h3>Folios por liquidar <span class="badge azul">{{ pendientes|length }}</span></h3>
-        <button class="btn-ico" onclick="cerrarPanel()" aria-label="Cerrar">{{ ico('cerrar', 16) }}</button>
+        <h3>Por liquidar<span class="tenue">{{ pendientes|length }}</span></h3>
+        <button type="button" class="btn-ico" onclick="cerrarPanel()" aria-label="Cerrar">{{ ico('cerrar', 16) }}</button>
     </div>
     <div class="panel-cuerpo">
-        <div class="campo-ico">
-            {{ ico('buscar', 16) }}
-            <input type="text" id="buscar-pendientes" placeholder="Buscar folio u operador" oninput="filtrarPendientes(this.value)">
-        </div>
-        <div class="panel-lista" id="lista-pendientes">
+        <input type="text" id="buscar-pendientes" class="control" placeholder="Buscar folio u operador" oninput="filtrarPendientes(this.value)" aria-label="Buscar folio u operador">
+        <ul class="lista-folios" id="lista-pendientes">
             {% for p in pendientes %}
-            <button type="button" class="folio-card" onclick="cargar('{{ p[0] }}')">
-                <span class="folio-num">{{ p[0] }}</span>
-                <span class="folio-info">
-                    <span class="folio-nombre">{{ p[1] | title }}</span>
-                    <span class="folio-fecha">Salida {{ p[2] | fecha_corta }}</span>
-                </span>
-                {{ ico('derecha', 16, 'flecha-ir') }}
-            </button>
+            <li>
+                <button type="button" class="fila-folio" onclick="cargar('{{ p[0] }}')">
+                    <span class="f-num">{{ p[0] }}</span>
+                    <span class="f-nombre">{{ p[1] | title }}</span>
+                    <span class="f-fecha">{{ p[2] | fecha_corta }}</span>
+                </button>
+            </li>
             {% endfor %}
-        </div>
+        </ul>
     </div>
 </aside>
 
@@ -191,13 +176,14 @@
 <aside id="panel-filtros" class="panel-lateral" aria-label="Filtros">
     <div class="panel-head">
         <h3>Filtrar historial</h3>
-        <button class="btn-ico" onclick="cerrarPanel()" aria-label="Cerrar">{{ ico('cerrar', 16) }}</button>
+        <button type="button" class="btn-ico" onclick="cerrarPanel()" aria-label="Cerrar">{{ ico('cerrar', 16) }}</button>
     </div>
     <div class="panel-cuerpo">
-        <div class="campo-grupo"><label>Desde</label><input type="date" id="f-desde"></div>
-        <div class="campo-grupo"><label>Hasta</label><input type="date" id="f-hasta"></div>
+        <div class="campo-grupo"><label for="buscador">Texto</label><input type="text" id="buscador" data-buscador placeholder="Folio, operador o fecha"></div>
+        <div class="campo-grupo"><label for="f-desde">Desde</label><input type="date" id="f-desde"></div>
+        <div class="campo-grupo"><label for="f-hasta">Hasta</label><input type="date" id="f-hasta"></div>
         <div class="campo-grupo">
-            <label>Tipo de sueldo</label>
+            <label for="f-tipo">Tipo de sueldo</label>
             <select id="f-tipo"><option value="">Todos</option><option value="REGULAR">Regular</option><option value="QUIMICO">Químico</option></select>
         </div>
     </div>
@@ -219,26 +205,53 @@ function cargar(folio){
     input.form.requestSubmit();
 }
 
+// Periodo del historial (Este mes / Anterior / Todo): se filtra en el navegador
+let periodo = 'actual';
+function mesDe(delta){
+    const d = new Date();
+    d.setDate(1); d.setMonth(d.getMonth() + delta);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+document.querySelectorAll('#periodo [role="radio"]').forEach(function(b){
+    b.addEventListener('click', function(){
+        marcarSegmento(document.getElementById('periodo'), b);
+        periodo = b.dataset.periodo;
+        aplicarFiltros();
+    });
+});
+
 function aplicarFiltros(){
     const n = filtrarTabla('tabla-historial', {
         texto: document.getElementById('buscador').value,
         desde: document.getElementById('f-desde').value,
         hasta: document.getElementById('f-hasta').value,
         tipo:  document.getElementById('f-tipo').value,
+        mes:   periodo === 'actual' ? mesDe(0) : (periodo === 'anterior' ? mesDe(-1) : ''),
     });
     return n;
 }
 function limpiarFiltros(){
-    ['f-desde','f-hasta','f-tipo'].forEach(id => document.getElementById(id).value = '');
+    ['buscador','f-desde','f-hasta','f-tipo'].forEach(id => document.getElementById(id).value = '');
     aplicarFiltros();
 }
 document.getElementById('buscador').addEventListener('input', aplicarFiltros);
+aplicarFiltros();
 
 function filtrarPendientes(texto){
     texto = texto.toLowerCase();
-    document.querySelectorAll('#lista-pendientes .folio-card').forEach(function(c){
+    document.querySelectorAll('#lista-pendientes li').forEach(function(c){
         c.style.display = c.textContent.toLowerCase().includes(texto) ? '' : 'none';
     });
 }
+
+// ↑ ↓ para recorrer los folios, Enter para abrir
+listaNavegable(document.getElementById('lista-recientes'), '.fila-folio');
+listaNavegable(document.getElementById('lista-pendientes'), '.fila-folio');
+document.getElementById('folio').addEventListener('keydown', function(e){
+    if(e.key === 'ArrowDown' && !this.value){
+        const primero = document.querySelector('#lista-recientes .fila-folio');
+        if(primero){ e.preventDefault(); primero.focus(); }
+    }
+});
 </script>
 {% endblock %}

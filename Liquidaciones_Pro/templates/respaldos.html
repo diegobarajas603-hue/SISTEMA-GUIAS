@@ -2,70 +2,44 @@
 {% from '_iconos.html' import ico %}
 {% block titulo %}Respaldos{% endblock %}
 {% block header_titulo %}Respaldos{% endblock %}
-{% block header_sub %}Copias de seguridad de la base de liquidaciones{% endblock %}
 
 {% block contenido %}
-<div class="topbar">
+<header class="encabezado">
     <div>
-        <div class="eyebrow">Seguridad</div>
-        <h1 class="titulo">Respaldos de la base de datos</h1>
+        <div class="etiqueta">Copias de seguridad</div>
+        <h1 class="titular">
+            Respaldos.<br>
+            <span class="tenue">{% if respaldos %}{{ respaldos|length }} guardado{{ 's' if respaldos|length != 1 else '' }} · último {{ respaldos[0].fecha }}.{% else %}Aún no hay respaldos.{% endif %}</span>
+        </h1>
     </div>
-    <div class="topbar-meta">
-        <form action="/admin/respaldos/nuevo" method="GET"><button type="submit" class="btn btn-primario">{{ ico('respaldo', 16) }} Crear respaldo ahora</button></form>
+    <div class="encabezado-acciones">
+        <form action="/admin/respaldos/nuevo" method="GET"><button type="submit" class="btn btn-primario">Crear respaldo ahora</button></form>
     </div>
-</div>
+</header>
 
-<div class="kpis">
-    <div class="kpi">
-        <div class="kpi-ico">{{ ico('base', 20) }}</div>
-        <div class="kpi-cuerpo">
-            <div class="kpi-label">Respaldos guardados</div>
-            <div class="kpi-valor">{{ respaldos|length }}</div>
-            <div class="kpi-pie"><span>Se conservan los últimos 60</span></div>
-        </div>
-    </div>
-    <div class="kpi">
-        <div class="kpi-ico ok">{{ ico('reloj', 20) }}</div>
-        <div class="kpi-cuerpo">
-            <div class="kpi-label">Último respaldo</div>
-            <div class="kpi-valor" style="font-size:20px;">{{ respaldos[0].fecha if respaldos else '—' }}</div>
-            <div class="kpi-pie"><span>{{ respaldos[0].motivo if respaldos else 'Aún no hay respaldos' }}</span></div>
-        </div>
-    </div>
-    <div class="kpi">
-        <div class="kpi-ico navy">{{ ico('refrescar', 20) }}</div>
-        <div class="kpi-cuerpo">
-            <div class="kpi-label">Automáticos</div>
-            <div class="kpi-valor" style="font-size:20px;">Al arrancar · cada hora</div>
-            <div class="kpi-pie"><span>Y antes de borrar una liquidación</span></div>
-        </div>
-    </div>
-</div>
-
-<section class="card">
-    <div class="card-head">
-        <div>
-            <h2 class="card-titulo">Archivos</h2>
-            <div class="card-sub">Carpeta <code>{{ carpeta }}</code>. Para restaurar uno: cierra el programa, renombra <code>data/liquidaciones.db</code> y copia el respaldo con ese nombre.</div>
-        </div>
-    </div>
-    <div class="tabla-wrap">
-    <table>
-        <thead><tr><th>Fecha</th><th>Motivo</th><th>Archivo</th><th class="num">Tamaño</th><th></th></tr></thead>
-        <tbody>
-            {% for r in respaldos %}
-            <tr>
-                <td><b>{{ r.fecha }}</b></td>
-                <td><span class="badge neutro">{{ r.motivo }}</span></td>
-                <td class="suave" style="font-size:12.5px;">{{ r.nombre }}</td>
-                <td class="num suave">{{ r.tamano }}</td>
-                <td><div class="acciones"><a href="/admin/respaldos/descargar/{{ r.nombre }}" class="accion" data-tip="Descargar">{{ ico('descargar', 16) }}</a></div></td>
-            </tr>
-            {% else %}
-            <tr><td colspan="5" class="vacio">{{ ico('base', 28) }} Aún no hay respaldos. Se crea uno solo al arrancar el programa con datos.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    </div>
+<section class="tarjeta" aria-label="Archivos de respaldo">
+    {% if respaldos %}
+    <ul class="lista-respaldos">
+        {% for r in respaldos %}
+        <li>
+            <div class="fila-lista" title="{{ r.nombre }}">
+                <span>{{ r.fecha or r.nombre }}</span>
+                <span class="r-tipo">{{ r.motivo | replace('periodico', 'periódico') | capitalize }}</span>
+                <span class="r-tam">{{ r.tamano }}</span>
+                <span class="acciones">
+                    <a href="/admin/respaldos/descargar/{{ r.nombre }}" class="accion" aria-label="Descargar {{ r.nombre }}">{{ ico('descargar', 15) }} Descargar</a>
+                </span>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="vacio">Aún no hay respaldos. Se crea uno solo al arrancar el programa con datos.</div>
+    {% endif %}
 </section>
+
+<p class="pie-nota">
+    Automáticos al arrancar, cada hora y antes de borrar una liquidación; se conservan los últimos 60.<br>
+    Carpeta <code>{{ carpeta }}</code>. Para restaurar uno: cierra el programa, renombra <code>data/liquidaciones.db</code> y copia el respaldo con ese nombre.
+</p>
 {% endblock %}

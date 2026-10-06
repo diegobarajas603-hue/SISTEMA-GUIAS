@@ -1,263 +1,213 @@
 {% extends "base.html" %}
 {% from '_iconos.html' import ico %}
 {% block titulo %}Liquidación {{ liq.folio }}{% endblock %}
-{% block header_titulo %}{{ liq.operador | title }}{% endblock %}
-{% block header_sub %}{% if modo == 'editar' %}Editando liquidación{% else %}Nueva liquidación{% endif %} · Folio {{ liq.folio }} · Salida {{ liq.fecha_salida | fecha_corta }}{% endblock %}
-{% block cta %}
-<a href="/" class="cta" style="background:rgba(255,255,255,0.08); box-shadow:none;">{{ ico('izquierda', 18) }} Volver al panel</a>
-{% endblock %}
-
-{% block nav %}
-            <div class="nav-titulo">Secciones</div>
-            <a href="#s2" class="activo">{{ ico('recibo', 17) }} Percepciones</a>
-            <a href="#s3">{{ ico('dinero', 17) }} Deducciones</a>
-            {% if modo == 'editar' %}
-            <div class="nav-titulo">Documento</div>
-            <a href="/liquidaciones/pdf/{{ liq.folio }}" target="_blank">{{ ico('archivo', 17) }} PDF actual</a>
-            {% endif %}
-{% endblock %}
-
-{% block foot %}
-            <div class="conexion">
-                <div class="dot"></div>
-                <div style="min-width:0;">
-                    <b>Folio {{ liq.folio }}</b>
-                    <small>{% if modo == 'editar' %}Liquidación guardada{% else %}Sin guardar todavía{% endif %}</small>
-                </div>
-            </div>
+{% block main_clase %}formulario{% endblock %}
+{% block header_titulo %}{% if modo == 'editar' %}Editar liquidación{% else %}Nueva liquidación{% endif %} <span class="tenue">/ {{ liq.folio }}</span>{% endblock %}
+{% block header_acciones %}
+<a href="/" class="btn btn-ghost btn-chico" id="btn-cancelar" onclick="return cancelar(event)">Cancelar</a>
 {% endblock %}
 
 {% block contenido %}
-        <form id="form-liq"
-              action="{% if modo == 'editar' %}/liquidaciones/editar/{{ liq.folio }}{% else %}/liquidaciones/guardar{% endif %}"
-              method="POST">
-            <input type="hidden" name="folio" value="{{ liq.folio }}">
-            <input type="hidden" name="estancia_fechas" id="estancia_fechas" value="{{ liq.estancia_fechas or '' }}">
+{%- set folio_regreso = (regreso or {}).get('folio') or ((liq.folio ~ '-R') if (regreso or liq.fecha_regreso) else '') -%}
+<form id="form-liq" class="form-liq"
+      action="{% if modo == 'editar' %}/liquidaciones/editar/{{ liq.folio }}{% else %}/liquidaciones/guardar{% endif %}"
+      method="POST">
+    <input type="hidden" name="folio" value="{{ liq.folio }}">
+    <input type="hidden" name="estancia_fechas" id="estancia_fechas" value="{{ liq.estancia_fechas or '' }}">
 
-            <div class="form-layout">
+    <div class="form-layout">
 
-                <div>
+        <div class="form-cuerpo">
 
-                    <!-- DATOS DEL VIAJE (franja discreta) -->
-                    <div class="franja-viaje" id="s1">
-                        <div class="dato">{{ ico('archivo', 15) }}<span>Folio</span><b>{{ liq.folio }}</b></div>
-                        <div class="dato">{{ ico('camion', 15) }}<span>Salida</span><b>{{ liq.fecha_salida | fecha_corta }}</b></div>
-                        <div class="dato fecha">
-                            {{ ico('calendario', 15) }}<span>Fecha de liquidación</span>
-                            <input type="date" name="fecha" value="{{ liq.fecha or '' }}" required>
-                        </div>
-                    </div>
-
-                    <!-- 02 PERCEPCIONES -->
-                    <section class="card seccion" id="s2">
-                        <div class="seccion-head">
-                            <div class="paso">01</div>
-                            <div>
-                                <h2 class="card-titulo">Percepciones</h2>
-                                <div class="card-sub">Lo que se le paga al operador por este viaje.</div>
-                            </div>
-                        </div>
-
-                        <div class="subseccion">
-                            <div class="subseccion-titulo">Sueldo base</div>
-                            <div class="grid">
-                                <div>
-                                    <label>Tipo de sueldo</label>
-                                    <select name="tipo_sueldo" id="tipo_sueldo">
-                                        {% for nombre, monto in sueldos.items() %}
-                                        <option value="{{ nombre }}" {% if liq.tipo_sueldo == nombre %}selected{% endif %}>
-                                            {{ nombre.capitalize() }} · ${{ '{:,.0f}'.format(monto) }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label>Sueldo</label>
-                                    <div class="monto">
-                                        <input type="text" name="sueldo" id="sueldo" value="{{ '%.2f' % (liq.sueldo or 0) }}" readonly>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="subseccion">
-                            <div class="subseccion-titulo">Viaje</div>
-                            <div class="fila-viaje">
-                                <div>
-                                    <label>Ida · cliente</label>
-                                    <input type="text" name="ida_cliente" class="mayus" value="{{ liq.ida_cliente or '' }}" placeholder="Cliente de ida">
-                                </div>
-                                <div>
-                                    <label>Ida · monto</label>
-                                    <div class="monto"><input type="number" step="0.01" min="0" name="ida_monto" class="calc" value="{{ liq.ida_monto | monto }}" placeholder="0.00"></div>
-                                </div>
-                            </div>
-                            <div class="fila-viaje">
-                                <div>
-                                    <label>Regreso · cliente</label>
-                                    <input type="text" name="regreso_cliente" class="mayus" value="{{ liq.regreso_cliente or '' }}" placeholder="Cliente de regreso">
-                                </div>
-                                <div>
-                                    <label>Regreso · monto</label>
-                                    <div class="monto"><input type="number" step="0.01" min="0" name="regreso_monto" class="calc" value="{{ liq.regreso_monto | monto }}" placeholder="0.00"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="subseccion">
-                            <div class="subseccion-titulo">Estancia</div>
-                            <div class="estancia-layout">
-                                <div class="calendario" id="calendario">
-                                    <div class="cal-nav">
-                                        <button type="button" onclick="moverMes(-1)">‹</button>
-                                        <div class="cal-mes" id="cal-mes"></div>
-                                        <button type="button" onclick="moverMes(1)">›</button>
-                                    </div>
-                                    <div class="cal-grid" id="cal-grid"></div>
-                                    <div class="cal-leyenda">
-                                        <span class="l-viaje">Días del viaje</span>
-                                        <span class="l-llegada">Llegada (no se paga)</span>
-                                        <span class="l-sel">Estancia</span>
-                                    </div>
-                                </div>
-                                <div class="estancia-detalle">
-                                    <label>Monto de estancia</label>
-                                    <div class="monto">
-                                        <input type="number" step="0.01" min="0" name="estancia_monto" class="calc" value="{{ liq.estancia_monto | monto }}" placeholder="0.00">
-                                    </div>
-                                    <div class="ayuda" id="resumen-estancia">Marca en el calendario el día de llegada y los días que se quedó.</div>
-                                    <div class="chips" id="chips-estancia"></div>
-                                    <div class="nota">
-                                        Se calcula solo: ${{ tarifa_estancia.ENTRE_SEMANA }} de lunes a viernes, ${{ tarifa_estancia.FIN_DE_SEMANA }} sábado y domingo.
-                                        El primer día marcado es la llegada y no se paga. Puedes corregir el monto a mano.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="subseccion">
-                            <div class="subseccion-titulo">Otros conceptos</div>
-                            <div class="grid-3">
-                                <div>
-                                    <label>Maniobras</label>
-                                    <div class="monto"><input type="number" step="0.01" min="0" name="maniobras" class="calc" value="{{ liq.maniobras | monto }}" placeholder="0.00"></div>
-                                </div>
-                                <div>
-                                    <label>Extras</label>
-                                    <div class="monto"><input type="number" step="0.01" min="0" name="extras" class="calc" value="{{ liq.extras | monto }}" placeholder="0.00"></div>
-                                </div>
-                                <div>
-                                    <label>Casetas</label>
-                                    <div class="monto"><input type="number" step="0.01" min="0" name="casetas" class="calc" value="{{ liq.casetas | monto }}" placeholder="0.00"></div>
-                                </div>
-                            </div>
-                            <div class="fila-viaje" style="margin-top:16px;">
-                                <div>
-                                    <label>Rendimiento</label>
-                                    <div class="check-row">
-                                        <input type="checkbox" name="rendimiento_aplica" id="rendimiento_aplica" value="1" {% if liq.rendimiento_aplica %}checked{% endif %}>
-                                        <label for="rendimiento_aplica">¿Hubo rendimiento? Activa para capturar el monto</label>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label>Monto de rendimiento</label>
-                                    <div class="monto">
-                                        <input type="number" step="0.01" min="0" name="rendimiento_monto" id="rendimiento_monto" class="calc"
-                                               value="{{ liq.rendimiento_monto | monto }}" placeholder="0.00" {% if not liq.rendimiento_aplica %}disabled{% endif %}>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- 03 DEDUCCIONES -->
-                    <section class="card seccion" id="s3">
-                        <div class="seccion-head">
-                            <div class="paso">02</div>
-                            <div>
-                                <h2 class="card-titulo">Deducciones</h2>
-                                <div class="card-sub">Lo que se le descuenta al operador.</div>
-                            </div>
-                        </div>
-
-                        <div class="subseccion" style="margin-top:0;">
-                        <div class="subseccion-titulo">Descuentos</div>
-                        <div class="grid-3">
-                            <div>
-                                <label>Gastos</label>
-                                <div class="monto"><input type="number" step="0.01" min="0" name="gastos" class="calc" value="{{ liq.gastos | monto }}" placeholder="0.00"></div>
-                            </div>
-                            <div>
-                                <label>Préstamo</label>
-                                <div class="monto"><input type="number" step="0.01" min="0" name="prestamo" class="calc" value="{{ liq.prestamo | monto }}" placeholder="0.00"></div>
-                            </div>
-                            <div>
-                                <label>Infonavit</label>
-                                <div class="monto"><input type="number" step="0.01" min="0" name="infonavit" class="calc" value="{{ liq.infonavit | monto }}" placeholder="0.00"></div>
-                            </div>
-                        </div>
-
-                        </div>
-
-                        <div class="subseccion">
-                        <div class="subseccion-titulo">Pagos de Infonavit de <span id="infonavit-mes">este mes</span> · uno por semana</div>
-                        <div class="grid-4" id="infonavit-pagos"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
-                        <div class="ayuda">Los pagos son del operador y se acumulan durante el mes aunque salga con varios folios. Los que ya se registraron en otro folio aparecen bloqueados con su folio; captura aquí el siguiente. Al cambiar de mes empiezan de cero.</div>
-
-                        </div>
-
-                        <div class="subseccion">
-                        <div class="subseccion-titulo">Observaciones · opcional</div>
-                        <textarea name="observaciones" rows="3" class="mayus" style="resize:none;">{{ liq.observaciones or '' }}</textarea>
-                        <div class="ayuda">El PDF incluye los espacios de firma para <b>Visto bueno</b> y <b>Firma del operador</b> con su nombre.</div>
-                        </div>
-                    </section>
-
+            <!-- Encabezado del viaje -->
+            <header class="form-head">
+                <div class="etiqueta">Folio {{ liq.folio }}{% if folio_regreso %} · Regreso {{ folio_regreso }}{% endif %}</div>
+                <h1 class="operador">{{ liq.operador | title }}</h1>
+                <div class="meta-viaje">
+                    <span>Salida<b data-dia="{{ liq.fecha_salida or '' }}">{{ (liq.fecha_salida | fecha_corta) or '—' }}</b></span>
+                    <span>Regreso<b data-dia="{{ liq.fecha_regreso or '' }}">{{ (liq.fecha_regreso | fecha_corta) or '—' }}</b></span>
+                    <span>Duración<b id="duracion">—</b></span>
+                    <span class="fecha-liq">Liquidación
+                        <input type="date" name="fecha" value="{{ liq.fecha or '' }}" required aria-label="Fecha de liquidación">
+                    </span>
                 </div>
+            </header>
 
-                <!-- RESUMEN -->
-                <aside class="resumen">
-                    <div class="eyebrow">Resumen</div>
-                    <h3>{{ liq.operador.split(' ')[0].capitalize() }} {{ liq.operador.split(' ')[1].capitalize() if liq.operador.split(' ')|length > 1 else '' }}</h3>
-
-                    <ul class="res-lista">
-                        <li id="r-sueldo"><span>Sueldo</span><span>$0.00</span></li>
-                        <li id="r-ida_monto"><span>Ida</span><span>$0.00</span></li>
-                        <li id="r-regreso_monto"><span>Regreso</span><span>$0.00</span></li>
-                        <li id="r-estancia_monto"><span>Estancia</span><span>$0.00</span></li>
-                        <li id="r-maniobras"><span>Maniobras</span><span>$0.00</span></li>
-                        <li id="r-extras"><span>Extras</span><span>$0.00</span></li>
-                        <li id="r-casetas"><span>Casetas</span><span>$0.00</span></li>
-                        <li id="r-rendimiento_monto"><span>Rendimiento</span><span>$0.00</span></li>
-                    </ul>
-                    <div class="res-total"><span>Total</span><span id="total">$0.00</span></div>
-
-                    <ul class="res-lista">
-                        <li id="r-gastos" class="res-menos"><span>Gastos</span><span>$0.00</span></li>
-                        <li id="r-prestamo" class="res-menos"><span>Préstamo</span><span>$0.00</span></li>
-                        <li id="r-infonavit" class="res-menos"><span>Infonavit</span><span>$0.00</span></li>
-                    </ul>
-
-                    <div class="res-pagar">
-                        <div class="lbl">Total a pagar</div>
-                        <div class="valor" id="total_pagar">$0.00</div>
-                        <div class="formula">Total − Gastos − Préstamo − Infonavit</div>
+            <!-- 01 PERCEPCIONES -->
+            <section class="seccion-form" id="s-percepciones" aria-labelledby="t-perc">
+                <div>
+                    <div class="sec-num">01</div>
+                    <h2 class="sec-titulo" id="t-perc">Percepciones</h2>
+                    <p class="sec-ayuda">Sueldo, viajes, gastos de ruta y rendimiento.</p>
+                </div>
+                <div class="rejilla-4">
+                    <div class="campo span-2">
+                        <label id="l-tipo">Tipo de sueldo</label>
+                        <div class="segmento" role="radiogroup" aria-labelledby="l-tipo" id="seg-sueldo">
+                            {% for nombre, monto in sueldos.items() %}
+                            <button type="button" role="radio" data-valor="{{ nombre }}"
+                                    aria-checked="{{ 'true' if liq.tipo_sueldo == nombre else 'false' }}"
+                                    {% if liq.tipo_sueldo != nombre %}tabindex="-1"{% endif %}>{{ 'Químico' if nombre == 'QUIMICO' else nombre.capitalize() }} · ${{ '{:,.0f}'.format(monto) }}</button>
+                            {% endfor %}
+                        </div>
+                        <select name="tipo_sueldo" id="tipo_sueldo" class="oculto" tabindex="-1" aria-hidden="true">
+                            {% for nombre, monto in sueldos.items() %}
+                            <option value="{{ nombre }}" {% if liq.tipo_sueldo == nombre %}selected{% endif %}>{{ nombre.capitalize() }} · ${{ '{:,.0f}'.format(monto) }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="campo">
+                        <label for="sueldo">Sueldo</label>
+                        <div class="monto"><input type="text" name="sueldo" id="sueldo" value="{{ '%.2f' % (liq.sueldo or 0) }}" readonly title="Se toma del tipo de sueldo"></div>
+                    </div>
+                    <div class="campo">
+                        <label for="extras">Extras</label>
+                        <div class="monto"><input type="number" step="0.01" min="0" name="extras" id="extras" class="calc" value="{{ liq.extras | monto }}" placeholder="0.00"></div>
                     </div>
 
-                    <button type="submit" class="btn btn-primario btn-bloque">
-                        {{ ico('guardar', 16) }} {% if modo == 'editar' %}Guardar y regenerar PDF{% else %}Guardar y generar PDF{% endif %}
-                    </button>
-                </aside>
+                    <div class="campo">
+                        <label for="ida_cliente">Ida · cliente</label>
+                        <input type="text" name="ida_cliente" id="ida_cliente" class="mayus" value="{{ liq.ida_cliente or '' }}" placeholder="Cliente de ida">
+                    </div>
+                    <div class="campo">
+                        <label for="ida_monto">Ida · monto</label>
+                        <div class="monto"><input type="number" step="0.01" min="0" name="ida_monto" id="ida_monto" class="calc" value="{{ liq.ida_monto | monto }}" placeholder="0.00"></div>
+                    </div>
+                    <div class="campo">
+                        <label for="regreso_cliente">Regreso · cliente</label>
+                        <input type="text" name="regreso_cliente" id="regreso_cliente" class="mayus" value="{{ liq.regreso_cliente or '' }}" placeholder="Cliente de regreso">
+                    </div>
+                    <div class="campo">
+                        <label for="regreso_monto">Regreso · monto</label>
+                        <div class="monto"><input type="number" step="0.01" min="0" name="regreso_monto" id="regreso_monto" class="calc" value="{{ liq.regreso_monto | monto }}" placeholder="0.00"></div>
+                    </div>
 
+                    <div class="campo">
+                        <label for="maniobras">Maniobras</label>
+                        <div class="monto"><input type="number" step="0.01" min="0" name="maniobras" id="maniobras" class="calc" value="{{ liq.maniobras | monto }}" placeholder="0.00"></div>
+                    </div>
+                    <div class="campo">
+                        <label for="casetas">Casetas</label>
+                        <div class="monto"><input type="number" step="0.01" min="0" name="casetas" id="casetas" class="calc" value="{{ liq.casetas | monto }}" placeholder="0.00"></div>
+                    </div>
+                    <div class="campo">
+                        <label id="l-rend">Rendimiento</label>
+                        <div class="segmento" role="radiogroup" aria-labelledby="l-rend" id="seg-rendimiento">
+                            <button type="button" role="radio" data-valor="1" aria-checked="{{ 'true' if liq.rendimiento_aplica else 'false' }}" {% if not liq.rendimiento_aplica %}tabindex="-1"{% endif %}>Sí</button>
+                            <button type="button" role="radio" data-valor="0" aria-checked="{{ 'false' if liq.rendimiento_aplica else 'true' }}" {% if liq.rendimiento_aplica %}tabindex="-1"{% endif %}>No</button>
+                        </div>
+                        <input type="checkbox" name="rendimiento_aplica" id="rendimiento_aplica" value="1" class="oculto" tabindex="-1" aria-hidden="true" {% if liq.rendimiento_aplica %}checked{% endif %}>
+                    </div>
+                    <div class="campo {% if not liq.rendimiento_aplica %}apagado{% endif %}" id="campo-rendimiento">
+                        <label for="rendimiento_monto">Monto de rendimiento</label>
+                        <div class="monto">
+                            <input type="number" step="0.01" min="0" name="rendimiento_monto" id="rendimiento_monto" class="calc"
+                                   value="{{ liq.rendimiento_monto | monto }}" placeholder="0.00" {% if not liq.rendimiento_aplica %}disabled{% endif %}>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 02 ESTANCIA -->
+            <section class="seccion-form" id="s-estancia" aria-labelledby="t-est">
+                <div>
+                    <div class="sec-num">02</div>
+                    <h2 class="sec-titulo" id="t-est">Estancia</h2>
+                    <p class="sec-ayuda">Marca la llegada y los días que se quedó.</p>
+                </div>
+                <div>
+                    <div class="estancia-top">
+                        <div class="semana-nav">
+                            <button type="button" class="btn-ico" onclick="moverSemana(-1)" aria-label="Semana anterior">{{ ico('izquierda', 16) }}</button>
+                            <span class="etiqueta" id="semana-label" aria-live="polite"></span>
+                            <button type="button" class="btn-ico" onclick="moverSemana(1)" aria-label="Semana siguiente" style="transform:scaleX(-1);">{{ ico('izquierda', 16) }}</button>
+                        </div>
+                        <div class="estancia-calc">
+                            <span id="resumen-estancia">Sin estancia · cálculo automático</span>
+                            <div class="campo" style="gap:0;">
+                                <label for="estancia_monto" class="oculto">Monto de estancia</label>
+                                <div class="monto"><input type="number" step="0.01" min="0" name="estancia_monto" id="estancia_monto" class="calc" value="{{ liq.estancia_monto | monto }}" placeholder="0.00" title="Se llena solo; puedes corregirlo a mano"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="tiras" role="group" aria-label="Días de estancia"></div>
+                    <div class="tira-leyenda">
+                        <span><i class="l-viaje"></i>Días del viaje</span>
+                        <span><i class="l-llegada"></i>Llegada · no se paga</span>
+                        <span><i class="l-sel"></i>Estancia · ${{ tarifa_estancia.ENTRE_SEMANA }} lun–vie, ${{ tarifa_estancia.FIN_DE_SEMANA }} sáb y dom</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 03 DEDUCCIONES -->
+            <section class="seccion-form" id="s-deducciones" aria-labelledby="t-ded">
+                <div>
+                    <div class="sec-num">03</div>
+                    <h2 class="sec-titulo" id="t-ded">Deducciones</h2>
+                    <p class="sec-ayuda">Infonavit se lleva por operador y mes.</p>
+                </div>
+                <div class="rejilla-4">
+                    <div class="campo">
+                        <label for="gastos">Gastos</label>
+                        <div class="monto"><input type="number" step="0.01" min="0" name="gastos" id="gastos" class="calc" value="{{ liq.gastos | monto }}" placeholder="0.00"></div>
+                    </div>
+                    <div class="campo">
+                        <label for="prestamo">Préstamo</label>
+                        <div class="monto"><input type="number" step="0.01" min="0" name="prestamo" id="prestamo" class="calc" value="{{ liq.prestamo | monto }}" placeholder="0.00"></div>
+                    </div>
+                    <div class="campo">
+                        <label for="infonavit">Infonavit</label>
+                        <div class="monto"><input type="number" step="0.01" min="0" name="infonavit" id="infonavit" class="calc" value="{{ liq.infonavit | monto }}" placeholder="0.00"></div>
+                    </div>
+                    <div class="campo">
+                        <label for="total-deducciones">Total deducciones</label>
+                        <div class="monto"><input type="text" id="total-deducciones" class="solo-lectura" value="0.00" readonly tabindex="-1"></div>
+                    </div>
+
+                    <div class="span-4">
+                        <div class="etiqueta" style="margin-bottom:8px;">Pagos de Infonavit · <span id="infonavit-mes">este mes</span></div>
+                        <div class="rejilla-4" id="infonavit-pagos"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+                    </div>
+
+                    <div class="campo span-4">
+                        <label for="observaciones">Observaciones · opcional</label>
+                        <textarea name="observaciones" id="observaciones" class="mayus">{{ liq.observaciones or '' }}</textarea>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- RESUMEN -->
+        <aside class="resumen" aria-label="Resumen">
+            <div class="etiqueta">Total a pagar</div>
+            <div class="res-total" id="total_pagar" aria-live="polite"><span class="ent">$0</span><span class="cent">.00</span></div>
+
+            <ul class="res-filas">
+                <li id="r-sueldo"><span>Sueldo</span><span>$0.00</span></li>
+                <li id="r-viaje"><span>Ida y regreso</span><span>$0.00</span></li>
+                <li id="r-estancia_monto"><span>Estancia</span><span>$0.00</span></li>
+                <li id="r-maniobras-casetas"><span>Maniobras y casetas</span><span>$0.00</span></li>
+                <li id="r-extras" hidden><span>Extras</span><span>$0.00</span></li>
+                <li id="r-rendimiento_monto" hidden><span>Rendimiento</span><span>$0.00</span></li>
+            </ul>
+            <div class="res-divisor"></div>
+            <ul class="res-filas">
+                <li class="res-sub"><span>Percepciones</span><span id="total">$0.00</span></li>
+                <li id="r-gastos" class="res-menos"><span>Gastos</span><span>$0.00</span></li>
+                <li id="r-prestamo" class="res-menos"><span>Préstamo</span><span>$0.00</span></li>
+                <li id="r-infonavit" class="res-menos"><span>Infonavit</span><span>$0.00</span></li>
+            </ul>
+
+            <div class="res-pie">
+                <button type="submit" class="btn btn-primario btn-bloque">
+                    {% if modo == 'editar' %}Guardar y regenerar PDF{% else %}Guardar y generar PDF{% endif %}
+                </button>
+                <div class="res-pista"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></div>
             </div>
+        </aside>
 
-            <div class="barra-totales">
-                <div class="bt-item"><span>Total</span><b id="total-barra">$0.00</b></div>
-                <div class="bt-item pagar"><span>Total a pagar</span><b id="pagar-barra">$0.00</b></div>
-                <button type="submit" class="btn btn-primario">{{ ico('guardar', 16) }} {% if modo == 'editar' %}Guardar y regenerar PDF{% else %}Guardar y generar PDF{% endif %}</button>
-            </div>
-        </form>
-
+    </div>
+</form>
 {% endblock %}
 
 {% block scripts %}
@@ -265,8 +215,8 @@
 const SUELDOS = {{ sueldos | tojson }};
 const TARIFA_ESTANCIA = {{ tarifa_estancia | tojson }};
 const DIAS_ABREV = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
-const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const MESES_ABREV = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const MESES_MIN = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 
 function num(nombre){
     const el = document.querySelector('[name="' + nombre + '"]');
@@ -282,31 +232,60 @@ function dinero(v){
 function iso(y, m, d){
     return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
 }
+function aFecha(isoStr){ return new Date(isoStr + 'T00:00:00'); }
+function aIso(fecha){ return iso(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()); }
 
 function fechaCorta(isoStr){
     const [a, m, d] = isoStr.split('-');
     return parseInt(d) + '-' + MESES_ABREV[parseInt(m) - 1];
 }
+// "Jue 02 oct"
+function fechaDia(isoStr){
+    const f = aFecha(isoStr);
+    return DIAS_ABREV[(f.getDay() + 6) % 7] + ' ' + String(f.getDate()).padStart(2, '0') + ' ' + MESES_MIN[f.getMonth()];
+}
+
+// ---------- Encabezado: fechas con día de la semana y duración ----------
+const FECHA_SALIDA = "{{ liq.fecha_salida or '' }}";
+const FECHA_REGRESO = "{{ liq.fecha_regreso or '' }}";
+document.querySelectorAll('[data-dia]').forEach(function(b){ if(b.dataset.dia) b.textContent = fechaDia(b.dataset.dia); });
+if(FECHA_SALIDA && FECHA_REGRESO){
+    const dias = Math.round((aFecha(FECHA_REGRESO) - aFecha(FECHA_SALIDA)) / 86400000) + 1;
+    if(dias > 0) document.getElementById('duracion').textContent = dias + (dias === 1 ? ' día' : ' días');
+}
 
 // ---------- Totales + panel de resumen ----------
-const CAMPOS_RESUMEN = ['sueldo','ida_monto','regreso_monto','estancia_monto','maniobras','extras','casetas','rendimiento_monto','gastos','prestamo','infonavit'];
+function fila(id, v, ocultarEnCero){
+    const li = document.getElementById(id);
+    if(!li) return;
+    li.querySelector('span:last-child').textContent = dinero(v);
+    li.classList.toggle('apagado', v === 0);
+    if(ocultarEnCero) li.hidden = v === 0;
+}
 
 function calcular(){
     const total = num('sueldo') + num('ida_monto') + num('regreso_monto') + num('estancia_monto')
                 + num('maniobras') + num('extras') + num('casetas') + num('rendimiento_monto');
-    const pagar = total - num('gastos') - num('prestamo') - num('infonavit');
-    document.getElementById('total').textContent = dinero(total);
-    document.getElementById('total_pagar').textContent = dinero(pagar);
-    document.getElementById('total-barra').textContent = dinero(total);
-    document.getElementById('pagar-barra').textContent = dinero(pagar);
+    const deducciones = num('gastos') + num('prestamo') + num('infonavit');
+    const pagar = total - deducciones;
 
-    CAMPOS_RESUMEN.forEach(function(c){
-        const li = document.getElementById('r-' + c);
-        if(!li) return;
-        const v = num(c);
-        li.querySelector('span:last-child').textContent = dinero(v);
-        li.classList.toggle('apagado', v === 0);
-    });
+    const txt = dinero(Math.abs(pagar));
+    const caja = document.getElementById('total_pagar');
+    caja.querySelector('.ent').textContent = (pagar < 0 ? '−' : '') + txt.slice(0, -3);
+    caja.querySelector('.cent').textContent = txt.slice(-3);
+    caja.classList.toggle('negativo', pagar < 0);
+    document.getElementById('total').textContent = dinero(total);
+    document.getElementById('total-deducciones').value = deducciones.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+    fila('r-sueldo', num('sueldo'));
+    fila('r-viaje', num('ida_monto') + num('regreso_monto'));
+    fila('r-estancia_monto', num('estancia_monto'));
+    fila('r-maniobras-casetas', num('maniobras') + num('casetas'));
+    fila('r-extras', num('extras'), true);
+    fila('r-rendimiento_monto', num('rendimiento_monto'), true);
+    fila('r-gastos', num('gastos'));
+    fila('r-prestamo', num('prestamo'));
+    fila('r-infonavit', num('infonavit'));
 }
 
 document.querySelectorAll('.calc').forEach(el => el.addEventListener('input', calcular));
@@ -319,8 +298,30 @@ document.getElementById('tipo_sueldo').addEventListener('change', function(){
 document.getElementById('rendimiento_aplica').addEventListener('change', function(){
     const monto = document.getElementById('rendimiento_monto');
     monto.disabled = !this.checked;
+    document.getElementById('campo-rendimiento').classList.toggle('apagado', !this.checked);
     if(this.checked){ monto.focus(); } else { monto.value = ''; }
     calcular();
+});
+
+// Controles segmentados: solo apariencia sobre el <select> y el checkbox originales
+document.querySelectorAll('#seg-sueldo [role="radio"]').forEach(function(b){
+    b.addEventListener('click', function(){
+        const sel = document.getElementById('tipo_sueldo');
+        marcarSegmento(document.getElementById('seg-sueldo'), b);
+        if(sel.value === b.dataset.valor) return;
+        sel.value = b.dataset.valor;
+        sel.dispatchEvent(new Event('change', {bubbles: true}));
+    });
+});
+document.querySelectorAll('#seg-rendimiento [role="radio"]').forEach(function(b){
+    b.addEventListener('click', function(){
+        const chk = document.getElementById('rendimiento_aplica');
+        const quiere = b.dataset.valor === '1';
+        marcarSegmento(document.getElementById('seg-rendimiento'), b);
+        if(chk.checked === quiere) return;
+        chk.checked = quiere;
+        chk.dispatchEvent(new Event('change', {bubbles: true}));
+    });
 });
 
 // ---------- Pagos de Infonavit por operador y mes ----------
@@ -335,16 +336,18 @@ function renderPagos(datos){
 
     datos.pagos.forEach(function(p, idx){
         const caja = document.createElement('div');
-        caja.className = 'pago-box';
+        caja.className = 'campo';
         if(p.bloqueado){
             // Registrado en otro folio: se muestra la fecha y queda bloqueado
-            caja.innerHTML = '<label>Pago ' + p.n + ' · folio ' + p.folio + '</label>'
-                + '<input type="text" class="pago bloqueado" value="' + fechaCorta(p.fecha) + '-' + p.fecha.slice(0,4) + '" readonly title="Registrado en el folio ' + p.folio + '">';
+            caja.innerHTML = '<label>Pago ' + p.n + ' · registrado</label>'
+                + '<div class="pago-caja registrado" title="Registrado en el folio ' + p.folio + '">'
+                + '<span class="p-folio">Folio ' + p.folio + '</span><span>' + fechaDia(p.fecha).slice(4) + '</span></div>';
         } else {
-            caja.innerHTML = '<label>Pago ' + p.n + (p.fecha ? ' · este folio' : '') + '</label>'
-                + '<input type="date" name="infonavit_pago' + p.n + '" class="pago' + (p.fecha ? ' lleno' : '') + '" value="' + (p.fecha || '') + '">';
+            caja.innerHTML = '<label for="infonavit_pago' + p.n + '">Pago ' + p.n + (p.fecha ? ' · este folio' : '') + '</label>'
+                + '<input type="date" name="infonavit_pago' + p.n + '" id="infonavit_pago' + p.n + '" class="pago' + (p.fecha ? ' lleno' : '') + '" value="' + (p.fecha || '') + '">'
+                + '<div class="pago-caja pendiente" hidden title="Se habilita cuando se registre el pago anterior">—</div>';
             const input = caja.querySelector('input');
-            inputs.push({idx: idx, input: input, label: caja.querySelector('label')});
+            inputs.push({idx: idx, input: input, label: caja.querySelector('label'), raya: caja.querySelector('.pendiente')});
             input.addEventListener('change', function(){
                 input.classList.toggle('lleno', !!input.value);
                 actualizarSecuencia();
@@ -364,7 +367,8 @@ function renderPagos(datos){
             const tieneFecha = !!entrada.input.value;
             const libre = anteriorLleno || tieneFecha;
             entrada.input.disabled = !libre;
-            entrada.input.placeholder = libre ? '' : 'Pendiente';
+            entrada.input.hidden = !libre;
+            entrada.raya.hidden = libre;
             entrada.input.title = libre ? '' : 'Se habilita cuando se registre el pago anterior';
             entrada.label.textContent = 'Pago ' + p.n + (tieneFecha ? ' · este folio' : (libre ? ' · siguiente' : ''));
             entrada.label.classList.toggle('siguiente', libre && !tieneFecha);
@@ -389,9 +393,7 @@ function cargarPagos(){
 document.querySelector('[name="fecha"]').addEventListener('change', cargarPagos);
 cargarPagos();
 
-// ---------- Calendario de estancia ----------
-const FECHA_SALIDA = "{{ liq.fecha_salida or '' }}";
-const FECHA_REGRESO = "{{ liq.fecha_regreso or '' }}";
+// ---------- Estancia: tira de días por semana ----------
 const HOY = new Date();
 const HOY_ISO = iso(HOY.getFullYear(), HOY.getMonth(), HOY.getDate());
 
@@ -399,15 +401,24 @@ let seleccion = new Set(
     document.getElementById('estancia_fechas').value.split(',').map(s => s.trim()).filter(Boolean)
 );
 
-let base = FECHA_SALIDA ? new Date(FECHA_SALIDA + 'T00:00:00') : new Date();
-let calAnio = base.getFullYear();
-let calMes = base.getMonth();
+function lunesDe(isoStr){
+    const f = aFecha(isoStr);
+    f.setDate(f.getDate() - ((f.getDay() + 6) % 7));
+    return f;
+}
+function sumarDias(fecha, n){ const f = new Date(fecha); f.setDate(f.getDate() + n); return f; }
 
-function moverMes(delta){
-    calMes += delta;
-    if(calMes < 0){ calMes = 11; calAnio--; }
-    if(calMes > 11){ calMes = 0; calAnio++; }
-    renderCalendario();
+// Semanas visibles: desde la semana de salida (o de la llegada marcada) hasta la del
+// regreso o del último día marcado, para que se vean todos los días del viaje.
+const _marcadas = Array.from(seleccion).sort();
+const _inicioIso = [FECHA_SALIDA, _marcadas[0]].filter(Boolean).sort()[0] || HOY_ISO;
+const _finIso = [FECHA_REGRESO, FECHA_SALIDA, _marcadas[_marcadas.length - 1]].filter(Boolean).sort().pop() || _inicioIso;
+let semanaInicio = lunesDe(_inicioIso);
+const SEMANAS = Math.min(4, Math.max(1, Math.round((lunesDe(_finIso) - semanaInicio) / (7 * 86400000)) + 1));
+
+function moverSemana(delta){
+    semanaInicio = sumarDias(semanaInicio, 7 * delta);
+    renderEstancia();
 }
 
 function enViaje(isoStr){
@@ -416,57 +427,58 @@ function enViaje(isoStr){
     return isoStr >= FECHA_SALIDA && isoStr <= fin;
 }
 
-function renderCalendario(recalcularMonto){
-    document.getElementById('cal-mes').textContent = MESES[calMes] + ' ' + calAnio;
-    const grid = document.getElementById('cal-grid');
-    grid.innerHTML = '';
+function etiquetaCorta(fecha){ return String(fecha.getDate()).padStart(2, '0') + ' ' + MESES_MIN[fecha.getMonth()]; }
 
-    ['L','M','M','J','V','S','D'].forEach(d => {
-        const el = document.createElement('div');
-        el.className = 'cal-dow';
-        el.textContent = d;
-        grid.appendChild(el);
-    });
+function renderEstancia(recalcularMonto){
+    const fin = sumarDias(semanaInicio, 7 * SEMANAS - 1);
+    document.getElementById('semana-label').textContent =
+        (SEMANAS === 1 ? 'Semana del ' : 'Del ') + etiquetaCorta(semanaInicio) + ' al ' + etiquetaCorta(fin);
 
-    const primero = new Date(calAnio, calMes, 1);
-    let offset = (primero.getDay() + 6) % 7;
-    for(let i = 0; i < offset; i++){
-        const el = document.createElement('div');
-        el.className = 'cal-dia vacio';
-        grid.appendChild(el);
+    const cont = document.getElementById('tiras');
+    cont.innerHTML = '';
+    const llegada = llegadaActual();
+    for(let s = 0; s < SEMANAS; s++){
+        const tira = document.createElement('div');
+        tira.className = 'tira';
+        for(let i = 0; i < 7; i++){
+            const fecha = sumarDias(semanaInicio, s * 7 + i);
+            const f = aIso(fecha);
+            const finde = i >= 5;
+            const el = document.createElement('button');
+            el.type = 'button';
+            el.className = 'dia';
+            el.dataset.fecha = f;
+            if(enViaje(f)) el.classList.add('viaje');
+            if(f === HOY_ISO) el.classList.add('hoy');
+            const marcado = seleccion.has(f);
+            if(marcado) el.classList.add(f === llegada ? 'llegada' : 'sel');
+            el.setAttribute('aria-pressed', marcado ? 'true' : 'false');
+            const mostrarMes = (s === 0 && i === 0) || fecha.getDate() === 1;
+            el.innerHTML = '<span class="d-sem">' + DIAS_ABREV[i] + '</span><span class="d-num">' + fecha.getDate() + '</span>'
+                         + (mostrarMes ? '<span class="d-mes">' + MESES_MIN[fecha.getMonth()] + '</span>' : '');
+            el.title = fechaDia(f) + (marcado ? (f === llegada ? ' · llegada (no se paga)'
+                         : ' · estancia ' + dinero(finde ? TARIFA_ESTANCIA.FIN_DE_SEMANA : TARIFA_ESTANCIA.ENTRE_SEMANA)) : '');
+            el.setAttribute('aria-label', el.title);
+            el.onclick = () => toggleDia(f);
+            tira.appendChild(el);
+        }
+        cont.appendChild(tira);
     }
 
-    const diasMes = new Date(calAnio, calMes + 1, 0).getDate();
-    for(let d = 1; d <= diasMes; d++){
-        const f = iso(calAnio, calMes, d);
-        const el = document.createElement('div');
-        el.className = 'cal-dia';
-        if(enViaje(f)) el.classList.add('viaje');
-        if(f === HOY_ISO) el.classList.add('hoy');
-        if(seleccion.has(f)) el.classList.add(f === llegadaActual() ? 'llegada' : 'sel');
-        el.textContent = d;
-        el.title = f;
-        el.onclick = () => toggleDia(f);
-        grid.appendChild(el);
-    }
-
-    renderChips(recalcularMonto);
+    renderResumenEstancia(recalcularMonto);
 }
 
 function toggleDia(f){
     if(seleccion.has(f)) seleccion.delete(f); else seleccion.add(f);
     guardarSeleccion();
-    renderCalendario(true);
-}
-
-function quitarDia(f){
-    seleccion.delete(f);
-    guardarSeleccion();
-    renderCalendario(true);
+    renderEstancia(true);
+    const mismo = document.querySelector('.dia[data-fecha="' + f + '"]');
+    mismo && mismo.focus();
 }
 
 function guardarSeleccion(){
     document.getElementById('estancia_fechas').value = Array.from(seleccion).sort().join(',');
+    marcarCambios();
 }
 
 function llegadaActual(){
@@ -491,34 +503,21 @@ function desgloseEstancia(){
     return {llegada:lista[0], dias:dias, total:total};
 }
 
-function renderChips(recalcularMonto){
-    const cont = document.getElementById('chips-estancia');
+function renderResumenEstancia(recalcularMonto){
     const resumen = document.getElementById('resumen-estancia');
-    cont.innerHTML = '';
     const info = desgloseEstancia();
+    const fuera = Array.from(seleccion).filter(f => !document.querySelector('.dia[data-fecha="' + f + '"]')).length;
+    const notaFuera = fuera ? ' · ' + fuera + ' fuera de vista' : '';
 
     if(!info.llegada){
-        resumen.textContent = 'Marca en el calendario el día de llegada y los días que se quedó.';
+        resumen.textContent = 'Sin estancia · cálculo automático';
         if(recalcularMonto){ document.querySelector('[name="estancia_monto"]').value = ''; calcular(); }
         return;
     }
 
-    const chipLlegada = document.createElement('span');
-    chipLlegada.className = 'chip llegada';
-    chipLlegada.innerHTML = 'Llegada ' + fechaCorta(info.llegada) + '<b title="Quitar" onclick="quitarDia(\'' + info.llegada + '\')">✕</b>';
-    cont.appendChild(chipLlegada);
-
-    info.dias.forEach(d => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.innerHTML = d.dia + ' ' + fechaCorta(d.fecha) + ' · ' + dinero(d.monto)
-                       + '<b title="Quitar" onclick="quitarDia(\'' + d.fecha + '\')">✕</b>';
-        cont.appendChild(chip);
-    });
-
-    resumen.textContent = info.dias.length === 0
-        ? 'Llegada marcada. Marca también los días que se quedó.'
-        : info.dias.length + ' día(s) de estancia = ' + dinero(info.total);
+    resumen.innerHTML = info.dias.length === 0
+        ? 'Llegada ' + fechaDia(info.llegada) + ' · marca los días que se quedó' + notaFuera
+        : '<b>' + info.dias.length + (info.dias.length === 1 ? ' día' : ' días') + ' de estancia</b> · cálculo automático' + notaFuera;
 
     if(recalcularMonto){
         document.querySelector('[name="estancia_monto"]').value = info.total ? info.total.toFixed(2) : '';
@@ -526,7 +525,31 @@ function renderChips(recalcularMonto){
     }
 }
 
-renderCalendario();
+// ---------- Cambios sin guardar · atajos ----------
+const FORM = document.getElementById('form-liq');
+let hayCambios = false;
+function marcarCambios(){ hayCambios = true; }
+FORM.addEventListener('input', marcarCambios);
+FORM.addEventListener('change', marcarCambios);
+FORM.addEventListener('submit', function(){ hayCambios = false; });
+
+function cancelar(e){
+    if(e) e.preventDefault();
+    if(hayCambios && !confirm('Hay cambios sin guardar. ¿Salir sin guardar?')) return false;
+    hayCambios = false;
+    location.href = '/';
+    return false;
+}
+window.alEscape = function(){ cancelar(); };
+
+document.addEventListener('keydown', function(e){
+    if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+        e.preventDefault();
+        FORM.requestSubmit();
+    }
+});
+
+renderEstancia();
 calcular();
 </script>
 {% endblock %}

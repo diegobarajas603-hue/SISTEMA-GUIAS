@@ -1,19 +1,47 @@
 /* =========================================================
    app.js — Interacciones de la interfaz (sin lógica de negocio)
-   Toasts, Ctrl+K, estados de carga, panel lateral, filtros,
-   orden y exportación de tablas.
+   Tema claro/oscuro, reloj, toasts, Ctrl+K, estados de carga,
+   panel lateral, filtros, orden, exportación de tablas y
+   navegación con teclado en listas.
    ========================================================= */
 
 const ICONOS = {
-    ok:    '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
-    error: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
-    warn:  '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
-    info:  '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
-    x:     '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
 };
 function svg(nombre, tam){
-    return '<svg class="ico" width="' + (tam||18) + '" height="' + (tam||18) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICONOS[nombre] + '</svg>';
+    return '<svg class="ico" width="' + (tam||18) + '" height="' + (tam||18) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + ICONOS[nombre] + '</svg>';
 }
+
+// ---------- Tema (oscuro por defecto) ----------
+function temaActual(){
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+function pintarBotonTema(){
+    const btn = document.getElementById('btn-tema');
+    if(btn) btn.dataset.tip = temaActual() === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro';
+}
+function cambiarTema(){
+    const nuevo = temaActual() === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', nuevo);
+    try { localStorage.setItem('lq-tema', nuevo); } catch(e){}
+    pintarBotonTema();
+}
+pintarBotonTema();
+
+// ---------- Reloj de la barra superior: "Martes 06 oct · 11:37" ----------
+(function(){
+    const el = document.getElementById('reloj');
+    if(!el) return;
+    const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const dos = n => String(n).padStart(2, '0');
+    function pintar(){
+        const d = new Date();
+        el.textContent = DIAS[d.getDay()] + ' ' + dos(d.getDate()) + ' ' + MES[d.getMonth()] + ' · ' + dos(d.getHours()) + ':' + dos(d.getMinutes());
+    }
+    pintar();
+    setInterval(pintar, 15000);
+})();
 
 // ---------- Toasts ----------
 function toast(titulo, detalle, tipo, duracion){
@@ -22,16 +50,19 @@ function toast(titulo, detalle, tipo, duracion){
     if(!cont) return;
     const el = document.createElement('div');
     el.className = 'toast ' + tipo;
-    el.innerHTML = svg(tipo) + '<div><b>' + titulo + '</b>' + (detalle ? '<small>' + detalle + '</small>' : '') + '</div>'
-                 + '<button class="cerrar" aria-label="Cerrar">' + svg('x', 16) + '</button>';
+    el.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
+    el.innerHTML = '<span class="toast-punto"></span><div class="toast-texto"><b></b>' + (detalle ? '<small></small>' : '') + '</div>'
+                 + '<button type="button" class="cerrar" aria-label="Cerrar">' + svg('x', 14) + '</button>';
+    el.querySelector('b').textContent = titulo;
+    if(detalle) el.querySelector('small').textContent = detalle;
     el.querySelector('.cerrar').onclick = () => quitarToast(el);
     cont.appendChild(el);
-    setTimeout(() => quitarToast(el), duracion || 4200);
+    setTimeout(() => quitarToast(el), duracion || 4000);
 }
 function quitarToast(el){
     if(!el || el.classList.contains('saliendo')) return;
     el.classList.add('saliendo');
-    setTimeout(() => el.remove(), 200);
+    setTimeout(() => el.remove(), 180);
 }
 
 // Mensajes que llegan por la URL (?mensaje=...&tipo=ok)
@@ -64,17 +95,36 @@ document.addEventListener('submit', function(e){
     }
 });
 
-// ---------- Ctrl+K / Enter para buscar ----------
+// ---------- Ctrl+K para buscar · Esc ----------
+function enfocarFolio(){
+    const campo = document.getElementById('folio') || document.querySelector('[data-buscador]');
+    if(campo){ campo.focus(); campo.select && campo.select(); }
+    return !!campo;
+}
 document.addEventListener('keydown', function(e){
     if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){
-        const campo = document.getElementById('folio') || document.querySelector('[data-buscador]');
-        if(campo){ e.preventDefault(); campo.focus(); campo.select && campo.select(); }
+        e.preventDefault();
+        enfocarFolio();
     }
-    if(e.key === 'Escape') cerrarPanel();
+    if(e.key === 'Escape'){
+        const abierto = document.querySelector('.panel-lateral.abierto');
+        if(abierto){ cerrarPanel(); return; }
+        if(typeof window.alEscape === 'function') window.alEscape(e);
+    }
 });
+
+// "Nueva liquidación": en el panel enfoca el buscador de folio; en otra pantalla lleva al panel.
+function irANueva(e){
+    if(location.pathname === '/'){
+        if(e) e.preventDefault();
+        enfocarFolio();
+        toast('Escribe el folio de salida', 'O elige uno de la lista "Por liquidar".', 'info', 2500);
+        return false;
+    }
+    return true;
+}
 if(location.hash === '#nueva'){
-    const campo = document.getElementById('folio');
-    if(campo) setTimeout(() => campo.focus(), 50);
+    setTimeout(enfocarFolio, 50);
 }
 
 // ---------- Panel lateral ----------
@@ -94,6 +144,21 @@ function cerrarPanel(){
     overlay && overlay.classList.remove('abierto');
 }
 
+// ---------- Listas navegables con ↑ ↓ y Enter ----------
+// Los elementos deben ser enfocables (botones o enlaces) dentro del contenedor.
+function listaNavegable(contenedor, selector){
+    if(!contenedor) return;
+    contenedor.addEventListener('keydown', function(e){
+        if(e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        const items = Array.from(contenedor.querySelectorAll(selector)).filter(el => el.offsetParent !== null);
+        const i = items.indexOf(document.activeElement);
+        if(i === -1) return;
+        e.preventDefault();
+        const sig = items[e.key === 'ArrowDown' ? Math.min(i + 1, items.length - 1) : Math.max(i - 1, 0)];
+        sig && sig.focus();
+    });
+}
+
 // ---------- Tablas: buscar, filtrar, ordenar, exportar ----------
 function filtrarTabla(tablaId, opciones){
     const tabla = document.getElementById(tablaId);
@@ -102,10 +167,12 @@ function filtrarTabla(tablaId, opciones){
     const desde = opciones.desde || '';
     const hasta = opciones.hasta || '';
     const tipo = opciones.tipo || '';
+    const mes = opciones.mes || '';          // 'AAAA-MM' o vacío = todos
     let visibles = 0;
     tabla.querySelectorAll('tbody tr[data-fecha]').forEach(function(fila){
         let ok = fila.textContent.toLowerCase().includes(texto);
         const f = fila.dataset.fecha || '';
+        if(ok && mes && f.slice(0, 7) !== mes) ok = false;
         if(ok && desde && f < desde) ok = false;
         if(ok && hasta && f > hasta) ok = false;
         if(ok && tipo && fila.dataset.tipo !== tipo) ok = false;
@@ -114,6 +181,8 @@ function filtrarTabla(tablaId, opciones){
     });
     const cont = document.getElementById(tablaId + '-conteo');
     if(cont) cont.textContent = visibles + ' registro' + (visibles === 1 ? '' : 's');
+    const vacio = document.getElementById(tablaId + '-vacio');
+    if(vacio) vacio.hidden = visibles !== 0;
     return visibles;
 }
 
@@ -123,8 +192,9 @@ function ordenarTabla(tablaId, th){
     const tbody = tabla.querySelector('tbody');
     const filas = Array.from(tbody.querySelectorAll('tr[data-fecha]'));
     const asc = !th.classList.contains('asc');
-    tabla.querySelectorAll('th.ordenable').forEach(t => t.classList.remove('asc', 'desc'));
+    tabla.querySelectorAll('th.ordenable').forEach(t => { t.classList.remove('asc', 'desc'); t.removeAttribute('aria-sort'); });
     th.classList.add(asc ? 'asc' : 'desc');
+    th.setAttribute('aria-sort', asc ? 'ascending' : 'descending');
     filas.sort(function(a, b){
         let va = a.dataset[clave] ?? '', vb = b.dataset[clave] ?? '';
         const na = parseFloat(va), nb = parseFloat(vb);
@@ -154,3 +224,24 @@ function exportarTabla(tablaId, nombre){
     a.click();
     toast('Archivo exportado', 'Se descargó ' + a.download, 'ok');
 }
+
+// ---------- Controles segmentados (solo apariencia) ----------
+// <div class="segmento" role="radiogroup"><button role="radio" aria-checked="true">…</button>…</div>
+function marcarSegmento(grupo, boton){
+    grupo.querySelectorAll('[role="radio"]').forEach(function(b){
+        const si = b === boton;
+        b.setAttribute('aria-checked', si ? 'true' : 'false');
+        b.tabIndex = si ? 0 : -1;
+    });
+}
+document.addEventListener('keydown', function(e){
+    const b = e.target;
+    if(!(b instanceof HTMLElement) || b.getAttribute('role') !== 'radio') return;
+    const grupo = b.closest('.segmento');
+    if(!grupo || !['ArrowLeft','ArrowRight'].includes(e.key)) return;
+    const items = Array.from(grupo.querySelectorAll('[role="radio"]'));
+    const i = items.indexOf(b);
+    const sig = items[(i + (e.key === 'ArrowRight' ? 1 : -1) + items.length) % items.length];
+    e.preventDefault();
+    sig.focus(); sig.click();
+});

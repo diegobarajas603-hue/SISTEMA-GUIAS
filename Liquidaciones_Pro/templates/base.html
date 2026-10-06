@@ -1,68 +1,63 @@
 {% from '_iconos.html' import ico %}
+{%- set activo = seccion or ('nueva' if liq is defined else '') -%}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block titulo %}Liquidaciones{% endblock %}</title>
+    <script>
+        /* Aplica el tema guardado antes de pintar (evita el parpadeo). Oscuro por defecto. */
+        (function(){
+            var t = null;
+            try { t = localStorage.getItem('lq-tema'); } catch(e){}
+            document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+        })();
+    </script>
     <link rel="stylesheet" href="/static/estilo.css">
 </head>
 <body{% if toast %} data-toast="{{ toast }}" data-toast-tipo="{{ toast_tipo or 'ok' }}" data-toast-detalle="{{ toast_detalle or '' }}"{% endif %}>
 <div class="app">
 
-    <aside class="sidebar">
-        <a href="/" class="brand">
-            <div class="brand-mark">{{ ico('camion', 20) }}</div>
-            <div>
-                <div class="brand-name">Liquidaciones</div>
-                <div class="brand-sub">Control de viajes</div>
-            </div>
-        </a>
-
-        {% block cta %}
-        <a href="/#nueva" class="cta">{{ ico('mas', 18) }} Nueva liquidación</a>
-        {% endblock %}
-
-        <nav class="nav">
-            {% block nav %}
-            <div class="nav-titulo">Operación</div>
-            <a href="/#historial" class="{% if seccion == 'panel' %}activo{% endif %}">{{ ico('historial', 17) }} Historial</a>
-            <a href="/reportes" class="{% if seccion == 'reportes' %}activo{% endif %}">{{ ico('reporte', 17) }} Reporte mensual</a>
-            <div class="nav-titulo">Sistema</div>
-            <a href="/admin/respaldos" class="{% if seccion == 'respaldos' %}activo{% endif %}">{{ ico('respaldo', 17) }} Respaldos</a>
-            {% endblock %}
-        </nav>
-
-        <div class="sidebar-foot">
-            {% block foot %}
-            <div class="conexion {% if not conectado %}error{% endif %}" title="{{ estado }}">
-                <div class="dot"></div>
-                <div style="min-width:0;">
-                    {% if conectado %}
-                    <b>Conectado</b>
-                    <small>{{ estado.replace('Conectado al sistema de salidas', '').strip(' ()') }}</small>
-                    {% else %}
-                    <b>Sin conexión</b>
-                    <small>{{ estado }}</small>
-                    {% endif %}
-                </div>
-            </div>
-            {% endblock %}
+    <nav class="riel" aria-label="Navegación principal">
+        <a href="/" class="riel-logo" aria-label="Liquidaciones · inicio">LQ</a>
+        <div class="riel-nav">
+            <a href="/" class="riel-btn {% if activo == 'panel' %}activo{% endif %}" data-tip="Panel" aria-label="Panel">{{ ico('panel', 20) }}</a>
+            <a href="/#nueva" class="riel-btn {% if activo == 'nueva' %}activo{% endif %}" data-tip="Nueva liquidación" aria-label="Nueva liquidación" onclick="return irANueva(event)">{{ ico('nueva', 20) }}</a>
+            <a href="/reportes" class="riel-btn {% if activo == 'reportes' %}activo{% endif %}" data-tip="Reporte mensual" aria-label="Reporte mensual">{{ ico('reporte', 20) }}</a>
+            <a href="/admin/respaldos" class="riel-btn {% if activo == 'respaldos' %}activo{% endif %}" data-tip="Respaldos" aria-label="Respaldos">{{ ico('respaldo', 20) }}</a>
         </div>
-    </aside>
+        <button type="button" class="riel-btn riel-tema" id="btn-tema" onclick="cambiarTema()" data-tip="Cambiar a modo claro" aria-label="Cambiar tema">
+            <span class="solo-oscuro">{{ ico('luna', 20) }}</span>
+            <span class="solo-claro">{{ ico('sol', 20) }}</span>
+        </button>
+    </nav>
 
     <div class="contenido">
-        <header class="header">
-            <div>
-                <h1>{% block header_titulo %}Panel{% endblock %}</h1>
-                <div class="header-sub">{% block header_sub %}{% endblock %}</div>
-            </div>
-            <div class="header-derecha">
-                <span class="pill fecha">{{ ico('calendario', 14) }} {{ hoy_texto or '' }}</span>
-                <span class="pill {% if not conectado %}error{% endif %}" title="{{ estado }}"><span class="dot"></span> {% if conectado %}Sistema en línea{% else %}Sin enlace{% endif %}</span>
-                <div class="avatar" title="Usuario">LQ</div>
+        <header class="barra">
+            <div class="barra-titulo">{% block header_titulo %}Panel{% endblock %}</div>
+            <div class="barra-derecha">
+                {% block header_acciones %}{% endblock %}
+                <span class="enlace {% if not conectado %}error{% endif %}" title="{{ estado }}">
+                    <span class="punto"></span>{% if conectado %}Salidas en línea{% else %}Sin enlace con salidas{% endif %}
+                </span>
+                <span class="reloj" id="reloj">{{ hoy_texto or '' }}</span>
+                <form action="/liquidaciones/buscar" method="POST" class="buscador-global" autocomplete="off" role="search">
+                    {{ ico('buscar', 16) }}
+                    <input type="text" name="folio" id="folio" list="folios_pendientes" placeholder="Buscar folio" aria-label="Buscar o abrir un folio" required>
+                    <kbd>Ctrl K</kbd>
+                    {% if pendientes %}
+                    <datalist id="folios_pendientes">
+                        {% for p in pendientes %}<option value="{{ p[0] }}">{{ p[1] }} — {{ p[2] | fecha_corta }}</option>{% endfor %}
+                    </datalist>
+                    {% endif %}
+                </form>
             </div>
         </header>
+
+        {% if not conectado %}
+        <div class="aviso-enlace" role="status"><span class="punto"></span>{{ estado }}</div>
+        {% endif %}
 
         <main class="main {% block main_clase %}{% endblock %}">
             {% block contenido %}{% endblock %}
@@ -72,7 +67,7 @@
 
 <div id="overlay" class="overlay" onclick="cerrarPanel()"></div>
 {% block paneles %}{% endblock %}
-<div id="toasts"></div>
+<div id="toasts" aria-live="polite"></div>
 
 <script src="/static/app.js"></script>
 {% block scripts %}{% endblock %}
