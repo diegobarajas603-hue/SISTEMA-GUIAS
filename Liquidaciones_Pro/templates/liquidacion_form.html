@@ -149,11 +149,7 @@
                 <div class="rejilla-4">
                     <div class="campo">
                         <label for="gastos">Gastos</label>
-                        <div class="monto"><input type="number" step="0.01" min="0" name="gastos" id="gastos" class="calc" value="{{ liq.gastos | monto }}" placeholder="0.00"></div>
-                    </div>
-                    <div class="campo">
-                        <label for="prestamo">Préstamo</label>
-                        <div class="monto"><input type="number" step="0.01" min="0" name="prestamo" id="prestamo" class="calc" value="{{ liq.prestamo | monto }}" placeholder="0.00"></div>
+                        <div class="monto"><input type="number" step="0.01" min="0" name="gastos" id="gastos" class="calc" value="{{ ((liq.gastos or 0) + (liq.prestamo or 0)) | monto }}" placeholder="0.00" title="Incluye el préstamo"></div>
                     </div>
                     <div class="campo">
                         <label for="infonavit">Infonavit</label>
@@ -194,7 +190,6 @@
             <ul class="res-filas">
                 <li class="res-sub"><span>Percepciones</span><span id="total">$0.00</span></li>
                 <li id="r-gastos" class="res-menos"><span>Gastos</span><span>$0.00</span></li>
-                <li id="r-prestamo" class="res-menos"><span>Préstamo</span><span>$0.00</span></li>
                 <li id="r-infonavit" class="res-menos"><span>Infonavit</span><span>$0.00</span></li>
             </ul>
 
@@ -266,7 +261,7 @@ function fila(id, v, ocultarEnCero){
 function calcular(){
     const total = num('sueldo') + num('ida_monto') + num('regreso_monto') + num('estancia_monto')
                 + num('maniobras') + num('extras') + num('casetas') + num('rendimiento_monto');
-    const deducciones = num('gastos') + num('prestamo') + num('infonavit');
+    const deducciones = num('gastos') + num('infonavit');
     const pagar = total - deducciones;
 
     const txt = dinero(Math.abs(pagar));
@@ -284,7 +279,6 @@ function calcular(){
     fila('r-extras', num('extras'), true);
     fila('r-rendimiento_monto', num('rendimiento_monto'), true);
     fila('r-gastos', num('gastos'));
-    fila('r-prestamo', num('prestamo'));
     fila('r-infonavit', num('infonavit'));
 }
 
@@ -341,7 +335,7 @@ function renderPagos(datos){
             // Registrado en otro folio: se muestra la fecha y queda bloqueado
             caja.innerHTML = '<label>Pago ' + p.n + ' · registrado</label>'
                 + '<div class="pago-caja registrado" title="Registrado en el folio ' + p.folio + '">'
-                + '<span class="p-folio">Folio ' + p.folio + '</span><span>' + fechaDia(p.fecha).slice(4) + '</span></div>';
+                + '<span class="p-folio">' + p.folio + '</span><span>' + fechaDia(p.fecha).slice(4) + '</span></div>';
         } else {
             caja.innerHTML = '<label for="infonavit_pago' + p.n + '">Pago ' + p.n + (p.fecha ? ' · este folio' : '') + '</label>'
                 + '<input type="date" name="infonavit_pago' + p.n + '" id="infonavit_pago' + p.n + '" class="pago' + (p.fecha ? ' lleno' : '') + '" value="' + (p.fecha || '') + '">'

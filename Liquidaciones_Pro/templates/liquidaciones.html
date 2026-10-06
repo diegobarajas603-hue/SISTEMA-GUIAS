@@ -150,6 +150,26 @@
 {% endblock %}
 
 {% block paneles %}
+<!-- Cuadro flotante: nueva liquidación por folio -->
+<div id="modal-folio" class="modal" hidden>
+    <div class="modal-fondo" onclick="cerrarModalFolio()"></div>
+    <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="t-modal-folio">
+        <div class="modal-head">
+            <h3 id="t-modal-folio">Nueva liquidación</h3>
+            <button type="button" class="btn-ico" onclick="cerrarModalFolio()" aria-label="Cerrar">{{ ico('cerrar', 16) }}</button>
+        </div>
+        <form action="/liquidaciones/buscar" method="POST" autocomplete="off" id="modal-folio-form">
+            <div class="modal-input">
+                {{ ico('buscar', 18) }}
+                <input type="text" name="folio" id="modal-folio-input" inputmode="numeric" placeholder="Escribe el folio de salida"
+                       required aria-controls="modal-resultados" aria-autocomplete="list" aria-label="Folio de salida">
+            </div>
+        </form>
+        <div class="modal-conteo" id="modal-conteo"></div>
+        <ul class="modal-lista" id="modal-resultados" role="listbox" aria-label="Folios por liquidar"></ul>
+        <div class="modal-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> elegir</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
+    </div>
+</div>
 <!-- Panel: todos los folios pendientes -->
 <aside id="panel-folios" class="panel-lateral" aria-label="Folios por liquidar">
     <div class="panel-head">
@@ -199,11 +219,82 @@
 {% if pdf %}window.open('/liquidaciones/pdf/{{ pdf }}', '_blank');{% endif %}
 
 function cargar(folio){
-    const input = document.getElementById('folio');
+    const input = modalAbierto() ? document.getElementById('modal-folio-input') : document.getElementById('folio');
     input.value = folio;
     toast('Abriendo folio ' + folio, 'Cargando datos del sistema de salidas…', 'info', 2500);
     input.form.requestSubmit();
 }
+
+// ---------- Cuadro flotante de folio: filtra por cada número que se escribe ----------
+const PENDIENTES = {{ pendientes | tojson }};
+const MAX_RESULTADOS = 8;
+let modalResultados = [], modalActivo = -1;
+
+function nombreCorto(n){
+    return n.toLowerCase().split(' ').slice(0, 2).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+function pintarModal(){
+    const ul = document.getElementById('modal-resultados');
+    ul.innerHTML = '';
+    modalResultados.slice(0, MAX_RESULTADOS).forEach(function(p, i){
+        const li = document.createElement('li');
+        li.setAttribute('role', 'option');
+        li.id = 'mf-' + i;
+        li.className = 'modal-item' + (i === modalActivo ? ' activo' : '');
+        li.setAttribute('aria-selected', i === modalActivo ? 'true' : 'false');
+        li.innerHTML = '<span class="f-num"></span><span class="f-nombre"></span><span class="f-fecha"></span>';
+        li.children[0].textContent = p[0];
+        li.children[1].textContent = nombreCorto(p[1] || '');
+        li.children[2].textContent = p[3];
+        li.onmousedown = e => e.preventDefault();
+        li.onclick = () => cargar(p[0]);
+        li.onmousemove = () => { if(modalActivo !== i){ modalActivo = i; pintarModal(); } };
+        ul.appendChild(li);
+    });
+    const input = document.getElementById('modal-folio-input');
+    input.setAttribute('aria-activedescendant', modalActivo >= 0 ? 'mf-' + modalActivo : '');
+    const q = input.value.trim();
+    const n = modalResultados.length;
+    document.getElementById('modal-conteo').textContent = !PENDIENTES.length
+        ? ({{ 'true' if conectado else 'false' }} ? 'Todos los folios de salida ya están liquidados. Escribe un folio y presiona Enter.' : 'Sin enlace con salidas. Escribe el folio y presiona Enter.')
+        : (q ? (n ? n + (n === 1 ? ' folio coincide' : ' folios coinciden') : 'Ningún folio pendiente coincide · Enter para buscarlo de todos modos')
+             : PENDIENTES.length + ' folios por liquidar');
+}
+const FECHAS_CORTAS = {{ pendientes | map(attribute=2) | map('fecha_corta') | list | tojson }};
+PENDIENTES.forEach((p, i) => p[3] = FECHAS_CORTAS[i]);
+
+document.getElementById('modal-folio-input').addEventListener('input', function(){
+    const q = this.value.trim().toUpperCase();
+    if(!q){
+        modalResultados = PENDIENTES.slice();
+    } else {
+        // Primero los folios que empiezan con lo escrito; después los que lo contienen u operador
+        const inicio = [], resto = [];
+        PENDIENTES.forEach(function(p){
+            const folio = String(p[0]).toUpperCase();
+            if(folio.startsWith(q)) inicio.push(p);
+            else if(folio.includes(q) || (p[1] || '').toUpperCase().includes(q)) resto.push(p);
+        });
+        modalResultados = inicio.concat(resto);
+    }
+    modalActivo = q && modalResultados.length ? 0 : -1;
+    pintarModal();
+});
+document.getElementById('modal-folio-input').addEventListener('keydown', function(e){
+    const visibles = Math.min(modalResultados.length, MAX_RESULTADOS);
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+        if(!visibles) return;
+        e.preventDefault();
+        modalActivo = e.key === 'ArrowDown' ? (modalActivo + 1) % visibles : (modalActivo <= 0 ? visibles - 1 : modalActivo - 1);
+        pintarModal();
+    } else if(e.key === 'Enter'){
+        e.preventDefault();
+        if(modalActivo >= 0 && modalResultados[modalActivo]) cargar(modalResultados[modalActivo][0]);
+        else if(this.value.trim()) cargar(this.value.trim());
+    } else if(e.key === 'Tab'){
+        e.preventDefault();   // el foco se queda dentro del cuadro
+    }
+});
 
 // Periodo del historial (Este mes / Anterior / Todo): se filtra en el navegador
 let periodo = 'actual';

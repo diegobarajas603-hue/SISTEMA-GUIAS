@@ -107,24 +107,47 @@ document.addEventListener('keydown', function(e){
         enfocarFolio();
     }
     if(e.key === 'Escape'){
+        if(modalAbierto()){ cerrarModalFolio(); return; }
         const abierto = document.querySelector('.panel-lateral.abierto');
         if(abierto){ cerrarPanel(); return; }
         if(typeof window.alEscape === 'function') window.alEscape(e);
     }
 });
 
-// "Nueva liquidación": en el panel enfoca el buscador de folio; en otra pantalla lleva al panel.
+// "Nueva liquidación": en el panel abre el cuadro flotante de folio; en otra pantalla lleva al panel.
+function modalAbierto(){
+    const m = document.getElementById('modal-folio');
+    return !!(m && !m.hidden);
+}
+function abrirModalFolio(){
+    const m = document.getElementById('modal-folio');
+    if(!m) return false;
+    cerrarPanel();
+    m.hidden = false;
+    document.body.classList.add('con-modal');
+    const input = document.getElementById('modal-folio-input');
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    input.focus();
+    return true;
+}
+function cerrarModalFolio(){
+    const m = document.getElementById('modal-folio');
+    if(!m) return;
+    m.hidden = true;
+    document.body.classList.remove('con-modal');
+}
 function irANueva(e){
-    if(location.pathname === '/'){
+    if(document.getElementById('modal-folio')){
         if(e) e.preventDefault();
-        enfocarFolio();
-        toast('Escribe el folio de salida', 'O elige uno de la lista "Por liquidar".', 'info', 2500);
+        abrirModalFolio();
         return false;
     }
     return true;
 }
 if(location.hash === '#nueva'){
-    setTimeout(enfocarFolio, 50);
+    history.replaceState(null, '', location.pathname + location.search);
+    setTimeout(() => { if(!abrirModalFolio()) enfocarFolio(); }, 50);
 }
 
 // ---------- Panel lateral ----------

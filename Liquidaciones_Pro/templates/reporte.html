@@ -41,7 +41,7 @@
     <div class="kpi">
         <div class="etiqueta">Deducciones</div>
         <div class="kpi-valor">{{ cifra(deducciones_mes) }}</div>
-        <div class="kpi-pie">Gastos, préstamos e Infonavit</div>
+        <div class="kpi-pie">Gastos e Infonavit</div>
     </div>
     <div class="kpi">
         <div class="etiqueta">Total pagado</div>
@@ -89,8 +89,7 @@
                         <div><span class="etiqueta">Extras</span><b>{{ o.extras | dinero }}</b></div>
                         <div><span class="etiqueta">Casetas</span><b>{{ o.casetas | dinero }}</b></div>
                         <div><span class="etiqueta">Rendimiento</span><b>{{ o.rendimiento_monto | dinero }}</b></div>
-                        <div class="menos"><span class="etiqueta">Gastos</span><b>{{ o.gastos | dinero }}</b></div>
-                        <div class="menos"><span class="etiqueta">Préstamo</span><b>{{ o.prestamo | dinero }}</b></div>
+                        <div class="menos"><span class="etiqueta">Gastos</span><b>{{ (o.gastos + o.prestamo) | dinero }}</b></div>
                         <div class="menos"><span class="etiqueta">Infonavit</span><b>{{ o.infonavit | dinero }}</b></div>
                     </div>
                     <table class="tabla-detalle">
