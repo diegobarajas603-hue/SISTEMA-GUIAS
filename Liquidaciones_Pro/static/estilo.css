@@ -20,8 +20,8 @@
     --surface:#111113;
     --surface-2:#18181B;
     --track:#111113;
-    --line:#1E1E22;
-    --line-2:#2A2A2F;
+    --line:#2C2C33;                   /* divisores: visibles sobre #0A0A0B */
+    --line-2:#3C3C45;
     --field-bd:transparent;
     --ink:#F5F5F7;
     --ink-2:#A1A1AA;
@@ -306,7 +306,6 @@ select{ appearance:none; -webkit-appearance:none; cursor:pointer;
 }
 .kpi{ min-width:0; padding:0 24px; border-left:1px solid var(--line); }
 .kpi:first-child{ padding-left:0; border-left:0; }
-[data-theme="dark"] .kpi{ border-left:0; padding-left:0; }
 .kpi-valor{ font-size:32px; font-weight:500; letter-spacing:-.02em; line-height:1.15; margin:16px 0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .kpi-valor .cent{ font-size:18px; color:var(--muted); }
 .kpi-pie{ font-size:12.5px; color:var(--muted); }
@@ -373,10 +372,12 @@ td.vacio{ height:auto; }
     width:100%; height:52px; display:grid; grid-template-columns:72px minmax(0,1fr) auto; align-items:center; gap:16px;
     padding:0 12px; margin:0 -12px; width:calc(100% + 24px);
     border-radius:10px; text-align:left;
-    border:1px solid transparent; border-bottom-color:var(--line);
+    border:1px solid transparent;
     transition:background var(--t), box-shadow var(--t), border-color var(--t);
 }
-.lista-folios li:last-child .fila-folio{ border-bottom-color:transparent; }
+/* La línea va en el renglón (no en el botón redondeado) para que sea recta */
+.lista-folios li{ border-bottom:1px solid var(--line); }
+.lista-folios li:last-child{ border-bottom:0; }
 .fila-folio .f-num{ font-weight:600; }
 .fila-folio .f-nombre{ color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fila-folio .f-fecha{ color:var(--muted); font-size:12.5px; }
