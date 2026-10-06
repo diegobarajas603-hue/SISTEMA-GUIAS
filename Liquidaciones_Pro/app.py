@@ -37,7 +37,8 @@ database.iniciar_respaldo_periodico(intervalo_segundos=3600)
 # Sesión firmada con una clave guardada en data/ (ver database.clave_secreta).
 # SameSite=Lax: otra página no puede mandar formularios con tu sesión.
 app.secret_key = database.clave_secreta()
-app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax")
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
+                  SESSION_COOKIE_SECURE=bool(os.environ.get("RAILWAY_ENVIRONMENT")))   # en Railway solo viaja por HTTPS
 
 
 # =========================================================

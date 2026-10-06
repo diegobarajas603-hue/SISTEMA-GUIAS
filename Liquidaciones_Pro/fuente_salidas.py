@@ -89,12 +89,20 @@ def _recientes_archivo(n):
 # ---------------------------------------------------------
 def _get_json(ruta):
     url = _url_base() + ruta
+    peticion = urllib.request.Request(url)
+    if config_data.CLAVE_API_SALIDAS:
+        peticion.add_header("X-Clave-Api", config_data.CLAVE_API_SALIDAS)
     try:
-        with urllib.request.urlopen(url, timeout=10) as r:
+        with urllib.request.urlopen(peticion, timeout=10) as r:
             return json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         if e.code == 404:
             return None
+        if e.code == 401:
+            raise ErrorFuente(
+                "El sistema de salidas rechazó la clave. Revisa que la variable "
+                "CLAVE_API_SALIDAS sea igual en los dos sistemas."
+            ) from e
         raise ErrorFuente(f"El sistema de salidas respondió con error {e.code} en {url}") from e
     except (urllib.error.URLError, ValueError, OSError) as e:
         raise ErrorFuente(

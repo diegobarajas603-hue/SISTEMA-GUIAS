@@ -17,13 +17,32 @@
 # Solo expone lectura de folios (nunca modifica nada):
 #   GET /api/folio/<folio>        -> {"ida": {...}, "regreso": {...} | null}
 #   GET /api/folios?limite=400    -> [{"folio","operador","fecha_salida"}, ...]
+#
+# CLAVE: si el sistema de salidas está en internet (Railway), define la
+# variable de entorno CLAVE_API_SALIDAS con una clave larga, y la MISMA en
+# el sistema de liquidaciones. Sin la clave correcta la API responde 401,
+# así nadie más puede leer los folios con solo conocer la dirección.
 # =========================================================
+
+import hmac
+import os
 
 from flask import Blueprint, jsonify, request
 
 import database
 
 bp = Blueprint("api_salidas", __name__)
+
+
+@bp.before_request
+def revisar_clave():
+    clave = os.environ.get("CLAVE_API_SALIDAS", "").strip()
+    if not clave:
+        return None          # sin clave configurada: abierto (solo para red local)
+    recibida = request.headers.get("X-Clave-Api", "")
+    if not hmac.compare_digest(recibida.encode(), clave.encode()):
+        return jsonify({"error": "Clave inválida"}), 401
+    return None
 
 
 def _dict(cursor, fila):

@@ -63,3 +63,18 @@ URL_SALIDAS = _os.environ.get("URL_SALIDAS", URL_SALIDAS)
 RUTA_SALIDAS_DB = _os.environ.get("RUTA_SALIDAS_DB", RUTA_SALIDAS_DB)
 PUERTO = int(_os.environ.get("PORT", PUERTO))
 EN_SERVIDOR = bool(_os.environ.get("PORT") or _os.environ.get("RAILWAY_ENVIRONMENT"))
+
+# Clave compartida con el sistema de salidas (Opción B). Debe ser la MISMA
+# variable CLAVE_API_SALIDAS en los dos servicios de Railway. Nunca la
+# escribas aquí: este archivo se sube a GitHub.
+CLAVE_API_SALIDAS = _os.environ.get("CLAVE_API_SALIDAS", "").strip()
+
+# Zona horaria. Railway trabaja en UTC (6 horas adelante de México), lo que
+# movería la fecha de liquidación, la bitácora y el "mes actual". En el
+# servidor se usa la hora del centro de México (UTC-6, sin horario de
+# verano desde 2022). Se puede cambiar con la variable ZONA_HORARIA.
+import time as _time
+ZONA_HORARIA = _os.environ.get("ZONA_HORARIA", "CST6" if EN_SERVIDOR else "").strip()
+if ZONA_HORARIA and hasattr(_time, "tzset"):
+    _os.environ["TZ"] = ZONA_HORARIA
+    _time.tzset()
