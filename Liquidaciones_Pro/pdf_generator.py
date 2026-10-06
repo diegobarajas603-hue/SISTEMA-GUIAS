@@ -204,8 +204,9 @@ def generar_pdf_liquidacion(filename, liq):
     Genera el PDF de liquidación. `liq` es un diccionario con las
     mismas llaves que las columnas de la tabla `liquidaciones`.
 
-    Diseño de una sola lectura: solo se imprimen los conceptos con
-    monto (el sueldo siempre), con un detalle corto en gris.
+    Diseño de una sola lectura: en percepciones solo se imprimen los
+    conceptos con monto (el sueldo siempre); en deducciones siempre van
+    gastos, préstamo e infonavit.
     """
     tmp_filename = filename + ".tmp"
     folio = liq.get("folio", "")
@@ -267,7 +268,7 @@ def generar_pdf_liquidacion(filename, liq):
         y = _conceptos(c, margen, y, ancho_util, "Percepciones", perc,
                        "Total percepciones", dinero(liq.get("total"))) - 36
 
-        # ---------- Deducciones (solo lo que tiene monto) ----------
+        # ---------- Deducciones (siempre gastos, préstamo e infonavit) ----------
         pagos = [_fecha_mini(liq.get(f"infonavit_pago{i}")) for i in range(1, 5) if liq.get(f"infonavit_pago{i}")]
         ded = []
         for clave, nombre, detalle in (
@@ -275,18 +276,10 @@ def generar_pdf_liquidacion(filename, liq):
             ("prestamo", "Préstamo", ""),
             ("infonavit", "Infonavit", ("Pagos " if len(pagos) > 1 else "Pago ") + ", ".join(pagos) if pagos else ""),
         ):
-            if monto(clave):
-                ded.append((nombre, detalle, dinero(liq.get(clave))))
+            ded.append((nombre, detalle, dinero(liq.get(clave))))
         total_ded = monto("gastos") + monto("prestamo") + monto("infonavit")
-        if ded:
-            y = _conceptos(c, margen, y, ancho_util, "Deducciones", ded,
-                           "Total deducciones", dinero(total_ded)) - 40
-        else:
-            _etiqueta(c, margen, y, "Deducciones", tam=7, espacio=1.4)
-            c.setFont(FUENTE, 10)
-            c.setFillColor(TINTA_2)
-            c.drawString(margen, y - 22, "Sin deducciones")
-            y -= 62
+        y = _conceptos(c, margen, y, ancho_util, "Deducciones", ded,
+                       "Total deducciones", dinero(total_ded)) - 40
 
         # ---------- Total a pagar ----------
         _linea(c, margen, derecha, y, grosor=1.4, color=LINEA_FUERTE)
@@ -348,9 +341,6 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
     width, height = letter
     pad = 6                                   # relleno interno del marco de ReportLab
     ancho_util = width - 2 * margen - 2 * pad
-
-    def deducciones(d):
-        return float(d.get("gastos") or 0) + float(d.get("prestamo") or 0) + float(d.get("infonavit") or 0)
 
     def encabezado(c, doc):
         c.saveState()
@@ -428,6 +418,7 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
         )
         estilo_t = ParagraphStyle("t", fontName=FUENTE_B, fontSize=22, leading=26, textColor=TINTA)
         estilo_sub = ParagraphStyle("s", fontName=FUENTE, fontSize=9, leading=12, textColor=TINTA_2, spaceBefore=6)
+        estilo_celda = ParagraphStyle("c", fontName=FUENTE, fontSize=9.5, leading=12, textColor=TINTA)
 
         n_ops = len(operadores)
         total_ded = totales["gastos"] + totales["prestamo"] + totales["infonavit"]
@@ -442,34 +433,49 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
             Spacer(1, 40),
         ]
 
-        # ---- Resumen por operador (5 columnas, como la pantalla)
-        anchos = [ancho_util - 50 - 3 * 100, 50, 100, 100, 100]
-        filas = [["OPERADOR", "VIAJES", "PERCEPCIONES", "DEDUCCIONES", "TOTAL A PAGAR"]]
+        # ---- Resumen por operador: percepciones, gastos, préstamo, infonavit y total
+        num = 66
+        anchos = [ancho_util - 40 - 5 * num, 40] + [num] * 5
+        filas = [["OPERADOR", "VIAJES", "PERCEPCIONES", "GASTOS", "PRÉSTAMO", "INFONAVIT", "A PAGAR"]]
         for o in operadores:
-            filas.append([o["operador"].title(), str(o["viajes"]), dinero(o["total"]),
-                          dinero(deducciones(o)), dinero(o["total_pagar"])])
+            filas.append([Paragraph(o["operador"].title(), estilo_celda), str(o["viajes"]), dinero(o["total"]),
+                          dinero(o["gastos"]), dinero(o["prestamo"]), dinero(o["infonavit"]),
+                          dinero(o["total_pagar"])])
         filas.append(["Total del mes", str(totales["viajes"]), dinero(totales["total"]),
-                      dinero(total_ded), dinero(totales["total_pagar"])])
+                      dinero(totales["gastos"]), dinero(totales["prestamo"]), dinero(totales["infonavit"]),
+                      dinero(totales["total_pagar"])])
         if operadores:
-            elementos += [Etiqueta("Por operador"), Spacer(1, 10), tabla(filas, anchos)]
+            t = tabla(filas, anchos)
+            t.setStyle(TableStyle([('FONTSIZE', (1, 1), (-1, -1), 9)]))
+            elementos += [Etiqueta("Por operador"), Spacer(1, 10), t]
         else:
             elementos.append(Paragraph(f"No hay liquidaciones en {titulo_mes.lower()}.", estilo_sub))
 
-        # ---- Todos los folios del mes en una sola tabla, agrupados por operador
+        # ---- Folios del mes en una sola tabla, con un renglón por operador
         if por_operador and operadores:
-            anchos_f = [56, 76, 0, 86, 86, 86]
-            anchos_f[2] = ancho_util - sum(anchos_f)
-            filas = [["FOLIO", "FECHA", "OPERADOR", "TOTAL", "DEDUCCIONES", "A PAGAR"]]
+            anchos_f = [ancho_util - 76 - 5 * num, 76] + [num] * 5
+            filas = [["FOLIO", "FECHA", "TOTAL", "GASTOS", "PRÉSTAMO", "INFONAVIT", "A PAGAR"]]
+            renglones_operador = []
             for o in operadores:
-                for d in por_operador.get(o["operador"], []):
-                    filas.append([d["folio"], fecha_corta(d["fecha"]), o["operador"].title(),
-                                  dinero(d["total"]), dinero(deducciones(d)), dinero(d["total_pagar"])])
+                lista = por_operador.get(o["operador"], [])
+                if not lista:
+                    continue
+                renglones_operador.append(len(filas))
+                filas.append([o["operador"].title(), "", "", "", "", "", ""])
+                for d in lista:
+                    filas.append([d["folio"], fecha_corta(d["fecha"]), dinero(d["total"]),
+                                  dinero(d["gastos"]), dinero(d["prestamo"]), dinero(d["infonavit"]),
+                                  dinero(d["total_pagar"])])
             t = tabla(filas, anchos_f, total=False)
-            t.setStyle(TableStyle([
-                ('ALIGN', (1, 0), (2, -1), 'LEFT'),
-                ('LEFTPADDING', (2, 0), (2, -1), 8),
-                ('TEXTCOLOR', (0, 1), (0, -1), TINTA),
-            ]))
+            estilo = [('ALIGN', (1, 0), (1, -1), 'LEFT'),
+                      ('FONTSIZE', (0, 1), (-1, -1), 9),
+                      ('TEXTCOLOR', (0, 1), (0, -1), TINTA)]
+            for r in renglones_operador:
+                estilo += [('SPAN', (0, r), (-1, r)),
+                           ('FONTNAME', (0, r), (-1, r), FUENTE_B),
+                           ('FONTSIZE', (0, r), (-1, r), 9.5),
+                           ('TOPPADDING', (0, r), (-1, r), 14 if r > 1 else 8)]
+            t.setStyle(TableStyle(estilo))
             elementos += [Spacer(1, 44), Etiqueta("Folios del mes"), Spacer(1, 10), t]
 
         doc.build(elementos, onFirstPage=encabezado, onLaterPages=encabezado)
