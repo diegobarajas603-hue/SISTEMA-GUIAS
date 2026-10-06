@@ -78,6 +78,10 @@
 }
 
 :root{
+    /* Escala de toda la interfaz: .8 = como el zoom de 80% del navegador,
+       pero con el navegador en 100%. Para cambiarla, edita este número y
+       los cortes de @media de abajo (están multiplicados por el mismo valor). */
+    --z:.8;
     --sans:'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     --t:170ms cubic-bezier(.2,.7,.3,1);
     --pad-x:56px;
@@ -86,11 +90,11 @@
 
 /* ---------- BASE ---------- */
 *{ margin:0; padding:0; box-sizing:border-box; }
-html{ background:var(--bg); }
+html{ background:var(--bg); zoom:var(--z); }
 body{
     font-family:var(--sans); font-size:13.5px; line-height:1.5;
     font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1;
-    color:var(--ink); background:var(--bg); min-height:100vh;
+    color:var(--ink); background:var(--bg); min-height:calc(100vh / var(--z));
     -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
 }
 a{ color:inherit; text-decoration:none; }
@@ -123,11 +127,11 @@ kbd{
 .suave{ color:var(--ink-2); }
 
 /* ---------- ESTRUCTURA ---------- */
-.app{ display:grid; grid-template-columns:72px minmax(0,1fr); min-height:100vh; }
+.app{ display:grid; grid-template-columns:72px minmax(0,1fr); min-height:calc(100vh / var(--z)); }
 
 /* Riel izquierdo */
 .riel{
-    position:sticky; top:0; height:100vh; z-index:30;
+    position:sticky; top:0; height:calc(100vh / var(--z)); z-index:30;
     display:flex; flex-direction:column; align-items:center;
     padding:20px 0; gap:32px;
     background:var(--barra-bg); border-right:1px solid var(--line);
@@ -478,7 +482,7 @@ td.vacio{ height:auto; }
 /* Resumen fijo */
 .resumen{
     position:sticky; top:0; align-self:start;
-    height:100vh; overflow-y:auto;
+    height:calc(100vh / var(--z)); overflow-y:auto;
     display:flex; flex-direction:column;
     padding:var(--pad-top) 40px 32px;
     background:var(--barra-bg); border-left:1px solid var(--line);
@@ -560,12 +564,12 @@ tfoot td{ height:56px; font-weight:600; border-top:1px solid var(--line-2); bord
 .campo-grupo{ display:flex; flex-direction:column; gap:8px; }
 
 /* ---------- CUADRO FLOTANTE (nueva liquidación) ---------- */
-.modal{ position:fixed; inset:0; z-index:80; display:flex; justify-content:center; align-items:flex-start; padding:14vh 16px 16px; }
+.modal{ position:fixed; inset:0; z-index:80; display:flex; justify-content:center; align-items:flex-start; padding:calc(14vh / var(--z)) 16px 16px; }
 .modal[hidden]{ display:none; }
 .modal-fondo{ position:absolute; inset:0; background:rgba(0,0,0,.6); animation:aparece 150ms ease-out; }
 [data-theme="light"] .modal-fondo{ background:rgba(16,16,24,.28); }
 .modal-caja{
-    position:relative; width:560px; max-width:100%; max-height:76vh; display:flex; flex-direction:column;
+    position:relative; width:560px; max-width:100%; max-height:calc(76vh / var(--z)); display:flex; flex-direction:column;
     background:var(--barra-bg); border:1px solid var(--line-2); border-radius:14px;
     box-shadow:0 24px 64px -16px rgba(0,0,0,.6);
     animation:entra 170ms cubic-bezier(.2,.7,.3,1);
@@ -599,7 +603,7 @@ body.con-modal{ overflow:hidden; }
 /* Historial: sin barra horizontal en pantallas de ~1280 px */
 #tabla-historial td:nth-child(2){ max-width:240px; overflow:hidden; text-overflow:ellipsis; }
 #tabla-historial td.sin-export, #tabla-historial th:last-child{ width:1%; padding-left:8px; }
-@media (max-width:1440px){
+@media (max-width:1152px){
     th, td{ padding:0 12px; }
     th{ letter-spacing:.12em; }
 }
@@ -633,7 +637,7 @@ body.con-modal{ overflow:hidden; }
 /* pie del riel más compacto: estado, tema y cuenta juntos */
 .riel-enlace ~ .riel-tema, .riel-enlace ~ .riel-cuenta{ margin-top:-20px; }
 
-.pagina-login{ min-height:100vh; display:grid; place-items:center; padding:32px 16px; }
+.pagina-login{ min-height:calc(100vh / var(--z)); display:grid; place-items:center; padding:32px 16px; }
 .login{ width:380px; max-width:100%; }
 .login-marca{ display:flex; align-items:center; gap:12px; font-size:13px; font-weight:500; color:var(--ink-2); margin-bottom:48px; }
 .login .titular{ font-size:30px; }
@@ -666,10 +670,10 @@ tr.inactivo td{ color:var(--muted); }
 @keyframes entra{ from{ opacity:0; transform:translateY(-8px); } }
 
 /* ---------- RESPONSIVO ---------- */
-@media (max-width:1440px){
+@media (max-width:1152px){
     :root{ --pad-x:48px; }
 }
-@media (max-width:1366px){
+@media (max-width:1093px){
     :root{ --pad-x:40px; }
     .columnas{ grid-template-columns:300px minmax(0,1fr); gap:32px; }
     .resumen{ padding-left:28px; padding-right:28px; }
@@ -681,7 +685,7 @@ tr.inactivo td{ color:var(--muted); }
     .res-total .ent{ font-size:46px; }
     .detalle-conceptos{ grid-template-columns:repeat(4, minmax(0,1fr)); }
 }
-@media (max-width:1100px){
+@media (max-width:880px){
     :root{ --pad-x:32px; }
     .columnas{ grid-template-columns:minmax(0,1fr); gap:48px; }
     .form-layout{ grid-template-columns:minmax(0,1fr); }
@@ -692,7 +696,7 @@ tr.inactivo td{ color:var(--muted); }
     .kpi:nth-child(3){ padding-left:0; border-left:0; }
     .encabezado{ flex-wrap:wrap; align-items:flex-start; }
 }
-@media (max-width:760px){
+@media (max-width:608px){
     :root{ --pad-x:16px; --pad-top:32px; }
     .rejilla-4{ grid-template-columns:repeat(2, minmax(0,1fr)); }
     .span-2, .span-3{ grid-column:1 / -1; }
