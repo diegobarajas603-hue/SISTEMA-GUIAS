@@ -63,25 +63,6 @@ def _linea(c, x1, x2, y, grosor=0.5, color=LINEA):
     c.line(x1, y, x2, y)
 
 
-def _monograma(c, x, y, tam=22):
-    """Cuadro "LQ" solo con contorno (no gasta tinta de relleno)."""
-    c.setStrokeColor(TINTA)
-    c.setLineWidth(1)
-    c.roundRect(x, y, tam, tam, 4, fill=0, stroke=1)
-    c.setFillColor(TINTA)
-    c.setFont(FUENTE_B, tam * 0.36)
-    c.drawCentredString(x + tam / 2, y + tam * 0.36, "LQ")
-
-
-def _pie(c, width, margen, izquierda, derecha=""):
-    _linea(c, margen, width - margen, 46)
-    c.setFont(FUENTE, 7)
-    c.setFillColor(GRIS)
-    c.drawString(margen, 32, izquierda)
-    if derecha:
-        c.drawRightString(width - margen, 32, derecha)
-
-
 # =========================================================
 # LIQUIDACIÓN DE VIAJE
 # -----------------------------------------------------------
@@ -167,36 +148,9 @@ def desglose_estancia(fechas):
     return llegada, pagados, round(total, 2)
 
 
-
 def _estilo_chico(color=TINTA_2, tam=8.5):
     from reportlab.lib.styles import ParagraphStyle
     return ParagraphStyle("chico", fontName=FUENTE, fontSize=tam, leading=tam * 1.4, textColor=color)
-
-
-def _tabla_conceptos(filas, col_widths):
-    """Filas concepto · detalle · monto separadas por líneas finas, sin fondos."""
-    table = Table(filas, colWidths=col_widths)
-    table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), FUENTE),
-        ('FONTSIZE', (0, 0), (-1, -1), 9.5),
-        ('TEXTCOLOR', (0, 0), (-1, -1), TINTA),
-        ('TEXTCOLOR', (1, 0), (1, -1), TINTA_2),
-        ('FONTSIZE', (1, 0), (1, -1), 8.5),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ('LEFTPADDING', (1, 0), (1, -1), 8),
-        ('RIGHTPADDING', (1, 0), (1, -1), 12),
-        ('LINEBELOW', (0, 0), (-1, -2), 0.4, LINEA),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
-        # Fila de subtotal: línea negra arriba, negritas
-        ('LINEABOVE', (0, -1), (-1, -1), 0.8, LINEA_FUERTE),
-        ('FONTNAME', (0, -1), (-1, -1), FUENTE_B),
-        ('TOPPADDING', (0, -1), (-1, -1), 8),
-    ]))
-    return table
 
 
 def _dibujar_tabla(c, table, x, y_top):
@@ -204,15 +158,6 @@ def _dibujar_tabla(c, table, x, y_top):
     _, alto = table.wrap(0, 0)
     table.drawOn(c, x, y_top - alto)
     return y_top - alto
-
-
-def _seccion(c, x, y, numero, titulo):
-    """Encabezado de sección numerado: '01  PERCEPCIONES'."""
-    c.setFont(FUENTE, 7.5)
-    c.setFillColor(GRIS)
-    c.drawString(x, y, numero)
-    _etiqueta(c, x + 18, y, titulo, tam=7.5, color=TINTA, fuente=FUENTE_B, espacio=1.3)
-    return y - 8
 
 
 def _fecha_mini(iso):
@@ -389,132 +334,143 @@ def generar_pdf_liquidacion(filename, liq):
 # =========================================================
 
 def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador):
-    from reportlab.lib.pagesizes import landscape
-    from reportlab.platypus import SimpleDocTemplate, Spacer, PageBreak, KeepTogether
+    """
+    Reporte mensual en hoja carta vertical, mismo estilo que la liquidación:
+    titular con el mes, tres cifras del mes, una tabla por operador con las
+    columnas esenciales y, al final, todos los folios del mes.
+    """
+    from reportlab.platypus import SimpleDocTemplate, Spacer, Flowable
     from reportlab.lib.styles import ParagraphStyle
 
     tmp_filename = filename + ".tmp"
     titulo_mes = mes_largo(mes)
-    margen = 40
+    margen = 56
+    width, height = letter
+    pad = 6                                   # relleno interno del marco de ReportLab
+    ancho_util = width - 2 * margen - 2 * pad
+
+    def deducciones(d):
+        return float(d.get("gastos") or 0) + float(d.get("prestamo") or 0) + float(d.get("infonavit") or 0)
 
     def encabezado(c, doc):
-        width, height = landscape(letter)
         c.saveState()
-        top = height - 40
-        _monograma(c, margen, top - 18)
-        _etiqueta(c, margen + 34, top - 3, "Reporte mensual por operador", tam=7, espacio=1.4)
-        _etiqueta(c, margen + 34, top - 14, "Sistema de liquidaciones · Control de viajes", tam=6, espacio=0.9)
-        _etiqueta(c, width - margen, top - 3, "Periodo", tam=7, alinear="der", espacio=1.4)
-        c.setFillColor(TINTA)
-        c.setFont(FUENTE_B, 15)
-        c.drawRightString(width - margen, top - 20, titulo_mes)
-        _linea(c, margen, width - margen, top - 32)
-        _pie(c, width, margen, "Documento generado por el Sistema de Liquidaciones", f"Página {doc.page}")
+        y = height - 64
+        _etiqueta(c, margen + pad, y, "Reporte mensual", tam=7, espacio=1.5)
+        _etiqueta(c, width - margen - pad, y, f"{titulo_mes} · Página {doc.page}", tam=7, alinear="der", espacio=1.3)
         c.restoreState()
 
-    def estilo_tabla(ultima_es_total=True, col_destacadas=()):
+    class Cifras(Flowable):
+        """Fila de tres cifras grandes (como los indicadores de la pantalla)."""
+        def __init__(self, items):
+            super().__init__()
+            self.items = items
+
+        def wrap(self, aw, ah):
+            self.aw = aw
+            return aw, 44
+
+        def draw(self):
+            col = self.aw / len(self.items)
+            for i, (lbl, val) in enumerate(self.items):
+                x = i * col
+                _etiqueta(self.canv, x, 34, lbl, tam=6.8, espacio=1.3)
+                self.canv.setFillColor(TINTA)
+                self.canv.setFont(FUENTE_B if i == len(self.items) - 1 else FUENTE, 16)
+                self.canv.drawString(x, 10, val)
+
+    class Etiqueta(Flowable):
+        def __init__(self, texto):
+            super().__init__()
+            self.texto = texto
+
+        def wrap(self, aw, ah):
+            return aw, 14
+
+        def draw(self):
+            _etiqueta(self.canv, 0, 2, self.texto, tam=7, espacio=1.4)
+
+    def tabla(filas, anchos, total=True):
+        t = Table(filas, colWidths=anchos, repeatRows=1, hAlign="LEFT")
         estilo = [
             ('FONTNAME', (0, 0), (-1, -1), FUENTE),
+            ('FONTSIZE', (0, 0), (-1, -1), 9.5),
             ('TEXTCOLOR', (0, 0), (-1, -1), TINTA),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('LEFTPADDING', (0, 0), (-1, -1), 4),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-            ('LEFTPADDING', (0, 0), (0, -1), 0),
-            ('RIGHTPADDING', (-1, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            # Cabecera: texto gris pequeño y línea negra debajo, sin fondo
-            ('FONTNAME', (0, 0), (-1, 0), FUENTE_B),
+            ('TEXTCOLOR', (1, 1), (-2, -1), TINTA_2),
+            ('FONTNAME', (-1, 1), (-1, -1), FUENTE_B),
+            # Cabecera: gris pequeño, sin fondo
+            ('FONTSIZE', (0, 0), (-1, 0), 6.8),
             ('TEXTCOLOR', (0, 0), (-1, 0), GRIS),
-            ('FONTSIZE', (0, 0), (-1, 0), 6.5),
-            ('LINEBELOW', (0, 0), (-1, 0), 0.8, LINEA_FUERTE),
-            ('LINEBELOW', (0, 1), (-1, -2 if ultima_es_total else -1), 0.4, LINEA),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('LINEBELOW', (0, 0), (-1, 0), 0.6, LINEA_FUERTE),
+            ('LINEBELOW', (0, 1), (-1, -2 if total else -1), 0.4, LINEA),
         ]
-        for col in col_destacadas:
-            estilo.append(('FONTNAME', (col, 1), (col, -1), FUENTE_B))
-        if ultima_es_total:
+        if total:
             estilo += [
                 ('LINEABOVE', (0, -1), (-1, -1), 0.8, LINEA_FUERTE),
                 ('FONTNAME', (0, -1), (-1, -1), FUENTE_B),
-                ('TOPPADDING', (0, -1), (-1, -1), 7),
+                ('TEXTCOLOR', (0, -1), (-1, -1), TINTA),
+                ('TOPPADDING', (0, -1), (-1, -1), 8),
             ]
-        return estilo
+        t.setStyle(TableStyle(estilo))
+        return t
 
     try:
         doc = SimpleDocTemplate(
-            tmp_filename, pagesize=landscape(letter),
-            leftMargin=margen, rightMargin=margen, topMargin=92, bottomMargin=62,
+            tmp_filename, pagesize=letter,
+            leftMargin=margen, rightMargin=margen, topMargin=96, bottomMargin=56,
             title=f"Reporte mensual {titulo_mes}",
         )
-        estilo_h = ParagraphStyle("h", fontName=FUENTE_B, fontSize=15, leading=19, textColor=TINTA, spaceAfter=2)
-        estilo_sub = ParagraphStyle("sub", fontName=FUENTE, fontSize=8.5, textColor=TINTA_2, spaceAfter=14)
-        estilo_op = ParagraphStyle("op", fontName=FUENTE_B, fontSize=10, textColor=TINTA, spaceBefore=12, spaceAfter=6)
-        estilo_celda = ParagraphStyle("c", fontName=FUENTE, fontSize=7.5, leading=9, textColor=TINTA)
+        estilo_t = ParagraphStyle("t", fontName=FUENTE_B, fontSize=22, leading=26, textColor=TINTA)
+        estilo_sub = ParagraphStyle("s", fontName=FUENTE, fontSize=9, leading=12, textColor=TINTA_2, spaceBefore=6)
 
-        elementos = []
+        n_ops = len(operadores)
+        total_ded = totales["gastos"] + totales["prestamo"] + totales["infonavit"]
+        elementos = [
+            Paragraph(titulo_mes, estilo_t),
+            Paragraph(f"{totales['viajes']} {'viaje' if totales['viajes'] == 1 else 'viajes'} · "
+                      f"{n_ops} {'operador' if n_ops == 1 else 'operadores'}", estilo_sub),
+            Spacer(1, 32),
+            Cifras([("Percepciones", dinero(totales["total"])),
+                    ("Deducciones", dinero(total_ded)),
+                    ("Total pagado", dinero(totales["total_pagar"]))]),
+            Spacer(1, 40),
+        ]
 
-        # ---- Resumen
-        elementos.append(Paragraph("Resumen por operador", estilo_h))
-        elementos.append(Paragraph(
-            f"{totales['viajes']} viaje(s) liquidado(s) · {len(operadores)} operador(es) · "
-            f"Total percepciones {dinero(totales['total'])} · Total pagado {dinero(totales['total_pagar'])}",
-            estilo_sub
-        ))
-
-        cabecera = ["OPERADOR", "VIAJES", "SUELDO", "IDA", "REGRESO", "ESTANCIA", "MANIOBRAS",
-                    "EXTRAS", "CASETAS", "RENDIM.", "TOTAL", "GASTOS", "PRÉSTAMO", "INFONAVIT", "A PAGAR"]
-        filas = [cabecera]
+        # ---- Resumen por operador (5 columnas, como la pantalla)
+        anchos = [ancho_util - 50 - 3 * 100, 50, 100, 100, 100]
+        filas = [["OPERADOR", "VIAJES", "PERCEPCIONES", "DEDUCCIONES", "TOTAL A PAGAR"]]
         for o in operadores:
-            filas.append([
-                Paragraph(o["operador"], estilo_celda), str(o["viajes"]),
-                dinero(o["sueldo"]), dinero(o["ida_monto"]), dinero(o["regreso_monto"]),
-                dinero(o["estancia_monto"]), dinero(o["maniobras"]), dinero(o["extras"]),
-                dinero(o["casetas"]), dinero(o["rendimiento_monto"]), dinero(o["total"]),
-                dinero(o["gastos"]), dinero(o["prestamo"]), dinero(o["infonavit"]),
-                dinero(o["total_pagar"]),
-            ])
-        filas.append([
-            "TOTAL DEL MES", str(totales["viajes"]),
-            dinero(totales["sueldo"]), dinero(totales["ida_monto"]), dinero(totales["regreso_monto"]),
-            dinero(totales["estancia_monto"]), dinero(totales["maniobras"]), dinero(totales["extras"]),
-            dinero(totales["casetas"]), dinero(totales["rendimiento_monto"]), dinero(totales["total"]),
-            dinero(totales["gastos"]), dinero(totales["prestamo"]), dinero(totales["infonavit"]),
-            dinero(totales["total_pagar"]),
-        ])
+            filas.append([o["operador"].title(), str(o["viajes"]), dinero(o["total"]),
+                          dinero(deducciones(o)), dinero(o["total_pagar"])])
+        filas.append(["Total del mes", str(totales["viajes"]), dinero(totales["total"]),
+                      dinero(total_ded), dinero(totales["total_pagar"])])
+        if operadores:
+            elementos += [Etiqueta("Por operador"), Spacer(1, 10), tabla(filas, anchos)]
+        else:
+            elementos.append(Paragraph(f"No hay liquidaciones en {titulo_mes.lower()}.", estilo_sub))
 
-        anchos = [130, 30] + [42] * 13
-        tabla = Table(filas, colWidths=anchos, repeatRows=1)
-        tabla.setStyle(TableStyle(estilo_tabla(True, (10, 14)) + [
-            ('FONTSIZE', (0, 1), (-1, -1), 7.5),
-            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-        ]))
-        elementos.append(tabla)
-
-        # ---- Detalle por operador
-        if por_operador:
-            elementos.append(PageBreak())
-            elementos.append(Paragraph("Detalle por operador", estilo_h))
-            elementos.append(Paragraph("Folios liquidados en el mes, por operador.", estilo_sub))
-
-        for o in operadores:
-            lista = por_operador.get(o["operador"], [])
-            if not lista:
-                continue
-            filas = [["FOLIO", "FECHA", "SUELDO", "TOTAL", "GASTOS", "PRÉSTAMO", "INFONAVIT", "A PAGAR"]]
-            for d in lista:
-                filas.append([
-                    d["folio"], fecha_corta(d["fecha"]), (d["tipo_sueldo"] or "").capitalize(),
-                    dinero(d["total"]), dinero(d["gastos"]), dinero(d["prestamo"]),
-                    dinero(d["infonavit"]), dinero(d["total_pagar"]),
-                ])
-            filas.append(["", "", f"{o['viajes']} viaje(s)", dinero(o["total"]), dinero(o["gastos"]),
-                          dinero(o["prestamo"]), dinero(o["infonavit"]), dinero(o["total_pagar"])])
-            t = Table(filas, colWidths=[60, 80, 80, 80, 80, 80, 80, 90], repeatRows=1, hAlign="LEFT")
-            t.setStyle(TableStyle(estilo_tabla(True, (0, 7)) + [
-                ('FONTSIZE', (0, 1), (-1, -1), 8),
-                ('ALIGN', (3, 0), (-1, -1), 'RIGHT'),
+        # ---- Todos los folios del mes en una sola tabla, agrupados por operador
+        if por_operador and operadores:
+            anchos_f = [56, 76, 0, 86, 86, 86]
+            anchos_f[2] = ancho_util - sum(anchos_f)
+            filas = [["FOLIO", "FECHA", "OPERADOR", "TOTAL", "DEDUCCIONES", "A PAGAR"]]
+            for o in operadores:
+                for d in por_operador.get(o["operador"], []):
+                    filas.append([d["folio"], fecha_corta(d["fecha"]), o["operador"].title(),
+                                  dinero(d["total"]), dinero(deducciones(d)), dinero(d["total_pagar"])])
+            t = tabla(filas, anchos_f, total=False)
+            t.setStyle(TableStyle([
+                ('ALIGN', (1, 0), (2, -1), 'LEFT'),
+                ('LEFTPADDING', (2, 0), (2, -1), 8),
+                ('TEXTCOLOR', (0, 1), (0, -1), TINTA),
             ]))
-            elementos.append(KeepTogether([Paragraph(o["operador"], estilo_op), t, Spacer(1, 6)]))
+            elementos += [Spacer(1, 44), Etiqueta("Folios del mes"), Spacer(1, 10), t]
 
         doc.build(elementos, onFirstPage=encabezado, onLaterPages=encabezado)
         os.replace(tmp_filename, filename)
