@@ -136,6 +136,9 @@
                         <div class="acciones">
                             <a href="/liquidaciones/pdf/{{ l[0] }}" target="_blank" class="accion" data-tip="Ver PDF" aria-label="Ver PDF del folio {{ l[0] }}">{{ ico('ver', 16) }}</a>
                             <a href="/liquidaciones/editar/{{ l[0] }}" class="accion" data-tip="Editar" aria-label="Editar folio {{ l[0] }}">{{ ico('editar', 16) }}</a>
+                            <a href="/admin/borrar_liquidacion/{{ l[0] }}" class="accion peligro" data-tip="Eliminar" aria-label="Eliminar folio {{ l[0] }}"
+                               data-folio="{{ l[0] }}" data-operador="{{ l[2] | title }}"
+                               onclick="return confirmarEliminar(this.dataset.folio, this.dataset.operador)">{{ ico('basura', 16) }}</a>
                         </div>
                     </td>
                 </tr>

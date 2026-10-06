@@ -69,6 +69,21 @@
         <div class="modal-pie"><span><kbd>↑</kbd> <kbd>↓</kbd> elegir</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div>
     </div>
 </div>
+<!-- Confirmación para eliminar una liquidación -->
+<div id="modal-eliminar" class="modal" hidden>
+    <div class="modal-fondo" onclick="cerrarEliminar()"></div>
+    <div class="modal-caja modal-chica" role="alertdialog" aria-modal="true" aria-labelledby="t-eliminar" aria-describedby="d-eliminar">
+        <div class="modal-cuerpo">
+            <h3 id="t-eliminar">¿Eliminar la liquidación del folio <span id="eliminar-folio"></span>?</h3>
+            <p id="d-eliminar"><span id="eliminar-operador"></span>Se borran la liquidación, su PDF y sus pagos de Infonavit.
+               Antes se guarda un respaldo automático. El folio vuelve a <b>Por liquidar</b> para capturarlo de nuevo.</p>
+        </div>
+        <div class="modal-acciones">
+            <button type="button" class="btn btn-ghost" id="eliminar-cancelar" onclick="cerrarEliminar()">Cancelar</button>
+            <a href="#" class="btn btn-peligro" id="eliminar-ir">Eliminar</a>
+        </div>
+    </div>
+</div>
 {% block paneles %}{% endblock %}
 <div id="toasts" aria-live="polite"></div>
 

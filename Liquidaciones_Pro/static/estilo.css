@@ -603,6 +603,22 @@ body.con-modal{ overflow:hidden; }
     th{ letter-spacing:.12em; }
 }
 
+/* ---------- ELIMINAR ---------- */
+.btn-peligro{ background:var(--danger); color:#FFFFFF; }
+.btn-peligro:hover{ opacity:.88; }
+.accion.peligro:hover{ color:var(--danger); }
+.enlace-peligro{
+    display:flex; align-items:center; justify-content:center; gap:6px; margin-top:20px;
+    color:var(--muted); font-size:12.5px; transition:color var(--t);
+}
+.enlace-peligro:hover{ color:var(--danger); }
+.modal-chica{ width:440px; }
+.modal-cuerpo{ padding:24px 24px 8px; }
+.modal-cuerpo h3{ font-size:15px; font-weight:600; letter-spacing:-.01em; }
+.modal-cuerpo p{ margin-top:10px; color:var(--ink-2); font-size:13px; line-height:1.55; }
+.modal-cuerpo p b{ color:var(--ink); font-weight:500; }
+.modal-acciones{ display:flex; justify-content:flex-end; gap:8px; padding:16px 24px 20px; }
+
 /* ---------- TOASTS ---------- */
 #toasts{ position:fixed; right:32px; top:24px; z-index:90; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
 .toast{

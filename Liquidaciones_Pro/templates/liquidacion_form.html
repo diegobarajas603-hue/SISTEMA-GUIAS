@@ -207,6 +207,11 @@
                 </button>
                 <a href="/" class="btn btn-ghost btn-bloque" id="btn-cancelar" onclick="return cancelar(event)">Cancelar</a>
                 <div class="res-pista"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> guardar · <kbd>Esc</kbd> cancelar</div>
+                {% if modo == 'editar' %}
+                <a href="/admin/borrar_liquidacion/{{ liq.folio }}" class="enlace-peligro" id="btn-eliminar"
+                   data-folio="{{ liq.folio }}" data-operador="{{ (liq.operador or '') | title }}"
+                   onclick="return confirmarEliminar(this.dataset.folio, this.dataset.operador)">{{ ico('basura', 14) }} Eliminar liquidación</a>
+                {% endif %}
             </div>
         </aside>
 

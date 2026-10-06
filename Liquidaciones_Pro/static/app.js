@@ -92,6 +92,7 @@ document.addEventListener('keydown', function(e){
         if(!modalAbierto()) abrirModalFolio();
     }
     if(e.key === 'Escape'){
+        if(eliminarAbierto()){ cerrarEliminar(); return; }
         if(modalAbierto()){ cerrarModalFolio(); return; }
         const abierto = document.querySelector('.panel-lateral.abierto');
         if(abierto){ cerrarPanel(); return; }
@@ -253,3 +254,34 @@ document.addEventListener('keydown', function(e){
     e.preventDefault();
     sig.focus(); sig.click();
 });
+
+// ---------- Eliminar una liquidación (con confirmación) ----------
+// Usa la ruta que ya existía: guarda respaldo, borra la liquidación, su PDF
+// y sus pagos de Infonavit. El folio vuelve a "Por liquidar" solo.
+function eliminarAbierto(){
+    const m = document.getElementById('modal-eliminar');
+    return !!(m && !m.hidden);
+}
+function confirmarEliminar(folio, operador){
+    const m = document.getElementById('modal-eliminar');
+    if(!m) return false;
+    document.getElementById('eliminar-folio').textContent = folio;
+    document.getElementById('eliminar-operador').textContent = operador ? operador + '. ' : '';
+    const ir = document.getElementById('eliminar-ir');
+    ir.href = '/admin/borrar_liquidacion/' + encodeURIComponent(folio);
+    ir.onclick = function(){
+        if(typeof hayCambios !== 'undefined') hayCambios = false;   // no preguntar por cambios sin guardar
+        ir.classList.add('cargando');
+    };
+    cerrarPanel();
+    m.hidden = false;
+    document.body.classList.add('con-modal');
+    document.getElementById('eliminar-cancelar').focus();   // lo seguro queda enfocado
+    return false;
+}
+function cerrarEliminar(){
+    const m = document.getElementById('modal-eliminar');
+    if(!m) return;
+    m.hidden = true;
+    document.body.classList.remove('con-modal');
+}

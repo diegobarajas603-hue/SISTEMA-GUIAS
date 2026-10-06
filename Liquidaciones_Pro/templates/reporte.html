@@ -110,6 +110,9 @@
                                 <td class="num"><div class="acciones">
                                     <a href="/liquidaciones/pdf/{{ d.folio }}" target="_blank" class="accion" data-tip="Ver PDF" aria-label="Ver PDF del folio {{ d.folio }}">{{ ico('ver', 16) }}</a>
                                     <a href="/liquidaciones/editar/{{ d.folio }}" class="accion" data-tip="Editar" aria-label="Editar folio {{ d.folio }}">{{ ico('editar', 16) }}</a>
+                                    <a href="/admin/borrar_liquidacion/{{ d.folio }}" class="accion peligro" data-tip="Eliminar" aria-label="Eliminar folio {{ d.folio }}"
+                                       data-folio="{{ d.folio }}" data-operador="{{ o.operador | title }}"
+                               onclick="event.stopPropagation(); return confirmarEliminar(this.dataset.folio, this.dataset.operador)">{{ ico('basura', 16) }}</a>
                                 </div></td>
                             </tr>
                             {% endfor %}
