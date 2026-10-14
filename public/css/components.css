@@ -311,6 +311,10 @@
   display: block;
 }
 
+.field[hidden] {
+  display: none;
+}
+
 .field + .field {
   margin-top: var(--space-16);
 }

@@ -232,17 +232,20 @@ app.delete('/api/guias/:numeroGuia', requireAuth, requireAdmin, async (req, res)
 //  { resolucion: 'cancelada', numero: 'AN...' }  -> la guia se cancelo y toma
 //    el numero de la nueva guia, conservando todo su historial. Opcionalmente
 //    acepta "estatus" (con que estatus arranca la guia nueva; si no se indica,
-//    regresa al estatus anterior al ultimo escaneo) y "conservarComplemento"
+//    regresa al estatus anterior al ultimo escaneo), "tipoEntrega" ('ocurre' o
+//    'domicilio', obligatorio si ese estatus es entregado) y "conservarComplemento"
 //    (por omision el complemento se queda con la guia cancelada).
 //  { resolucion: 'complemento', numero: 'AN...' } -> se emitio un complemento;
 //    la guia conserva ambos numeros y los dos sirven para rastrear.
 app.post('/api/guias/:numeroGuia/revertir', requireAuth, requireAdmin, async (req, res) => {
-  const { resolucion, numero, estatus, conservarComplemento, motivo } = req.body || {};
+  const { resolucion, numero, estatus, tipoEntrega, conservarComplemento, motivo } = req.body || {};
   let r = null;
   if (resolucion === 'cancelada' || resolucion === 'complemento') {
     r = { tipo: resolucion, numero };
     if (resolucion === 'cancelada') {
       r.estatus = estatus || null;
+      // Solo cuando el estatus elegido es entregado: 'ocurre' o 'domicilio'
+      r.tipoEntrega = tipoEntrega || null;
       r.conservarComplemento = conservarComplemento === true;
       // Obligatorio: queda en el historial de la guia y en la bitacora
       r.motivo = motivo;
