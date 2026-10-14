@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from '_iconos.html' import ico %}
+{% block titulo %}Usuarios{% endblock %}
+
+{% block contenido %}
+{%- set activos = usuarios | selectattr('activo') | list -%}
+<header class="encabezado">
+    <div>
+        <div class="etiqueta">Administración</div>
+        <h1 class="titular">Usuarios.<br><span class="tenue">{{ activos|length }} activo{{ 's' if activos|length != 1 else '' }}.</span></h1>
+    </div>
+    <div class="encabezado-acciones">
+        <button type="button" class="btn btn-primario" onclick="abrirPanel('panel-nuevo-usuario')">{{ ico('mas', 16) }} Nuevo usuario</button>
+    </div>
+</header>
+
+<section class="tarjeta" aria-label="Usuarios">
+    <div class="tabla-wrap">
+    <table>
+        <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th>Alta</th><th><span class="oculto">Acciones</span></th></tr></thead>
+        <tbody>
+            {% for u in usuarios %}
+            <tr class="{% if not u.activo %}inactivo{% endif %}">
+                <td class="folio">{{ u.nombre }}{% if yo and u.id == yo.id %} <span class="tenue" style="font-weight:400;">· tú</span>{% endif %}</td>
+                <td class="suave">{{ u.usuario }}</td>
+                <td class="suave">{{ roles.get(u.rol, u.rol) }}</td>
+                <td>{% if u.activo %}<span class="estado"><span class="punto"></span>Activo</span>{% else %}<span class="estado warn"><span class="punto"></span>Inactivo</span>{% endif %}</td>
+                <td class="suave">{{ (u.creado or '')[:10] | fecha_corta }}</td>
+                <td class="num">
+                    <div class="acciones">
+                        <button type="button" class="accion" data-tip="Cambiar contraseña" aria-label="Cambiar contraseña de {{ u.usuario }}"
+                                data-id="{{ u.id }}" data-usuario="{{ u.usuario }}" onclick="abrirContrasena(this)">{{ ico('editar', 16) }}</button>
+                        {% if not (yo and u.id == yo.id) %}
+                        <form method="POST" action="/admin/usuarios/{{ u.id }}/estado" style="display:inline;">
+                            <button type="submit" class="accion {% if u.activo %}peligro{% endif %}" data-tip="{{ 'Desactivar' if u.activo else 'Activar' }}"
+                                    aria-label="{{ 'Desactivar' if u.activo else 'Activar' }} {{ u.usuario }}">{{ ico('cerrar' if u.activo else 'check', 16) }}</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</section>
+<p class="pie-nota">Un usuario desactivado ya no puede entrar, pero sus movimientos se conservan en la bitácora.</p>
+{% endblock %}
+
+{% block paneles %}
+<aside id="panel-nuevo-usuario" class="panel-lateral" aria-label="Nuevo usuario">
+    <div class="panel-head">
+        <h3>Nuevo usuario</h3>
+        <button type="button" class="btn-ico" onclick="cerrarPanel()" aria-label="Cerrar">{{ ico('cerrar', 16) }}</button>
+    </div>
+    <form method="POST" action="/admin/usuarios/nuevo" autocomplete="off" style="display:contents;">
+        <div class="panel-cuerpo">
+            <div class="campo-grupo"><label for="nu-nombre">Nombre</label><input type="text" id="nu-nombre" name="nombre" required></div>
+            <div class="campo-grupo"><label for="nu-usuario">Usuario</label><input type="text" id="nu-usuario" name="usuario" required pattern="[a-z0-9._\-]{3,30}" title="3 a 30 letras minúsculas o números, sin espacios" autocapitalize="none" spellcheck="false" placeholder="ej. jperez"></div>
+            <div class="campo-grupo"><label for="nu-rol">Rol</label>
+                <select id="nu-rol" name="rol">
+                    <option value="capturista">Capturista · captura, edita y elimina</option>
+                    <option value="admin">Administrador · además usuarios y bitácora</option>
+                </select>
+            </div>
+            <div class="campo-grupo"><label for="nu-contrasena">Contraseña</label><input type="password" id="nu-contrasena" name="contrasena" required minlength="6" autocomplete="new-password"></div>
+            <div class="campo-grupo"><label for="nu-confirmar">Confirmar contraseña</label><input type="password" id="nu-confirmar" name="confirmar" required minlength="6" autocomplete="new-password"></div>
+        </div>
+        <div class="panel-pie">
+            <button type="button" class="btn btn-ghost" onclick="cerrarPanel()">Cancelar</button>
+            <button type="submit" class="btn btn-primario">Crear usuario</button>
+        </div>
+    </form>
+</aside>
+
+<aside id="panel-contrasena" class="panel-lateral" aria-label="Cambiar contraseña">
+    <div class="panel-head">
+        <h3>Contraseña<span class="tenue" id="pc-usuario"></span></h3>
+        <button type="button" class="btn-ico" onclick="cerrarPanel()" aria-label="Cerrar">{{ ico('cerrar', 16) }}</button>
+    </div>
+    <form method="POST" id="pc-form" autocomplete="off" style="display:contents;">
+        <div class="panel-cuerpo">
+            <div class="campo-grupo"><label for="pc-contrasena">Nueva contraseña</label><input type="password" id="pc-contrasena" name="contrasena" required minlength="6" autocomplete="new-password"></div>
+            <p class="pie-nota" style="margin:0;">Dásela a la persona para que entre; después puede cambiarla desde su cuenta.</p>
+        </div>
+        <div class="panel-pie">
+            <button type="button" class="btn btn-ghost" onclick="cerrarPanel()">Cancelar</button>
+            <button type="submit" class="btn btn-primario">Guardar contraseña</button>
+        </div>
+    </form>
+</aside>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirContrasena(b){
+    document.getElementById('pc-form').action = '/admin/usuarios/' + b.dataset.id + '/contrasena';
+    document.getElementById('pc-usuario').textContent = b.dataset.usuario;
+    document.getElementById('pc-contrasena').value = '';
+    abrirPanel('panel-contrasena');
+}
+</script>
+{% endblock %}

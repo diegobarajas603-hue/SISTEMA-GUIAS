@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from '_iconos.html' import ico %}
+{% block titulo %}Bitácora{% endblock %}
+
+{% block contenido %}
+{%- set eliminaciones = movimientos | selectattr('accion', 'equalto', 'elimino') | list -%}
+<header class="encabezado">
+    <div>
+        <div class="etiqueta">Administración</div>
+        <h1 class="titular">Bitácora.<br><span class="tenue">{{ eliminaciones|length }} liquidaci{{ 'ón eliminada' if eliminaciones|length == 1 else 'ones eliminadas' }}.</span></h1>
+    </div>
+</header>
+
+<section class="tarjeta" aria-labelledby="t-mov">
+    <div class="bloque-head">
+        <h2 class="titulo-seccion" id="t-mov">Movimientos <span class="conteo" id="tabla-bitacora-conteo" style="font-weight:400; margin-left:8px;"></span></h2>
+        <div class="bloque-acciones">
+            <div class="segmento chico" role="radiogroup" aria-label="Mostrar" id="filtro-accion">
+                <button type="button" role="radio" aria-checked="true" data-filtro="elimino">Eliminaciones</button>
+                <button type="button" role="radio" aria-checked="false" tabindex="-1" data-filtro="liquidaciones">Liquidaciones</button>
+                <button type="button" role="radio" aria-checked="false" tabindex="-1" data-filtro="">Todo</button>
+            </div>
+            <button type="button" class="btn-ico tip-arriba" data-tip="Exportar" aria-label="Exportar" onclick="exportarTabla('tabla-bitacora', 'bitacora')">{{ ico('descargar', 16) }}</button>
+        </div>
+    </div>
+    <div class="tabla-wrap">
+    <table id="tabla-bitacora">
+        <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Folio</th><th>Detalle</th></tr></thead>
+        <tbody>
+            {% for m in movimientos %}
+            <tr data-fecha="{{ m.fecha }}" data-tipo="{{ m.accion }}">
+                <td class="suave">{{ m.fecha[:10] | fecha_corta }} {{ m.fecha[11:16] }}</td>
+                <td><b style="font-weight:500;">{{ m.nombre or m.usuario }}</b> <span class="tenue">{{ m.usuario }}</span></td>
+                <td>{% if m.accion == 'elimino' %}<span class="estado warn"><span class="punto"></span>{{ acciones.get(m.accion, m.accion) }}</span>{% else %}{{ acciones.get(m.accion, m.accion) }}{% endif %}</td>
+                <td class="folio">{{ m.folio or '' }}</td>
+                <td class="suave" style="white-space:normal;">{{ m.detalle or '' }}</td>
+            </tr>
+            {% endfor %}
+            <tr id="tabla-bitacora-vacio" hidden><td colspan="5" class="vacio">No hay movimientos con este filtro.</td></tr>
+        </tbody>
+    </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Filtro en el navegador: eliminaciones, solo liquidaciones (crear/editar/eliminar) o todo
+const DE_LIQUIDACION = ['creo', 'edito', 'elimino'];
+function filtrarBitacora(filtro){
+    let n = 0;
+    document.querySelectorAll('#tabla-bitacora tbody tr[data-tipo]').forEach(function(tr){
+        const t = tr.dataset.tipo;
+        const ok = !filtro || (filtro === 'liquidaciones' ? DE_LIQUIDACION.includes(t) : t === filtro);
+        tr.style.display = ok ? '' : 'none';
+        if(ok) n++;
+    });
+    document.getElementById('tabla-bitacora-conteo').textContent = n + ' registro' + (n === 1 ? '' : 's');
+    document.getElementById('tabla-bitacora-vacio').hidden = n !== 0;
+}
+document.querySelectorAll('#filtro-accion [role="radio"]').forEach(function(b){
+    b.addEventListener('click', function(){
+        marcarSegmento(document.getElementById('filtro-accion'), b);
+        filtrarBitacora(b.dataset.filtro);
+    });
+});
+filtrarBitacora('elimino');
+</script>
+{% endblock %}
