@@ -501,6 +501,8 @@ async function escanearEntrega(numeroGuia, plaza, modo, usuario = null, idEscane
 //      · estatus: estatus con el que arranca la guia nueva. Si se indica, no se
 //        deshace el ultimo escaneo (el estatus lo define el administrador) y se
 //        deja en el historial el movimiento equivalente.
+//      · tipoEntrega: 'ocurre' o 'domicilio'; obligatorio si el estatus elegido
+//        es ENTREGADO_*, para que el historial diga como se entrego.
 //      · conservarComplemento: por omision la guia nueva arranca SIN el
 //        complemento de la cancelada, porque ese numero pertenecia a la guia
 //        que se cancelo; con true se traslada a la guia nueva.
@@ -543,6 +545,9 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nom
     const estatusElegido = cancelada && resolucion.estatus ? normalizarEstatus(resolucion.estatus) : null;
     // Cancelar una guia es irreversible para el numero anterior: exige motivo,
     // igual que eliminar
+    if (estatusElegido && estatusElegido.startsWith('ENTREGADO_') && !['ocurre', 'domicilio'].includes(resolucion.tipoEntrega)) {
+      throw new Error('Indica si la guia se entrego en ocurre o a domicilio');
+    }
     const motivoCancelacion = cancelada ? normalizarMotivo(resolucion.motivo, 'cancelacion') : null;
     // El complemento tambien retira el numero anterior: exige motivo
     const motivoComplemento = esComplemento ? normalizarMotivo(resolucion.motivo, 'complemento') : null;
@@ -592,7 +597,7 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nom
       // Estatus elegido a mano: se fija en la guia nueva y se deja el escaneo
       // equivalente en el historial, para que el rastreo del cliente y las
       // correcciones posteriores partan de un historial coherente.
-      const evEstatus = estatusElegido ? eventoDeEstatus(estatusElegido) : null;
+      const evEstatus = estatusElegido ? eventoDeEstatus(estatusElegido, resolucion.tipoEntrega) : null;
       if (estatusElegido) {
         const plazaDestino = plazaDeEstatus(estatusElegido);
         await client.query(
@@ -607,7 +612,10 @@ async function revertirUltimoEscaneo(numeroGuia, usuario, resolucion = null, nom
       if (guia.complemento && !complemento) {
         mensaje += `. El complemento ${guia.complemento} quedo con la guia cancelada y ya no aplica a ${nuevo}`;
       }
-      if (estatusElegido) mensaje += `. La guia nueva arranca en estatus ${estatusElegido}`;
+      if (estatusElegido) {
+        mensaje += `. La guia nueva arranca en estatus ${estatusElegido}`;
+        if (estatusElegido.startsWith('ENTREGADO_')) mensaje += ` (${resolucion.tipoEntrega === 'ocurre' ? 'ocurre' : 'domicilio'})`;
+      }
       // El motivo viaja en el propio evento (para quien mira el historial de la
       // guia) y ademas en la bitacora (para quien revisa todas las
       // cancelaciones juntas)

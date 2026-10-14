@@ -2187,6 +2187,15 @@
     },
   ];
 
+  // Estatus de la guia nueva al cancelar: primero la etapa y despues la plaza
+  // (y en una entrega, si fue ocurre o domicilio), en vez de una lista larga
+  const ETAPAS_REV = [
+    { id: 'EN_TRANSITO', titulo: 'En transito', prefijo: 'EN_TRANSITO_A_', pregunta: '¿Hacia que plaza va?' },
+    { id: 'EN_BODEGA', titulo: 'En bodega', prefijo: 'EN_BODEGA_', pregunta: '¿En que bodega esta?' },
+    { id: 'EN_RUTA_ENTREGA', titulo: 'En ruta de entrega', prefijo: 'EN_RUTA_ENTREGA_', pregunta: '¿En que plaza va en ruta de entrega?' },
+    { id: 'ENTREGADO', titulo: 'Entregado', prefijo: 'ENTREGADO_', pregunta: '¿En que plaza se entrego?' },
+  ];
+
   // Paso 1: que paso con la guia. Si la resolucion necesita mas datos, el
   // segundo cuadro los pide; asi el primero se lee de un vistazo en vez de
   // mostrar un formulario largo que la mayoria de las veces no hace falta.
@@ -2245,9 +2254,25 @@
         ${cancelada ? `
           <label class="field">
             <span class="field__label">¿En que estatus queda la guia nueva?</span>
-            <select class="select" id="revEstatus">
+            <select class="select" id="revEtapa">
               <option value="">El anterior al ultimo escaneo (automatico)</option>
-              ${Object.keys(ETIQUETAS).map((e) => `<option value="${e}">${esc(ETIQUETAS[e])}</option>`).join('')}
+              ${ETAPAS_REV.map((e) => `<option value="${e.id}">${esc(e.titulo)}</option>`).join('')}
+            </select>
+          </label>
+          <label class="field" id="revPlazaCampo" hidden>
+            <span class="field__label" id="revPlazaTitulo">¿En que plaza?</span>
+            <select class="select" id="revPlaza">
+              <option value="">Elige la plaza</option>
+              <option value="CDMX">Ciudad de Mexico</option>
+              <option value="MTY">Monterrey</option>
+            </select>
+          </label>
+          <label class="field" id="revEntregaCampo" hidden>
+            <span class="field__label">¿Como se entrego?</span>
+            <select class="select" id="revEntrega">
+              <option value="">Elige el tipo de entrega</option>
+              <option value="ocurre">Ocurre (recogio en bodega)</option>
+              <option value="domicilio">Entrega a domicilio</option>
             </select>
           </label>
           ${comp ? `
@@ -2268,6 +2293,23 @@
       alAbrir: (panel) => {
         const $$ = (id) => panel.querySelector('#' + id);
         $$('revNumero').focus();
+        // Los campos se van desplegando: etapa -> plaza -> (si es entregado)
+        // ocurre o domicilio. Cambiar la etapa reinicia lo que depende de ella.
+        if (cancelada) {
+          const mostrarEntrega = () => {
+            const ver = $$('revEtapa').value === 'ENTREGADO' && !!$$('revPlaza').value;
+            $$('revEntregaCampo').hidden = !ver;
+            if (!ver) $$('revEntrega').value = '';
+          };
+          $$('revEtapa').addEventListener('change', () => {
+            const etapa = ETAPAS_REV.find((x) => x.id === $$('revEtapa').value);
+            $$('revPlazaCampo').hidden = !etapa;
+            $$('revPlaza').value = '';
+            if (etapa) $$('revPlazaTitulo').textContent = etapa.pregunta;
+            mostrarEntrega();
+          });
+          $$('revPlaza').addEventListener('change', mostrarEntrega);
+        }
         // La validacion va en fase de captura sobre el panel: corre antes que
         // el listener del boton y puede impedir que el cuadro se cierre
         panel.addEventListener('click', (e) => {
@@ -2288,6 +2330,12 @@
           if (pre ? !num.startsWith(pre) : !/^(AN|BN)/.test(num)) {
             return error(pre ? `El numero debe empezar con ${pre}.` : 'El numero debe empezar con AN o BN.', $$('revNumero'));
           }
+          if (cancelada && $$('revEtapa').value && !$$('revPlaza').value) {
+            return error('Elige la plaza del estatus.', $$('revPlaza'));
+          }
+          if (cancelada && $$('revEtapa').value === 'ENTREGADO' && !$$('revEntrega').value) {
+            return error('Indica si se entrego en ocurre o a domicilio.', $$('revEntrega'));
+          }
           if ($$('revMotivo').value.trim().length < 5) {
             return error(`Escribe el motivo ${cancelada ? 'de la cancelacion' : 'del complemento'}: queda en el historial y en la bitacora.`, $$('revMotivo'));
           }
@@ -2298,7 +2346,11 @@
         const $$ = (id) => panel.querySelector('#' + id);
         const cuerpo = { resolucion: tipo, numero: $$('revNumero').value.trim().toUpperCase(), motivo: $$('revMotivo').value.trim() };
         if (cancelada) {
-          if ($$('revEstatus').value) cuerpo.estatus = $$('revEstatus').value;
+          const etapa = ETAPAS_REV.find((x) => x.id === $$('revEtapa').value);
+          if (etapa) {
+            cuerpo.estatus = etapa.prefijo + $$('revPlaza').value;
+            if (etapa.id === 'ENTREGADO') cuerpo.tipoEntrega = $$('revEntrega').value;
+          }
           const chk = $$('revConservarComp');
           if (chk) cuerpo.conservarComplemento = chk.checked;
         }

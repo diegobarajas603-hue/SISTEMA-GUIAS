@@ -50,8 +50,9 @@ function plazaDeEstatus(estatus) {
 
 // Escaneo equivalente a un estatus fijado a mano. Permite dejar en el historial
 // el movimiento que corresponde a ese estatus, para que el rastreo del cliente
-// y las correcciones posteriores sigan siendo coherentes.
-function eventoDeEstatus(estatus) {
+// y las correcciones posteriores sigan siendo coherentes. En una entrega,
+// tipoEntrega ('ocurre' o 'domicilio') deja el mismo texto que el escaneo real.
+function eventoDeEstatus(estatus, tipoEntrega = null) {
   const plaza = plazaDeEstatus(estatus);
   if (estatus.startsWith('EN_TRANSITO_A_')) {
     const origen = otraPlaza(plaza);
@@ -66,6 +67,12 @@ function eventoDeEstatus(estatus) {
   }
   if (estatus.startsWith('EN_RUTA_ENTREGA_')) {
     return { accion: ACCIONES.RUTA_ENTREGA, plaza, descripcion: `Paquete en ruta de entrega en ${plaza}` };
+  }
+  if (tipoEntrega === 'ocurre') {
+    return { accion: ACCIONES.ENTREGA, plaza, descripcion: `Entregado en ocurre (bodega ${plaza})` };
+  }
+  if (tipoEntrega === 'domicilio') {
+    return { accion: ACCIONES.ENTREGA, plaza, descripcion: `Entregado a domicilio en ${plaza}` };
   }
   return { accion: ACCIONES.ENTREGA, plaza, descripcion: `Entregado en ${plaza}` };
 }
