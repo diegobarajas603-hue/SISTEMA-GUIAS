@@ -56,7 +56,7 @@
     <form method="POST" action="/admin/usuarios/nuevo" autocomplete="off" style="display:contents;">
         <div class="panel-cuerpo">
             <div class="campo-grupo"><label for="nu-nombre">Nombre</label><input type="text" id="nu-nombre" name="nombre" required></div>
-            <div class="campo-grupo"><label for="nu-usuario">Usuario</label><input type="text" id="nu-usuario" name="usuario" required pattern="[a-z0-9._\-]{3,30}" title="3 a 30 letras minúsculas o números, sin espacios" autocapitalize="none" spellcheck="false" placeholder="ej. jperez"></div>
+            <div class="campo-grupo"><label for="nu-usuario">Usuario</label><input type="text" id="nu-usuario" name="usuario" required maxlength="40" title="Se guarda en minúsculas; al entrar da igual cómo se escriba" autocapitalize="none" spellcheck="false" placeholder="ej. jperez"></div>
             <div class="campo-grupo"><label for="nu-rol">Rol</label>
                 <select id="nu-rol" name="rol">
                     <option value="capturista">Capturista · captura, edita y elimina</option>

@@ -13,7 +13,6 @@
 # =========================================================
 
 import os
-import re
 import sqlite3
 import webbrowser
 import threading
@@ -130,7 +129,6 @@ def contexto_global():
 
 ROLES = {"admin": "Administrador", "capturista": "Capturista"}
 RUTAS_LIBRES = {"login", "static"}
-PATRON_USUARIO = re.compile(r"^[a-z0-9._-]{3,30}$")
 
 
 def hay_usuarios():
@@ -224,8 +222,9 @@ def logout():
 
 
 def validar_usuario_nuevo(usuario, nombre, contrasena, confirmar):
-    if not PATRON_USUARIO.match(usuario or ""):
-        return "El usuario debe tener de 3 a 30 letras minúsculas o números (sin espacios)."
+    # El usuario se guarda en minúsculas: al entrar da igual cómo se escriba
+    if not 2 <= len(usuario or "") <= 40:
+        return "El usuario debe tener entre 2 y 40 caracteres."
     if not nombre:
         return "Escribe el nombre de la persona."
     if len(contrasena) < 6:
