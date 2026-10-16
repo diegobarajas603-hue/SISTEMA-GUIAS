@@ -358,17 +358,20 @@ def generar_pdf_liquidacion(filename, liq):
 # REPORTE MENSUAL POR OPERADOR (hoja carta horizontal)
 # =========================================================
 
-def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador):
+def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador, titulo=None, operador=""):
     """
     Reporte mensual en hoja carta vertical, mismo estilo que la liquidación:
     titular con el mes, tres cifras del mes, una tabla por operador con las
-    columnas esenciales y, al final, todos los folios del mes.
+    columnas esenciales y, al final, todos los folios del periodo.
+
+    titulo:   texto del periodo (ej. '1 oct – 15 oct 2026'); por defecto, el mes.
+    operador: si el reporte es de un solo operador, su nombre (va en el subtítulo).
     """
     from reportlab.platypus import SimpleDocTemplate, Spacer, Flowable
     from reportlab.lib.styles import ParagraphStyle
 
     tmp_filename = filename + ".tmp"
-    titulo_mes = mes_largo(mes)
+    titulo_mes = titulo or mes_largo(mes)
     margen = 56
     width, height = letter
     pad = 6                                   # relleno interno del marco de ReportLab
@@ -378,7 +381,7 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
         c.saveState()
         arriba = height - 34
         _logo(c, margen + pad, arriba, 34)
-        _etiqueta(c, width - margen - pad, arriba - 13, "Reporte mensual", tam=7, alinear="der", espacio=1.5)
+        _etiqueta(c, width - margen - pad, arriba - 13, "Reporte de liquidaciones", tam=7, alinear="der", espacio=1.5)
         _etiqueta(c, width - margen - pad, arriba - 26, f"{titulo_mes} · Página {doc.page}", tam=7, alinear="der", espacio=1.3)
         c.restoreState()
 
@@ -447,7 +450,7 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
         doc = SimpleDocTemplate(
             tmp_filename, pagesize=letter,
             leftMargin=margen, rightMargin=margen, topMargin=104, bottomMargin=56,
-            title=f"Reporte mensual {titulo_mes}",
+            title=f"Reporte de liquidaciones {titulo_mes}",
         )
         estilo_t = ParagraphStyle("t", fontName=FUENTE_B, fontSize=22, leading=26, textColor=TINTA)
         estilo_sub = ParagraphStyle("s", fontName=FUENTE, fontSize=9, leading=12, textColor=TINTA_2, spaceBefore=6)
@@ -457,8 +460,9 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
         total_ded = totales["gastos"] + totales["prestamo"] + totales["infonavit"]
         elementos = [
             Paragraph(titulo_mes, estilo_t),
-            Paragraph(f"{totales['viajes']} {'viaje' if totales['viajes'] == 1 else 'viajes'} · "
-                      f"{n_ops} {'operador' if n_ops == 1 else 'operadores'}", estilo_sub),
+            Paragraph((f"{operador} · " if operador else "")
+                      + f"{totales['viajes']} {'viaje' if totales['viajes'] == 1 else 'viajes'}"
+                      + ("" if operador else f" · {n_ops} {'operador' if n_ops == 1 else 'operadores'}"), estilo_sub),
             Spacer(1, 32),
             Cifras([("Percepciones", dinero(totales["total"])),
                     ("Deducciones", dinero(total_ded)),
@@ -474,7 +478,7 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
             filas.append([Paragraph(o["operador"].title(), estilo_celda), str(o["viajes"]), dinero(o["total"]),
                           dinero(o["gastos"]), dinero(o["prestamo"]), dinero(o["infonavit"]),
                           dinero(o["total_pagar"])])
-        filas.append(["Total del mes", str(totales["viajes"]), dinero(totales["total"]),
+        filas.append(["Total del periodo", str(totales["viajes"]), dinero(totales["total"]),
                       dinero(totales["gastos"]), dinero(totales["prestamo"]), dinero(totales["infonavit"]),
                       dinero(totales["total_pagar"])])
         if operadores:
@@ -482,7 +486,7 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
             t.setStyle(TableStyle([('FONTSIZE', (1, 1), (-1, -1), 9)]))
             elementos += [Etiqueta("Por operador"), Spacer(1, 10), t]
         else:
-            elementos.append(Paragraph(f"No hay liquidaciones en {titulo_mes.lower()}.", estilo_sub))
+            elementos.append(Paragraph(f"No hay liquidaciones en este periodo{(' de ' + operador) if operador else ''}.", estilo_sub))
 
         # ---- Folios del mes en una sola tabla, con un renglón por operador
         if por_operador and operadores:
@@ -509,7 +513,7 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
                            ('FONTSIZE', (0, r), (-1, r), 9.5),
                            ('TOPPADDING', (0, r), (-1, r), 14 if r > 1 else 8)]
             t.setStyle(TableStyle(estilo))
-            elementos += [Spacer(1, 44), Etiqueta("Folios del mes"), Spacer(1, 10), t]
+            elementos += [Spacer(1, 44), Etiqueta("Folios del periodo"), Spacer(1, 10), t]
 
         doc.build(elementos, onFirstPage=encabezado, onLaterPages=encabezado)
         os.replace(tmp_filename, filename)

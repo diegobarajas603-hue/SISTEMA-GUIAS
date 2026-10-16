@@ -13,6 +13,8 @@
 # =========================================================
 
 import os
+import re
+from urllib.parse import urlencode
 import sqlite3
 import webbrowser
 import threading
@@ -757,28 +759,91 @@ COLUMNAS_REPORTE = (
 )
 
 
-def datos_reporte_mensual(mes):
-    """Regresa (meses_disponibles, filas_por_operador, totales, detalle_por_operador)."""
+def _fecha_valida(texto):
+    """'2026-10-05' -> '2026-10-05'; cualquier otra cosa -> ''."""
+    import datetime
+    try:
+        return datetime.date.fromisoformat((texto or "").strip()).isoformat()
+    except ValueError:
+        return ""
+
+
+def rango_reporte(args):
+    """
+    Lee el filtro del reporte desde la URL:
+      desde, hasta  -> rango de fechas de liquidación (AAAA-MM-DD)
+      mes           -> atajo: todo ese mes (si no vienen desde/hasta)
+      operador      -> uno solo, o vacío para todos
+    Sin nada, es el mes actual. Regresa (desde, hasta, operador, mes_completo).
+    """
+    import calendar
+    desde = _fecha_valida(args.get("desde"))
+    hasta = _fecha_valida(args.get("hasta"))
+    if not desde and not hasta:
+        mes = mes_de(args.get("mes", ""))
+        anio, m = int(mes[:4]), int(mes[5:7])
+        desde = f"{mes}-01"
+        hasta = f"{mes}-{calendar.monthrange(anio, m)[1]:02d}"
+    desde = desde or hasta
+    hasta = hasta or desde
+    if desde > hasta:
+        desde, hasta = hasta, desde
+    # ¿El rango es exactamente un mes completo? (para marcarlo en el selector de mes)
+    mes_completo = ""
+    anio, m = int(desde[:4]), int(desde[5:7])
+    if desde.endswith("-01") and hasta == f"{desde[:7]}-{calendar.monthrange(anio, m)[1]:02d}":
+        mes_completo = desde[:7]
+    operador = (args.get("operador") or "").strip()
+    return desde, hasta, operador, mes_completo
+
+
+def titulo_rango(desde, hasta, mes_completo=""):
+    """'Octubre 2026', '1 oct – 15 oct 2026' o '28 dic 2025 – 5 ene 2026'."""
+    if mes_completo:
+        return pdf_generator.mes_largo(mes_completo)
+    corto = lambda f: f"{int(f[8:10])} {pdf_generator.MESES_LARGO[int(f[5:7]) - 1][:3]}"
+    if desde == hasta:
+        return f"{corto(desde)} {desde[:4]}"
+    if desde[:4] == hasta[:4]:
+        return f"{corto(desde)} – {corto(hasta)} {hasta[:4]}"
+    return f"{corto(desde)} {desde[:4]} – {corto(hasta)} {hasta[:4]}"
+
+
+def datos_reporte(desde, hasta, operador=""):
+    """
+    Liquidaciones con fecha de liquidación entre desde y hasta (incluidas),
+    de un operador o de todos. Regresa (filas_por_operador, totales,
+    detalle_por_operador, meses_disponibles, operadores_disponibles).
+    """
+    filtro = "fecha BETWEEN ? AND ?"
+    params = [desde, hasta]
+    if operador:
+        filtro += " AND operador = ?"
+        params.append(operador)
+
     with database.get_conn() as conn:
         meses = [f[0] for f in conn.execute(
             "SELECT DISTINCT substr(fecha, 1, 7) FROM liquidaciones WHERE fecha != '' ORDER BY 1 DESC"
+        ).fetchall()]
+        todos = [f[0] for f in conn.execute(
+            "SELECT DISTINCT operador FROM liquidaciones WHERE operador != '' ORDER BY operador"
         ).fetchall()]
 
         sumas = ", ".join(f"COALESCE(SUM({c}), 0)" for c in COLUMNAS_REPORTE)
         filas = conn.execute(f"""
             SELECT operador, COUNT(*), {sumas}
             FROM liquidaciones
-            WHERE substr(fecha, 1, 7) = ?
+            WHERE {filtro}
             GROUP BY operador
             ORDER BY operador
-        """, (mes,)).fetchall()
+        """, params).fetchall()
 
-        detalle = conn.execute("""
+        detalle = conn.execute(f"""
             SELECT operador, folio, fecha, tipo_sueldo, total, gastos, prestamo, infonavit, total_pagar
             FROM liquidaciones
-            WHERE substr(fecha, 1, 7) = ?
+            WHERE {filtro}
             ORDER BY operador, fecha, folio
-        """, (mes,)).fetchall()
+        """, params).fetchall()
 
     operadores = []
     totales = {"viajes": 0, **{c: 0.0 for c in COLUMNAS_REPORTE}}
@@ -800,32 +865,45 @@ def datos_reporte_mensual(mes):
     mes_actual = time.strftime("%Y-%m")
     if mes_actual not in meses:
         meses.insert(0, mes_actual)
-    if mes not in meses:
-        meses.append(mes)
-        meses.sort(reverse=True)
+    if operador and operador not in todos:
+        todos.append(operador)
+        todos.sort()
 
-    return meses, operadores, totales, por_operador
+    return operadores, totales, por_operador, meses, todos
 
 
 @app.route('/reportes')
 def reportes():
-    mes = mes_de(request.args.get("mes", ""))
-    meses, operadores, totales, por_operador = datos_reporte_mensual(mes)
+    desde, hasta, operador, mes_completo = rango_reporte(request.args)
+    operadores, totales, por_operador, meses, todos = datos_reporte(desde, hasta, operador)
+    if mes_completo and mes_completo not in meses:
+        meses.append(mes_completo)
+        meses.sort(reverse=True)
     conectado, estado = fuente_salidas.estado()
     return render_template(
-        'reporte.html', mes=mes, meses=meses, operadores=operadores, totales=totales,
-        por_operador=por_operador, mes_nombre=pdf_generator.mes_largo(mes),
+        'reporte.html', operadores=operadores, totales=totales, por_operador=por_operador,
+        meses=meses, operadores_todos=todos,
+        desde=desde, hasta=hasta, operador=operador, mes=mes_completo,
+        titulo_rango=titulo_rango(desde, hasta, mes_completo),
+        filtro_url=urlencode({"desde": desde, "hasta": hasta, **({"operador": operador} if operador else {})}),
         conectado=conectado, estado=estado, seccion="reportes"
     )
 
 
 @app.route('/reportes/pdf')
 def reporte_pdf():
-    mes = mes_de(request.args.get("mes", ""))
-    _, operadores, totales, por_operador = datos_reporte_mensual(mes)
-    pdf_name = os.path.join(database.PDF_DIR, f"Reporte_Mensual_{mes}.pdf")
+    desde, hasta, operador, mes_completo = rango_reporte(request.args)
+    operadores, totales, por_operador, _, _ = datos_reporte(desde, hasta, operador)
+    titulo = titulo_rango(desde, hasta, mes_completo)
+    sufijo = mes_completo or f"{desde}_al_{hasta}"
+    if operador:
+        sufijo += "_" + re.sub(r"[^A-Za-z0-9]+", "_", operador).strip("_")
+    pdf_name = os.path.join(database.PDF_DIR, f"Reporte_{sufijo}.pdf")
     try:
-        pdf_generator.generar_pdf_reporte_mensual(pdf_name, mes, operadores, totales, por_operador)
+        pdf_generator.generar_pdf_reporte_mensual(
+            pdf_name, desde[:7], operadores, totales, por_operador,
+            titulo=titulo, operador=operador.title() if operador else ""
+        )
     except pdf_generator.ErrorGenerandoPDF as e:
         return pagina_error("No se pudo generar el reporte", str(e), "/reportes")
     return send_file(pdf_name, as_attachment=False)

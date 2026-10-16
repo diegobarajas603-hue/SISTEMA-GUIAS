@@ -3,30 +3,56 @@
 {% block titulo %}Reporte mensual{% endblock %}
 
 {% block contenido %}
-{%- set deducciones_mes = totales.gastos + totales.prestamo + totales.infonavit -%}
+{%- set deducciones_periodo = totales.gastos + totales.prestamo + totales.infonavit -%}
 
 <header class="encabezado">
     <div>
-        <div class="etiqueta">{{ mes_nombre | upper }}</div>
+        <div class="etiqueta">{{ titulo_rango | upper }}{% if operador %} · {{ operador | title }}{% endif %}</div>
         <h1 class="titular">
             {{ totales.viajes }} {{ 'viaje' if totales.viajes == 1 else 'viajes' }}
             <span class="tenue">·</span> ${{ '{:,.0f}'.format(totales.total_pagar) }} pagados.
         </h1>
     </div>
     <div class="encabezado-acciones">
-        <form method="GET" action="/reportes" class="selector-mes">
-            <label for="mes" class="oculto">Mes</label>
-            <select name="mes" id="mes" onchange="this.form.submit()">
-                {% for m in meses %}
-                <option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m | mes_largo }}</option>
-                {% endfor %}
-            </select>
-        </form>
-        <a href="/reportes/pdf?mes={{ mes }}" target="_blank" class="btn btn-primario">{{ ico('descargar', 16) }} Descargar PDF</a>
+        <a href="/reportes/pdf?{{ filtro_url }}" target="_blank" class="btn btn-primario">{{ ico('descargar', 16) }} Descargar PDF</a>
     </div>
 </header>
 
-<section class="kpis tarjeta" aria-label="Indicadores del mes">
+<!-- Filtros: mes (atajo), rango de fechas y operador -->
+<form method="GET" action="/reportes" class="filtros-reporte tarjeta" id="filtros-reporte" aria-label="Filtros del reporte">
+    <div class="campo">
+        <label for="f-mes">Mes</label>
+        <select id="f-mes" class="control" onchange="elegirMes(this.value)">
+            <option value="" {% if not mes %}selected{% endif %}>Rango personalizado</option>
+            {% for m in meses %}
+            <option value="{{ m }}" {% if m == mes %}selected{% endif %}>{{ m | mes_largo }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="campo">
+        <label for="f-desde">Del</label>
+        <input type="date" id="f-desde" name="desde" class="control" value="{{ desde }}" required onchange="document.getElementById('f-mes').value=''">
+    </div>
+    <div class="campo">
+        <label for="f-hasta">Al</label>
+        <input type="date" id="f-hasta" name="hasta" class="control" value="{{ hasta }}" required onchange="document.getElementById('f-mes').value=''">
+    </div>
+    <div class="campo">
+        <label for="f-operador">Operador</label>
+        <select id="f-operador" name="operador" class="control">
+            <option value="">Todos los operadores</option>
+            {% for o in operadores_todos %}
+            <option value="{{ o }}" {% if o == operador %}selected{% endif %}>{{ o | title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filtros-acciones">
+        <button type="submit" class="btn btn-secundario">{{ ico('filtro', 15) }} Filtrar</button>
+        {% if operador or not mes %}<a href="/reportes" class="enlace-texto">Quitar filtros</a>{% endif %}
+    </div>
+</form>
+
+<section class="kpis tarjeta" aria-label="Indicadores del periodo">
     <div class="kpi">
         <div class="etiqueta">Viajes</div>
         <div class="kpi-valor">{{ totales.viajes }}</div>
@@ -39,7 +65,7 @@
     </div>
     <div class="kpi">
         <div class="etiqueta">Deducciones</div>
-        <div class="kpi-valor">{{ cifra(deducciones_mes) }}</div>
+        <div class="kpi-valor">{{ cifra(deducciones_periodo) }}</div>
         <div class="kpi-pie">Gastos, préstamos e Infonavit</div>
     </div>
     <div class="kpi">
@@ -124,23 +150,32 @@
         </tbody>
         <tfoot>
             <tr>
-                <td>Total del mes</td>
+                <td>Total del periodo</td>
                 <td class="num">{{ totales.viajes }}</td>
                 <td class="num">{{ totales.total | dinero }}</td>
-                <td class="num">{{ deducciones_mes | dinero }}</td>
+                <td class="num">{{ deducciones_periodo | dinero }}</td>
                 <td class="num">{{ totales.total_pagar | dinero }}</td>
             </tr>
         </tfoot>
     </table>
     </div>
     {% else %}
-    <div class="vacio">No hay liquidaciones en {{ mes_nombre | lower }}.</div>
+    <div class="vacio">No hay liquidaciones en este periodo{% if operador %} de {{ operador | title }}{% endif %}.</div>
     {% endif %}
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Atajo de mes: llena "Del" y "Al" con el mes completo y filtra
+function elegirMes(mes){
+    if(!mes) return;
+    const [a, m] = mes.split('-').map(Number);
+    const ultimo = new Date(a, m, 0).getDate();
+    document.getElementById('f-desde').value = mes + '-01';
+    document.getElementById('f-hasta').value = mes + '-' + String(ultimo).padStart(2, '0');
+    document.getElementById('filtros-reporte').requestSubmit();
+}
 function toggleDetalle(i){
     const fila = document.getElementById('detalle-' + i);
     const abierto = fila.style.display !== 'none';

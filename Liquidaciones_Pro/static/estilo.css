@@ -684,6 +684,15 @@ html[data-menu="abierto"] .riel-persona small{ font-size:11.5px; color:var(--mut
 /* con el menú abierto los nombres ya se ven: sin tooltips */
 html[data-menu="abierto"] .riel [data-tip]::after{ display:none; }
 
+/* ---------- FILTROS DEL REPORTE ---------- */
+.filtros-reporte{
+    display:grid; grid-template-columns:repeat(3, minmax(0,180px)) minmax(0,280px) auto; gap:16px;
+    align-items:end; margin-bottom:40px;
+}
+[data-theme="light"] .filtros-reporte{ padding:20px 24px; }
+.filtros-acciones{ display:flex; align-items:center; gap:16px; }
+@media (max-width:1093px){ .filtros-reporte{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
 /* ---------- TOASTS ---------- */
 #toasts{ position:fixed; right:32px; top:24px; z-index:90; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
 .toast{
