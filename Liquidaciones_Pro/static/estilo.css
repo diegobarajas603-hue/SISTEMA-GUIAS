@@ -23,9 +23,9 @@
     --line:#2C2C33;                   /* divisores: visibles sobre #0A0A0B */
     --line-2:#3C3C45;
     --field-bd:transparent;
-    --ink:#F5F5F7;
-    --ink-2:#A1A1AA;
-    --muted:#63636B;
+    --ink:#FFFFFF;
+    --ink-2:#D4D4DB;               /* texto secundario: brillante sobre #0A0A0B */
+    --muted:#9A9AA5;               /* etiquetas y pies: legibles en oscuro */
     --accent:#3E6AE1;
     --ok:#30C67C;
     --warn:#E5A93B;
