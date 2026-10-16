@@ -37,7 +37,10 @@ else:
 
 DB_PATH = os.path.join(DATA_DIR, "liquidaciones.db")
 
-MAX_BACKUPS = 60
+# Respaldos: se conservan los últimos MAX_BACKUPS. El automático es diario
+# y solo si la base cambió; así no se llenan de copias iguales.
+MAX_BACKUPS = 40
+HORAS_ENTRE_RESPALDOS = 24
 
 
 def asegurar_carpetas():
@@ -63,9 +66,25 @@ def get_conn():
 # ---------------------------------------------------------
 # RESPALDOS
 # ---------------------------------------------------------
-def hacer_backup(motivo="auto"):
+def _ultimo_respaldo():
+    archivos = listar_backups()          # del más nuevo al más viejo
+    return os.path.join(BACKUP_DIR, archivos[0]) if archivos else None
+
+
+def hubo_cambios():
+    """True si la base se modificó después del último respaldo (o si no hay ninguno).
+    Consultar no modifica el archivo; solo guardar, editar o borrar."""
+    if not os.path.exists(DB_PATH):
+        return False
+    ultimo = _ultimo_respaldo()
+    return ultimo is None or os.path.getmtime(DB_PATH) > os.path.getmtime(ultimo)
+
+
+def hacer_backup(motivo="auto", solo_si_cambio=False):
     asegurar_carpetas()
     if not os.path.exists(DB_PATH):
+        return None
+    if solo_si_cambio and not hubo_cambios():
         return None
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -99,10 +118,21 @@ def _limpiar_backups_viejos():
 
 
 def iniciar_respaldo_periodico(intervalo_segundos=3600):
+    """
+    Revisa cada `intervalo_segundos` (una hora) y hace el respaldo "diario"
+    solo cuando ya pasaron HORAS_ENTRE_RESPALDOS desde el último respaldo
+    y la base cambió desde entonces.
+    """
     def loop():
         while True:
             time.sleep(intervalo_segundos)
-            hacer_backup(motivo="periodico")
+            try:
+                ultimo = _ultimo_respaldo()
+                horas = (time.time() - os.path.getmtime(ultimo)) / 3600 if ultimo else None
+                if horas is None or horas >= HORAS_ENTRE_RESPALDOS:
+                    hacer_backup(motivo="diario", solo_si_cambio=True)
+            except Exception as e:
+                print(f"[AVISO] Revisión de respaldo diario: {e}")
 
     threading.Thread(target=loop, daemon=True).start()
 
@@ -119,7 +149,7 @@ def listar_backups():
 # ---------------------------------------------------------
 def init_db():
     asegurar_carpetas()
-    hacer_backup(motivo="arranque")
+    hacer_backup(motivo="arranque", solo_si_cambio=True)   # solo si cambió desde el último
 
     with get_conn() as conn:
         conn.execute('''

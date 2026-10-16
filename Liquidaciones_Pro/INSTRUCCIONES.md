@@ -131,8 +131,9 @@ resumen y el detalle por operador (`PDFs/Reporte_Mensual_AAAA-MM.pdf`).
 
 ## 🛡️ Respaldos
 
-Igual que en salidas: uno al arrancar, uno cada hora, uno antes de borrar.
-Se guardan en `backups/` (se conservan los últimos 60). Puedes verlos y
+Uno al día y uno al arrancar, solo si la base cambió desde el último respaldo,
+y siempre uno antes de borrar una liquidación.
+Se guardan en `backups/` (se conservan los últimos 40). Puedes verlos y
 descargarlos en `http://127.0.0.1:5001/admin/respaldos`.
 
 Para borrar una liquidación: `http://127.0.0.1:5001/admin/borrar_liquidacion/50917`
