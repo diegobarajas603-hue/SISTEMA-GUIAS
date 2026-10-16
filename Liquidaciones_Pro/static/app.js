@@ -28,6 +28,27 @@ function cambiarTema(){
 }
 pintarBotonTema();
 
+// ---------- Menú lateral: abrir / cerrar (se recuerda en este navegador) ----------
+function menuAbierto(){
+    return document.documentElement.getAttribute('data-menu') === 'abierto';
+}
+function pintarBotonMenu(){
+    const btn = document.getElementById('btn-menu');
+    if(!btn) return;
+    const abierto = menuAbierto();
+    btn.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+    btn.setAttribute('aria-label', abierto ? 'Ocultar menú' : 'Mostrar menú');
+    btn.dataset.tip = abierto ? 'Ocultar menú' : 'Mostrar menú';
+}
+function alternarMenu(){
+    const abrir = !menuAbierto();
+    if(abrir) document.documentElement.setAttribute('data-menu', 'abierto');
+    else document.documentElement.removeAttribute('data-menu');
+    try { localStorage.setItem('lq-menu', abrir ? 'abierto' : 'cerrado'); } catch(e){}
+    pintarBotonMenu();
+}
+pintarBotonMenu();
+
 // ---------- Toasts ----------
 function toast(titulo, detalle, tipo, duracion){
     tipo = tipo || 'info';

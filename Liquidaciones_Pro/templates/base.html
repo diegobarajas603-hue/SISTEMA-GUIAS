@@ -12,6 +12,10 @@
             var t = null;
             try { t = localStorage.getItem('lq-tema'); } catch(e){}
             document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+            /* Menú lateral abierto o cerrado (se recuerda) */
+            var m = null;
+            try { m = localStorage.getItem('lq-menu'); } catch(e){}
+            if (m === 'abierto') document.documentElement.setAttribute('data-menu', 'abierto');
         })();
     </script>
     <link rel="stylesheet" href="/static/estilo.css">
@@ -20,29 +24,43 @@
 <div class="app">
 
     <nav class="riel" aria-label="Navegación principal">
-        <a href="/" class="riel-logo" aria-label="Liquidaciones · inicio">LQ</a>
+        <div class="riel-cabeza">
+            <a href="/" class="riel-logo" aria-label="Liquidaciones · inicio">LQ</a>
+            <span class="riel-texto riel-marca">Liquidaciones</span>
+        </div>
         <div class="riel-nav">
-            <a href="/" class="riel-btn {% if activo == 'panel' %}activo{% endif %}" data-tip="Panel" aria-label="Panel">{{ ico('panel', 20) }}</a>
-            <a href="/#nueva" class="riel-btn {% if activo == 'nueva' %}activo{% endif %}" data-tip="Nueva liquidación" aria-label="Nueva liquidación" onclick="return irANueva(event)">{{ ico('nueva', 20) }}</a>
-            <a href="/reportes" class="riel-btn {% if activo == 'reportes' %}activo{% endif %}" data-tip="Reporte mensual" aria-label="Reporte mensual">{{ ico('reporte', 20) }}</a>
-            <a href="/admin/respaldos" class="riel-btn {% if activo == 'respaldos' %}activo{% endif %}" data-tip="Respaldos" aria-label="Respaldos">{{ ico('respaldo', 20) }}</a>
+            <button type="button" class="riel-btn riel-toggle" id="btn-menu" onclick="alternarMenu()"
+                    data-tip="Mostrar menú" aria-label="Mostrar menú" aria-expanded="false" aria-controls="riel-opciones">
+                <span class="si-cerrado">{{ ico('menu', 20) }}</span><span class="si-abierto">{{ ico('colapsar', 20) }}</span>
+                <span class="riel-texto">Ocultar menú</span>
+            </button>
+            <span class="riel-sep" aria-hidden="true"></span>
+            <div class="riel-opciones" id="riel-opciones">
+            <a href="/" class="riel-btn {% if activo == 'panel' %}activo{% endif %}" data-tip="Panel" aria-label="Panel">{{ ico('panel', 20) }}<span class="riel-texto">Panel</span></a>
+            <a href="/#nueva" class="riel-btn {% if activo == 'nueva' %}activo{% endif %}" data-tip="Nueva liquidación" aria-label="Nueva liquidación" onclick="return irANueva(event)">{{ ico('nueva', 20) }}<span class="riel-texto">Nueva liquidación</span></a>
+            <a href="/reportes" class="riel-btn {% if activo == 'reportes' %}activo{% endif %}" data-tip="Reporte mensual" aria-label="Reporte mensual">{{ ico('reporte', 20) }}<span class="riel-texto">Reporte mensual</span></a>
+            <a href="/admin/respaldos" class="riel-btn {% if activo == 'respaldos' %}activo{% endif %}" data-tip="Respaldos" aria-label="Respaldos">{{ ico('respaldo', 20) }}<span class="riel-texto">Respaldos</span></a>
             {% if yo and yo.rol == 'admin' %}
             <span class="riel-sep" aria-hidden="true"></span>
-            <a href="/admin/bitacora" class="riel-btn {% if activo == 'bitacora' %}activo{% endif %}" data-tip="Bitácora" aria-label="Bitácora">{{ ico('lista', 20) }}</a>
-            <a href="/admin/usuarios" class="riel-btn {% if activo == 'usuarios' %}activo{% endif %}" data-tip="Usuarios" aria-label="Usuarios">{{ ico('usuario', 20) }}</a>
+            <span class="riel-texto riel-grupo">Administración</span>
+            <a href="/admin/bitacora" class="riel-btn {% if activo == 'bitacora' %}activo{% endif %}" data-tip="Bitácora" aria-label="Bitácora">{{ ico('lista', 20) }}<span class="riel-texto">Bitácora</span></a>
+            <a href="/admin/usuarios" class="riel-btn {% if activo == 'usuarios' %}activo{% endif %}" data-tip="Usuarios" aria-label="Usuarios">{{ ico('usuario', 20) }}<span class="riel-texto">Usuarios</span></a>
             {% endif %}
+            </div>
         </div>
+        {%- set texto_enlace = 'Salidas en línea' if conectado else 'Sin enlace con salidas' %}
         <span class="riel-btn riel-enlace {% if not conectado %}error{% endif %}" tabindex="0"
-              data-tip="{% if conectado %}Salidas en línea{% else %}Sin enlace con salidas{% endif %}"
-              aria-label="{% if conectado %}Salidas en línea{% else %}Sin enlace con salidas{% endif %}"><span class="punto"></span></span>
+              data-tip="{{ texto_enlace }}" aria-label="{{ texto_enlace }}"><span class="riel-punto"><span class="punto"></span></span><span class="riel-texto">{{ texto_enlace }}</span></span>
         <button type="button" class="riel-btn riel-tema" id="btn-tema" onclick="cambiarTema()" data-tip="Cambiar a modo claro" aria-label="Cambiar tema">
             <span class="solo-oscuro">{{ ico('luna', 20) }}</span>
             <span class="solo-claro">{{ ico('sol', 20) }}</span>
+            <span class="riel-texto"><span class="solo-oscuro">Modo oscuro</span><span class="solo-claro">Modo claro</span></span>
         </button>
         {% if yo %}
         {%- set partes = (yo.nombre or yo.usuario).split() -%}
         <button type="button" class="riel-cuenta" onclick="abrirPanel('panel-cuenta')" data-tip="{{ yo.nombre or yo.usuario }}" aria-label="Mi cuenta: {{ yo.nombre or yo.usuario }}">
-            {{ (partes[0][:1] ~ (partes[1][:1] if partes|length > 1 else '')) | upper }}
+            <span class="riel-iniciales">{{ (partes[0][:1] ~ (partes[1][:1] if partes|length > 1 else '')) | upper }}</span>
+            <span class="riel-texto riel-persona"><b>{{ yo.nombre or yo.usuario }}</b><small>{{ 'Administrador' if yo.rol == 'admin' else 'Capturista' }}</small></span>
         </button>
         {% endif %}
     </nav>

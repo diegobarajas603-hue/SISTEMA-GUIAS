@@ -626,14 +626,15 @@ body.con-modal{ overflow:hidden; }
 
 /* ---------- SESIÓN ---------- */
 .riel-sep{ display:block; width:20px; height:1px; margin:8px auto; background:var(--line); }
-.riel-cuenta{
-    position:relative; width:32px; height:32px; margin-top:4px; border-radius:50%;
-    display:grid; place-items:center; flex:none;
+.riel-cuenta{ position:relative; margin-top:4px; flex:none; display:flex; align-items:center; gap:10px; border-radius:10px; }
+.riel-iniciales{
+    width:32px; height:32px; border-radius:50%; flex:none;
+    display:grid; place-items:center;
     background:var(--surface-2); color:var(--ink); border:1px solid var(--line-2);
     font-size:11px; font-weight:600; letter-spacing:.02em;
     transition:border-color var(--t);
 }
-.riel-cuenta:hover{ border-color:var(--ink-2); }
+.riel-cuenta:hover .riel-iniciales{ border-color:var(--ink-2); }
 /* pie del riel más compacto: estado, tema y cuenta juntos */
 .riel-enlace ~ .riel-tema, .riel-enlace ~ .riel-cuenta{ margin-top:-20px; }
 
@@ -647,6 +648,41 @@ body.con-modal{ overflow:hidden; }
 .login-error{ display:flex; align-items:center; gap:10px; margin-top:24px; color:var(--ink); font-size:13px; }
 .login-error .punto{ background:var(--danger); }
 tr.inactivo td{ color:var(--muted); }
+
+/* ---------- MENÚ LATERAL DESPLEGABLE ----------
+   Cerrado: 72 px, solo iconos (nombre en el tooltip).
+   Abierto (html[data-menu="abierto"]): 232 px con el nombre de cada opción. */
+.app{ transition:grid-template-columns 200ms cubic-bezier(.2,.7,.3,1); }
+.riel-cabeza{ display:flex; align-items:center; gap:12px; }
+.riel-opciones{ display:flex; flex-direction:column; gap:8px; }
+.riel-texto{ display:none; }
+.riel-toggle .si-abierto{ display:none; }
+.riel-punto{ width:20px; display:grid; place-items:center; flex:none; }
+.riel-nav > .riel-sep:first-of-type{ margin:4px auto; }
+
+html[data-menu="abierto"] .app{ grid-template-columns:232px minmax(0,1fr); }
+html[data-menu="abierto"] .riel{ align-items:stretch; padding:20px 16px; }
+html[data-menu="abierto"] .riel-cabeza{ padding:0 4px; }
+html[data-menu="abierto"] .riel-btn{
+    width:100%; display:flex; align-items:center; justify-content:flex-start; gap:12px; padding:0 10px;
+}
+html[data-menu="abierto"] .riel-texto{ display:inline; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13.5px; }
+html[data-menu="abierto"] .riel-marca{ font-size:14px; font-weight:600; color:var(--ink); letter-spacing:-.01em; }
+html[data-menu="abierto"] .riel-grupo{
+    display:block; padding:4px 10px 0; font-size:10.5px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.16em; color:var(--muted);
+}
+html[data-menu="abierto"] .riel-sep{ width:100%; }
+html[data-menu="abierto"] .riel-toggle .si-cerrado{ display:none; }
+html[data-menu="abierto"] .riel-toggle .si-abierto{ display:inline-flex; }
+html[data-menu="abierto"] .riel-enlace .riel-texto{ font-size:12.5px; color:var(--ink-2); }
+html[data-menu="abierto"] .riel-cuenta{ width:100%; padding:6px; }
+html[data-menu="abierto"] .riel-cuenta:hover{ background:var(--surface); }
+html[data-menu="abierto"] .riel-persona{ display:flex; flex-direction:column; align-items:flex-start; min-width:0; text-align:left; line-height:1.3; }
+html[data-menu="abierto"] .riel-persona b{ font-weight:500; font-size:13px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; max-width:150px; }
+html[data-menu="abierto"] .riel-persona small{ font-size:11.5px; color:var(--muted); }
+/* con el menú abierto los nombres ya se ven: sin tooltips */
+html[data-menu="abierto"] .riel [data-tip]::after{ display:none; }
 
 /* ---------- TOASTS ---------- */
 #toasts{ position:fixed; right:32px; top:24px; z-index:90; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
