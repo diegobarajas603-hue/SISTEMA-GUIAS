@@ -27,6 +27,10 @@ GRIS = colors.HexColor("#85858F")      # etiquetas
 LINEA = colors.HexColor("#D7D7DE")     # divisores finos
 LINEA_FUERTE = TINTA                   # línea de totales
 
+# Logo de la empresa (PNG con fondo transparente). Si falta, el PDF sale sin logo.
+LOGO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "logo-tauro.png")
+LOGO_PROPORCION = 1226 / 830          # ancho / alto del logo original
+
 FUENTE = "Helvetica"
 FUENTE_B = "Helvetica-Bold"
 
@@ -54,6 +58,15 @@ def _etiqueta(c, x, y, texto, tam=6.8, color=GRIS, alinear="izq", espacio=1.1, f
     t.textOut(texto)
     t.setCharSpace(0)      # el espaciado no debe pasar al resto del documento
     c.drawText(t)
+    return ancho
+
+
+def _logo(c, x, y_arriba, alto):
+    """Dibuja el logo con su esquina superior izquierda en (x, y_arriba). Regresa el ancho usado."""
+    if not os.path.exists(LOGO):
+        return 0
+    ancho = alto * LOGO_PROPORCION
+    c.drawImage(LOGO, x, y_arriba - alto, width=ancho, height=alto, mask="auto")
     return ancho
 
 
@@ -225,11 +238,15 @@ def generar_pdf_liquidacion(filename, liq):
         ancho_util = width - 2 * margen
         derecha = width - margen
 
-        # ---------- Encabezado ----------
-        y = height - 64
-        _etiqueta(c, margen, y, "Liquidación de viaje", tam=7, espacio=1.5)
-        _etiqueta(c, derecha, y, f"Folio {folio}", tam=7, color=TINTA, fuente=FUENTE_B, alinear="der", espacio=1.5)
-        y -= 34
+        # ---------- Encabezado: logo a la izquierda, documento y folio a la derecha ----------
+        arriba = height - 36
+        alto_logo = 46
+        _logo(c, margen, arriba, alto_logo)
+        _etiqueta(c, derecha, arriba - 16, "Liquidación de viaje", tam=7, alinear="der", espacio=1.5)
+        c.setFillColor(TINTA)
+        c.setFont(FUENTE_B, 13)
+        c.drawRightString(derecha, arriba - 34, f"Folio {folio}")
+        y = arriba - alto_logo - 34
         c.setFillColor(TINTA)
         c.setFont(FUENTE_B, 22)
         c.drawString(margen, y, (liq.get("operador") or "").title())
@@ -241,7 +258,7 @@ def generar_pdf_liquidacion(filename, liq):
         c.setFont(FUENTE, 9)
         c.setFillColor(TINTA_2)
         c.drawString(margen, y, "     ·     ".join(meta))
-        y -= 44
+        y -= 34
 
         # ---------- Percepciones (solo lo que tiene monto) ----------
         llegada, estancias_pagadas, _ = desglose_estancia(liq.get("estancia_fechas"))
@@ -266,7 +283,7 @@ def generar_pdf_liquidacion(filename, liq):
             if monto(clave):
                 perc.append((nombre, detalle, dinero(liq.get(clave))))
         y = _conceptos(c, margen, y, ancho_util, "Percepciones", perc,
-                       "Total percepciones", dinero(liq.get("total"))) - 36
+                       "Total percepciones", dinero(liq.get("total"))) - 28
 
         # ---------- Deducciones (siempre gastos, préstamo e infonavit) ----------
         pagos = [_fecha_mini(liq.get(f"infonavit_pago{i}")) for i in range(1, 5) if liq.get(f"infonavit_pago{i}")]
@@ -279,7 +296,7 @@ def generar_pdf_liquidacion(filename, liq):
             ded.append((nombre, detalle, dinero(liq.get(clave))))
         total_ded = monto("gastos") + monto("prestamo") + monto("infonavit")
         y = _conceptos(c, margen, y, ancho_util, "Deducciones", ded,
-                       "Total deducciones", dinero(total_ded)) - 40
+                       "Total deducciones", dinero(total_ded)) - 30
 
         # ---------- Total a pagar ----------
         _linea(c, margen, derecha, y, grosor=1.4, color=LINEA_FUERTE)
@@ -287,7 +304,7 @@ def generar_pdf_liquidacion(filename, liq):
         c.setFillColor(TINTA)
         c.setFont(FUENTE_B, 28)
         c.drawRightString(derecha, y - 36, dinero(liq.get("total_pagar")))
-        y -= 72
+        y -= 66
 
         # ---------- Observaciones (si hay) ----------
         obs = (liq.get("observaciones") or "").strip()
@@ -299,7 +316,7 @@ def generar_pdf_liquidacion(filename, liq):
             y -= 8 + alto_p + 10
 
         # ---------- Firmas ----------
-        firmas_y = max(70, min(120, y - 50))
+        firmas_y = max(58, min(120, y - 46))
         ancho_firma = 190
         centros = (margen + ancho_firma / 2, derecha - ancho_firma / 2)
         for cx in centros:
@@ -344,9 +361,10 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
 
     def encabezado(c, doc):
         c.saveState()
-        y = height - 64
-        _etiqueta(c, margen + pad, y, "Reporte mensual", tam=7, espacio=1.5)
-        _etiqueta(c, width - margen - pad, y, f"{titulo_mes} · Página {doc.page}", tam=7, alinear="der", espacio=1.3)
+        arriba = height - 34
+        _logo(c, margen + pad, arriba, 34)
+        _etiqueta(c, width - margen - pad, arriba - 13, "Reporte mensual", tam=7, alinear="der", espacio=1.5)
+        _etiqueta(c, width - margen - pad, arriba - 26, f"{titulo_mes} · Página {doc.page}", tam=7, alinear="der", espacio=1.3)
         c.restoreState()
 
     class Cifras(Flowable):
@@ -413,7 +431,7 @@ def generar_pdf_reporte_mensual(filename, mes, operadores, totales, por_operador
     try:
         doc = SimpleDocTemplate(
             tmp_filename, pagesize=letter,
-            leftMargin=margen, rightMargin=margen, topMargin=96, bottomMargin=56,
+            leftMargin=margen, rightMargin=margen, topMargin=104, bottomMargin=56,
             title=f"Reporte mensual {titulo_mes}",
         )
         estilo_t = ParagraphStyle("t", fontName=FUENTE_B, fontSize=22, leading=26, textColor=TINTA)
