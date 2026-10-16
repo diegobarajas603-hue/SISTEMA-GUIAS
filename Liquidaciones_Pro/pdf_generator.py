@@ -212,6 +212,27 @@ def _conceptos(c, x, y, ancho, titulo, filas, total_txt, total):
     return _dibujar_tabla(c, t, x, y)
 
 
+def _dias_estancia(dias):
+    """
+    Días pagados de estancia (sin la llegada), con su día de la semana:
+      [('2026-10-11','Sáb',300), ('2026-10-12','Dom',300), ('2026-10-13','Lun',150)]
+      -> '3 días: sáb 11, dom 12, lun 13 oct'
+    El mes se escribe al final de cada grupo (ej. 'dom 30 sep, lun 1 oct').
+    """
+    if not dias:
+        return ""
+    partes = []
+    for i, (f, dia, _) in enumerate(dias):
+        anio, mes, d = f.split("-")
+        texto = f"{dia.lower()} {int(d)}"
+        siguiente = dias[i + 1][0] if i + 1 < len(dias) else None
+        if not siguiente or siguiente[:7] != f[:7]:
+            texto += " " + MESES_LARGO[int(mes) - 1][:3]
+        partes.append(texto)
+    n = len(dias)
+    return f"{n} {'día' if n == 1 else 'días'}: " + ", ".join(partes)
+
+
 def generar_pdf_liquidacion(filename, liq):
     """
     Genera el PDF de liquidación. `liq` es un diccionario con las
@@ -261,14 +282,8 @@ def generar_pdf_liquidacion(filename, liq):
         y -= 34
 
         # ---------- Percepciones (solo lo que tiene monto) ----------
-        llegada, estancias_pagadas, _ = desglose_estancia(liq.get("estancia_fechas"))
-        if estancias_pagadas:
-            n = len(estancias_pagadas)
-            det_estancia = f"{n} {'día' if n == 1 else 'días'} · llegada {_fecha_mini(llegada)}"
-        elif llegada:
-            det_estancia = f"Llegada {_fecha_mini(llegada)}"
-        else:
-            det_estancia = ""
+        _, estancias_pagadas, _ = desglose_estancia(liq.get("estancia_fechas"))
+        det_estancia = _dias_estancia(estancias_pagadas)
         tipo = (liq.get("tipo_sueldo") or "").upper()
         perc = [("Sueldo", "Químico" if tipo == "QUIMICO" else tipo.capitalize(), dinero(liq.get("sueldo")))]
         for clave, nombre, detalle in (
