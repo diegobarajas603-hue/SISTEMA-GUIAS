@@ -112,18 +112,17 @@
   --avatar-bg:   hsl(var(--avatar-h, 220) 30% 26%);
   --avatar-text: var(--text-primary);
 
-  /* ---------- Plazas como categorias de grafica ----------
-     Dos identidades, no dos estados: no pueden usar los colores de estatus,
-     que estan reservados. Par validado en las seis comprobaciones sobre las
-     dos superficies: separacion CVD 16.2 (protan) y 27.1 en vision normal,
-     y contraste sobre el fondo por encima de 3:1 en ambos temas. */
-  --plaza-mty:  #3B82F6;
-  --plaza-cdmx: #D9538F;
+  /* ---------- Dashboard: donde esta la mercancia ----------
+     Bodega y reparto son dos tonos del mismo azul: los dos son "esta en la
+     plaza", y asi el unico color que destaca es el ambar del transito. */
+  --flujo-bodega:  var(--accent);
+  --flujo-reparto: #8DB8FF;
+  --mapa-halo:     rgba(59, 130, 246, 0.12);
+  --bg-raised:     #13161B;   /* tarjeta dentro de otra card */
 
-  /* Tinta para texto encima de un relleno de estatus. En oscuro los
-     estatus son brillantes y pide tinta oscura; en claro es al reves.
-     Verificado contra los cuatro rellenos en los dos temas. */
-  --ink-on-status: #0E1013;
+  /* KPI destacado del dashboard: azul vivo, no el metal de las otras */
+  --kpi-featured-from: #3B82F6;
+  --kpi-featured-to:   #1E4FD8;
 
   /* Favorita */
   --star: #E3B341;
@@ -383,7 +382,11 @@
   --avatar-bg:   hsl(var(--avatar-h, 220) 44% 87%);
   --avatar-text: #1B1F26;
 
-  --ink-on-status: #FFFFFF;
+  --flujo-reparto: #7AA7F5;
+  --mapa-halo:     rgba(37, 99, 235, 0.07);
+  --bg-raised:     #F8F9FB;
+  --kpi-featured-from: #2F74F0;
+  --kpi-featured-to:   #1D4ED8;
 
   /* En claro se usa el logo original, sin tocar */
   --logo-url: url("/logo-tauro.svg");

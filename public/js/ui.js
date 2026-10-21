@@ -110,8 +110,10 @@
 
   function countUp(el, valor, duracion) {
     const destino = Number(valor) || 0;
+    // Separador de miles: 4,132 se lee de un vistazo, 4132 no
+    const fmt = (n) => n.toLocaleString('es-MX');
     if (reduceMotion() || destino === 0) {
-      el.textContent = String(destino);
+      el.textContent = fmt(destino);
       return;
     }
     const ms = duracion || 600;
@@ -120,9 +122,9 @@
       const t = Math.min((ahora - inicio) / ms, 1);
       // easeOutExpo: arranca rapido y aterriza suave en el valor final
       const p = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-      el.textContent = String(Math.round(destino * p));
+      el.textContent = fmt(Math.round(destino * p));
       if (t < 1) requestAnimationFrame(paso);
-      else el.textContent = String(destino);
+      else el.textContent = fmt(destino);
     }
     requestAnimationFrame(paso);
   }

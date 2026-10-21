@@ -175,34 +175,29 @@
 
       <!-- ==================================================== Dashboard -->
       <section id="v-dashboard" style="display:none">
-        <div class="kpis" id="kpis"></div>
-        <div class="card">
-          <h2 class="titulo-card">Donde esta la mercancia</h2>
-          <div class="flujo" id="flujo"></div>
+        <div class="dash-head">
+          <div>
+            <h2 class="dash-head__titulo">Operacion de hoy</h2>
+            <p class="dash-head__sub">Ruta Monterrey &harr; Ciudad de Mexico</p>
+          </div>
+          <span class="dash-vivo" id="dashActualizado" hidden><i></i><span></span></span>
         </div>
 
-        <div class="graficas">
-          <div class="card grafica">
-            <div class="grafica__head">
-              <div>
-                <h2 class="titulo-card" style="margin-bottom:2px">Guias por etapa</h2>
-                <span class="grafica__sub">Cuantas hay en cada etapa, plaza contra plaza</span>
-              </div>
-              <div class="leyenda" id="leyendaEtapa"></div>
-            </div>
-            <div id="graficaEtapa"></div>
-          </div>
+        <div class="kpis" id="kpis"></div>
 
-          <div class="card grafica">
-            <div class="grafica__head">
-              <div>
-                <h2 class="titulo-card" style="margin-bottom:2px">Composicion de cada plaza</h2>
-                <span class="grafica__sub">Como se reparte el total de cada plaza</span>
-              </div>
-              <div class="leyenda" id="leyendaMezcla"></div>
+        <div class="card mapa">
+          <div class="mapa__head">
+            <div>
+              <h2 class="mapa__titulo">Donde esta la mercancia</h2>
+              <span class="mapa__sub">Guias activas en cada plaza y lo que va en carretera</span>
             </div>
-            <div id="graficaMezcla"></div>
+            <div class="leyenda">
+              <span class="leyenda-item" style="--tinta:var(--flujo-bodega)"><i></i>En bodega</span>
+              <span class="leyenda-item" style="--tinta:var(--flujo-reparto)"><i></i>En reparto</span>
+              <span class="leyenda-item" style="--tinta:var(--st-transito-color)"><i></i>En transito</span>
+            </div>
           </div>
+          <div class="flujo" id="flujo"></div>
         </div>
       </section>
 
@@ -1121,202 +1116,35 @@
   // Umbral para considerar detenida una guia en transito (sin movimiento)
   const HORAS_DETENIDA = 24;
 
-  // ---------- Graficas comparativas MTY / CDMX ----------
-  // Se arman con los conteos que ya devuelve /api/guias/resumen: comparar
-  // plazas no necesita serie de tiempo, asi que no hay endpoint nuevo.
-  const ETAPAS = [
-    ['EN_TRANSITO_A_', 'En transito'],
-    ['EN_BODEGA_', 'En bodega'],
-    ['EN_RUTA_ENTREGA_', 'En reparto'],
-    ['ENTREGADO_', 'Entregadas'],
-  ];
-  const PLAZAS_G = [
-    { id: 'MTY', nombre: 'MTY', tinta: 'var(--plaza-mty)' },
-    { id: 'CDMX', nombre: 'CDMX', tinta: 'var(--plaza-cdmx)' },
-  ];
+  const fmt = (n) => Number(n || 0).toLocaleString('es-MX');
 
-  const svgEsc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-
-  // Barra con las esquinas superiores redondeadas, anclada a la base
-  function barraPath(x, y, w, h, r) {
-    if (h <= 0) return '';
-    const rr = Math.min(r, h, w / 2);
-    return `M${x},${y + h}L${x},${y + rr}Q${x},${y} ${x + rr},${y}` +
-           `L${x + w - rr},${y}Q${x + w},${y} ${x + w},${y + rr}L${x + w},${y + h}Z`;
-  }
-
-  function leyenda(items) {
-    return items.map((i) =>
-      `<span class="leyenda-item" style="--tinta:${i.tinta}"><i></i>${esc(i.nombre)}</span>`).join('');
-  }
-
-  // ---- Tooltip compartido ----
-  let tipEl;
-  function tooltip() {
-    if (!tipEl) {
-      tipEl = document.createElement('div');
-      tipEl.className = 'g-tooltip';
-      document.body.appendChild(tipEl);
-    }
-    return tipEl;
-  }
-  function mostrarTip(e, titulo, filas) {
-    const t = tooltip();
-    t.innerHTML = `<div class="g-tooltip__titulo">${esc(titulo)}</div>` +
-      filas.map((f) => `<div class="g-tooltip__fila" style="--tinta:${f.tinta}"><i></i>${esc(f.nombre)}<b>${f.valor}</b></div>`).join('');
-    t.classList.add('is-on');
-    moverTip(e);
-  }
-  function moverTip(e) {
-    const t = tooltip();
-    const r = t.getBoundingClientRect();
-    let x = e.clientX + 14;
-    let y = e.clientY - r.height - 10;
-    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
-    if (y < 8) y = e.clientY + 16;
-    t.style.left = x + 'px';
-    t.style.top = y + 'px';
-  }
-  function ocultarTip() { if (tipEl) tipEl.classList.remove('is-on'); }
-
-  function cablearTip(cont, datos) {
-    cont.querySelectorAll('[data-tip]').forEach((el) => {
-      const d = datos[Number(el.dataset.tip)];
-      el.addEventListener('mouseenter', (e) => mostrarTip(e, d.titulo, d.filas));
-      el.addEventListener('mousemove', moverTip);
-      el.addEventListener('mouseleave', ocultarTip);
-    });
-  }
-
-  // ---- Grafica 1: barras agrupadas por etapa ----
-  function pintarGraficaEtapa(p) {
-    $('leyendaEtapa').innerHTML = leyenda(PLAZAS_G);
-
-    const series = PLAZAS_G.map((pl) => ETAPAS.map(([pre]) => p[pre + pl.id] || 0));
-    const maxDato = Math.max(1, ...series.flat());
-    // Techo en un numero redondo, para que la escala se lea
-    const paso = Math.max(1, Math.ceil(maxDato / 4 / 5) * 5);
-    const tope = paso * 4;
-
-    const W = 520, H = 250, ML = 34, MR = 6, MT = 22, MB = 34;
-    const px0 = ML, px1 = W - MR, py0 = MT, py1 = H - MB;
-    const plotW = px1 - px0, plotH = py1 - py0;
-    const grupoW = plotW / ETAPAS.length;
-    const barraW = 38, hueco = 4;
-    const anchoPar = barraW * 2 + hueco;
-    const escala = (v) => (v / tope) * plotH;
-
-    let svg = '';
-    // Rejilla horizontal punteada y etiquetas del eje
-    for (let i = 0; i <= 4; i++) {
-      const y = py1 - (plotH / 4) * i;
-      svg += `<line class="g-rejilla" x1="${px0}" y1="${y}" x2="${px1}" y2="${y}"/>`;
-      svg += `<text class="g-eje" x="${px0 - 8}" y="${y + 4}" text-anchor="end">${paso * i}</text>`;
-    }
-
-    const datos = [];
-    ETAPAS.forEach(([pre, nombre], gi) => {
-      const cx = px0 + grupoW * gi + grupoW / 2;
-      svg += `<text class="g-eje" x="${cx}" y="${py1 + 20}" text-anchor="middle">${svgEsc(nombre)}</text>`;
-      PLAZAS_G.forEach((pl, si) => {
-        const v = p[pre + pl.id] || 0;
-        const h = escala(v);
-        const x = cx - anchoPar / 2 + si * (barraW + hueco);
-        const y = py1 - h;
-        const idx = datos.push({
-          titulo: nombre,
-          filas: PLAZAS_G.map((q) => ({ nombre: q.nombre, tinta: q.tinta, valor: p[pre + q.id] || 0 })),
-        }) - 1;
-        if (h > 0) svg += `<path class="g-barra" data-tip="${idx}" d="${barraPath(x, y, barraW, h, 4)}" fill="${pl.tinta}"/>`;
-        else svg += `<rect class="g-barra" data-tip="${idx}" x="${x}" y="${py1 - 2}" width="${barraW}" height="2" fill="${pl.tinta}" opacity="0.28"/>`;
-        svg += `<text class="g-valor" x="${x + barraW / 2}" y="${y - 6}" text-anchor="middle">${v}</text>`;
-      });
-    });
-
-    $('graficaEtapa').innerHTML =
-      `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Guias por etapa en MTY y CDMX">${svg}</svg>`;
-    cablearTip($('graficaEtapa'), datos);
-  }
-
-  // ---- Grafica 2: composicion de cada plaza (barras 100% apiladas) ----
-  function pintarGraficaMezcla(p) {
-    $('leyendaMezcla').innerHTML = leyenda(
-      ETAPAS.map(([pre, nombre]) => ({ nombre, tinta: `var(--st-${UI.statusKind(pre + 'MTY')}-color)` }))
-    );
-
-    const W = 520, H = 168, ALTO = 34, HUECO = 2;
-    let svg = '';
-    const datos = [];
-    let vacio = true;
-
-    PLAZAS_G.forEach((pl, fi) => {
-      const valores = ETAPAS.map(([pre, nombre]) => ({
-        nombre, valor: p[pre + pl.id] || 0, tinta: `var(--st-${UI.statusKind(pre + pl.id)}-color)`,
-      }));
-      const total = valores.reduce((a, v) => a + v.valor, 0);
-      const yEtiqueta = 16 + fi * 84;
-      const y = yEtiqueta + 14;
-
-      svg += `<text class="g-eje" x="0" y="${yEtiqueta}">${pl.nombre}</text>`;
-      svg += `<text class="g-valor" x="${W}" y="${yEtiqueta}" text-anchor="end">${total} guia${total === 1 ? '' : 's'}</text>`;
-
-      if (!total) {
-        svg += `<rect x="0" y="${y}" width="${W}" height="${ALTO}" rx="4" fill="var(--bg-inset)"/>`;
-        svg += `<text class="g-vacio" x="${W / 2}" y="${y + ALTO / 2 + 4}" text-anchor="middle">Sin guias en esta plaza</text>`;
-        return;
-      }
-      vacio = false;
-
-      // El hueco entre segmentos se descuenta del ancho disponible
-      const conValor = valores.filter((v) => v.valor > 0);
-      const util = W - HUECO * Math.max(0, conValor.length - 1);
-      let x = 0;
-      conValor.forEach((v, i) => {
-        const w = (v.valor / total) * util;
-        const pct = Math.round((v.valor / total) * 100);
-        const primero = i === 0, ultimo = i === conValor.length - 1;
-        const r = 4;
-        // Solo se redondean los extremos de la barra completa
-        svg += `<path class="g-barra" data-tip="${datos.length}" fill="${v.tinta}" d="${
-          `M${x + (primero ? r : 0)},${y}` +
-          `L${x + w - (ultimo ? r : 0)},${y}` +
-          (ultimo ? `Q${x + w},${y} ${x + w},${y + r}L${x + w},${y + ALTO - r}Q${x + w},${y + ALTO} ${x + w - r},${y + ALTO}` : `L${x + w},${y}L${x + w},${y + ALTO}`) +
-          `L${x + (primero ? r : 0)},${y + ALTO}` +
-          (primero ? `Q${x},${y + ALTO} ${x},${y + ALTO - r}L${x},${y + r}Q${x},${y} ${x + r},${y}` : `L${x},${y + ALTO}L${x},${y}`) + 'Z'
-        }"/>`;
-        datos.push({ titulo: `${pl.nombre} · ${v.nombre}`, filas: [{ nombre: 'Guias', tinta: v.tinta, valor: `${v.valor} (${pct}%)` }] });
-        // La etiqueta solo entra si el segmento le da el ancho
-        if (w > 42) svg += `<text class="g-pct" x="${x + w / 2}" y="${y + ALTO / 2 + 4}" text-anchor="middle">${pct}%</text>`;
-        x += w + HUECO;
-      });
-    });
-
-    $('graficaMezcla').innerHTML =
-      `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Composicion de guias por plaza">${svg}</svg>`;
-    if (!vacio) cablearTip($('graficaMezcla'), datos);
-  }
+  // Iconos de los KPIs (trazo de 1.6 sobre caja de 20)
+  const ICO = {
+    caja: '<path d="M10 2.5l7 3.5v8l-7 3.5-7-3.5V6z"/><path d="M3 6l7 3.5L17 6M10 9.5v8"/>',
+    bodega: '<path d="M3 8l7-4.5L17 8v8.5H3z"/><path d="M7 16.5v-5h6v5"/>',
+    camion: '<path d="M2.5 5.5h9v8h-9zM11.5 8.5h3l3 3v2h-6"/><circle cx="6" cy="14.5" r="1.5"/><circle cx="14.5" cy="14.5" r="1.5"/>',
+    pin: '<path d="M10 17s5.5-4.6 5.5-9A5.5 5.5 0 0 0 4.5 8c0 4.4 5.5 9 5.5 9z"/><circle cx="10" cy="8" r="2"/>',
+  };
+  const icono = (k) =>
+    `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICO[k]}</svg>`;
 
   // Esqueletos con la forma real del contenido, no un spinner generico
   function esqueletoDashboard() {
     $('kpis').innerHTML = Array.from({ length: 5 }, () =>
-      `<div class="card">
-         ${UI.skeleton('skeleton--num', 'width:56%')}
-         <div style="margin-top:var(--space-8)">${UI.skeleton('skeleton--label', 'width:82%')}</div>
+      `<div class="card kpi">
+         ${UI.skeleton('skeleton--label', 'width:60%')}
+         ${UI.skeleton('skeleton--num', 'width:45%')}
+         ${UI.skeleton('skeleton--label', 'width:80%')}
        </div>`).join('');
-    $('flujo').innerHTML = `
-      <div class="plaza-col">${UI.skeleton('skeleton--text', 'width:60%;margin-bottom:var(--space-16)')}
-        ${UI.skeleton('skeleton--text', 'width:90%;margin-bottom:var(--space-12)')}
-        ${UI.skeleton('skeleton--text', 'width:75%;margin-bottom:var(--space-12)')}
-        ${UI.skeleton('skeleton--text', 'width:85%')}</div>
-      <div class="transitos">${UI.skeleton('skeleton--text', 'width:100%')}</div>
-      <div class="plaza-col">${UI.skeleton('skeleton--text', 'width:60%;margin-bottom:var(--space-16)')}
-        ${UI.skeleton('skeleton--text', 'width:88%;margin-bottom:var(--space-12)')}
-        ${UI.skeleton('skeleton--text', 'width:70%;margin-bottom:var(--space-12)')}
-        ${UI.skeleton('skeleton--text', 'width:92%')}</div>`;
-    $('graficaEtapa').innerHTML = UI.skeleton('skeleton--row', 'height:220px');
-    $('graficaMezcla').innerHTML = UI.skeleton('skeleton--row', 'height:150px');
-    $('leyendaEtapa').innerHTML = '';
-    $('leyendaMezcla').innerHTML = '';
+    const plaza = `<div class="plaza">
+        ${UI.skeleton('skeleton--text', 'width:50%')}
+        ${UI.skeleton('skeleton--num', 'width:35%')}
+        ${UI.skeleton('skeleton--text', 'width:100%')}
+        ${UI.skeleton('skeleton--row', 'height:64px')}
+      </div>`;
+    $('flujo').innerHTML = plaza +
+      `<div class="carriles">${UI.skeleton('skeleton--row', 'height:84px')}${UI.skeleton('skeleton--row', 'height:84px')}</div>` +
+      plaza;
   }
 
   async function cargarDashboard() {
@@ -1327,99 +1155,116 @@
       const transito = (p.EN_TRANSITO_A_CDMX || 0) + (p.EN_TRANSITO_A_MTY || 0);
       const ruta = (p.EN_RUTA_ENTREGA_CDMX || 0) + (p.EN_RUTA_ENTREGA_MTY || 0);
       const entregadas = (p.ENTREGADO_CDMX || 0) + (p.ENTREGADO_MTY || 0);
+      const activas = (p.EN_BODEGA_MTY || 0) + (p.EN_BODEGA_CDMX || 0) + transito + ruta;
 
       const tarjetas = [
-        { valor: r.totalGuias || 0, etiqueta: 'Guias en el sistema', destacada: true, tab: '', est: '' },
-        { valor: p.EN_BODEGA_MTY || 0, etiqueta: 'En bodega MTY', tab: 'CDMX', est: 'EN_BODEGA_MTY' },
-        { valor: p.EN_BODEGA_CDMX || 0, etiqueta: 'En bodega CDMX', tab: 'MTY', est: 'EN_BODEGA_CDMX' },
-        { valor: transito, etiqueta: 'En transito', tab: '', est: '' },
-        { valor: ruta, etiqueta: 'En ruta de entrega', tab: '', est: '' },
+        { valor: r.totalGuias || 0, etiqueta: 'Guias en el sistema', ico: 'caja', destacada: true,
+          pie: `${fmt(activas)} activas · ${fmt(entregadas)} entregadas`, tab: '', est: '' },
+        { valor: p.EN_BODEGA_MTY || 0, etiqueta: 'Bodega MTY', ico: 'bodega', pie: 'Listas para salir o repartir', tab: 'CDMX', est: 'EN_BODEGA_MTY' },
+        { valor: p.EN_BODEGA_CDMX || 0, etiqueta: 'Bodega CDMX', ico: 'bodega', pie: 'Listas para salir o repartir', tab: 'MTY', est: 'EN_BODEGA_CDMX' },
+        { valor: transito, etiqueta: 'En transito', ico: 'camion', transito: true, pie: 'En carretera ahora', tab: '', est: '' },
+        { valor: ruta, etiqueta: 'En reparto', ico: 'pin', pie: 'Rumbo al cliente', tab: '', est: '' },
       ];
 
       $('kpis').innerHTML = tarjetas.map((t) => `
-        <div class="card ${t.destacada ? 'card--featured' : 'card--interactive'}"
-             data-tab="${t.tab || ''}" data-est="${t.est || ''}" ${t.eventos ? 'data-eventos="1"' : ''}>
+        <div class="card kpi ${t.destacada ? 'card--featured' : 'card--interactive'} ${t.transito ? 'kpi--transito' : ''}"
+             data-tab="${t.tab}" data-est="${t.est}">
+          <div class="kpi__top">
+            <span class="kpi-etiqueta">${esc(t.etiqueta)}</span>
+            <span class="kpi__ico">${icono(t.ico)}</span>
+          </div>
           <div class="kpi-valor" data-valor="${t.valor}">0</div>
-          <div class="kpi-etiqueta">${esc(t.etiqueta)}</div>
+          <div class="kpi__pie">${esc(t.pie)}</div>
         </div>`).join('');
 
       document.querySelectorAll('#kpis .kpi-valor').forEach((el) => UI.countUp(el, Number(el.dataset.valor)));
       document.querySelectorAll('#kpis .card').forEach((k) =>
-        k.addEventListener('click', () => {
-          if (k.dataset.eventos) { location.hash = '#/eventos'; return; }
-          irAGuias(k.dataset.tab, k.dataset.est);
-        })
+        k.addEventListener('click', () => irAGuias(k.dataset.tab, k.dataset.est))
       );
 
       pintarFlujo(p);
-      pintarGraficaEtapa(p);
-      pintarGraficaMezcla(p);
+
+      const vivo = $('dashActualizado');
+      vivo.querySelector('span').textContent =
+        'Actualizado ' + new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      vivo.hidden = false;
 
       revisarDetenidas();
     } catch (e) {
       UI.montarError($('kpis'), e.message, cargarDashboard);
       $('flujo').innerHTML = '';
-      $('graficaEtapa').innerHTML = '';
-      $('graficaMezcla').innerHTML = '';
     }
   }
 
   // ---------- Donde esta la mercancia ----------
-  // Una plaza agrupa lo que esta fisicamente ahi (en su bodega, en reparto o
-  // ya entregado); las flechas son lo que va en camino entre plazas.
+  // Cada plaza muestra primero sus guias activas (en bodega + en reparto),
+  // que es lo que hay que mover; las entregadas quedan abajo como historico.
+  // Los carriles del centro son lo que va en carretera entre plazas.
   // La pestaña de Guias, en cambio, agrupa por plaza de ORIGEN: una guia en
   // bodega MTY salio de CDMX, por eso el tab es la plaza contraria.
   const tabDeEstatus = (est) => (est.endsWith('_MTY') ? 'CDMX' : 'MTY');
 
-  function filaFlujo(estatus, texto, total) {
-    return `<button class="plaza-fila" data-est="${estatus}" title="Ver estas guias">
-      <span class="dot dot--${UI.statusKind(estatus)}"></span>
-      <span class="plaza-fila__num">${total}</span>
-      <span class="plaza-fila__txt">${texto}</span>
-    </button>`;
-  }
-
-  function columnaPlaza(plaza, nombre, p) {
+  function columnaPlaza(plaza, nombre, sub, p) {
     const bodega = p['EN_BODEGA_' + plaza] || 0;
     const reparto = p['EN_RUTA_ENTREGA_' + plaza] || 0;
     const entregadas = p['ENTREGADO_' + plaza] || 0;
-    return `<div class="plaza-col">
-      <div class="plaza-col__head">
-        <span class="dot dot--accent"></span>
-        <span class="plaza-col__nombre">${nombre}</span>
+    const activas = bodega + reparto;
+    return `<div class="plaza">
+      <div class="plaza__head">
+        <span class="plaza__pin">${plaza}</span>
+        <span><span class="plaza__nombre">${nombre}</span><span class="plaza__sub">${sub}</span></span>
       </div>
-      ${filaFlujo('EN_BODEGA_' + plaza, 'En bodega', bodega)}
-      ${filaFlujo('EN_RUTA_ENTREGA_' + plaza, 'En reparto', reparto)}
-      ${filaFlujo('ENTREGADO_' + plaza, 'Entregadas', entregadas)}
-      <div class="plaza-fila plaza-fila--total">
-        <span class="plaza-fila__num">${bodega + reparto + entregadas}</span>
-        <span class="plaza-fila__txt">En la plaza</span>
+      <div>
+        <div class="plaza__activas">${fmt(activas)}</div>
+        <div class="plaza__activas-txt">guia${activas === 1 ? '' : 's'} activa${activas === 1 ? '' : 's'} en la plaza</div>
       </div>
+      <div class="plaza__barra" aria-hidden="true">
+        ${activas
+          ? `<i style="flex:${bodega};background:var(--flujo-bodega)"></i><i style="flex:${reparto};background:var(--flujo-reparto)"></i>`
+          : '<i style="flex:1;background:var(--border-subtle)"></i>'}
+      </div>
+      <div class="plaza__desglose">
+        <button class="plaza__mini" type="button" data-est="EN_BODEGA_${plaza}" title="Ver estas guias">
+          <span class="plaza__mini-txt" style="--tinta:var(--flujo-bodega)"><i></i>En bodega</span>
+          <span class="plaza__mini-num">${fmt(bodega)}</span>
+        </button>
+        <button class="plaza__mini" type="button" data-est="EN_RUTA_ENTREGA_${plaza}" title="Ver estas guias">
+          <span class="plaza__mini-txt" style="--tinta:var(--flujo-reparto)"><i></i>En reparto</span>
+          <span class="plaza__mini-num">${fmt(reparto)}</span>
+        </button>
+      </div>
+      <button class="plaza__entregadas" type="button" data-est="ENTREGADO_${plaza}" title="Ver estas guias">
+        <span class="plaza__check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
+        <span class="plaza__entregadas-txt">Entregadas</span>
+        <span class="plaza__entregadas-num">${fmt(entregadas)}</span>
+      </button>
     </div>`;
   }
 
-  function flechaTransito(estatus, ruta, dir, total) {
-    const punta = dir === 'der' ? 'flecha--der' : 'flecha--izq';
-    return `<div class="flecha ${punta} ${total > 0 ? 'is-activa' : ''}" data-est="${estatus}">
-      <span class="flecha__ruta">${ruta}</span>
-      <span class="flecha__pista">
-        <span class="flecha__linea"><span class="flecha__luz"></span></span>
-        <svg class="flecha__punta" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5L7.5 5L4 8.5"/></svg>
-        <span class="flecha__chip">${total}</span>
+  function carril(estatus, ruta, dir, total) {
+    return `<button class="carril carril--${dir} ${total > 0 ? 'is-activo' : ''}" type="button" data-est="${estatus}" title="Ver estas guias">
+      <span class="carril__top">
+        <span class="carril__ruta">${ruta}</span>
+        <span class="carril__num">${fmt(total)}</span>
       </span>
-    </div>`;
+      <span class="carril__via">
+        <span class="carril__luz"></span><span class="carril__luz carril__luz--b"></span>
+        <svg class="carril__punta" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg>
+      </span>
+    </button>`;
   }
 
   function pintarFlujo(p) {
     const aCDMX = p.EN_TRANSITO_A_CDMX || 0;
     const aMTY = p.EN_TRANSITO_A_MTY || 0;
     $('flujo').innerHTML =
-      columnaPlaza('MTY', 'Monterrey', p) +
-      `<div class="transitos">
-        ${flechaTransito('EN_TRANSITO_A_CDMX', 'MTY &rarr; CDMX', 'der', aCDMX)}
-        ${flechaTransito('EN_TRANSITO_A_MTY', 'CDMX &rarr; MTY', 'izq', aMTY)}
+      columnaPlaza('MTY', 'Monterrey', 'Plaza norte', p) +
+      `<div class="carriles">
+        ${carril('EN_TRANSITO_A_CDMX', 'MTY &rarr; CDMX', 'der', aCDMX)}
+        ${carril('EN_TRANSITO_A_MTY', 'CDMX &rarr; MTY', 'izq', aMTY)}
+        <div class="carriles__total"><b>${fmt(aCDMX + aMTY)}</b> guia${aCDMX + aMTY === 1 ? '' : 's'} en carretera</div>
       </div>` +
-      columnaPlaza('CDMX', 'Ciudad de Mexico', p);
+      columnaPlaza('CDMX', 'Ciudad de Mexico', 'Plaza centro', p);
 
     $('flujo').querySelectorAll('[data-est]').forEach((el) =>
       el.addEventListener('click', () => irAGuias(tabDeEstatus(el.dataset.est), el.dataset.est))
