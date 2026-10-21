@@ -1169,7 +1169,7 @@
       ];
 
       $('kpis').innerHTML = tarjetas.map((t) => `
-        <div class="card kpi ${t.destacada ? 'card--featured' : 'card--interactive'} ${t.transito ? 'kpi--transito' : ''}"
+        <div class="card card--interactive kpi ${t.destacada ? 'kpi--total' : ''} ${t.transito ? 'kpi--transito' : ''}"
              data-tab="${t.tab}" data-est="${t.est}">
           <div class="kpi__top">
             <span class="kpi-etiqueta">${esc(t.etiqueta)}</span>

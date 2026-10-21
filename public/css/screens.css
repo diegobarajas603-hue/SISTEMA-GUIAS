@@ -131,11 +131,11 @@ tbody tr.clic:hover {
   margin-bottom: var(--space-20);
 }
 
-.kpis .card--featured { grid-column: 1 / -1; }
+.kpis .kpi--total { grid-column: 1 / -1; }
 
 @media (min-width: 1240px) {
   .kpis { grid-template-columns: 1.35fr repeat(4, minmax(0, 1fr)); }
-  .kpis .card--featured { grid-column: auto; }
+  .kpis .kpi--total { grid-column: auto; }
 }
 
 .kpi {
@@ -198,19 +198,9 @@ tbody tr.clic:hover {
 .kpi--transito .kpi__ico { background: var(--st-transito-bg); color: var(--st-transito-color); }
 .kpi--transito .kpi-valor { color: var(--st-transito-text); }
 
-/* La destacada: degradado azul vivo con un brillo en la esquina */
-.kpi.card--featured {
-  background:
-    radial-gradient(120% 140% at 100% 0%, rgba(255, 255, 255, 0.18), transparent 55%),
-    linear-gradient(150deg, var(--kpi-featured-from) 0%, var(--kpi-featured-to) 100%);
-  border-color: transparent;
-  cursor: pointer;
-}
-
-.card--featured .kpi-valor { color: var(--text-on-solid); font-size: 44px; }
-.card--featured .kpi-etiqueta,
-.card--featured .kpi__pie { color: var(--text-on-solid-muted); }
-.card--featured .kpi__ico { background: rgba(255, 255, 255, 0.16); color: var(--text-on-solid); }
+/* El total va en la misma tarjeta neutra que las demas: lo distingue su
+   tamaño, no un color que compita con el ambar del transito */
+.kpi--total .kpi-valor { font-size: 44px; }
 
 /* ============================================================================
    DASHBOARD — banner de alerta

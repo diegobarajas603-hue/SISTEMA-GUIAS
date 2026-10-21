@@ -120,9 +120,6 @@
   --mapa-halo:     rgba(59, 130, 246, 0.12);
   --bg-raised:     #13161B;   /* tarjeta dentro de otra card */
 
-  /* KPI destacado del dashboard: azul vivo, no el metal de las otras */
-  --kpi-featured-from: #3B82F6;
-  --kpi-featured-to:   #1E4FD8;
 
   /* Favorita */
   --star: #E3B341;
@@ -385,8 +382,6 @@
   --flujo-reparto: #7AA7F5;
   --mapa-halo:     rgba(37, 99, 235, 0.07);
   --bg-raised:     #F8F9FB;
-  --kpi-featured-from: #2F74F0;
-  --kpi-featured-to:   #1D4ED8;
 
   /* En claro se usa el logo original, sin tocar */
   --logo-url: url("/logo-tauro.svg");
