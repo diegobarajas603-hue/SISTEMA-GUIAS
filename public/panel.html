@@ -140,6 +140,7 @@
             <path d="M10 2.8L18.4 17H1.6z"/><path d="M10 8v3.4"/><path d="M10 14.2h.01"/>
           </svg>
           <span class="alerta-estancadas__n" id="estancadasN">0</span>
+          <span class="alerta-estancadas__txt" id="estancadasTxt">estancadas</span>
         </button>
         <div class="reloj" aria-hidden="true">
           <span class="reloj__hora" id="relojHora">--:--</span>
@@ -767,6 +768,7 @@
 
     const n = totalEstancadas;
     $('estancadasN').textContent = n > 99 ? '99+' : n;
+    $('estancadasTxt').textContent = n === 1 ? 'estancada' : 'estancadas';
     // El servidor decide quien esta estancada con su reloj y el navegador
     // cuenta los dias con el suyo: si van desfasados, el piso lo pone el umbral
     // para que el aviso no se contradiga solo ("1 guia lleva 1 dia... +2 dias")

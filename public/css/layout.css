@@ -500,6 +500,18 @@
   line-height: 1;
 }
 
+/* La palabra dice que cuenta el numero sin tener que pasar el raton */
+.alerta-estancadas__txt {
+  margin-left: 2px;
+  font-size: var(--t-small-size);
+  font-weight: 600;
+  line-height: 1;
+}
+
+@media (max-width: 640px) {
+  .alerta-estancadas__txt { display: none; }
+}
+
 /* Latido: la pastilla se enciende entera, en ambar solido y con el numero en
    oscuro. Es el destello mas fuerte del panel a proposito: no es decoracion,
    es la unica senal de que hay mercancia parada y se mira de reojo mientras se
