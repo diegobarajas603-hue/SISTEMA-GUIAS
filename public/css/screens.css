@@ -417,6 +417,10 @@ tbody tr.clic:hover {
   justify-content: space-between;
 }
 
+/* El numero sale de donde arranca la flecha y la ruta queda en la punta:
+   en MTY -> CDMX la flecha va a la derecha, asi que se invierte el orden */
+.dir--der .dir__top { flex-direction: row-reverse; }
+
 .dir__ruta {
   font-size: 13px;
   color: var(--text-secondary);

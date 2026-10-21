@@ -1223,7 +1223,7 @@
 
   function direccion(estatus, ruta, dir, total) {
     const punta = dir === 'der' ? 'M3 1.5L7 5 3 8.5' : 'M7 1.5L3 5l4 3.5';
-    return `<button class="dir" type="button" data-est="${estatus}" title="Ver estas guias">
+    return `<button class="dir dir--${dir}" type="button" data-est="${estatus}" title="Ver estas guias">
       <span class="dir__top"><span class="dir__ruta">${ruta}</span><span class="dir__num">${fmt(total)}</span></span>
       <span class="via via--${dir} ${total > 0 ? 'is-activa' : ''}">
         <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${punta}"/></svg>
