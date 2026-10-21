@@ -97,9 +97,6 @@
     </nav>
 
     <div class="sidebar__pie">
-      <span class="plaza-tag" id="plazaPie" title="Plaza actual">
-        <span class="dot dot--accent"></span><span>MTY</span>
-      </span>
       <div class="usuario">
         <span id="usuarioAvatar"></span>
         <span class="usuario__datos">
@@ -134,16 +131,16 @@
              pregunta que contesta ("cuanto lleva esto parado") es del mismo
              tipo que la hora. No se puede cerrar ni silenciar: parpadea
              mientras haya guias detenidas y se va solo cuando se mueven. -->
-        <button class="alerta-estancadas" id="btnEstancadas" type="button" hidden>
+        <a class="alerta-estancadas" id="btnEstancadas" href="#/guias" hidden>
           <svg class="alerta-estancadas__ico" viewBox="0 0 20 20" fill="none" stroke="currentColor"
                stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M10 2.8L18.4 17H1.6z"/><path d="M10 8v3.4"/><path d="M10 14.2h.01"/>
           </svg>
-          <span class="alerta-estancadas__n" id="estancadasN">0</span>
-        </button>
+          <span class="alerta-estancadas__txt" id="estancadasTxt"></span>
+          <span class="alerta-estancadas__corto" id="estancadasCorto" aria-hidden="true"></span>
+        </a>
         <div class="reloj" aria-hidden="true">
-          <span class="reloj__hora" id="relojHora">--:--</span>
-          <span class="reloj__fecha" id="relojFecha"></span>
+          <span class="reloj__texto" id="relojHora">--:--</span>
         </div>
         <button class="btn btn--ghost btn--icon" id="btnIrEscanear" type="button" title="Ir a escanear" aria-label="Ir a escanear">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5v10M6.5 5v10M10 5v10M13.5 5v10M17 5v10"/></svg>
@@ -175,34 +172,24 @@
 
       <!-- ==================================================== Dashboard -->
       <section id="v-dashboard" style="display:none">
-        <div class="kpis" id="kpis"></div>
-        <div class="card">
-          <h2 class="titulo-card">Donde esta la mercancia</h2>
-          <div class="flujo" id="flujo"></div>
+        <div class="dash-head">
+          <h2 class="dash-head__titulo">Operación de hoy</h2>
+          <p class="dash-head__sub">Ruta Monterrey &harr; Ciudad de México<span id="dashActualizado"></span></p>
         </div>
 
-        <div class="graficas">
-          <div class="card grafica">
-            <div class="grafica__head">
-              <div>
-                <h2 class="titulo-card" style="margin-bottom:2px">Guias por etapa</h2>
-                <span class="grafica__sub">Cuantas hay en cada etapa, plaza contra plaza</span>
-              </div>
-              <div class="leyenda" id="leyendaEtapa"></div>
-            </div>
-            <div id="graficaEtapa"></div>
-          </div>
+        <div class="kpis" id="kpis"></div>
 
-          <div class="card grafica">
-            <div class="grafica__head">
-              <div>
-                <h2 class="titulo-card" style="margin-bottom:2px">Composicion de cada plaza</h2>
-                <span class="grafica__sub">Como se reparte el total de cada plaza</span>
-              </div>
-              <div class="leyenda" id="leyendaMezcla"></div>
+        <div class="mapa">
+          <div class="mapa__head">
+            <h2 class="mapa__titulo">Dónde está la mercancía</h2>
+            <div class="leyenda">
+              <span class="leyenda-item"><i class="serie serie--bodega"></i>En bodega</span>
+              <span class="leyenda-item"><i class="serie serie--reparto"></i>En reparto</span>
+              <span class="leyenda-item"><i class="serie serie--transito"></i>En tránsito</span>
+              <span class="leyenda-item"><i class="serie serie--entregada"></i>Entregadas</span>
             </div>
-            <div id="graficaMezcla"></div>
           </div>
+          <div class="flujo" id="flujo"></div>
         </div>
       </section>
 
@@ -589,7 +576,7 @@
   function setPlaza(p) {
     plaza = p;
     localStorage.setItem('plaza', p);
-    $('plazaPie').querySelector('span:last-child').textContent = p;
+    pintarNombreUsuario();
     pintarPillsPlaza();
   }
 
@@ -721,10 +708,13 @@
   // que "6:40 p.m.", y ocupa menos.
   function pintarReloj() {
     const ahora = new Date();
-    $('relojHora').textContent = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const fecha = ahora.toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short' });
-    // Solo la inicial en mayuscula: "Mie 06 ago", no "Mié 06 De Ago"
-    $('relojFecha').textContent = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+    const hora = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+    // "Mié 21 oct · 18:10": sin puntos de abreviatura ni comas, una sola linea
+    let fecha = ahora.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
+      .replace(/[.,]/g, '').replace(/ de /g, ' ');
+    // Solo la inicial en mayuscula: "Mié 21 oct", no "Mié 21 De Oct"
+    fecha = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+    $('relojHora').textContent = `${fecha} · ${hora}`;
   }
   pintarReloj();
   setInterval(pintarReloj, 10000);
@@ -771,7 +761,10 @@
     if (!totalEstancadas) return;
 
     const n = totalEstancadas;
-    $('estancadasN').textContent = n > 99 ? '99+' : n;
+    $('estancadasTxt').textContent =
+      n > 99 ? 'Más de 99 guías estancadas' : n === 1 ? '1 guía estancada' : `${n} guías estancadas`;
+    // En telefono no cabe la frase junto al buscador: queda solo el numero
+    $('estancadasCorto').textContent = n > 99 ? '+99' : n;
     // El servidor decide quien esta estancada con su reloj y el navegador
     // cuenta los dias con el suyo: si van desfasados, el piso lo pone el umbral
     // para que el aviso no se contradiga solo ("1 guia lleva 1 dia... +2 dias")
@@ -785,7 +778,7 @@
     btn.setAttribute('aria-label', texto);
   }
 
-  $('btnEstancadas').addEventListener('click', () => irAEstancadas());
+  $('btnEstancadas').addEventListener('click', (e) => { e.preventDefault(); irAEstancadas(); });
 
   // La vigilancia arranca con la sesion y se apaga al salir: sin token no hay
   // a quien preguntarle.
@@ -898,13 +891,19 @@
     });
   });
 
+  // "Admin · MTY": la plaza en la que se esta escaneando va pegada al nombre
+  function pintarNombreUsuario() {
+    if (!usuarioActual) return;
+    $('usuarioNombre').textContent = `${usuarioActual.nombre} · ${plaza}`;
+  }
+
   function pintarUsuario() {
     if (!usuarioActual) return;
     const esAdmin = usuarioActual.roles.includes('admin');
     const plazaUsuario = usuarioActual.plaza || '';
 
     $('usuarioAvatar').innerHTML = UI.avatar(usuarioActual.nombre, { sm: true });
-    $('usuarioNombre').textContent = usuarioActual.nombre;
+    pintarNombreUsuario();
     $('usuarioRol').textContent = nombresRoles(usuarioActual.roles) + (plazaUsuario ? ' · ' + plazaUsuario : '');
 
     $('cfgAvatar').innerHTML = UI.avatar(usuarioActual.nombre);
@@ -1121,202 +1120,24 @@
   // Umbral para considerar detenida una guia en transito (sin movimiento)
   const HORAS_DETENIDA = 24;
 
-  // ---------- Graficas comparativas MTY / CDMX ----------
-  // Se arman con los conteos que ya devuelve /api/guias/resumen: comparar
-  // plazas no necesita serie de tiempo, asi que no hay endpoint nuevo.
-  const ETAPAS = [
-    ['EN_TRANSITO_A_', 'En transito'],
-    ['EN_BODEGA_', 'En bodega'],
-    ['EN_RUTA_ENTREGA_', 'En reparto'],
-    ['ENTREGADO_', 'Entregadas'],
-  ];
-  const PLAZAS_G = [
-    { id: 'MTY', nombre: 'MTY', tinta: 'var(--plaza-mty)' },
-    { id: 'CDMX', nombre: 'CDMX', tinta: 'var(--plaza-cdmx)' },
-  ];
-
-  const svgEsc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-
-  // Barra con las esquinas superiores redondeadas, anclada a la base
-  function barraPath(x, y, w, h, r) {
-    if (h <= 0) return '';
-    const rr = Math.min(r, h, w / 2);
-    return `M${x},${y + h}L${x},${y + rr}Q${x},${y} ${x + rr},${y}` +
-           `L${x + w - rr},${y}Q${x + w},${y} ${x + w},${y + rr}L${x + w},${y + h}Z`;
-  }
-
-  function leyenda(items) {
-    return items.map((i) =>
-      `<span class="leyenda-item" style="--tinta:${i.tinta}"><i></i>${esc(i.nombre)}</span>`).join('');
-  }
-
-  // ---- Tooltip compartido ----
-  let tipEl;
-  function tooltip() {
-    if (!tipEl) {
-      tipEl = document.createElement('div');
-      tipEl.className = 'g-tooltip';
-      document.body.appendChild(tipEl);
-    }
-    return tipEl;
-  }
-  function mostrarTip(e, titulo, filas) {
-    const t = tooltip();
-    t.innerHTML = `<div class="g-tooltip__titulo">${esc(titulo)}</div>` +
-      filas.map((f) => `<div class="g-tooltip__fila" style="--tinta:${f.tinta}"><i></i>${esc(f.nombre)}<b>${f.valor}</b></div>`).join('');
-    t.classList.add('is-on');
-    moverTip(e);
-  }
-  function moverTip(e) {
-    const t = tooltip();
-    const r = t.getBoundingClientRect();
-    let x = e.clientX + 14;
-    let y = e.clientY - r.height - 10;
-    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
-    if (y < 8) y = e.clientY + 16;
-    t.style.left = x + 'px';
-    t.style.top = y + 'px';
-  }
-  function ocultarTip() { if (tipEl) tipEl.classList.remove('is-on'); }
-
-  function cablearTip(cont, datos) {
-    cont.querySelectorAll('[data-tip]').forEach((el) => {
-      const d = datos[Number(el.dataset.tip)];
-      el.addEventListener('mouseenter', (e) => mostrarTip(e, d.titulo, d.filas));
-      el.addEventListener('mousemove', moverTip);
-      el.addEventListener('mouseleave', ocultarTip);
-    });
-  }
-
-  // ---- Grafica 1: barras agrupadas por etapa ----
-  function pintarGraficaEtapa(p) {
-    $('leyendaEtapa').innerHTML = leyenda(PLAZAS_G);
-
-    const series = PLAZAS_G.map((pl) => ETAPAS.map(([pre]) => p[pre + pl.id] || 0));
-    const maxDato = Math.max(1, ...series.flat());
-    // Techo en un numero redondo, para que la escala se lea
-    const paso = Math.max(1, Math.ceil(maxDato / 4 / 5) * 5);
-    const tope = paso * 4;
-
-    const W = 520, H = 250, ML = 34, MR = 6, MT = 22, MB = 34;
-    const px0 = ML, px1 = W - MR, py0 = MT, py1 = H - MB;
-    const plotW = px1 - px0, plotH = py1 - py0;
-    const grupoW = plotW / ETAPAS.length;
-    const barraW = 38, hueco = 4;
-    const anchoPar = barraW * 2 + hueco;
-    const escala = (v) => (v / tope) * plotH;
-
-    let svg = '';
-    // Rejilla horizontal punteada y etiquetas del eje
-    for (let i = 0; i <= 4; i++) {
-      const y = py1 - (plotH / 4) * i;
-      svg += `<line class="g-rejilla" x1="${px0}" y1="${y}" x2="${px1}" y2="${y}"/>`;
-      svg += `<text class="g-eje" x="${px0 - 8}" y="${y + 4}" text-anchor="end">${paso * i}</text>`;
-    }
-
-    const datos = [];
-    ETAPAS.forEach(([pre, nombre], gi) => {
-      const cx = px0 + grupoW * gi + grupoW / 2;
-      svg += `<text class="g-eje" x="${cx}" y="${py1 + 20}" text-anchor="middle">${svgEsc(nombre)}</text>`;
-      PLAZAS_G.forEach((pl, si) => {
-        const v = p[pre + pl.id] || 0;
-        const h = escala(v);
-        const x = cx - anchoPar / 2 + si * (barraW + hueco);
-        const y = py1 - h;
-        const idx = datos.push({
-          titulo: nombre,
-          filas: PLAZAS_G.map((q) => ({ nombre: q.nombre, tinta: q.tinta, valor: p[pre + q.id] || 0 })),
-        }) - 1;
-        if (h > 0) svg += `<path class="g-barra" data-tip="${idx}" d="${barraPath(x, y, barraW, h, 4)}" fill="${pl.tinta}"/>`;
-        else svg += `<rect class="g-barra" data-tip="${idx}" x="${x}" y="${py1 - 2}" width="${barraW}" height="2" fill="${pl.tinta}" opacity="0.28"/>`;
-        svg += `<text class="g-valor" x="${x + barraW / 2}" y="${y - 6}" text-anchor="middle">${v}</text>`;
-      });
-    });
-
-    $('graficaEtapa').innerHTML =
-      `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Guias por etapa en MTY y CDMX">${svg}</svg>`;
-    cablearTip($('graficaEtapa'), datos);
-  }
-
-  // ---- Grafica 2: composicion de cada plaza (barras 100% apiladas) ----
-  function pintarGraficaMezcla(p) {
-    $('leyendaMezcla').innerHTML = leyenda(
-      ETAPAS.map(([pre, nombre]) => ({ nombre, tinta: `var(--st-${UI.statusKind(pre + 'MTY')}-color)` }))
-    );
-
-    const W = 520, H = 168, ALTO = 34, HUECO = 2;
-    let svg = '';
-    const datos = [];
-    let vacio = true;
-
-    PLAZAS_G.forEach((pl, fi) => {
-      const valores = ETAPAS.map(([pre, nombre]) => ({
-        nombre, valor: p[pre + pl.id] || 0, tinta: `var(--st-${UI.statusKind(pre + pl.id)}-color)`,
-      }));
-      const total = valores.reduce((a, v) => a + v.valor, 0);
-      const yEtiqueta = 16 + fi * 84;
-      const y = yEtiqueta + 14;
-
-      svg += `<text class="g-eje" x="0" y="${yEtiqueta}">${pl.nombre}</text>`;
-      svg += `<text class="g-valor" x="${W}" y="${yEtiqueta}" text-anchor="end">${total} guia${total === 1 ? '' : 's'}</text>`;
-
-      if (!total) {
-        svg += `<rect x="0" y="${y}" width="${W}" height="${ALTO}" rx="4" fill="var(--bg-inset)"/>`;
-        svg += `<text class="g-vacio" x="${W / 2}" y="${y + ALTO / 2 + 4}" text-anchor="middle">Sin guias en esta plaza</text>`;
-        return;
-      }
-      vacio = false;
-
-      // El hueco entre segmentos se descuenta del ancho disponible
-      const conValor = valores.filter((v) => v.valor > 0);
-      const util = W - HUECO * Math.max(0, conValor.length - 1);
-      let x = 0;
-      conValor.forEach((v, i) => {
-        const w = (v.valor / total) * util;
-        const pct = Math.round((v.valor / total) * 100);
-        const primero = i === 0, ultimo = i === conValor.length - 1;
-        const r = 4;
-        // Solo se redondean los extremos de la barra completa
-        svg += `<path class="g-barra" data-tip="${datos.length}" fill="${v.tinta}" d="${
-          `M${x + (primero ? r : 0)},${y}` +
-          `L${x + w - (ultimo ? r : 0)},${y}` +
-          (ultimo ? `Q${x + w},${y} ${x + w},${y + r}L${x + w},${y + ALTO - r}Q${x + w},${y + ALTO} ${x + w - r},${y + ALTO}` : `L${x + w},${y}L${x + w},${y + ALTO}`) +
-          `L${x + (primero ? r : 0)},${y + ALTO}` +
-          (primero ? `Q${x},${y + ALTO} ${x},${y + ALTO - r}L${x},${y + r}Q${x},${y} ${x + r},${y}` : `L${x},${y + ALTO}L${x},${y}`) + 'Z'
-        }"/>`;
-        datos.push({ titulo: `${pl.nombre} · ${v.nombre}`, filas: [{ nombre: 'Guias', tinta: v.tinta, valor: `${v.valor} (${pct}%)` }] });
-        // La etiqueta solo entra si el segmento le da el ancho
-        if (w > 42) svg += `<text class="g-pct" x="${x + w / 2}" y="${y + ALTO / 2 + 4}" text-anchor="middle">${pct}%</text>`;
-        x += w + HUECO;
-      });
-    });
-
-    $('graficaMezcla').innerHTML =
-      `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Composicion de guias por plaza">${svg}</svg>`;
-    if (!vacio) cablearTip($('graficaMezcla'), datos);
-  }
+  const fmt = (n) => Number(n || 0).toLocaleString('es-MX');
+  const serie = (k) => `<i class="serie serie--${k}"></i>`;
 
   // Esqueletos con la forma real del contenido, no un spinner generico
   function esqueletoDashboard() {
     $('kpis').innerHTML = Array.from({ length: 5 }, () =>
-      `<div class="card">
-         ${UI.skeleton('skeleton--num', 'width:56%')}
-         <div style="margin-top:var(--space-8)">${UI.skeleton('skeleton--label', 'width:82%')}</div>
+      `<div class="kpi">
+         ${UI.skeleton('skeleton--label', 'width:60%')}
+         ${UI.skeleton('skeleton--num', 'width:45%')}
        </div>`).join('');
-    $('flujo').innerHTML = `
-      <div class="plaza-col">${UI.skeleton('skeleton--text', 'width:60%;margin-bottom:var(--space-16)')}
-        ${UI.skeleton('skeleton--text', 'width:90%;margin-bottom:var(--space-12)')}
-        ${UI.skeleton('skeleton--text', 'width:75%;margin-bottom:var(--space-12)')}
-        ${UI.skeleton('skeleton--text', 'width:85%')}</div>
-      <div class="transitos">${UI.skeleton('skeleton--text', 'width:100%')}</div>
-      <div class="plaza-col">${UI.skeleton('skeleton--text', 'width:60%;margin-bottom:var(--space-16)')}
-        ${UI.skeleton('skeleton--text', 'width:88%;margin-bottom:var(--space-12)')}
-        ${UI.skeleton('skeleton--text', 'width:70%;margin-bottom:var(--space-12)')}
-        ${UI.skeleton('skeleton--text', 'width:92%')}</div>`;
-    $('graficaEtapa').innerHTML = UI.skeleton('skeleton--row', 'height:220px');
-    $('graficaMezcla').innerHTML = UI.skeleton('skeleton--row', 'height:150px');
-    $('leyendaEtapa').innerHTML = '';
-    $('leyendaMezcla').innerHTML = '';
+    const plaza = `<div class="plaza">
+        ${UI.skeleton('skeleton--text', 'width:40%')}
+        ${UI.skeleton('skeleton--num', 'width:30%')}
+        ${UI.skeleton('skeleton--row', 'height:120px')}
+      </div>`;
+    $('flujo').innerHTML = plaza +
+      `<div class="carretera">${UI.skeleton('skeleton--row', 'height:150px')}</div>` +
+      plaza;
   }
 
   async function cargarDashboard() {
@@ -1324,58 +1145,60 @@
     try {
       const r = await api('/api/guias/resumen');
       const p = r.porEstatus || {};
+      const bodega = (p.EN_BODEGA_MTY || 0) + (p.EN_BODEGA_CDMX || 0);
+      const reparto = (p.EN_RUTA_ENTREGA_MTY || 0) + (p.EN_RUTA_ENTREGA_CDMX || 0);
       const transito = (p.EN_TRANSITO_A_CDMX || 0) + (p.EN_TRANSITO_A_MTY || 0);
-      const ruta = (p.EN_RUTA_ENTREGA_CDMX || 0) + (p.EN_RUTA_ENTREGA_MTY || 0);
-      const entregadas = (p.ENTREGADO_CDMX || 0) + (p.ENTREGADO_MTY || 0);
+      const entregadas = (p.ENTREGADO_MTY || 0) + (p.ENTREGADO_CDMX || 0);
+      const activas = bodega + reparto + transito;
 
-      const tarjetas = [
-        { valor: r.totalGuias || 0, etiqueta: 'Guias en el sistema', destacada: true, tab: '', est: '' },
-        { valor: p.EN_BODEGA_MTY || 0, etiqueta: 'En bodega MTY', tab: 'CDMX', est: 'EN_BODEGA_MTY' },
-        { valor: p.EN_BODEGA_CDMX || 0, etiqueta: 'En bodega CDMX', tab: 'MTY', est: 'EN_BODEGA_CDMX' },
-        { valor: transito, etiqueta: 'En transito', tab: '', est: '' },
-        { valor: ruta, etiqueta: 'En ruta de entrega', tab: '', est: '' },
+      // Cinco indicadores que cuadran entre si: bodega + reparto + transito
+      // son las activas; las entregadas son el historico.
+      const kpis = [
+        { valor: activas, etiqueta: 'Guías activas', principal: true, pie: `de ${fmt(r.totalGuias)} en el sistema` },
+        { valor: bodega, etiqueta: 'En bodega', serie: 'bodega' },
+        { valor: reparto, etiqueta: 'En reparto', serie: 'reparto' },
+        { valor: transito, etiqueta: 'En tránsito', serie: 'transito' },
+        { valor: entregadas, etiqueta: 'Entregadas', serie: 'entregada', historico: true, pie: 'histórico' },
       ];
 
-      $('kpis').innerHTML = tarjetas.map((t) => `
-        <div class="card ${t.destacada ? 'card--featured' : 'card--interactive'}"
-             data-tab="${t.tab || ''}" data-est="${t.est || ''}" ${t.eventos ? 'data-eventos="1"' : ''}>
-          <div class="kpi-valor" data-valor="${t.valor}">0</div>
-          <div class="kpi-etiqueta">${esc(t.etiqueta)}</div>
-        </div>`).join('');
+      $('kpis').innerHTML = kpis.map((k) => `
+        <button class="kpi ${k.principal ? 'kpi--principal' : ''} ${k.historico ? 'kpi--historico' : ''}"
+                type="button" title="Ver las guias">
+          <span class="kpi__etiqueta">${k.serie ? serie(k.serie) : ''}${esc(k.etiqueta)}</span>
+          <span class="kpi__valor" data-valor="${k.valor}">0</span>
+          ${k.pie ? `<span class="kpi__pie">${esc(k.pie)}</span>` : ''}
+        </button>`).join('');
 
-      document.querySelectorAll('#kpis .kpi-valor').forEach((el) => UI.countUp(el, Number(el.dataset.valor)));
-      document.querySelectorAll('#kpis .card').forEach((k) =>
-        k.addEventListener('click', () => {
-          if (k.dataset.eventos) { location.hash = '#/eventos'; return; }
-          irAGuias(k.dataset.tab, k.dataset.est);
-        })
+      document.querySelectorAll('#kpis .kpi__valor').forEach((el) => UI.countUp(el, Number(el.dataset.valor)));
+      // Los estatus van por plaza; desde un total se abre la lista sin filtro
+      document.querySelectorAll('#kpis .kpi').forEach((k) =>
+        k.addEventListener('click', () => irAGuias('', ''))
       );
 
       pintarFlujo(p);
-      pintarGraficaEtapa(p);
-      pintarGraficaMezcla(p);
+
+      $('dashActualizado').textContent =
+        ' · Actualizado ' + new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
 
       revisarDetenidas();
     } catch (e) {
       UI.montarError($('kpis'), e.message, cargarDashboard);
       $('flujo').innerHTML = '';
-      $('graficaEtapa').innerHTML = '';
-      $('graficaMezcla').innerHTML = '';
     }
   }
 
   // ---------- Donde esta la mercancia ----------
-  // Una plaza agrupa lo que esta fisicamente ahi (en su bodega, en reparto o
-  // ya entregado); las flechas son lo que va en camino entre plazas.
+  // Cada plaza muestra primero sus guias activas (en bodega + en reparto);
+  // las entregadas cierran la lista en gris porque son historico. Al centro,
+  // lo que va en carretera entre plazas.
   // La pestaña de Guias, en cambio, agrupa por plaza de ORIGEN: una guia en
   // bodega MTY salio de CDMX, por eso el tab es la plaza contraria.
   const tabDeEstatus = (est) => (est.endsWith('_MTY') ? 'CDMX' : 'MTY');
 
-  function filaFlujo(estatus, texto, total) {
-    return `<button class="plaza-fila" data-est="${estatus}" title="Ver estas guias">
-      <span class="dot dot--${UI.statusKind(estatus)}"></span>
-      <span class="plaza-fila__num">${total}</span>
-      <span class="plaza-fila__txt">${texto}</span>
+  function filaPlaza(estatus, texto, k, valor, historico) {
+    return `<button class="plaza__fila ${historico ? 'plaza__fila--hist' : ''}" type="button" data-est="${estatus}" title="Ver estas guias">
+      <span class="plaza__dt">${serie(k)}${texto}</span>
+      <span class="plaza__dd">${fmt(valor)}</span>
     </button>`;
   }
 
@@ -1383,43 +1206,46 @@
     const bodega = p['EN_BODEGA_' + plaza] || 0;
     const reparto = p['EN_RUTA_ENTREGA_' + plaza] || 0;
     const entregadas = p['ENTREGADO_' + plaza] || 0;
-    return `<div class="plaza-col">
-      <div class="plaza-col__head">
-        <span class="dot dot--accent"></span>
-        <span class="plaza-col__nombre">${nombre}</span>
+    const activas = bodega + reparto;
+    return `<div class="plaza">
+      <h3 class="plaza__nombre">${nombre}<span>${plaza}</span></h3>
+      <div>
+        <div class="plaza__activas">${fmt(activas)}</div>
+        <div class="plaza__activas-txt">guía${activas === 1 ? '' : 's'} activa${activas === 1 ? '' : 's'}</div>
       </div>
-      ${filaFlujo('EN_BODEGA_' + plaza, 'En bodega', bodega)}
-      ${filaFlujo('EN_RUTA_ENTREGA_' + plaza, 'En reparto', reparto)}
-      ${filaFlujo('ENTREGADO_' + plaza, 'Entregadas', entregadas)}
-      <div class="plaza-fila plaza-fila--total">
-        <span class="plaza-fila__num">${bodega + reparto + entregadas}</span>
-        <span class="plaza-fila__txt">En la plaza</span>
+      <div class="plaza__lista">
+        ${filaPlaza('EN_BODEGA_' + plaza, 'En bodega', 'bodega', bodega)}
+        ${filaPlaza('EN_RUTA_ENTREGA_' + plaza, 'En reparto', 'reparto', reparto)}
+        ${filaPlaza('ENTREGADO_' + plaza, 'Entregadas', 'entregada', entregadas, true)}
       </div>
     </div>`;
   }
 
-  function flechaTransito(estatus, ruta, dir, total) {
-    const punta = dir === 'der' ? 'flecha--der' : 'flecha--izq';
-    return `<div class="flecha ${punta} ${total > 0 ? 'is-activa' : ''}" data-est="${estatus}">
-      <span class="flecha__ruta">${ruta}</span>
-      <span class="flecha__pista">
-        <span class="flecha__linea"><span class="flecha__luz"></span></span>
-        <svg class="flecha__punta" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5L7.5 5L4 8.5"/></svg>
-        <span class="flecha__chip">${total}</span>
+  function direccion(estatus, ruta, dir, total) {
+    const punta = dir === 'der' ? 'M3 1.5L7 5 3 8.5' : 'M7 1.5L3 5l4 3.5';
+    return `<button class="dir dir--${dir}" type="button" data-est="${estatus}" title="Ver estas guias">
+      <span class="dir__top"><span class="dir__ruta">${ruta}</span><span class="dir__num">${fmt(total)}</span></span>
+      <span class="via via--${dir} ${total > 0 ? 'is-activa' : ''}">
+        <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${punta}"/></svg>
       </span>
-    </div>`;
+    </button>`;
   }
 
   function pintarFlujo(p) {
     const aCDMX = p.EN_TRANSITO_A_CDMX || 0;
     const aMTY = p.EN_TRANSITO_A_MTY || 0;
+    const total = aCDMX + aMTY;
     $('flujo').innerHTML =
       columnaPlaza('MTY', 'Monterrey', p) +
-      `<div class="transitos">
-        ${flechaTransito('EN_TRANSITO_A_CDMX', 'MTY &rarr; CDMX', 'der', aCDMX)}
-        ${flechaTransito('EN_TRANSITO_A_MTY', 'CDMX &rarr; MTY', 'izq', aMTY)}
+      `<div class="carretera">
+        <div class="carretera__total">
+          <div class="carretera__num">${fmt(total)} guía${total === 1 ? '' : 's'}</div>
+          <div class="carretera__txt">en tránsito</div>
+        </div>
+        ${direccion('EN_TRANSITO_A_CDMX', 'MTY &rarr; CDMX', 'der', aCDMX)}
+        ${direccion('EN_TRANSITO_A_MTY', 'CDMX &rarr; MTY', 'izq', aMTY)}
       </div>` +
-      columnaPlaza('CDMX', 'Ciudad de Mexico', p);
+      columnaPlaza('CDMX', 'Ciudad de México', p);
 
     $('flujo').querySelectorAll('[data-est]').forEach((el) =>
       el.addEventListener('click', () => irAGuias(tabDeEstatus(el.dataset.est), el.dataset.est))
