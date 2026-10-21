@@ -240,24 +240,6 @@
   gap: var(--space-12);
 }
 
-.plaza-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-8);
-  align-self: flex-start;
-  height: var(--h-badge);
-  padding: 0 var(--space-8);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-default);
-  background: var(--bg-surface);
-  font-size: var(--t-label-size);
-  font-weight: var(--t-label-weight);
-  letter-spacing: var(--t-label-tracking);
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
 .usuario {
   display: flex;
   align-items: center;
@@ -297,8 +279,7 @@
 .app.is-collapsed .marca,
 .app.is-collapsed .nav-item__texto,
 .app.is-collapsed .nav-group,
-.app.is-collapsed .usuario__datos,
-.app.is-collapsed .plaza-tag .dot {
+.app.is-collapsed .usuario__datos {
   display: none;
 }
 
@@ -323,11 +304,6 @@
 
 .app.is-collapsed .usuario {
   justify-content: center;
-}
-
-.app.is-collapsed .plaza-tag {
-  align-self: center;
-  padding: 0 var(--space-4);
 }
 
 /* Separacion visible entre grupos cuando no hay etiquetas */
@@ -493,24 +469,30 @@
   flex-shrink: 0;
 }
 
-.alerta-estancadas__n {
-  font-family: var(--font-mono);
-  font-size: var(--t-body-size);
-  font-weight: 700;
+/* La frase completa ("Mas de 99 guias estancadas") dice que cuenta el numero
+   sin tener que pasar el raton */
+.alerta-estancadas__txt {
+  margin-left: 2px;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1;
 }
 
-/* La palabra dice que cuenta el numero sin tener que pasar el raton */
-.alerta-estancadas__txt {
-  margin-left: 2px;
-  font-size: var(--t-small-size);
+.alerta-estancadas__corto {
+  display: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
   font-weight: 600;
   line-height: 1;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 700px) {
   .alerta-estancadas__txt { display: none; }
+  .alerta-estancadas__corto { display: inline; }
 }
+
+.alerta-estancadas { text-decoration: none; }
+.alerta-estancadas:hover .alerta-estancadas__txt { text-decoration: underline; }
 
 /* Latido: la pastilla se enciende entera, en ambar solido y con el numero en
    oscuro. Es el destello mas fuerte del panel a proposito: no es decoracion,
@@ -555,18 +537,11 @@
   white-space: nowrap;
 }
 
-.reloj__hora {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: var(--t-body-size);
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.reloj__fecha {
-  display: block;
-  font-size: var(--t-label-size);
-  color: var(--text-tertiary);
+/* "Mié 21 oct · 18:10" en una sola linea */
+.reloj__texto {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ============================================================================
@@ -655,8 +630,7 @@
   .marca,
   .nav-item__texto,
   .nav-group,
-  .usuario__datos,
-  .plaza-tag .dot {
+  .usuario__datos {
     display: none;
   }
 
@@ -683,6 +657,54 @@
 
   .content {
     padding: var(--space-16);
+  }
+}
+
+/* En telefono el sidebar se apila arriba como una franja: el logo, los
+   accesos en una fila que se desliza de lado y el usuario al final. */
+@media (max-width: 700px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .sidebar,
+  .app.is-collapsed .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .sidebar__logo {
+    min-height: 0;
+    padding: var(--space-8);
+  }
+
+  .sidebar__nav {
+    display: flex;
+    gap: 2px;
+    padding: var(--space-8) var(--space-4);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .nav-item {
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .nav-indicator {
+    display: none;
+  }
+
+  .sidebar__pie {
+    border-top: 0;
+    padding: var(--space-8);
   }
 }
 

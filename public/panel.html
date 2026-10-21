@@ -97,9 +97,6 @@
     </nav>
 
     <div class="sidebar__pie">
-      <span class="plaza-tag" id="plazaPie" title="Plaza actual">
-        <span class="dot dot--accent"></span><span>MTY</span>
-      </span>
       <div class="usuario">
         <span id="usuarioAvatar"></span>
         <span class="usuario__datos">
@@ -134,17 +131,16 @@
              pregunta que contesta ("cuanto lleva esto parado") es del mismo
              tipo que la hora. No se puede cerrar ni silenciar: parpadea
              mientras haya guias detenidas y se va solo cuando se mueven. -->
-        <button class="alerta-estancadas" id="btnEstancadas" type="button" hidden>
+        <a class="alerta-estancadas" id="btnEstancadas" href="#/guias" hidden>
           <svg class="alerta-estancadas__ico" viewBox="0 0 20 20" fill="none" stroke="currentColor"
                stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M10 2.8L18.4 17H1.6z"/><path d="M10 8v3.4"/><path d="M10 14.2h.01"/>
           </svg>
-          <span class="alerta-estancadas__n" id="estancadasN">0</span>
-          <span class="alerta-estancadas__txt" id="estancadasTxt">estancadas</span>
-        </button>
+          <span class="alerta-estancadas__txt" id="estancadasTxt"></span>
+          <span class="alerta-estancadas__corto" id="estancadasCorto" aria-hidden="true"></span>
+        </a>
         <div class="reloj" aria-hidden="true">
-          <span class="reloj__hora" id="relojHora">--:--</span>
-          <span class="reloj__fecha" id="relojFecha"></span>
+          <span class="reloj__texto" id="relojHora">--:--</span>
         </div>
         <button class="btn btn--ghost btn--icon" id="btnIrEscanear" type="button" title="Ir a escanear" aria-label="Ir a escanear">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5v10M6.5 5v10M10 5v10M13.5 5v10M17 5v10"/></svg>
@@ -177,25 +173,20 @@
       <!-- ==================================================== Dashboard -->
       <section id="v-dashboard" style="display:none">
         <div class="dash-head">
-          <div>
-            <h2 class="dash-head__titulo">Operacion de hoy</h2>
-            <p class="dash-head__sub">Ruta Monterrey &harr; Ciudad de Mexico</p>
-          </div>
-          <span class="dash-vivo" id="dashActualizado" hidden><i></i><span></span></span>
+          <h2 class="dash-head__titulo">Operación de hoy</h2>
+          <p class="dash-head__sub">Ruta Monterrey &harr; Ciudad de México<span id="dashActualizado"></span></p>
         </div>
 
         <div class="kpis" id="kpis"></div>
 
-        <div class="card mapa">
+        <div class="mapa">
           <div class="mapa__head">
-            <div>
-              <h2 class="mapa__titulo">Donde esta la mercancia</h2>
-              <span class="mapa__sub">Guias activas en cada plaza y lo que va en carretera</span>
-            </div>
+            <h2 class="mapa__titulo">Dónde está la mercancía</h2>
             <div class="leyenda">
-              <span class="leyenda-item" style="--tinta:var(--flujo-bodega)"><i></i>En bodega</span>
-              <span class="leyenda-item" style="--tinta:var(--flujo-reparto)"><i></i>En reparto</span>
-              <span class="leyenda-item" style="--tinta:var(--st-transito-color)"><i></i>En transito</span>
+              <span class="leyenda-item"><i class="serie serie--bodega"></i>En bodega</span>
+              <span class="leyenda-item"><i class="serie serie--reparto"></i>En reparto</span>
+              <span class="leyenda-item"><i class="serie serie--transito"></i>En tránsito</span>
+              <span class="leyenda-item"><i class="serie serie--entregada"></i>Entregadas</span>
             </div>
           </div>
           <div class="flujo" id="flujo"></div>
@@ -585,7 +576,7 @@
   function setPlaza(p) {
     plaza = p;
     localStorage.setItem('plaza', p);
-    $('plazaPie').querySelector('span:last-child').textContent = p;
+    pintarNombreUsuario();
     pintarPillsPlaza();
   }
 
@@ -717,10 +708,13 @@
   // que "6:40 p.m.", y ocupa menos.
   function pintarReloj() {
     const ahora = new Date();
-    $('relojHora').textContent = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const fecha = ahora.toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short' });
-    // Solo la inicial en mayuscula: "Mie 06 ago", no "Mié 06 De Ago"
-    $('relojFecha').textContent = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+    const hora = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+    // "Mié 21 oct · 18:10": sin puntos de abreviatura ni comas, una sola linea
+    let fecha = ahora.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
+      .replace(/[.,]/g, '').replace(/ de /g, ' ');
+    // Solo la inicial en mayuscula: "Mié 21 oct", no "Mié 21 De Oct"
+    fecha = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+    $('relojHora').textContent = `${fecha} · ${hora}`;
   }
   pintarReloj();
   setInterval(pintarReloj, 10000);
@@ -767,8 +761,10 @@
     if (!totalEstancadas) return;
 
     const n = totalEstancadas;
-    $('estancadasN').textContent = n > 99 ? '99+' : n;
-    $('estancadasTxt').textContent = n === 1 ? 'estancada' : 'estancadas';
+    $('estancadasTxt').textContent =
+      n > 99 ? 'Más de 99 guías estancadas' : n === 1 ? '1 guía estancada' : `${n} guías estancadas`;
+    // En telefono no cabe la frase junto al buscador: queda solo el numero
+    $('estancadasCorto').textContent = n > 99 ? '+99' : n;
     // El servidor decide quien esta estancada con su reloj y el navegador
     // cuenta los dias con el suyo: si van desfasados, el piso lo pone el umbral
     // para que el aviso no se contradiga solo ("1 guia lleva 1 dia... +2 dias")
@@ -782,7 +778,7 @@
     btn.setAttribute('aria-label', texto);
   }
 
-  $('btnEstancadas').addEventListener('click', () => irAEstancadas());
+  $('btnEstancadas').addEventListener('click', (e) => { e.preventDefault(); irAEstancadas(); });
 
   // La vigilancia arranca con la sesion y se apaga al salir: sin token no hay
   // a quien preguntarle.
@@ -895,13 +891,19 @@
     });
   });
 
+  // "Admin · MTY": la plaza en la que se esta escaneando va pegada al nombre
+  function pintarNombreUsuario() {
+    if (!usuarioActual) return;
+    $('usuarioNombre').textContent = `${usuarioActual.nombre} · ${plaza}`;
+  }
+
   function pintarUsuario() {
     if (!usuarioActual) return;
     const esAdmin = usuarioActual.roles.includes('admin');
     const plazaUsuario = usuarioActual.plaza || '';
 
     $('usuarioAvatar').innerHTML = UI.avatar(usuarioActual.nombre, { sm: true });
-    $('usuarioNombre').textContent = usuarioActual.nombre;
+    pintarNombreUsuario();
     $('usuarioRol').textContent = nombresRoles(usuarioActual.roles) + (plazaUsuario ? ' · ' + plazaUsuario : '');
 
     $('cfgAvatar').innerHTML = UI.avatar(usuarioActual.nombre);
@@ -1119,33 +1121,22 @@
   const HORAS_DETENIDA = 24;
 
   const fmt = (n) => Number(n || 0).toLocaleString('es-MX');
-
-  // Iconos de los KPIs (trazo de 1.6 sobre caja de 20)
-  const ICO = {
-    caja: '<path d="M10 2.5l7 3.5v8l-7 3.5-7-3.5V6z"/><path d="M3 6l7 3.5L17 6M10 9.5v8"/>',
-    bodega: '<path d="M3 8l7-4.5L17 8v8.5H3z"/><path d="M7 16.5v-5h6v5"/>',
-    camion: '<path d="M2.5 5.5h9v8h-9zM11.5 8.5h3l3 3v2h-6"/><circle cx="6" cy="14.5" r="1.5"/><circle cx="14.5" cy="14.5" r="1.5"/>',
-    pin: '<path d="M10 17s5.5-4.6 5.5-9A5.5 5.5 0 0 0 4.5 8c0 4.4 5.5 9 5.5 9z"/><circle cx="10" cy="8" r="2"/>',
-  };
-  const icono = (k) =>
-    `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICO[k]}</svg>`;
+  const serie = (k) => `<i class="serie serie--${k}"></i>`;
 
   // Esqueletos con la forma real del contenido, no un spinner generico
   function esqueletoDashboard() {
     $('kpis').innerHTML = Array.from({ length: 5 }, () =>
-      `<div class="card kpi">
+      `<div class="kpi">
          ${UI.skeleton('skeleton--label', 'width:60%')}
          ${UI.skeleton('skeleton--num', 'width:45%')}
-         ${UI.skeleton('skeleton--label', 'width:80%')}
        </div>`).join('');
     const plaza = `<div class="plaza">
-        ${UI.skeleton('skeleton--text', 'width:50%')}
-        ${UI.skeleton('skeleton--num', 'width:35%')}
-        ${UI.skeleton('skeleton--text', 'width:100%')}
-        ${UI.skeleton('skeleton--row', 'height:64px')}
+        ${UI.skeleton('skeleton--text', 'width:40%')}
+        ${UI.skeleton('skeleton--num', 'width:30%')}
+        ${UI.skeleton('skeleton--row', 'height:120px')}
       </div>`;
     $('flujo').innerHTML = plaza +
-      `<div class="carriles">${UI.skeleton('skeleton--row', 'height:84px')}${UI.skeleton('skeleton--row', 'height:84px')}</div>` +
+      `<div class="carretera">${UI.skeleton('skeleton--row', 'height:150px')}</div>` +
       plaza;
   }
 
@@ -1154,42 +1145,40 @@
     try {
       const r = await api('/api/guias/resumen');
       const p = r.porEstatus || {};
+      const bodega = (p.EN_BODEGA_MTY || 0) + (p.EN_BODEGA_CDMX || 0);
+      const reparto = (p.EN_RUTA_ENTREGA_MTY || 0) + (p.EN_RUTA_ENTREGA_CDMX || 0);
       const transito = (p.EN_TRANSITO_A_CDMX || 0) + (p.EN_TRANSITO_A_MTY || 0);
-      const ruta = (p.EN_RUTA_ENTREGA_CDMX || 0) + (p.EN_RUTA_ENTREGA_MTY || 0);
-      const entregadas = (p.ENTREGADO_CDMX || 0) + (p.ENTREGADO_MTY || 0);
-      const activas = (p.EN_BODEGA_MTY || 0) + (p.EN_BODEGA_CDMX || 0) + transito + ruta;
+      const entregadas = (p.ENTREGADO_MTY || 0) + (p.ENTREGADO_CDMX || 0);
+      const activas = bodega + reparto + transito;
 
-      const tarjetas = [
-        { valor: r.totalGuias || 0, etiqueta: 'Guias en el sistema', ico: 'caja', destacada: true,
-          pie: `${fmt(activas)} activas · ${fmt(entregadas)} entregadas`, tab: '', est: '' },
-        { valor: p.EN_BODEGA_MTY || 0, etiqueta: 'Bodega MTY', ico: 'bodega', pie: 'Listas para salir o repartir', tab: 'CDMX', est: 'EN_BODEGA_MTY' },
-        { valor: p.EN_BODEGA_CDMX || 0, etiqueta: 'Bodega CDMX', ico: 'bodega', pie: 'Listas para salir o repartir', tab: 'MTY', est: 'EN_BODEGA_CDMX' },
-        { valor: transito, etiqueta: 'En transito', ico: 'camion', transito: true, pie: 'En carretera ahora', tab: '', est: '' },
-        { valor: ruta, etiqueta: 'En reparto', ico: 'pin', pie: 'Rumbo al cliente', tab: '', est: '' },
+      // Cinco indicadores que cuadran entre si: bodega + reparto + transito
+      // son las activas; las entregadas son el historico.
+      const kpis = [
+        { valor: activas, etiqueta: 'Guías activas', principal: true, pie: `de ${fmt(r.totalGuias)} en el sistema` },
+        { valor: bodega, etiqueta: 'En bodega', serie: 'bodega' },
+        { valor: reparto, etiqueta: 'En reparto', serie: 'reparto' },
+        { valor: transito, etiqueta: 'En tránsito', serie: 'transito' },
+        { valor: entregadas, etiqueta: 'Entregadas', serie: 'entregada', historico: true, pie: 'histórico' },
       ];
 
-      $('kpis').innerHTML = tarjetas.map((t) => `
-        <div class="card card--interactive kpi ${t.destacada ? 'kpi--total' : ''} ${t.transito ? 'kpi--transito' : ''}"
-             data-tab="${t.tab}" data-est="${t.est}">
-          <div class="kpi__top">
-            <span class="kpi-etiqueta">${esc(t.etiqueta)}</span>
-            <span class="kpi__ico">${icono(t.ico)}</span>
-          </div>
-          <div class="kpi-valor" data-valor="${t.valor}">0</div>
-          <div class="kpi__pie">${esc(t.pie)}</div>
-        </div>`).join('');
+      $('kpis').innerHTML = kpis.map((k) => `
+        <button class="kpi ${k.principal ? 'kpi--principal' : ''} ${k.historico ? 'kpi--historico' : ''}"
+                type="button" title="Ver las guias">
+          <span class="kpi__etiqueta">${k.serie ? serie(k.serie) : ''}${esc(k.etiqueta)}</span>
+          <span class="kpi__valor" data-valor="${k.valor}">0</span>
+          ${k.pie ? `<span class="kpi__pie">${esc(k.pie)}</span>` : ''}
+        </button>`).join('');
 
-      document.querySelectorAll('#kpis .kpi-valor').forEach((el) => UI.countUp(el, Number(el.dataset.valor)));
-      document.querySelectorAll('#kpis .card').forEach((k) =>
-        k.addEventListener('click', () => irAGuias(k.dataset.tab, k.dataset.est))
+      document.querySelectorAll('#kpis .kpi__valor').forEach((el) => UI.countUp(el, Number(el.dataset.valor)));
+      // Los estatus van por plaza; desde un total se abre la lista sin filtro
+      document.querySelectorAll('#kpis .kpi').forEach((k) =>
+        k.addEventListener('click', () => irAGuias('', ''))
       );
 
       pintarFlujo(p);
 
-      const vivo = $('dashActualizado');
-      vivo.querySelector('span').textContent =
-        'Actualizado ' + new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-      vivo.hidden = false;
+      $('dashActualizado').textContent =
+        ' · Actualizado ' + new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
 
       revisarDetenidas();
     } catch (e) {
@@ -1199,59 +1188,45 @@
   }
 
   // ---------- Donde esta la mercancia ----------
-  // Cada plaza muestra primero sus guias activas (en bodega + en reparto),
-  // que es lo que hay que mover; las entregadas quedan abajo como historico.
-  // Los carriles del centro son lo que va en carretera entre plazas.
+  // Cada plaza muestra primero sus guias activas (en bodega + en reparto);
+  // las entregadas cierran la lista en gris porque son historico. Al centro,
+  // lo que va en carretera entre plazas.
   // La pestaña de Guias, en cambio, agrupa por plaza de ORIGEN: una guia en
   // bodega MTY salio de CDMX, por eso el tab es la plaza contraria.
   const tabDeEstatus = (est) => (est.endsWith('_MTY') ? 'CDMX' : 'MTY');
 
-  function columnaPlaza(plaza, nombre, sub, p) {
+  function filaPlaza(estatus, texto, k, valor, historico) {
+    return `<button class="plaza__fila ${historico ? 'plaza__fila--hist' : ''}" type="button" data-est="${estatus}" title="Ver estas guias">
+      <span class="plaza__dt">${serie(k)}${texto}</span>
+      <span class="plaza__dd">${fmt(valor)}</span>
+    </button>`;
+  }
+
+  function columnaPlaza(plaza, nombre, p) {
     const bodega = p['EN_BODEGA_' + plaza] || 0;
     const reparto = p['EN_RUTA_ENTREGA_' + plaza] || 0;
     const entregadas = p['ENTREGADO_' + plaza] || 0;
     const activas = bodega + reparto;
     return `<div class="plaza">
-      <div class="plaza__head">
-        <span class="plaza__pin">${plaza}</span>
-        <span><span class="plaza__nombre">${nombre}</span><span class="plaza__sub">${sub}</span></span>
-      </div>
+      <h3 class="plaza__nombre">${nombre}<span>${plaza}</span></h3>
       <div>
         <div class="plaza__activas">${fmt(activas)}</div>
-        <div class="plaza__activas-txt">guia${activas === 1 ? '' : 's'} activa${activas === 1 ? '' : 's'} en la plaza</div>
+        <div class="plaza__activas-txt">guía${activas === 1 ? '' : 's'} activa${activas === 1 ? '' : 's'}</div>
       </div>
-      <div class="plaza__barra" aria-hidden="true">
-        ${activas
-          ? `<i style="flex:${bodega};background:var(--flujo-bodega)"></i><i style="flex:${reparto};background:var(--flujo-reparto)"></i>`
-          : '<i style="flex:1;background:var(--border-subtle)"></i>'}
+      <div class="plaza__lista">
+        ${filaPlaza('EN_BODEGA_' + plaza, 'En bodega', 'bodega', bodega)}
+        ${filaPlaza('EN_RUTA_ENTREGA_' + plaza, 'En reparto', 'reparto', reparto)}
+        ${filaPlaza('ENTREGADO_' + plaza, 'Entregadas', 'entregada', entregadas, true)}
       </div>
-      <div class="plaza__desglose">
-        <button class="plaza__mini" type="button" data-est="EN_BODEGA_${plaza}" title="Ver estas guias">
-          <span class="plaza__mini-txt" style="--tinta:var(--flujo-bodega)"><i></i>En bodega</span>
-          <span class="plaza__mini-num">${fmt(bodega)}</span>
-        </button>
-        <button class="plaza__mini" type="button" data-est="EN_RUTA_ENTREGA_${plaza}" title="Ver estas guias">
-          <span class="plaza__mini-txt" style="--tinta:var(--flujo-reparto)"><i></i>En reparto</span>
-          <span class="plaza__mini-num">${fmt(reparto)}</span>
-        </button>
-      </div>
-      <button class="plaza__entregadas" type="button" data-est="ENTREGADO_${plaza}" title="Ver estas guias">
-        <span class="plaza__check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
-        <span class="plaza__entregadas-txt">Entregadas</span>
-        <span class="plaza__entregadas-num">${fmt(entregadas)}</span>
-      </button>
     </div>`;
   }
 
-  function carril(estatus, ruta, dir, total) {
-    return `<button class="carril carril--${dir} ${total > 0 ? 'is-activo' : ''}" type="button" data-est="${estatus}" title="Ver estas guias">
-      <span class="carril__top">
-        <span class="carril__ruta">${ruta}</span>
-        <span class="carril__num">${fmt(total)}</span>
-      </span>
-      <span class="carril__via">
-        <span class="carril__luz"></span><span class="carril__luz carril__luz--b"></span>
-        <svg class="carril__punta" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg>
+  function direccion(estatus, ruta, dir, total) {
+    const punta = dir === 'der' ? 'M3 1.5L7 5 3 8.5' : 'M7 1.5L3 5l4 3.5';
+    return `<button class="dir" type="button" data-est="${estatus}" title="Ver estas guias">
+      <span class="dir__top"><span class="dir__ruta">${ruta}</span><span class="dir__num">${fmt(total)}</span></span>
+      <span class="via via--${dir} ${total > 0 ? 'is-activa' : ''}">
+        <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${punta}"/></svg>
       </span>
     </button>`;
   }
@@ -1259,14 +1234,18 @@
   function pintarFlujo(p) {
     const aCDMX = p.EN_TRANSITO_A_CDMX || 0;
     const aMTY = p.EN_TRANSITO_A_MTY || 0;
+    const total = aCDMX + aMTY;
     $('flujo').innerHTML =
-      columnaPlaza('MTY', 'Monterrey', 'Plaza norte', p) +
-      `<div class="carriles">
-        ${carril('EN_TRANSITO_A_CDMX', 'MTY &rarr; CDMX', 'der', aCDMX)}
-        ${carril('EN_TRANSITO_A_MTY', 'CDMX &rarr; MTY', 'izq', aMTY)}
-        <div class="carriles__total"><b>${fmt(aCDMX + aMTY)}</b> guia${aCDMX + aMTY === 1 ? '' : 's'} en carretera</div>
+      columnaPlaza('MTY', 'Monterrey', p) +
+      `<div class="carretera">
+        <div class="carretera__total">
+          <div class="carretera__num">${fmt(total)} guía${total === 1 ? '' : 's'}</div>
+          <div class="carretera__txt">en tránsito</div>
+        </div>
+        ${direccion('EN_TRANSITO_A_CDMX', 'MTY &rarr; CDMX', 'der', aCDMX)}
+        ${direccion('EN_TRANSITO_A_MTY', 'CDMX &rarr; MTY', 'izq', aMTY)}
       </div>` +
-      columnaPlaza('CDMX', 'Ciudad de Mexico', 'Plaza centro', p);
+      columnaPlaza('CDMX', 'Ciudad de México', p);
 
     $('flujo').querySelectorAll('[data-est]').forEach((el) =>
       el.addEventListener('click', () => irAGuias(tabDeEstatus(el.dataset.est), el.dataset.est))

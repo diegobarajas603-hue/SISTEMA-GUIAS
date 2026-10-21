@@ -112,14 +112,14 @@
   --avatar-bg:   hsl(var(--avatar-h, 220) 30% 26%);
   --avatar-text: var(--text-primary);
 
-  /* ---------- Dashboard: donde esta la mercancia ----------
-     Bodega y reparto son dos tonos del mismo azul: los dos son "esta en la
-     plaza", y asi el unico color que destaca es el ambar del transito. */
-  --flujo-bodega:  var(--accent);
-  --flujo-reparto: #8DB8FF;
-  --mapa-halo:     rgba(59, 130, 246, 0.12);
-  --bg-raised:     #13161B;   /* tarjeta dentro de otra card */
-
+  /* ---------- Dashboard: series de "donde esta la mercancia" ----------
+     Bodega y reparto son el mismo azul a dos luminosidades: se distinguen
+     aun sin ver el tono. Transito es un lavanda apagado, vecino del azul, y
+     el ambar queda solo para alertas. Entregadas solo pinta su marcador. */
+  --serie-bodega:    #4C8DFF;
+  --serie-reparto:   #A9C4F5;
+  --serie-transito:  #A99CF2;
+  --serie-entregada: #3FB97A;
 
   /* Favorita */
   --star: #E3B341;
@@ -379,9 +379,10 @@
   --avatar-bg:   hsl(var(--avatar-h, 220) 44% 87%);
   --avatar-text: #1B1F26;
 
-  --flujo-reparto: #7AA7F5;
-  --mapa-halo:     rgba(37, 99, 235, 0.07);
-  --bg-raised:     #F8F9FB;
+  --serie-bodega:    #2563EB;
+  --serie-reparto:   #93B4F0;
+  --serie-transito:  #7465D6;
+  --serie-entregada: #1F9D5C;
 
   /* En claro se usa el logo original, sin tocar */
   --logo-url: url("/logo-tauro.svg");

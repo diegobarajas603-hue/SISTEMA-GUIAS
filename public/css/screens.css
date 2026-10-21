@@ -74,133 +74,110 @@ tbody tr.clic:hover {
 }
 
 /* ============================================================================
-   DASHBOARD — encabezado y KPIs
+   DASHBOARD — encabezado e indicadores
+   El tablero se lee por tamaño, no por color: un solo protagonista por zona,
+   etiquetas en texto normal y un solo nivel de tarjeta.
    ==========================================================================*/
 
 .dash-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-16);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-20);
+  margin-bottom: var(--space-24);
 }
 
 .dash-head__titulo {
-  font-size: 26px;
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 
 .dash-head__sub {
-  font-size: var(--t-body-size);
-  color: var(--text-secondary);
   margin-top: var(--space-4);
-}
-
-.dash-vivo {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-8);
-  padding: 6px var(--space-12);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
-  font-size: var(--t-small-size);
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
-.dash-vivo i {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-full);
-  background: var(--st-entregado-color);
-  box-shadow: 0 0 0 3px var(--st-entregado-bg);
+/* Marcador de serie: cuadrito de 8px. Transito va punteado y sin relleno. */
+.serie {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 2px;
 }
 
-/* Son cinco tarjetas, siempre las mismas. Cinco es primo y con auto-fit
-   quedaba una fila coja, asi que la destacada ocupa la fila entera cuando
-   no caben las cinco en una linea: las otras cuatro llenan dos filas de
-   dos, sin ninguna a medias. */
+.serie--bodega    { background: var(--serie-bodega); }
+.serie--reparto   { background: var(--serie-reparto); }
+.serie--entregada { background: var(--serie-entregada); }
+.serie--transito  { border: 1.5px dotted var(--serie-transito); }
+
+/* Un solo marco con divisores, no cinco tarjetas */
 .kpis {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-16);
-  margin-bottom: var(--space-20);
-}
-
-.kpis .kpi--total { grid-column: 1 / -1; }
-
-@media (min-width: 1240px) {
-  .kpis { grid-template-columns: 1.35fr repeat(4, minmax(0, 1fr)); }
-  .kpis .kpi--total { grid-column: auto; }
+  grid-template-columns: 1.3fr repeat(4, minmax(0, 1fr));
+  margin-bottom: var(--space-24);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
 .kpi {
   display: flex;
   flex-direction: column;
-  gap: var(--space-12);
+  gap: 10px;
   min-width: 0;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md), var(--sheen);
+  padding: var(--space-20) var(--space-24);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
 }
 
-.kpi__top {
-  display: flex;
+.kpi + .kpi { border-left: 1px solid var(--border-default); }
+.kpi:hover { background: var(--overlay-row-hover); }
+
+.kpi__etiqueta {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-8);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
-.kpi__ico {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  border-radius: var(--radius-md);
-  background: var(--accent-subtle);
-  color: var(--accent);
-}
-
-.kpi__ico svg {
-  width: 17px;
-  height: 17px;
-}
-
-.kpi-valor {
+.kpi__valor {
   font-family: var(--font-mono);
-  font-size: 36px;
-  line-height: 1;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
-.kpi-etiqueta {
-  font-size: var(--t-label-size);
-  line-height: var(--t-label-line);
-  font-weight: 600;
-  letter-spacing: var(--t-label-tracking);
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
+.kpi--principal .kpi__valor { font-size: 34px; font-weight: 600; }
+.kpi--historico .kpi__valor { color: var(--text-secondary); }
 
 .kpi__pie {
-  font-size: var(--t-small-size);
+  font-size: 13px;
   color: var(--text-tertiary);
 }
 
-/* En transito: lo unico que se esta moviendo lleva el ambar */
-.kpi--transito .kpi__ico { background: var(--st-transito-bg); color: var(--st-transito-color); }
-.kpi--transito .kpi-valor { color: var(--st-transito-text); }
+/* Cinco no reparte parejo: al angostarse, el principal toma la fila entera
+   y los otros cuatro van debajo, sin dejar celdas vacias */
+@media (max-width: 1180px) {
+  .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .kpi--principal { grid-column: 1 / -1; }
+  .kpi:nth-child(2) { border-left: 0; }
+  .kpi:nth-child(n+2) { border-top: 1px solid var(--border-default); }
+}
 
-/* El total va en la misma tarjeta neutra que las demas: lo distingue su
-   tamaño, no un color que compita con el ambar del transito */
-.kpi--total .kpi-valor { font-size: 44px; }
+@media (max-width: 700px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi--principal { grid-column: 1 / -1; }
+  .kpi + .kpi { border-left: 0; }
+  .kpi:nth-child(n+2) { border-top: 1px solid var(--border-default); }
+  .kpi:nth-child(odd):not(.kpi--principal) { border-left: 1px solid var(--border-default); }
+}
 
 /* ============================================================================
    DASHBOARD — banner de alerta
@@ -271,48 +248,28 @@ tbody tr.clic:hover {
    ==========================================================================*/
 
 .mapa {
-  position: relative;
-  overflow: hidden;
-  padding: var(--space-24) var(--space-24) var(--space-24);
-  border-radius: 20px;
-  box-shadow: var(--shadow-md), var(--sheen);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  padding: var(--space-24);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
 }
-
-/* Un halo azul detras de cada plaza: da profundidad sin meter otro color */
-.mapa::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(40% 70% at 0% 55%, var(--mapa-halo), transparent 70%),
-    radial-gradient(40% 70% at 100% 55%, var(--mapa-halo), transparent 70%);
-}
-
-.mapa > * { position: relative; }
 
 .mapa__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-12);
+  gap: var(--space-16);
   flex-wrap: wrap;
-  margin-bottom: var(--space-24);
 }
 
 .mapa__titulo {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.3;
   font-weight: 600;
-  letter-spacing: -0.01em;
   color: var(--text-primary);
-}
-
-.mapa__sub {
-  display: block;
-  margin-top: var(--space-4);
-  font-size: 13px;
-  color: var(--text-secondary);
 }
 
 .leyenda {
@@ -326,27 +283,18 @@ tbody tr.clic:hover {
   display: inline-flex;
   align-items: center;
   gap: var(--space-8);
-  font-size: var(--t-small-size);
+  font-size: 13px;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
-.leyenda-item i {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  flex-shrink: 0;
-  background: var(--tinta, var(--text-tertiary));
-}
-
 .flujo {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) minmax(0, 1fr);
-  gap: var(--space-20);
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px) minmax(0, 1fr);
+  gap: var(--space-16);
 }
 
-/* ---------- Tarjeta de plaza ---------- */
+/* ---------- Panel de plaza ---------- */
 
 .plaza {
   display: flex;
@@ -354,301 +302,198 @@ tbody tr.clic:hover {
   gap: var(--space-20);
   min-width: 0;
   padding: var(--space-20);
-  background: var(--bg-raised);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-}
-
-.plaza__head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-12);
-}
-
-.plaza__pin {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
   border-radius: var(--radius-md);
-  background: var(--accent-subtle);
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
 }
 
 .plaza__nombre {
-  display: block;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.plaza__sub {
-  display: block;
-  font-size: var(--t-small-size);
+.plaza__nombre span {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 400;
   color: var(--text-tertiary);
 }
 
 .plaza__activas {
   font-family: var(--font-mono);
-  font-size: 56px;
-  line-height: 0.95;
+  font-size: 40px;
+  line-height: 1;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .plaza__activas-txt {
-  margin-top: var(--space-8);
+  margin-top: 6px;
   font-size: 13px;
   color: var(--text-secondary);
 }
 
-/* Reparto de las activas: bodega contra reparto */
-.plaza__barra {
-  display: flex;
-  gap: 3px;
-  height: 10px;
-}
-
-.plaza__barra i {
-  display: block;
-  min-width: 0;
-  border-radius: var(--radius-full);
-}
-
-.plaza__desglose {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-8);
-}
-
-.plaza__mini {
+/* Lista de definicion sin bordes de tarjeta: solo divisores entre filas */
+.plaza__lista {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: var(--space-12) 14px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color var(--t-fast) var(--ease);
 }
 
-.plaza__mini:hover { border-color: var(--border-strong); }
-
-.plaza__mini-txt {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: var(--t-small-size);
-  color: var(--text-secondary);
-}
-
-.plaza__mini-txt i {
-  width: 8px;
-  height: 8px;
-  border-radius: 3px;
-  background: var(--tinta);
-}
-
-.plaza__mini-num {
-  font-family: var(--font-mono);
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.1;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.plaza__entregadas {
+.plaza__fila {
   display: flex;
   align-items: center;
-  gap: var(--space-8);
-  margin-top: auto;
-  padding-top: var(--space-16);
-  border-top: 1px solid var(--border-subtle);
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: 10px 0;
   text-align: left;
   cursor: pointer;
 }
 
-.plaza__check {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-full);
-  background: var(--st-entregado-bg);
-  color: var(--st-entregado-color);
-}
+.plaza__fila + .plaza__fila { border-top: 1px solid var(--border-subtle); }
 
-.plaza__check svg { width: 11px; height: 11px; }
-
-.plaza__entregadas-txt {
-  flex: 1;
+.plaza__dt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
   font-size: 13px;
   color: var(--text-secondary);
 }
 
-.plaza__entregadas:hover .plaza__entregadas-txt { color: var(--text-primary); }
+.plaza__fila:hover .plaza__dt { color: var(--text-primary); }
 
-.plaza__entregadas-num {
+.plaza__dd {
   font-family: var(--font-mono);
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 500;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Carriles de transito ---------- */
+.plaza__fila--hist .plaza__dd { color: var(--text-secondary); }
 
-.carriles {
+/* ---------- Carretera ----------
+   Borde punteado y sin fondo: no es un lugar, es el camino entre los dos. */
+
+.carretera {
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: var(--space-20);
+  padding: var(--space-20);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
 }
 
-.carril {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-12);
-  padding: var(--space-16) 18px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color var(--t-fast) var(--ease);
-  --carril-color: var(--text-tertiary);
-}
+.carretera__total { text-align: center; }
 
-.carril:hover { border-color: var(--border-strong); }
-.carril.is-activo { --carril-color: var(--st-transito-color); }
-
-.carril__top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-8);
-}
-
-.carril__ruta {
-  font-size: var(--t-label-size);
-  line-height: var(--t-label-line);
-  font-weight: 600;
-  letter-spacing: var(--t-label-tracking);
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.carril__num {
+.carretera__num {
   font-family: var(--font-mono);
-  font-size: 30px;
-  line-height: 1;
-  font-weight: 600;
-  color: var(--text-tertiary);
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 500;
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
-.carril.is-activo .carril__num { color: var(--st-transito-text); }
-
-/* La via: linea punteada, punta de flecha y dos luces que la recorren */
-.carril__via {
-  position: relative;
-  height: 14px;
+.carretera__txt {
+  margin-top: var(--space-4);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
-.carril__via::before {
+.dir {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dir__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.dir__ruta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.dir:hover .dir__ruta { color: var(--text-primary); }
+
+.dir__num {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* La via nace transparente en la plaza de salida y se hace solida hacia la
+   flecha; con guias en camino, los trazos avanzan despacio en el sentido del
+   viaje. Es el unico loop de la aplicacion. */
+.via {
+  position: relative;
+  height: 10px;
+  color: var(--serie-transito);
+}
+
+.via::before {
   content: '';
   position: absolute;
   left: 0;
-  right: 0;
+  right: 4px;
   top: 50%;
   height: 2px;
   margin-top: -1px;
-  background: repeating-linear-gradient(90deg, var(--border-strong) 0 6px, transparent 6px 12px);
+  background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 9px);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 80%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 80%);
 }
 
-.carril__punta {
-  position: absolute;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  margin-top: -6px;
-  color: var(--carril-color);
+.via--izq::before {
+  left: 4px;
+  right: 0;
+  -webkit-mask-image: linear-gradient(270deg, transparent 0%, #000 80%);
+  mask-image: linear-gradient(270deg, transparent 0%, #000 80%);
 }
 
-.carril--der .carril__punta { right: -2px; }
-.carril--izq .carril__punta { left: -2px; transform: rotate(180deg); }
-
-.carril__luz {
+.via svg {
   position: absolute;
-  top: 50%;
-  left: 0;
+  top: 0;
   width: 10px;
   height: 10px;
-  margin-top: -5px;
-  border-radius: var(--radius-full);
-  background: var(--st-transito-color);
-  box-shadow: 0 0 0 4px var(--st-transito-bg), 0 0 14px var(--st-transito-border);
-  display: none;
 }
 
-/* Unico loop de la aplicacion. Cada sentido tiene su propio recorrido y
-   avance lineal, para que las luces vayan parejas de punta a punta. Se
-   anima "left" porque el porcentaje se mide contra la via. */
-.carril.is-activo .carril__luz { display: block; animation: recorrer-der 3.6s linear infinite; }
-.carril.is-activo.carril--izq .carril__luz { animation-name: recorrer-izq; }
-.carril.is-activo .carril__luz--b { animation-delay: -1.8s; }
+.via--der svg { right: 0; }
+.via--izq svg { left: 0; }
 
-@keyframes recorrer-der {
-  0%   { left: 0;   opacity: 0; }
-  10%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { left: 92%; opacity: 0; }
+.via.is-activa::before { animation: trayecto-der 1.4s linear infinite; }
+.via--izq.is-activa::before { animation-name: trayecto-izq; }
+
+@keyframes trayecto-der {
+  from { background-position: 0 0; }
+  to   { background-position: 9px 0; }
 }
 
-@keyframes recorrer-izq {
-  0%   { left: 92%; opacity: 0; }
-  10%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { left: 0;   opacity: 0; }
+@keyframes trayecto-izq {
+  from { background-position: 0 0; }
+  to   { background-position: -9px 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .carril.is-activo .carril__luz { animation: none; left: 45%; }
-  .carril.is-activo .carril__luz--b { display: none; }
-}
-
-.carriles__total {
-  text-align: center;
-  font-size: var(--t-small-size);
-  color: var(--text-tertiary);
-}
-
-.carriles__total b {
-  font-family: var(--font-mono);
-  color: var(--text-primary);
+  .via.is-activa::before { animation: none; }
 }
 
 @media (max-width: 1100px) {
   .flujo { grid-template-columns: minmax(0, 1fr); }
-  .carriles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-12); }
-  .carriles__total { grid-column: 1 / -1; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 700px) {
   .mapa { padding: var(--space-16); }
-  .carriles { grid-template-columns: minmax(0, 1fr); }
-  .kpi-valor { font-size: 30px; }
-  .plaza__activas { font-size: 46px; }
 }
 
 /* ============================================================================
