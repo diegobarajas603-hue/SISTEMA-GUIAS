@@ -288,8 +288,8 @@ function sufijoPlaza(plaza) {
   return plaza ? '-' + plaza.toLowerCase() : '';
 }
 
-function nombreArchivo({ fecha, plaza }) {
-  return `salidas-${fecha}${sufijoPlaza(plaza)}.pdf`;
+function nombreSalidas({ fecha, plaza }, ext) {
+  return `salidas-${fecha}${sufijoPlaza(plaza)}.${ext}`;
 }
 
 function nombreEntregadas({ desde, hasta, plaza }, ext) {
@@ -567,6 +567,16 @@ function aCsv(encabezados, filas) {
   return '\ufeff' + [encabezados, ...filas].map((f) => f.map(celdaCsv).join(',')).join('\r\n') + '\r\n';
 }
 
+function csvSalidas({ salidas }) {
+  return aCsv(
+    ['Guia', 'Complemento', 'Salio de', 'Fecha', 'Hora', 'Escaneo', 'Estatus actual'],
+    salidas.map((f) => {
+      const d = new Date(f.creado_en);
+      return [f.numero_guia, f.complemento, f.plaza, fmtFechaCsv.format(d), fmtHoraCsv.format(d), f.operador, f.estatus_actual];
+    })
+  );
+}
+
 function csvEntregadas({ entregas }) {
   return aCsv(
     ['Guia', 'Complemento', 'Plaza', 'Fecha', 'Hora', 'Tipo de entrega', 'Entrego'],
@@ -588,7 +598,7 @@ function csvBodega({ guias }) {
 }
 
 module.exports = {
-  salidasDelDia, generarPdfSalidas, nombreArchivo,
+  salidasDelDia, generarPdfSalidas, csvSalidas, nombreSalidas,
   entregasEnRango, generarPdfEntregadas, csvEntregadas, nombreEntregadas,
   guiasEnBodega, generarPdfBodega, csvBodega, nombreBodega,
 };

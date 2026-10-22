@@ -351,44 +351,20 @@ app.get('/api/eventos', requireAuth, seguro(async (req, res) => {
 
 // ---------- Reportes ----------
 
-// Salidas de un dia (JSON): alimenta la vista previa de la pantalla de
-// reportes antes de descargar el PDF. ?fecha=AAAA-MM-DD (hoy por omision)
-// y ?plaza=MTY|CDMX (ambas por omision).
-app.get('/api/reportes/salidas', requireAuth, async (req, res) => {
-  try {
-    res.json(await reportes.salidasDelDia({ fecha: req.query.fecha, plaza: req.query.plaza }));
-  } catch (e) {
-    res.status(400).json({ error: e.message });
-  }
-});
-
-// El mismo reporte como PDF descargable, con el logo y el formato de la casa.
-// Es el corte del dia: las guias a las que se les dio salida, con hora y
-// operador, para cotejar contra el manifiesto y encontrar las que faltaron.
-app.get('/api/reportes/salidas.pdf', requireAuth, async (req, res) => {
-  let datos;
-  try {
-    datos = await reportes.salidasDelDia({ fecha: req.query.fecha, plaza: req.query.plaza });
-  } catch (e) {
-    return res.status(400).json({ error: e.message });
-  }
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${reportes.nombreArchivo(datos)}"`);
-  try {
-    await reportes.generarPdfSalidas(datos, req.usuario.nombre || req.usuario.usuario, res);
-  } catch (e) {
-    // Si el PDF falla a medio camino ya no se puede responder JSON; se corta
-    // la conexion y el error queda en el log del servidor.
-    console.error('Error generando el PDF de salidas:', e);
-    if (!res.headersSent) res.status(500).json({ error: 'No se pudo generar el PDF' });
-    else res.destroy();
-  }
-});
-
-// Entregadas en un rango de dias (?desde y ?hasta en AAAA-MM-DD, hoy por
-// omision) y guias en bodega al momento. Cada uno en JSON para la vista
-// previa, en PDF con el formato de la casa y en CSV para abrir en Excel.
+// Tres reportes, cada uno en JSON para la vista previa, en PDF con el
+// formato de la casa y en CSV para abrir en Excel. ?plaza=MTY|CDMX (ambas por
+// omision) en los tres.
+//  - salidas: las guias a las que se les dio salida un dia (?fecha, hoy por
+//    omision), con hora y operador, para cotejar contra el manifiesto.
+//  - entregadas: las entregadas en un rango de dias (?desde y ?hasta).
+//  - bodega: lo que hay en bodega al momento.
 const REPORTES = {
+  salidas: {
+    datos: (q) => reportes.salidasDelDia({ fecha: q.fecha, plaza: q.plaza }),
+    pdf: reportes.generarPdfSalidas,
+    csv: reportes.csvSalidas,
+    nombre: reportes.nombreSalidas,
+  },
   entregadas: {
     datos: (q) => reportes.entregasEnRango({ desde: q.desde, hasta: q.hasta, plaza: q.plaza }),
     pdf: reportes.generarPdfEntregadas,
@@ -403,7 +379,7 @@ const REPORTES = {
   },
 };
 
-app.get('/api/reportes/:tipo(entregadas|bodega).:formato(json|pdf|csv)?', requireAuth, async (req, res) => {
+app.get('/api/reportes/:tipo(salidas|entregadas|bodega).:formato(json|pdf|csv)?', requireAuth, async (req, res) => {
   const r = REPORTES[req.params.tipo];
   const formato = req.params.formato || 'json';
   let datos;

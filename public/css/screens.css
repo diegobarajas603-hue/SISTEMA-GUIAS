@@ -2163,35 +2163,44 @@ tbody tr.clic:hover {
 
 /* ============================================================================
    REPORTES
-   El corte de salidas del dia: controles arriba, vista previa abajo y el
-   boton de descarga como unica accion primaria.
+   Un solo cuadro: los campos se despliegan conforme se eligen (que guias,
+   plaza y fechas), la vista previa abajo y la descarga en PDF o Excel.
    ==========================================================================*/
 
-/* Selector de reporte: salidas, entregadas o en bodega */
-.rep-tipos {
-  margin-bottom: var(--space-16);
-}
-
-.rep-panel {
+.rep-card {
   max-width: 760px;
 }
 
-.reporte-controles {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+/* Los pasos van en fila y bajan de renglon cuando no caben */
+.rep-pasos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: var(--space-12);
-  margin-top: var(--space-16);
 }
 
-.reporte-controles .field {
+.rep-pasos .field {
   margin: 0;
+}
+
+.rep-pasos .field[hidden] {
+  display: none;
 }
 
 .reporte-chips {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-8);
-  padding-bottom: 2px;
+  margin-top: var(--space-12);
+}
+
+.reporte-chips[hidden],
+.reporte-descargas[hidden],
+.rep-explica[hidden] {
+  display: none;
+}
+
+.rep-explica {
+  margin-top: var(--space-16);
 }
 
 /* Excel y PDF juntos a la derecha; PDF es la accion principal */
@@ -2236,27 +2245,17 @@ tbody tr.clic:hover {
    coteja de un vistazo: guia, hora y quien escaneo. La plaza y el estatus
    actual no caben y ya vienen completos en el propio PDF. */
 @media (max-width: 700px) {
-  .reporte-controles {
-    flex-direction: column;
-    align-items: stretch;
+  .rep-pasos {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .reporte-controles .spacer {
-    display: none;
+  .rep-pasos .input,
+  .rep-pasos .select {
+    width: 100%;
   }
 
   .reporte-descargas {
     flex-direction: column-reverse;
-  }
-
-  .rep-tipos {
-    width: 100%;
-    overflow-x: auto;
-  }
-
-  .reporte-controles .field .input,
-  .reporte-controles .field .select {
-    width: 100%;
   }
 
   .reporte-chips .chip {

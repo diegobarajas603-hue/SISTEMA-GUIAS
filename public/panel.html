@@ -349,131 +349,62 @@
 
       <!-- ===================================================== Reportes -->
       <section id="v-reportes" style="display:none">
-        <div class="seg rep-tipos" id="repTipo">
-          <span class="seg__thumb"></span>
-          <button class="seg__option" data-value="salidas" aria-selected="true">Salidas del dia</button>
-          <button class="seg__option" data-value="entregadas" aria-selected="false">Entregadas</button>
-          <button class="seg__option" data-value="bodega" aria-selected="false">En bodega</button>
-        </div>
-
-        <div class="card card--flush rep-panel" data-rep="salidas">
-          <div class="card__header"><h2 class="t-label">Salidas del dia (PDF)</h2></div>
+        <div class="card card--flush rep-card">
+          <div class="card__header"><h2 class="t-label">Descargar reporte</h2></div>
           <div class="card__body">
-            <p class="nota">Todas las guias a las que se les dio salida el dia elegido, con la hora exacta
-            del escaneo y quien lo hizo. Descarga el PDF para cotejarlo contra el manifiesto y detectar
-            las guias que faltaron por escanear.</p>
-            <div class="reporte-controles">
+            <!-- Los campos se van desplegando: que guias -> plaza -> fechas,
+                 igual que el estatus al cancelar una guia -->
+            <div class="rep-pasos">
               <label class="field">
-                <span class="field__label">Dia del reporte</span>
-                <input class="input" type="date" id="repFecha" />
-              </label>
-              <label class="field">
-                <span class="field__label">Plaza de salida</span>
-                <select class="select" id="repPlaza">
-                  <option value="">Ambas (MTY y CDMX)</option>
-                  <option value="MTY">Solo Monterrey (AN)</option>
-                  <option value="CDMX">Solo Ciudad de Mexico (BN)</option>
+                <span class="field__label">¿Que guias quieres?</span>
+                <select class="select" id="repQue">
+                  <option value="">Elige el reporte</option>
+                  <option value="entregadas">Entregadas</option>
+                  <option value="bodega">En bodega</option>
+                  <option value="salidas">Salidas del dia</option>
                 </select>
               </label>
-              <div class="reporte-chips">
-                <button class="chip" id="repHoy" type="button" aria-pressed="false">Hoy</button>
-                <button class="chip" id="repAyer" type="button" aria-pressed="false">Ayer</button>
-              </div>
-              <span class="spacer"></span>
-              <button class="btn btn--primary" id="btnPdfSalidas" type="button">
-                Descargar PDF
-              </button>
+              <label class="field" id="repPlazaCampo" hidden>
+                <span class="field__label" id="repPlazaTitulo">¿De que plaza?</span>
+                <select class="select" id="repPlaza">
+                  <option value="">Elige la plaza</option>
+                  <option value="MTY">Monterrey</option>
+                  <option value="CDMX">Ciudad de Mexico</option>
+                  <option value="AMBAS">Las dos plazas</option>
+                </select>
+              </label>
+              <label class="field" id="repFechaCampo" hidden>
+                <span class="field__label">Dia</span>
+                <input class="input" type="date" id="repFecha" />
+              </label>
+              <label class="field" id="repDesdeCampo" hidden>
+                <span class="field__label">Desde</span>
+                <input class="input" type="date" id="repDesde" />
+              </label>
+              <label class="field" id="repHastaCampo" hidden>
+                <span class="field__label">Hasta</span>
+                <input class="input" type="date" id="repHasta" />
+              </label>
+            </div>
+            <div class="reporte-chips" id="repChips" hidden></div>
+            <p class="nota rep-explica" id="repExplica" hidden></p>
+            <div class="reporte-descargas" id="repDescargas" hidden>
+              <button class="btn btn--secondary" id="btnRepCsv" type="button">Descargar Excel</button>
+              <button class="btn btn--primary" id="btnRepPdf" type="button">Descargar PDF</button>
             </div>
             <div class="msg-form" id="msgReporte"></div>
           </div>
-          <div class="card__header reporte-previa-head">
-            <h2 class="t-label">Lo que va a traer el PDF</h2>
-            <span class="nota" id="repResumen"></span>
-          </div>
-          <div class="tabla-scroll reporte-tabla">
-            <table>
-              <thead><tr><th class="rep-num">#</th><th>Guia</th><th class="rep-movil-oculta">Salio de</th><th>Hora</th><th>Escaneó</th><th class="rep-movil-oculta">Estatus actual</th></tr></thead>
-              <tbody id="repTbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="card card--flush rep-panel" data-rep="entregadas" hidden>
-          <div class="card__header"><h2 class="t-label">Guias entregadas</h2></div>
-          <div class="card__body">
-            <p class="nota">Las guias que se entregaron al cliente en las fechas que elijas, con la hora
-            exacta, si fue en ocurre o a domicilio y quien la entrego.</p>
-            <div class="reporte-controles">
-              <label class="field">
-                <span class="field__label">Desde</span>
-                <input class="input" type="date" id="entDesde" />
-              </label>
-              <label class="field">
-                <span class="field__label">Hasta</span>
-                <input class="input" type="date" id="entHasta" />
-              </label>
-              <label class="field">
-                <span class="field__label">Plaza</span>
-                <select class="select" id="entPlaza">
-                  <option value="">Ambas (MTY y CDMX)</option>
-                  <option value="MTY">Solo Monterrey</option>
-                  <option value="CDMX">Solo Ciudad de Mexico</option>
-                </select>
-              </label>
-              <div class="reporte-chips">
-                <button class="chip" id="entHoy" type="button" aria-pressed="false">Hoy</button>
-                <button class="chip" id="entSemana" type="button" aria-pressed="false">Ultimos 7 dias</button>
-                <button class="chip" id="entMes" type="button" aria-pressed="false">Este mes</button>
-              </div>
+          <div id="repPrevia" hidden>
+            <div class="card__header reporte-previa-head">
+              <h2 class="t-label">Lo que va a traer el reporte</h2>
+              <span class="nota" id="repResumen"></span>
             </div>
-            <div class="reporte-descargas">
-              <button class="btn btn--secondary" id="btnCsvEntregadas" type="button">Descargar Excel</button>
-              <button class="btn btn--primary" id="btnPdfEntregadas" type="button">Descargar PDF</button>
+            <div class="tabla-scroll reporte-tabla">
+              <table>
+                <thead id="repThead"></thead>
+                <tbody id="repTbody"></tbody>
+              </table>
             </div>
-            <div class="msg-form" id="msgEntregadas"></div>
-          </div>
-          <div class="card__header reporte-previa-head">
-            <h2 class="t-label">Lo que va a traer el reporte</h2>
-            <span class="nota" id="entResumen"></span>
-          </div>
-          <div class="tabla-scroll reporte-tabla">
-            <table>
-              <thead><tr><th class="rep-num">#</th><th>Guia</th><th class="rep-movil-oculta">Plaza</th><th>Fecha y hora</th><th class="rep-movil-oculta">Tipo</th><th>Entregó</th></tr></thead>
-              <tbody id="entTbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="card card--flush rep-panel" data-rep="bodega" hidden>
-          <div class="card__header"><h2 class="t-label">Guias en bodega</h2></div>
-          <div class="card__body">
-            <p class="nota">Lo que hay en bodega en este momento, con el dia y la hora en que llego cada
-            guia y cuantos dias lleva ahi. Las que llevan mas tiempo van primero.</p>
-            <div class="reporte-controles">
-              <label class="field">
-                <span class="field__label">Plaza</span>
-                <select class="select" id="bodPlaza">
-                  <option value="">Ambas (MTY y CDMX)</option>
-                  <option value="MTY">Solo Monterrey</option>
-                  <option value="CDMX">Solo Ciudad de Mexico</option>
-                </select>
-              </label>
-            </div>
-            <div class="reporte-descargas">
-              <button class="btn btn--secondary" id="btnCsvBodega" type="button">Descargar Excel</button>
-              <button class="btn btn--primary" id="btnPdfBodega" type="button">Descargar PDF</button>
-            </div>
-            <div class="msg-form" id="msgBodega"></div>
-          </div>
-          <div class="card__header reporte-previa-head">
-            <h2 class="t-label">Lo que va a traer el reporte</h2>
-            <span class="nota" id="bodResumen"></span>
-          </div>
-          <div class="tabla-scroll reporte-tabla">
-            <table>
-              <thead><tr><th class="rep-num">#</th><th>Guia</th><th class="rep-movil-oculta">Plaza</th><th>Llegó a bodega</th><th>Dias en bodega</th></tr></thead>
-              <tbody id="bodTbody"></tbody>
-            </table>
           </div>
         </div>
       </section>
@@ -2549,10 +2480,10 @@
   $('buscarEvento').addEventListener('input', () => { clearTimeout(timerEventos); timerEventos = setTimeout(pintarGruposEventos, 200); });
 
   // ---------- Reportes ----------
-  // El corte de salidas del dia: la lista se enseña primero en pantalla (lo
-  // que va a traer el PDF) y el boton descarga el mismo reporte con el logo
-  // y el formato de la casa. La pregunta que contesta es la del cotejo contra
-  // el manifiesto: "¿cuales si se escanearon y cuales faltaron?".
+  // Un solo cuadro y los campos se van desplegando, igual que el estatus al
+  // cancelar una guia: primero que guias (entregadas, en bodega o salidas),
+  // luego la plaza y, si el reporte lo pide, las fechas. Abajo se ve lo que
+  // va a traer el archivo antes de descargarlo.
 
   // Fecha local del navegador como AAAA-MM-DD. Las dos plazas operan en el
   // mismo huso, asi que la fecha de la computadora del operador es la buena.
@@ -2562,96 +2493,220 @@
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   }
 
+  function primeroDelMes() {
+    return fechaLocalISO().slice(0, 8) + '01';
+  }
+
+  // Mismo umbral que el aviso de estancadas de la barra superior
+  const DIAS_ATENCION_BODEGA = 2;
+
+  function textoDias(n) {
+    return n === 0 ? 'Hoy' : `${n} dia${n === 1 ? '' : 's'}`;
+  }
+
+  const celdaGuia = (g) =>
+    `<span class="mono t-primary">${esc(g.numero_guia)}</span>${g.complemento ? ` <span class="nota">(comp. ${esc(g.complemento)})</span>` : ''}`;
+  const celdaOperador = (o) => (o ? esc(o) : '<span class="nota">sin registrar</span>');
+  const TIPO_ENTREGA_TXT = { Ocurre: 'Ocurre', Domicilio: 'Domicilio' };
+
+  // Lo que cambia de un reporte a otro: la pregunta de la plaza, que fechas
+  // pide, el texto que lo explica y las columnas de la vista previa. La
+  // columna de plaza solo sale cuando se piden las dos.
+  const REPORTES_UI = {
+    entregadas: {
+      preguntaPlaza: '¿En que plaza se entregaron?',
+      prep: 'en',
+      fechas: 'rango',
+      chips: [['Hoy', () => [fechaLocalISO(), fechaLocalISO()]], ['Ultimos 7 dias', () => [fechaLocalISO(6), fechaLocalISO()]], ['Este mes', () => [primeroDelMes(), fechaLocalISO()]]],
+      explica: 'Las guias que se entregaron al cliente en esas fechas, con la hora exacta, si fue en ocurre o a domicilio y quien la entrego.',
+      lista: (r) => r.entregas,
+      vacio: ['Ninguna guia se entrego en esas fechas', 'Cambia las fechas o la plaza.'],
+      cuenta: (n) => `${n} entregada${n === 1 ? '' : 's'}`,
+      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Fecha y hora'], ['Tipo', 'rep-movil-oculta'], ['Entregó']],
+      fila: (g, i, conPlaza) => [
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null,
+        `<span class="mono t-tertiary">${esc(fmtFecha(g.creado_en))}</span>`,
+        TIPO_ENTREGA_TXT[g.tipo] || '<span class="nota">sin dato</span>', celdaOperador(g.operador),
+      ],
+    },
+    bodega: {
+      preguntaPlaza: '¿En que bodega?',
+      prep: 'en',
+      fechas: null,
+      explica: 'Lo que hay en bodega en este momento, con el dia y la hora en que llego cada guia y cuantos dias lleva ahi. Las que llevan mas tiempo van primero.',
+      lista: (r) => r.guias,
+      vacio: ['No hay guias en bodega', 'Todo lo que llego ya salio a reparto, se entrego o va en camino.'],
+      cuenta: (n) => `${n} en bodega`,
+      extra: (r) => {
+        const viejas = r.guias.filter((g) => g.dias >= DIAS_ATENCION_BODEGA).length;
+        return viejas ? ` · ${viejas} con ${DIAS_ATENCION_BODEGA} dias o mas` : '';
+      },
+      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Llegó a bodega'], ['Dias en bodega']],
+      fila: (g, i, conPlaza) => [
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null,
+        `<span class="mono t-tertiary">${esc(fmtFecha(g.llegada))}</span>`,
+        `<span class="rep-dias${g.dias >= DIAS_ATENCION_BODEGA ? ' rep-dias--atencion' : ''}">${textoDias(g.dias)}</span>`,
+      ],
+    },
+    salidas: {
+      preguntaPlaza: '¿De que plaza salieron?',
+      prep: 'de',
+      fechas: 'dia',
+      chips: [['Hoy', () => [fechaLocalISO()]], ['Ayer', () => [fechaLocalISO(1)]]],
+      explica: 'Todas las guias a las que se les dio salida ese dia, con la hora exacta del escaneo y quien lo hizo. Sirve para cotejar contra el manifiesto y detectar las que faltaron por escanear.',
+      lista: (r) => r.salidas,
+      vacio: ['Ninguna guia salio ese dia', 'Cambia el dia o revisa que los escaneos de salida se hayan hecho.'],
+      cuenta: (n) => `${n} salida${n === 1 ? '' : 's'}`,
+      columnas: [['#', 'rep-num'], ['Guia'], ['Salio de', 'rep-movil-oculta', 'plaza'], ['Hora'], ['Escaneó'], ['Estatus actual', 'rep-movil-oculta']],
+      fila: (g, i, conPlaza) => [
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null,
+        `<span class="mono t-tertiary">${UI.fmtHora(g.creado_en)}</span>`, celdaOperador(g.operador), badge(g.estatus_actual),
+      ],
+    },
+  };
+
+  function estadoReporte() {
+    const tipo = $('repQue').value;
+    const plazaSel = $('repPlaza').value;
+    return {
+      tipo,
+      cfg: REPORTES_UI[tipo],
+      listo: !!tipo && !!plazaSel,
+      plaza: plazaSel === 'AMBAS' ? '' : plazaSel,
+      fecha: $('repFecha').value || fechaLocalISO(),
+      desde: $('repDesde').value || fechaLocalISO(),
+      hasta: $('repHasta').value || $('repDesde').value || fechaLocalISO(),
+    };
+  }
+
   function consultaReporte() {
-    const fecha = $('repFecha').value || fechaLocalISO();
-    const plaza = $('repPlaza').value;
-    return `fecha=${encodeURIComponent(fecha)}${plaza ? `&plaza=${plaza}` : ''}`;
+    const e = estadoReporte();
+    const q = new URLSearchParams();
+    if (e.plaza) q.set('plaza', e.plaza);
+    if (e.cfg.fechas === 'dia') q.set('fecha', e.fecha);
+    if (e.cfg.fechas === 'rango') { q.set('desde', e.desde); q.set('hasta', e.hasta); }
+    return q.toString();
   }
 
-  function pintarChipsReporte() {
-    const f = $('repFecha').value;
-    $('repHoy').setAttribute('aria-pressed', String(f === fechaLocalISO()));
-    $('repAyer').setAttribute('aria-pressed', String(f === fechaLocalISO(1)));
+  // Muestra solo los campos que tocan segun lo elegido hasta ahora
+  function pintarPasos() {
+    const e = estadoReporte();
+    $('repPlazaCampo').hidden = !e.cfg;
+    if (e.cfg) $('repPlazaTitulo').textContent = e.cfg.preguntaPlaza;
+    const conFechas = e.listo ? e.cfg.fechas : null;
+    $('repFechaCampo').hidden = conFechas !== 'dia';
+    $('repDesdeCampo').hidden = $('repHastaCampo').hidden = conFechas !== 'rango';
+    $('repChips').hidden = !conFechas;
+    if (conFechas) {
+      $('repChips').innerHTML = e.cfg.chips.map(([t], i) => `<button class="chip" type="button" data-i="${i}" aria-pressed="false">${t}</button>`).join('');
+      pintarChips();
+    }
+    $('repExplica').hidden = !e.listo;
+    if (e.listo) $('repExplica').textContent = e.cfg.explica;
+    $('repDescargas').hidden = $('repPrevia').hidden = !e.listo;
+    msgForm('msgReporte', '', '');
   }
 
-  // Tres reportes en la misma pantalla; se recuerda el ultimo que se uso
-  let repTipo = 'salidas';
-  try { repTipo = localStorage.getItem('repTipo') || 'salidas'; } catch {}
-  const segRepTipo = UI.segmented($('repTipo'), (v) => mostrarReporte(v));
-
-  function mostrarReporte(tipo) {
-    repTipo = ['salidas', 'entregadas', 'bodega'].includes(tipo) ? tipo : 'salidas';
-    try { localStorage.setItem('repTipo', repTipo); } catch {}
-    document.querySelectorAll('#v-reportes .rep-panel').forEach((p) => { p.hidden = p.dataset.rep !== repTipo; });
-    if (repTipo === 'salidas') cargarSalidasReporte();
-    if (repTipo === 'entregadas') cargarEntregadas();
-    if (repTipo === 'bodega') cargarBodega();
+  function pintarChips() {
+    const e = estadoReporte();
+    if (!e.cfg || !e.cfg.chips) return;
+    const actual = e.cfg.fechas === 'dia' ? [e.fecha] : [e.desde, e.hasta];
+    $('repChips').querySelectorAll('.chip').forEach((c) => {
+      const valores = e.cfg.chips[Number(c.dataset.i)][1]();
+      c.setAttribute('aria-pressed', String(valores.join() === actual.join()));
+    });
   }
 
   function cargarReportes() {
     if (!$('repFecha').value) $('repFecha').value = fechaLocalISO();
-    if (!$('entDesde').value) $('entDesde').value = fechaLocalISO();
-    if (!$('entHasta').value) $('entHasta').value = fechaLocalISO();
-    pintarChipsReporte();
-    pintarChipsEntregadas();
-    if (segRepTipo) segRepTipo.seleccionar(repTipo);
-    mostrarReporte(repTipo);
+    if (!$('repDesde').value) $('repDesde').value = fechaLocalISO();
+    if (!$('repHasta').value) $('repHasta').value = fechaLocalISO();
+    pintarPasos();
+    cargarPrevia();
   }
 
   let versionReporte = 0;
-  async function cargarSalidasReporte() {
+  async function cargarPrevia() {
+    const e = estadoReporte();
+    if (!e.listo) return;
     const version = ++versionReporte;
+    const conPlaza = !e.plaza;
+    const cols = e.cfg.columnas.filter((c) => c[2] !== 'plaza' || conPlaza);
+    $('repThead').innerHTML = `<tr>${cols.map(([t, cls]) => `<th${cls ? ` class="${cls}"` : ''}>${t}</th>`).join('')}</tr>`;
     $('repResumen').textContent = '';
-    $('repTbody').innerHTML = UI.skeletonRows(4, 6);
+    $('repTbody').innerHTML = UI.skeletonRows(4, cols.length);
     try {
-      const r = await api('/api/reportes/salidas?' + consultaReporte());
+      const r = await api(`/api/reportes/${e.tipo}?` + consultaReporte());
       if (version !== versionReporte) return; // llego una consulta mas nueva
-      $('btnPdfSalidas').disabled = r.total === 0;
-      $('repResumen').textContent = r.total === 0
-        ? 'Sin salidas registradas ese dia'
-        : r.plaza
-          ? `${r.total} salida${r.total === 1 ? '' : 's'} de ${r.plaza}`
-          : `${r.total} salida${r.total === 1 ? '' : 's'}: ${r.porPlaza.MTY || 0} de MTY y ${r.porPlaza.CDMX || 0} de CDMX`;
+      $('btnRepPdf').disabled = $('btnRepCsv').disabled = r.total === 0;
+      const lista = e.cfg.lista(r);
       if (r.total === 0) {
-        $('repTbody').innerHTML = `<tr><td colspan="6">${UI.emptyState({
-          titulo: 'Ninguna guia salio ese dia',
-          descripcion: 'Cambia el dia o revisa que los escaneos de salida se hayan hecho.',
-        })}</td></tr>`;
+        $('repResumen').textContent = 'Sin guias';
+        $('repTbody').innerHTML = `<tr><td colspan="${cols.length}">${UI.emptyState({ titulo: e.cfg.vacio[0], descripcion: e.cfg.vacio[1] })}</td></tr>`;
         return;
       }
-      $('repTbody').innerHTML = r.salidas.map((s, i) => `
-        <tr class="clic" data-guia="${esc(s.numero_guia)}">
-          <td class="rep-num"><span class="mono t-tertiary">${i + 1}</span></td>
-          <td><span class="mono t-primary">${esc(s.numero_guia)}</span>${s.complemento ? ` <span class="nota">(comp. ${esc(s.complemento)})</span>` : ''}</td>
-          <td class="rep-movil-oculta">${s.plaza}</td>
-          <td><span class="mono t-tertiary">${UI.fmtHora(s.creado_en)}</span></td>
-          <td>${s.operador ? esc(s.operador) : '<span class="nota">sin registrar</span>'}</td>
-          <td class="rep-movil-oculta">${badge(s.estatus_actual)}</td>
-        </tr>`).join('');
+      $('repResumen').textContent = e.cfg.cuenta(r.total) +
+        (conPlaza ? `: ${r.porPlaza.MTY || 0} ${e.cfg.prep} MTY y ${r.porPlaza.CDMX || 0} ${e.cfg.prep} CDMX` : '') +
+        (e.cfg.extra ? e.cfg.extra(r) : '');
+      $('repTbody').innerHTML = lista.map((g, i) => {
+        const celdas = e.cfg.fila(g, i, conPlaza).filter((c) => c !== null);
+        return `<tr class="clic" data-guia="${esc(g.numero_guia)}">${celdas.map((c, j) => `<td${cols[j][1] ? ` class="${cols[j][1]}"` : ''}>${c}</td>`).join('')}</tr>`;
+      }).join('');
       $('repTbody').querySelectorAll('.clic').forEach((el) =>
         el.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(el.dataset.guia)))
       );
-    } catch (e) {
+    } catch (err) {
       if (version !== versionReporte) return;
-      $('repTbody').innerHTML = `<tr><td colspan="6">${UI.errorState(e.message)}</td></tr>`;
+      $('btnRepPdf').disabled = $('btnRepCsv').disabled = true;
+      $('repTbody').innerHTML = `<tr><td colspan="${cols.length}">${UI.errorState(err.message)}</td></tr>`;
     }
   }
 
-  $('repFecha').addEventListener('change', () => { pintarChipsReporte(); cargarSalidasReporte(); });
-  $('repPlaza').addEventListener('change', cargarSalidasReporte);
-  $('repHoy').addEventListener('click', () => { $('repFecha').value = fechaLocalISO(); pintarChipsReporte(); cargarSalidasReporte(); });
-  $('repAyer').addEventListener('click', () => { $('repFecha').value = fechaLocalISO(1); pintarChipsReporte(); cargarSalidasReporte(); });
+  // Cambiar el reporte reinicia la plaza, igual que cambiar la etapa al cancelar
+  $('repQue').addEventListener('change', () => { $('repPlaza').value = ''; pintarPasos(); cargarPrevia(); });
+  $('repPlaza').addEventListener('change', () => { pintarPasos(); cargarPrevia(); });
+  ['repFecha', 'repDesde', 'repHasta'].forEach((id) => $(id).addEventListener('change', () => { pintarChips(); cargarPrevia(); }));
+  $('repChips').addEventListener('click', (ev) => {
+    const chip = ev.target.closest('.chip');
+    if (!chip) return;
+    const e = estadoReporte();
+    const valores = e.cfg.chips[Number(chip.dataset.i)][1]();
+    if (e.cfg.fechas === 'dia') $('repFecha').value = valores[0];
+    else { $('repDesde').value = valores[0]; $('repHasta').value = valores[1]; }
+    pintarChips();
+    cargarPrevia();
+  });
+
+  // Nombre del archivo y aviso al descargar, con lo elegido
+  function describirReporte(ext) {
+    const e = estadoReporte();
+    const sufijo = e.plaza ? '-' + e.plaza.toLowerCase() : '';
+    const plazaTxt = e.plaza ? ` · ${e.plaza}` : '';
+    if (e.tipo === 'salidas') return { nombre: `salidas-${e.fecha}${sufijo}.${ext}`, aviso: `Salidas del ${e.fecha}${plazaTxt}.` };
+    if (e.tipo === 'entregadas') {
+      const rango = e.desde === e.hasta ? e.desde : `${e.desde}_a_${e.hasta}`;
+      return {
+        nombre: `entregadas-${rango}${sufijo}.${ext}`,
+        aviso: `Entregadas ${e.desde === e.hasta ? `del ${e.desde}` : `del ${e.desde} al ${e.hasta}`}${plazaTxt}.`,
+      };
+    }
+    return { nombre: `en-bodega-${fechaLocalISO()}${sufijo}.${ext}`, aviso: `Guias en bodega${plazaTxt}.` };
+  }
 
   // La descarga va con fetch y no con un <a href> directo porque el archivo
   // exige el token de sesion en el header; el blob resultante se entrega al
   // navegador como archivo con su nombre.
-  async function descargarReporte({ url, nombre, btn, msg, aviso, cargando }) {
+  async function descargarReporte(ext, btn) {
+    const e = estadoReporte();
+    const { nombre, aviso } = describirReporte(ext);
     btn.disabled = true;
     const textoOriginal = btn.textContent;
-    btn.textContent = cargando;
-    msgForm(msg, '', '');
+    btn.textContent = ext === 'pdf' ? 'Generando PDF...' : 'Generando Excel...';
+    msgForm('msgReporte', '', '');
     try {
-      const res = await fetch(url, { headers: { Authorization: 'Bearer ' + sesionToken } });
+      const res = await fetch(`/api/reportes/${e.tipo}.${ext}?` + consultaReporte(), {
+        headers: { Authorization: 'Bearer ' + sesionToken },
+      });
       if (res.status === 401) { mostrarLogin('Tu sesion expiro. Inicia sesion de nuevo.'); return; }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -2669,201 +2724,16 @@
       // descarga en algunos navegadores
       setTimeout(() => URL.revokeObjectURL(href), 10000);
       UI.toast({ tipo: 'ok', titulo: 'Reporte descargado', descripcion: aviso });
-    } catch (e) {
-      msgForm(msg, e.message, 'err');
+    } catch (err) {
+      msgForm('msgReporte', err.message, 'err');
     } finally {
       btn.disabled = false;
       btn.textContent = textoOriginal;
     }
   }
 
-  $('btnPdfSalidas').addEventListener('click', () => {
-    const fecha = $('repFecha').value || fechaLocalISO();
-    const plaza = $('repPlaza').value;
-    descargarReporte({
-      url: '/api/reportes/salidas.pdf?' + consultaReporte(),
-      nombre: `salidas-${fecha}${plaza ? '-' + plaza.toLowerCase() : ''}.pdf`,
-      btn: $('btnPdfSalidas'), msg: 'msgReporte', cargando: 'Generando PDF...',
-      aviso: `Salidas del ${fecha}${plaza ? ` · ${plaza}` : ''}.`,
-    });
-  });
-
-  // ---------- Reporte de entregadas ----------
-  // Rango de fechas (un solo dia si desde = hasta) y plaza opcional.
-
-  function primeroDelMes() {
-    return fechaLocalISO().slice(0, 8) + '01';
-  }
-
-  function rangoEntregadas() {
-    const desde = $('entDesde').value || fechaLocalISO();
-    const hasta = $('entHasta').value || desde;
-    return { desde, hasta, plaza: $('entPlaza').value };
-  }
-
-  function consultaEntregadas() {
-    const { desde, hasta, plaza } = rangoEntregadas();
-    return `desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}${plaza ? `&plaza=${plaza}` : ''}`;
-  }
-
-  function pintarChipsEntregadas() {
-    const { desde, hasta } = rangoEntregadas();
-    const hoy = fechaLocalISO();
-    $('entHoy').setAttribute('aria-pressed', String(desde === hoy && hasta === hoy));
-    $('entSemana').setAttribute('aria-pressed', String(desde === fechaLocalISO(6) && hasta === hoy));
-    $('entMes').setAttribute('aria-pressed', String(desde === primeroDelMes() && hasta === hoy));
-  }
-
-  const TIPO_ENTREGA_TXT = { Ocurre: 'Ocurre', Domicilio: 'Domicilio' };
-
-  let versionEntregadas = 0;
-  async function cargarEntregadas() {
-    const version = ++versionEntregadas;
-    $('entResumen').textContent = '';
-    $('entTbody').innerHTML = UI.skeletonRows(4, 6);
-    try {
-      const r = await api('/api/reportes/entregadas?' + consultaEntregadas());
-      if (version !== versionEntregadas) return;
-      $('btnPdfEntregadas').disabled = $('btnCsvEntregadas').disabled = r.total === 0;
-      $('entResumen').textContent = r.total === 0
-        ? 'Sin entregas en esas fechas'
-        : r.plaza
-          ? `${r.total} entregada${r.total === 1 ? '' : 's'} en ${r.plaza}`
-          : `${r.total} entregada${r.total === 1 ? '' : 's'}: ${r.porPlaza.MTY || 0} en MTY y ${r.porPlaza.CDMX || 0} en CDMX`;
-      if (r.total === 0) {
-        $('entTbody').innerHTML = `<tr><td colspan="6">${UI.emptyState({
-          titulo: 'Ninguna guia se entrego en esas fechas',
-          descripcion: 'Cambia el rango o la plaza.',
-        })}</td></tr>`;
-        return;
-      }
-      $('entTbody').innerHTML = r.entregas.map((g, i) => `
-        <tr class="clic" data-guia="${esc(g.numero_guia)}">
-          <td class="rep-num"><span class="mono t-tertiary">${i + 1}</span></td>
-          <td><span class="mono t-primary">${esc(g.numero_guia)}</span>${g.complemento ? ` <span class="nota">(comp. ${esc(g.complemento)})</span>` : ''}</td>
-          <td class="rep-movil-oculta">${g.plaza}</td>
-          <td><span class="mono t-tertiary">${esc(fmtFecha(g.creado_en))}</span></td>
-          <td class="rep-movil-oculta">${TIPO_ENTREGA_TXT[g.tipo] || '<span class="nota">sin dato</span>'}</td>
-          <td>${g.operador ? esc(g.operador) : '<span class="nota">sin registrar</span>'}</td>
-        </tr>`).join('');
-      $('entTbody').querySelectorAll('.clic').forEach((el) =>
-        el.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(el.dataset.guia)))
-      );
-    } catch (e) {
-      if (version !== versionEntregadas) return;
-      $('btnPdfEntregadas').disabled = $('btnCsvEntregadas').disabled = true;
-      $('entTbody').innerHTML = `<tr><td colspan="6">${UI.errorState(e.message)}</td></tr>`;
-    }
-  }
-
-  function cambiarRangoEntregadas(desde, hasta) {
-    $('entDesde').value = desde;
-    $('entHasta').value = hasta;
-    pintarChipsEntregadas();
-    cargarEntregadas();
-  }
-
-  ['entDesde', 'entHasta'].forEach((id) => $(id).addEventListener('change', () => { pintarChipsEntregadas(); cargarEntregadas(); }));
-  $('entPlaza').addEventListener('change', cargarEntregadas);
-  $('entHoy').addEventListener('click', () => cambiarRangoEntregadas(fechaLocalISO(), fechaLocalISO()));
-  $('entSemana').addEventListener('click', () => cambiarRangoEntregadas(fechaLocalISO(6), fechaLocalISO()));
-  $('entMes').addEventListener('click', () => cambiarRangoEntregadas(primeroDelMes(), fechaLocalISO()));
-
-  function nombreEntregadas(ext) {
-    const { desde, hasta, plaza } = rangoEntregadas();
-    return `entregadas-${desde === hasta ? desde : `${desde}_a_${hasta}`}${plaza ? '-' + plaza.toLowerCase() : ''}.${ext}`;
-  }
-
-  function avisoEntregadas() {
-    const { desde, hasta, plaza } = rangoEntregadas();
-    return `Entregadas ${desde === hasta ? `del ${desde}` : `del ${desde} al ${hasta}`}${plaza ? ` · ${plaza}` : ''}.`;
-  }
-
-  $('btnPdfEntregadas').addEventListener('click', () => descargarReporte({
-    url: '/api/reportes/entregadas.pdf?' + consultaEntregadas(), nombre: nombreEntregadas('pdf'),
-    btn: $('btnPdfEntregadas'), msg: 'msgEntregadas', cargando: 'Generando PDF...', aviso: avisoEntregadas(),
-  }));
-  $('btnCsvEntregadas').addEventListener('click', () => descargarReporte({
-    url: '/api/reportes/entregadas.csv?' + consultaEntregadas(), nombre: nombreEntregadas('csv'),
-    btn: $('btnCsvEntregadas'), msg: 'msgEntregadas', cargando: 'Generando Excel...', aviso: avisoEntregadas(),
-  }));
-
-  // ---------- Reporte de guias en bodega ----------
-  // Foto del momento: no lleva fechas, solo plaza.
-
-  // Mismo umbral que el aviso de estancadas de la barra superior
-  const DIAS_ATENCION_BODEGA = 2;
-
-  function textoDias(n) {
-    return n === 0 ? 'Hoy' : `${n} dia${n === 1 ? '' : 's'}`;
-  }
-
-  function consultaBodega() {
-    const plaza = $('bodPlaza').value;
-    return plaza ? `plaza=${plaza}` : '';
-  }
-
-  let versionBodega = 0;
-  async function cargarBodega() {
-    const version = ++versionBodega;
-    $('bodResumen').textContent = '';
-    $('bodTbody').innerHTML = UI.skeletonRows(4, 5);
-    try {
-      const r = await api('/api/reportes/bodega?' + consultaBodega());
-      if (version !== versionBodega) return;
-      $('btnPdfBodega').disabled = $('btnCsvBodega').disabled = r.total === 0;
-      const viejas = r.guias.filter((g) => g.dias >= DIAS_ATENCION_BODEGA).length;
-      $('bodResumen').textContent = r.total === 0
-        ? 'No hay guias en bodega'
-        : (r.plaza
-          ? `${r.total} en bodega ${r.plaza}`
-          : `${r.total} en bodega: ${r.porPlaza.MTY || 0} en MTY y ${r.porPlaza.CDMX || 0} en CDMX`) +
-          (viejas ? ` · ${viejas} con ${DIAS_ATENCION_BODEGA} dias o mas` : '');
-      if (r.total === 0) {
-        $('bodTbody').innerHTML = `<tr><td colspan="5">${UI.emptyState({
-          titulo: 'No hay guias en bodega',
-          descripcion: 'Todo lo que llego ya salio a reparto, se entrego o va en camino.',
-        })}</td></tr>`;
-        return;
-      }
-      $('bodTbody').innerHTML = r.guias.map((g, i) => `
-        <tr class="clic" data-guia="${esc(g.numero_guia)}">
-          <td class="rep-num"><span class="mono t-tertiary">${i + 1}</span></td>
-          <td><span class="mono t-primary">${esc(g.numero_guia)}</span>${g.complemento ? ` <span class="nota">(comp. ${esc(g.complemento)})</span>` : ''}</td>
-          <td class="rep-movil-oculta">${g.plaza}</td>
-          <td><span class="mono t-tertiary">${esc(fmtFecha(g.llegada))}</span></td>
-          <td><span class="rep-dias${g.dias >= DIAS_ATENCION_BODEGA ? ' rep-dias--atencion' : ''}">${textoDias(g.dias)}</span></td>
-        </tr>`).join('');
-      $('bodTbody').querySelectorAll('.clic').forEach((el) =>
-        el.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(el.dataset.guia)))
-      );
-    } catch (e) {
-      if (version !== versionBodega) return;
-      $('btnPdfBodega').disabled = $('btnCsvBodega').disabled = true;
-      $('bodTbody').innerHTML = `<tr><td colspan="5">${UI.errorState(e.message)}</td></tr>`;
-    }
-  }
-
-  $('bodPlaza').addEventListener('change', cargarBodega);
-
-  function nombreBodega(ext) {
-    const plaza = $('bodPlaza').value;
-    return `en-bodega-${fechaLocalISO()}${plaza ? '-' + plaza.toLowerCase() : ''}.${ext}`;
-  }
-
-  function avisoBodega() {
-    const plaza = $('bodPlaza').value;
-    return `Guias en bodega${plaza ? ` · ${plaza}` : ''}.`;
-  }
-
-  $('btnPdfBodega').addEventListener('click', () => descargarReporte({
-    url: '/api/reportes/bodega.pdf?' + consultaBodega(), nombre: nombreBodega('pdf'),
-    btn: $('btnPdfBodega'), msg: 'msgBodega', cargando: 'Generando PDF...', aviso: avisoBodega(),
-  }));
-  $('btnCsvBodega').addEventListener('click', () => descargarReporte({
-    url: '/api/reportes/bodega.csv?' + consultaBodega(), nombre: nombreBodega('csv'),
-    btn: $('btnCsvBodega'), msg: 'msgBodega', cargando: 'Generando Excel...', aviso: avisoBodega(),
-  }));
+  $('btnRepPdf').addEventListener('click', () => descargarReporte('pdf', $('btnRepPdf')));
+  $('btnRepCsv').addEventListener('click', () => descargarReporte('csv', $('btnRepCsv')));
 
   // ---------- Bitacora ----------
   // Registro inmutable de correcciones. Se arma con los eventos CORRECCION
