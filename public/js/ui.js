@@ -370,7 +370,8 @@
     const cuerpo = `<label class="field">
         <span class="field__label">${esc(op.etiqueta || '')}</span>
         <input class="input" type="${op.tipo || 'text'}" id="${id}"
-               placeholder="${esc(op.placeholder || '')}" autocomplete="off" />
+               placeholder="${esc(op.placeholder || '')}" value="${esc(op.valor || '')}"
+               maxlength="${op.maxlength || ''}" autocomplete="off" />
       </label>`;
 
     return new Promise((resolve) => {
@@ -384,6 +385,8 @@
         alAbrir: (panel) => {
           const campo = panel.querySelector('#' + id);
           campo.focus();
+          // Con valor inicial se selecciona todo, listo para escribir encima
+          if (op.valor) campo.select();
           // Enter confirma sin tener que llegar al boton
           campo.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {

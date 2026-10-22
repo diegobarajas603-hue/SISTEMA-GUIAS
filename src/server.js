@@ -118,6 +118,14 @@ app.post('/api/usuarios', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+app.put('/api/usuarios/:id/nombre', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    res.json({ nombre: await auth.actualizarNombre(Number(req.params.id), (req.body || {}).nombre) });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 app.put('/api/usuarios/:id/plaza', requireAuth, requireAdmin, async (req, res) => {
   try {
     await auth.actualizarPlaza(Number(req.params.id), (req.body || {}).plaza);
