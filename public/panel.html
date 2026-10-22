@@ -349,6 +349,7 @@
 
       <!-- ===================================================== Reportes -->
       <section id="v-reportes" style="display:none">
+        <div class="rep-layout">
         <div class="card card--flush rep-card">
           <div class="card__header"><h2 class="t-label">Descargar reporte</h2></div>
           <div class="card__body">
@@ -394,6 +395,11 @@
             </div>
             <div class="msg-form" id="msgReporte"></div>
           </div>
+        </div>
+
+        <div class="card card--flush rep-previa">
+          <div class="rep-previa-vacia" id="repPreviaVacia">
+          </div>
           <div id="repPrevia" hidden>
             <div class="card__header reporte-previa-head">
               <h2 class="t-label">Lo que va a traer el reporte</h2>
@@ -406,6 +412,7 @@
               </table>
             </div>
           </div>
+        </div>
         </div>
       </section>
 
@@ -2604,6 +2611,13 @@
     $('repExplica').hidden = !e.listo;
     if (e.listo) $('repExplica').textContent = e.cfg.explica;
     $('repDescargas').hidden = $('repPrevia').hidden = !e.listo;
+    $('repPreviaVacia').hidden = e.listo;
+    if (!e.listo) {
+      $('repPreviaVacia').innerHTML = UI.emptyState({
+        titulo: e.cfg ? 'Ahora elige la plaza' : 'Elige que guias quieres',
+        descripcion: 'Aqui vas a ver lo que va a traer el reporte antes de descargarlo.',
+      });
+    }
     msgForm('msgReporte', '', '');
   }
 

@@ -2167,15 +2167,50 @@ tbody tr.clic:hover {
    plaza y fechas), la vista previa abajo y la descarga en PDF o Excel.
    ==========================================================================*/
 
-.rep-card {
-  max-width: 760px;
+/* Opciones en una columna a la izquierda y la vista previa ocupando el
+   resto del ancho: asi no queda medio panel en blanco */
+.rep-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: var(--space-16);
+  align-items: start;
 }
 
-/* Los pasos van en fila y bajan de renglon cuando no caben */
+/* Los pasos se apilan: cada uno aparece debajo del anterior */
 .rep-pasos {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-12);
+}
+
+.rep-pasos .input,
+.rep-pasos .select {
+  width: 100%;
+}
+
+.rep-previa-vacia {
+  padding: var(--space-32) var(--space-16);
+}
+
+.rep-previa-vacia[hidden] {
+  display: none;
+}
+
+/* La tabla usa el alto que queda en pantalla y se desplaza por dentro */
+.rep-previa .reporte-tabla {
+  max-height: calc(100vh - 220px);
+}
+
+/* En la columna angosta los botones van a lo ancho, PDF arriba */
+.rep-card .reporte-descargas {
+  flex-direction: column-reverse;
+  margin-top: var(--space-12);
+}
+
+@media (max-width: 1000px) {
+  .rep-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .rep-pasos .field {
@@ -2200,7 +2235,7 @@ tbody tr.clic:hover {
 }
 
 .rep-explica {
-  margin-top: var(--space-16);
+  margin-top: var(--space-12);
 }
 
 /* Excel y PDF juntos a la derecha; PDF es la accion principal */
@@ -2245,15 +2280,6 @@ tbody tr.clic:hover {
    coteja de un vistazo: guia, hora y quien escaneo. La plaza y el estatus
    actual no caben y ya vienen completos en el propio PDF. */
 @media (max-width: 700px) {
-  .rep-pasos {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .rep-pasos .input,
-  .rep-pasos .select {
-    width: 100%;
-  }
-
   .reporte-descargas {
     flex-direction: column-reverse;
   }
