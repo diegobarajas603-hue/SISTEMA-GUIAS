@@ -443,7 +443,16 @@
 
       <!-- ================================================ Configuracion -->
       <section id="v-config" style="display:none">
-        <div class="config-grid">
+        <!-- Una seccion a la vez: mi cuenta, la lista de usuarios o el alta de
+             uno nuevo. Las dos ultimas son solo de administradores. -->
+        <div class="seg cfg-tabs" id="cfgTabs" hidden>
+          <span class="seg__thumb"></span>
+          <button class="seg__option" data-value="cuenta" aria-selected="true">Mi cuenta</button>
+          <button class="seg__option" data-value="usuarios" aria-selected="false">Usuarios</button>
+          <button class="seg__option" data-value="nuevo" aria-selected="false">Agregar usuario</button>
+        </div>
+
+        <div class="config-grid cfg-panel" data-cfg="cuenta">
         <div class="config-col">
 
           <div class="card card--flush">
@@ -461,6 +470,17 @@
               <p class="nota" style="margin-top:var(--space-12);">La plaza y el tipo de operacion se eligen en la pantalla de escaneo y quedan guardados en este navegador.</p>
             </div>
           </div>
+
+          <div class="card card--flush">
+            <div class="card__header"><h2 class="t-label">Pagina publica de rastreo</h2></div>
+            <div class="card__body">
+              <p class="nota">Tus clientes pueden consultar su guia (sin iniciar sesion) en la pagina principal del sitio: <a href="/" target="_blank" rel="noopener">abrir pagina de rastreo</a>.</p>
+              <p class="nota" style="margin-top:var(--space-8)">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
+            </div>
+          </div>
+
+        </div>
+        <div class="config-col">
 
           <div class="card card--flush" id="cardPassword" style="display:none;">
             <div class="card__header"><h2 class="t-label">Cambiar mi contraseña</h2></div>
@@ -482,26 +502,33 @@
           </form>
           </div>
 
-          <div class="card card--flush">
-            <div class="card__header"><h2 class="t-label">Pagina publica de rastreo</h2></div>
+          <div class="card card--flush zona-peligro" id="cardBorrar" style="display:none;">
+            <div class="card__header"><h2 class="t-label" style="color:var(--st-eliminada-text)">Zona de peligro</h2></div>
             <div class="card__body">
-              <p class="nota">Tus clientes pueden consultar su guia (sin iniciar sesion) en la pagina principal del sitio: <a href="/" target="_blank" rel="noopener">abrir pagina de rastreo</a>.</p>
-              <p class="nota" style="margin-top:var(--space-8)">Este panel interno vive en <b>/panel</b>; guarda esa direccion en tus marcadores.</p>
+              <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
+              <div class="msg-form" id="msgBorrar"></div>
+              <button class="btn btn--danger-ghost" id="btnBorrarTodas" type="button" style="margin-top:var(--space-12);">Borrar todas las guias</button>
             </div>
           </div>
 
         </div>
-        <div class="config-col">
+        </div>
 
-          <div class="card card--flush" id="cardUsuarios" style="display:none;">
-            <div class="card__header"><h2 class="t-label">Usuarios del sistema</h2></div>
-            <div class="tabla-scroll">
-              <table class="usuarios-tabla">
-                <thead><tr><th>Usuario</th><th>Rol</th><th>Plaza</th><th></th></tr></thead>
-                <tbody id="tbodyUsuarios"></tbody>
-              </table>
-            </div>
-            <div class="card__header" style="border-top:1px solid var(--border-subtle)"><h2 class="t-label">Agregar usuario</h2></div>
+        <div class="card card--flush cfg-panel" data-cfg="usuarios" hidden>
+          <div class="card__header cfg-usuarios-head">
+            <h2 class="t-label">Usuarios del sistema</h2>
+            <button class="btn btn--primary btn--sm" id="btnIrNuevoUsuario" type="button">Agregar usuario</button>
+          </div>
+          <div class="tabla-scroll">
+            <table class="usuarios-tabla">
+              <thead><tr><th>Usuario</th><th>Rol</th><th>Plaza</th><th></th></tr></thead>
+              <tbody id="tbodyUsuarios"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card card--flush cfg-panel cfg-nuevo" data-cfg="nuevo" hidden>
+            <div class="card__header"><h2 class="t-label">Agregar usuario</h2></div>
             <form id="formNuevoUsuario" class="card__body">
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-16);">
                 <label class="field">
@@ -532,18 +559,6 @@
               <div class="msg-form" id="msgUsuarios"></div>
               <button class="btn btn--primary" type="submit" style="margin-top:var(--space-16);">Crear usuario</button>
           </form>
-          </div>
-
-          <div class="card card--flush zona-peligro" id="cardBorrar" style="display:none;">
-            <div class="card__header"><h2 class="t-label" style="color:var(--st-eliminada-text)">Zona de peligro</h2></div>
-            <div class="card__body">
-              <p class="nota">Borra <b>todas las guias y su historial</b> para dejar el sistema como nuevo. Los usuarios y tus accesos no se borran. Esta accion <b>no se puede deshacer</b>.</p>
-              <div class="msg-form" id="msgBorrar"></div>
-              <button class="btn btn--danger-ghost" id="btnBorrarTodas" type="button" style="margin-top:var(--space-12);">Borrar todas las guias</button>
-            </div>
-          </div>
-
-        </div>
         </div>
       </section>
 
@@ -936,7 +951,10 @@
     $('cfgRol').textContent =
       'Rol: ' + nombresRoles(usuarioActual.roles) +
       (plazaUsuario ? ` - Plaza: ${plazaUsuario}` : ' - Puede operar en ambas plazas');
-    $('cardUsuarios').style.display = esAdmin ? '' : 'none';
+    // Usuarios y alta de usuarios son de administradores: sin el selector,
+    // el operador solo ve su cuenta
+    $('cfgTabs').hidden = !esAdmin;
+    if (!esAdmin) mostrarSeccionConfig('cuenta');
     $('cardPassword').style.display = esAdmin ? '' : 'none';
     aplicarModoEliminar();
     $('cfgNotaOperador').style.display = esAdmin ? 'none' : '';
@@ -2935,8 +2953,24 @@
     if (tipo === 'ok') setTimeout(() => { el.className = 'msg-form'; }, 4000);
   }
 
+  // ---------- Configuracion: una seccion a la vez ----------
+  let seccionConfig = 'cuenta';
+  const segConfig = UI.segmented($('cfgTabs'), (v) => mostrarSeccionConfig(v));
+
+  function mostrarSeccionConfig(seccion) {
+    seccionConfig = seccion;
+    document.querySelectorAll('#v-config .cfg-panel').forEach((p) => { p.hidden = p.dataset.cfg !== seccion; });
+    if (segConfig) segConfig.seleccionar(seccion);
+  }
+
+  $('btnIrNuevoUsuario').addEventListener('click', () => {
+    mostrarSeccionConfig('nuevo');
+    $('nuUsuario').focus();
+  });
+
   function cargarConfig() {
     pintarUsuario();
+    mostrarSeccionConfig(seccionConfig);
     if (usuarioActual && usuarioActual.roles.includes('admin')) cargarUsuarios();
   }
 
@@ -3081,6 +3115,8 @@
       $('formNuevoUsuario').reset();
       pintarRolesChooser($('nuRoles'), ['salidas']);
       msgForm('msgUsuarios', 'Usuario creado correctamente', 'ok');
+      UI.toast({ tipo: 'ok', titulo: 'Usuario creado', descripcion: 'Ya aparece en la lista de usuarios.' });
+      mostrarSeccionConfig('usuarios');
       cargarUsuarios();
     } catch (err2) {
       msgForm('msgUsuarios', err2.message, 'err');
