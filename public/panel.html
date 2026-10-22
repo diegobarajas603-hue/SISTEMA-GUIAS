@@ -3022,8 +3022,12 @@
              </button>`}</td>
         <td><select class="select select--quiet sel-plaza" data-id="${u.id}" data-usuario="${esc(u.usuario)}"
                     aria-label="Plaza de ${esc(u.usuario)}">${opcionesPlaza(u.plaza)}</select></td>
-        <td class="celda-acciones">${u.id === usuarioActual.id
-          ? '<span class="t-small">tu</span>'
+        <td class="celda-acciones">
+          <button class="btn btn--ghost btn--icon" data-nombre-id="${u.id}" data-nombre="${esc(u.nombre)}" data-usuario="${esc(u.usuario)}"
+                  title="Cambiar nombre" aria-label="Cambiar el nombre de ${esc(u.usuario)}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 3.5l3 3L7 16H4v-3z"/><path d="M11.5 5.5l3 3"/></svg>
+          </button>${u.id === usuarioActual.id
+          ? '<span class="t-small celda-acciones__tu">tu</span>'
           : `<button class="btn btn--ghost btn--icon" data-reset="${u.id}" data-usuario="${esc(u.usuario)}"
                      title="Restablecer contraseña" aria-label="Restablecer contraseña de ${esc(u.usuario)}">
                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="9" width="12" height="8" rx="2"/><path d="M7 9V6.5a3 3 0 0 1 6 0V9"/></svg>
@@ -3037,12 +3041,12 @@
           const actuales = JSON.parse(btn.dataset.roles || '[]');
           const nuevos = await editarRoles(btn.dataset.usuario, actuales);
           if (nuevos === null) return;
-          if (!nuevos.length) { msgForm('msgUsuarios', 'Selecciona al menos un rol', 'err'); return; }
+          if (!nuevos.length) { UI.toast({ tipo: 'error', titulo: 'Selecciona al menos un rol' }); return; }
           try {
             await api('/api/usuarios/' + btn.dataset.uid + '/roles', { method: 'PUT', body: JSON.stringify({ roles: nuevos }) });
-            msgForm('msgUsuarios', `Roles de "${btn.dataset.usuario}" actualizados. Aplica en cuanto vuelva a entrar o recargue.`, 'ok');
+            UI.toast({ tipo: 'ok', titulo: 'Roles actualizados', descripcion: `"${btn.dataset.usuario}": aplica en cuanto vuelva a entrar o recargue.` });
           } catch (err2) {
-            msgForm('msgUsuarios', err2.message, 'err');
+            UI.toast({ tipo: 'error', titulo: 'No se pudo guardar', descripcion: err2.message });
           }
           cargarUsuarios();
         })
@@ -3051,10 +3055,10 @@
         s.addEventListener('change', async () => {
           try {
             await api('/api/usuarios/' + s.dataset.id + '/plaza', { method: 'PUT', body: JSON.stringify({ plaza: s.value }) });
-            msgForm('msgUsuarios', `Plaza de "${s.dataset.usuario}" actualizada a ${s.value || 'ambas plazas'}. Aplica en cuanto vuelva a entrar o recargue.`, 'ok');
+            UI.toast({ tipo: 'ok', titulo: 'Plaza actualizada', descripcion: `"${s.dataset.usuario}" queda en ${s.value || 'ambas plazas'}. Aplica en cuanto vuelva a entrar o recargue.` });
             if (Number(s.dataset.id) === usuarioActual.id) { usuarioActual.plaza = s.value || null; pintarUsuario(); }
           } catch (err2) {
-            msgForm('msgUsuarios', err2.message, 'err');
+            UI.toast({ tipo: 'error', titulo: 'No se pudo guardar', descripcion: err2.message });
             cargarUsuarios();
           }
         })
@@ -3072,7 +3076,30 @@
             await api('/api/usuarios/' + b.dataset.id, { method: 'DELETE' });
             UI.toast({ tipo: 'ok', titulo: 'Usuario eliminado', descripcion: `"${b.dataset.usuario}" ya no tiene acceso al panel.` });
             cargarUsuarios();
-          } catch (err2) { msgForm('msgUsuarios', err2.message, 'err'); }
+          } catch (err2) { UI.toast({ tipo: 'error', titulo: 'No se pudo guardar', descripcion: err2.message }); }
+        })
+      );
+      document.querySelectorAll('#tbodyUsuarios [data-nombre-id]').forEach((b) =>
+        b.addEventListener('click', async () => {
+          const nombre = await UI.pedir({
+            titulo: `Cambiar el nombre de "${b.dataset.usuario}"`,
+            descripcion: 'Es el nombre que se ve en el panel y en los reportes. Para entrar sigue usando el mismo usuario y contraseña.',
+            etiqueta: 'Nombre',
+            valor: b.dataset.nombre,
+            maxlength: 60,
+            confirmar: 'Guardar nombre',
+          });
+          if (nombre === null || nombre.trim() === b.dataset.nombre) return;
+          try {
+            const r = await api('/api/usuarios/' + b.dataset.nombreId + '/nombre', { method: 'PUT', body: JSON.stringify({ nombre }) });
+            UI.toast({ tipo: 'ok', titulo: 'Nombre actualizado', descripcion: `"${b.dataset.usuario}" ahora se ve como ${r.nombre}.` });
+            // Si es la cuenta propia, se refleja de inmediato en el panel
+            if (Number(b.dataset.nombreId) === usuarioActual.id) {
+              usuarioActual.nombre = r.nombre;
+              pintarUsuario();
+            }
+            cargarUsuarios();
+          } catch (err2) { UI.toast({ tipo: 'error', titulo: 'No se pudo cambiar el nombre', descripcion: err2.message }); }
         })
       );
       document.querySelectorAll('#tbodyUsuarios [data-reset]').forEach((b) =>
@@ -3088,7 +3115,7 @@
           try {
             await api('/api/usuarios/' + b.dataset.reset + '/password', { method: 'PUT', body: JSON.stringify({ nueva }) });
             UI.toast({ tipo: 'ok', titulo: 'Contraseña restablecida', descripcion: `Las sesiones abiertas de "${b.dataset.usuario}" se cerraron.` });
-          } catch (err2) { msgForm('msgUsuarios', err2.message, 'err'); }
+          } catch (err2) { UI.toast({ tipo: 'error', titulo: 'No se pudo guardar', descripcion: err2.message }); }
         })
       );
     } catch (e) {

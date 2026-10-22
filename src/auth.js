@@ -298,6 +298,21 @@ async function crearUsuario({ usuario, nombre, password, roles, plaza }) {
   }
 }
 
+// Cambia el nombre con el que se ve al usuario en el panel y en los
+// reportes. El login (usuario) no se toca: el historial de escaneos guarda
+// ese login, y cambiarlo dejaria los movimientos viejos sin dueño. Como el
+// nombre se busca por login al mostrarlos, los movimientos anteriores
+// tambien salen con el nombre nuevo.
+async function actualizarNombre(id, nombre) {
+  const n = String(nombre || '').trim().replace(/\s+/g, ' ');
+  if (!n) throw new Error('Escribe el nombre');
+  if (n.length > 60) throw new Error('El nombre no puede pasar de 60 caracteres');
+  const { rowCount } = await pool.query('UPDATE usuarios SET nombre = $1 WHERE id = $2', [n, id]);
+  if (!rowCount) throw new Error('Usuario no encontrado');
+  olvidarSesiones();
+  return n;
+}
+
 async function actualizarPlaza(id, plaza) {
   const { rowCount } = await pool.query('UPDATE usuarios SET plaza = $1 WHERE id = $2', [
     normalizarPlaza(plaza),
@@ -376,6 +391,7 @@ module.exports = {
   esAdmin,
   listarUsuarios,
   crearUsuario,
+  actualizarNombre,
   actualizarPlaza,
   actualizarRoles,
   eliminarUsuario,

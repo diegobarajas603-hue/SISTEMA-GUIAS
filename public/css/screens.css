@@ -1953,6 +1953,17 @@ tbody tr.clic:hover {
   margin: 0;
 }
 
+/* Acciones por usuario: cambiar nombre, contraseña y eliminar */
+.usuarios-tabla .celda-acciones {
+  width: 1%;
+}
+
+.celda-acciones__tu {
+  display: inline-block;
+  width: 68px;
+  text-align: center;
+}
+
 /* Con la tabla a todo lo ancho la plaza se lee completa */
 .usuarios-tabla .sel-plaza {
   min-width: 110px;
