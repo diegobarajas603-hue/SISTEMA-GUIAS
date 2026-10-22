@@ -349,7 +349,14 @@
 
       <!-- ===================================================== Reportes -->
       <section id="v-reportes" style="display:none">
-        <div class="card card--flush" style="max-width:760px;">
+        <div class="seg rep-tipos" id="repTipo">
+          <span class="seg__thumb"></span>
+          <button class="seg__option" data-value="salidas" aria-selected="true">Salidas del dia</button>
+          <button class="seg__option" data-value="entregadas" aria-selected="false">Entregadas</button>
+          <button class="seg__option" data-value="bodega" aria-selected="false">En bodega</button>
+        </div>
+
+        <div class="card card--flush rep-panel" data-rep="salidas">
           <div class="card__header"><h2 class="t-label">Salidas del dia (PDF)</h2></div>
           <div class="card__body">
             <p class="nota">Todas las guias a las que se les dio salida el dia elegido, con la hora exacta
@@ -387,6 +394,85 @@
             <table>
               <thead><tr><th class="rep-num">#</th><th>Guia</th><th class="rep-movil-oculta">Salio de</th><th>Hora</th><th>Escaneó</th><th class="rep-movil-oculta">Estatus actual</th></tr></thead>
               <tbody id="repTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card card--flush rep-panel" data-rep="entregadas" hidden>
+          <div class="card__header"><h2 class="t-label">Guias entregadas</h2></div>
+          <div class="card__body">
+            <p class="nota">Las guias que se entregaron al cliente en las fechas que elijas, con la hora
+            exacta, si fue en ocurre o a domicilio y quien la entrego.</p>
+            <div class="reporte-controles">
+              <label class="field">
+                <span class="field__label">Desde</span>
+                <input class="input" type="date" id="entDesde" />
+              </label>
+              <label class="field">
+                <span class="field__label">Hasta</span>
+                <input class="input" type="date" id="entHasta" />
+              </label>
+              <label class="field">
+                <span class="field__label">Plaza</span>
+                <select class="select" id="entPlaza">
+                  <option value="">Ambas (MTY y CDMX)</option>
+                  <option value="MTY">Solo Monterrey</option>
+                  <option value="CDMX">Solo Ciudad de Mexico</option>
+                </select>
+              </label>
+              <div class="reporte-chips">
+                <button class="chip" id="entHoy" type="button" aria-pressed="false">Hoy</button>
+                <button class="chip" id="entSemana" type="button" aria-pressed="false">Ultimos 7 dias</button>
+                <button class="chip" id="entMes" type="button" aria-pressed="false">Este mes</button>
+              </div>
+            </div>
+            <div class="reporte-descargas">
+              <button class="btn btn--secondary" id="btnCsvEntregadas" type="button">Descargar Excel</button>
+              <button class="btn btn--primary" id="btnPdfEntregadas" type="button">Descargar PDF</button>
+            </div>
+            <div class="msg-form" id="msgEntregadas"></div>
+          </div>
+          <div class="card__header reporte-previa-head">
+            <h2 class="t-label">Lo que va a traer el reporte</h2>
+            <span class="nota" id="entResumen"></span>
+          </div>
+          <div class="tabla-scroll reporte-tabla">
+            <table>
+              <thead><tr><th class="rep-num">#</th><th>Guia</th><th class="rep-movil-oculta">Plaza</th><th>Fecha y hora</th><th class="rep-movil-oculta">Tipo</th><th>Entregó</th></tr></thead>
+              <tbody id="entTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card card--flush rep-panel" data-rep="bodega" hidden>
+          <div class="card__header"><h2 class="t-label">Guias en bodega</h2></div>
+          <div class="card__body">
+            <p class="nota">Lo que hay en bodega en este momento, con el dia y la hora en que llego cada
+            guia y cuantos dias lleva ahi. Las que llevan mas tiempo van primero.</p>
+            <div class="reporte-controles">
+              <label class="field">
+                <span class="field__label">Plaza</span>
+                <select class="select" id="bodPlaza">
+                  <option value="">Ambas (MTY y CDMX)</option>
+                  <option value="MTY">Solo Monterrey</option>
+                  <option value="CDMX">Solo Ciudad de Mexico</option>
+                </select>
+              </label>
+            </div>
+            <div class="reporte-descargas">
+              <button class="btn btn--secondary" id="btnCsvBodega" type="button">Descargar Excel</button>
+              <button class="btn btn--primary" id="btnPdfBodega" type="button">Descargar PDF</button>
+            </div>
+            <div class="msg-form" id="msgBodega"></div>
+          </div>
+          <div class="card__header reporte-previa-head">
+            <h2 class="t-label">Lo que va a traer el reporte</h2>
+            <span class="nota" id="bodResumen"></span>
+          </div>
+          <div class="tabla-scroll reporte-tabla">
+            <table>
+              <thead><tr><th class="rep-num">#</th><th>Guia</th><th class="rep-movil-oculta">Plaza</th><th>Llegó a bodega</th><th>Dias en bodega</th></tr></thead>
+              <tbody id="bodTbody"></tbody>
             </table>
           </div>
         </div>
@@ -2488,10 +2574,28 @@
     $('repAyer').setAttribute('aria-pressed', String(f === fechaLocalISO(1)));
   }
 
+  // Tres reportes en la misma pantalla; se recuerda el ultimo que se uso
+  let repTipo = 'salidas';
+  try { repTipo = localStorage.getItem('repTipo') || 'salidas'; } catch {}
+  const segRepTipo = UI.segmented($('repTipo'), (v) => mostrarReporte(v));
+
+  function mostrarReporte(tipo) {
+    repTipo = ['salidas', 'entregadas', 'bodega'].includes(tipo) ? tipo : 'salidas';
+    try { localStorage.setItem('repTipo', repTipo); } catch {}
+    document.querySelectorAll('#v-reportes .rep-panel').forEach((p) => { p.hidden = p.dataset.rep !== repTipo; });
+    if (repTipo === 'salidas') cargarSalidasReporte();
+    if (repTipo === 'entregadas') cargarEntregadas();
+    if (repTipo === 'bodega') cargarBodega();
+  }
+
   function cargarReportes() {
     if (!$('repFecha').value) $('repFecha').value = fechaLocalISO();
+    if (!$('entDesde').value) $('entDesde').value = fechaLocalISO();
+    if (!$('entHasta').value) $('entHasta').value = fechaLocalISO();
     pintarChipsReporte();
-    cargarSalidasReporte();
+    pintarChipsEntregadas();
+    if (segRepTipo) segRepTipo.seleccionar(repTipo);
+    mostrarReporte(repTipo);
   }
 
   let versionReporte = 0;
@@ -2538,45 +2642,228 @@
   $('repHoy').addEventListener('click', () => { $('repFecha').value = fechaLocalISO(); pintarChipsReporte(); cargarSalidasReporte(); });
   $('repAyer').addEventListener('click', () => { $('repFecha').value = fechaLocalISO(1); pintarChipsReporte(); cargarSalidasReporte(); });
 
-  // La descarga va con fetch y no con un <a href> directo porque el PDF exige
-  // el token de sesion en el header; el blob resultante se entrega al
+  // La descarga va con fetch y no con un <a href> directo porque el archivo
+  // exige el token de sesion en el header; el blob resultante se entrega al
   // navegador como archivo con su nombre.
-  $('btnPdfSalidas').addEventListener('click', async () => {
-    const btn = $('btnPdfSalidas');
-    const fecha = $('repFecha').value || fechaLocalISO();
-    const plaza = $('repPlaza').value;
+  async function descargarReporte({ url, nombre, btn, msg, aviso, cargando }) {
     btn.disabled = true;
     const textoOriginal = btn.textContent;
-    btn.textContent = 'Generando PDF...';
-    msgForm('msgReporte', '', '');
+    btn.textContent = cargando;
+    msgForm(msg, '', '');
     try {
-      const res = await fetch('/api/reportes/salidas.pdf?' + consultaReporte(), {
-        headers: { Authorization: 'Bearer ' + sesionToken },
-      });
+      const res = await fetch(url, { headers: { Authorization: 'Bearer ' + sesionToken } });
       if (res.status === 401) { mostrarLogin('Tu sesion expiro. Inicia sesion de nuevo.'); return; }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'No se pudo generar el PDF');
+        throw new Error(data.error || 'No se pudo generar el reporte');
       }
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const href = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `salidas-${fecha}${plaza ? '-' + plaza.toLowerCase() : ''}.pdf`;
+      a.href = href;
+      a.download = nombre;
       document.body.appendChild(a);
       a.click();
       a.remove();
       // Se revoca despues de un momento: hacerlo de inmediato cancela la
       // descarga en algunos navegadores
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-      UI.toast({ tipo: 'ok', titulo: 'Reporte descargado', descripcion: `Salidas del ${fecha}${plaza ? ` · ${plaza}` : ''}.` });
+      setTimeout(() => URL.revokeObjectURL(href), 10000);
+      UI.toast({ tipo: 'ok', titulo: 'Reporte descargado', descripcion: aviso });
     } catch (e) {
-      msgForm('msgReporte', e.message, 'err');
+      msgForm(msg, e.message, 'err');
     } finally {
       btn.disabled = false;
       btn.textContent = textoOriginal;
     }
+  }
+
+  $('btnPdfSalidas').addEventListener('click', () => {
+    const fecha = $('repFecha').value || fechaLocalISO();
+    const plaza = $('repPlaza').value;
+    descargarReporte({
+      url: '/api/reportes/salidas.pdf?' + consultaReporte(),
+      nombre: `salidas-${fecha}${plaza ? '-' + plaza.toLowerCase() : ''}.pdf`,
+      btn: $('btnPdfSalidas'), msg: 'msgReporte', cargando: 'Generando PDF...',
+      aviso: `Salidas del ${fecha}${plaza ? ` · ${plaza}` : ''}.`,
+    });
   });
+
+  // ---------- Reporte de entregadas ----------
+  // Rango de fechas (un solo dia si desde = hasta) y plaza opcional.
+
+  function primeroDelMes() {
+    return fechaLocalISO().slice(0, 8) + '01';
+  }
+
+  function rangoEntregadas() {
+    const desde = $('entDesde').value || fechaLocalISO();
+    const hasta = $('entHasta').value || desde;
+    return { desde, hasta, plaza: $('entPlaza').value };
+  }
+
+  function consultaEntregadas() {
+    const { desde, hasta, plaza } = rangoEntregadas();
+    return `desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}${plaza ? `&plaza=${plaza}` : ''}`;
+  }
+
+  function pintarChipsEntregadas() {
+    const { desde, hasta } = rangoEntregadas();
+    const hoy = fechaLocalISO();
+    $('entHoy').setAttribute('aria-pressed', String(desde === hoy && hasta === hoy));
+    $('entSemana').setAttribute('aria-pressed', String(desde === fechaLocalISO(6) && hasta === hoy));
+    $('entMes').setAttribute('aria-pressed', String(desde === primeroDelMes() && hasta === hoy));
+  }
+
+  const TIPO_ENTREGA_TXT = { Ocurre: 'Ocurre', Domicilio: 'Domicilio' };
+
+  let versionEntregadas = 0;
+  async function cargarEntregadas() {
+    const version = ++versionEntregadas;
+    $('entResumen').textContent = '';
+    $('entTbody').innerHTML = UI.skeletonRows(4, 6);
+    try {
+      const r = await api('/api/reportes/entregadas?' + consultaEntregadas());
+      if (version !== versionEntregadas) return;
+      $('btnPdfEntregadas').disabled = $('btnCsvEntregadas').disabled = r.total === 0;
+      $('entResumen').textContent = r.total === 0
+        ? 'Sin entregas en esas fechas'
+        : r.plaza
+          ? `${r.total} entregada${r.total === 1 ? '' : 's'} en ${r.plaza}`
+          : `${r.total} entregada${r.total === 1 ? '' : 's'}: ${r.porPlaza.MTY || 0} en MTY y ${r.porPlaza.CDMX || 0} en CDMX`;
+      if (r.total === 0) {
+        $('entTbody').innerHTML = `<tr><td colspan="6">${UI.emptyState({
+          titulo: 'Ninguna guia se entrego en esas fechas',
+          descripcion: 'Cambia el rango o la plaza.',
+        })}</td></tr>`;
+        return;
+      }
+      $('entTbody').innerHTML = r.entregas.map((g, i) => `
+        <tr class="clic" data-guia="${esc(g.numero_guia)}">
+          <td class="rep-num"><span class="mono t-tertiary">${i + 1}</span></td>
+          <td><span class="mono t-primary">${esc(g.numero_guia)}</span>${g.complemento ? ` <span class="nota">(comp. ${esc(g.complemento)})</span>` : ''}</td>
+          <td class="rep-movil-oculta">${g.plaza}</td>
+          <td><span class="mono t-tertiary">${esc(fmtFecha(g.creado_en))}</span></td>
+          <td class="rep-movil-oculta">${TIPO_ENTREGA_TXT[g.tipo] || '<span class="nota">sin dato</span>'}</td>
+          <td>${g.operador ? esc(g.operador) : '<span class="nota">sin registrar</span>'}</td>
+        </tr>`).join('');
+      $('entTbody').querySelectorAll('.clic').forEach((el) =>
+        el.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(el.dataset.guia)))
+      );
+    } catch (e) {
+      if (version !== versionEntregadas) return;
+      $('btnPdfEntregadas').disabled = $('btnCsvEntregadas').disabled = true;
+      $('entTbody').innerHTML = `<tr><td colspan="6">${UI.errorState(e.message)}</td></tr>`;
+    }
+  }
+
+  function cambiarRangoEntregadas(desde, hasta) {
+    $('entDesde').value = desde;
+    $('entHasta').value = hasta;
+    pintarChipsEntregadas();
+    cargarEntregadas();
+  }
+
+  ['entDesde', 'entHasta'].forEach((id) => $(id).addEventListener('change', () => { pintarChipsEntregadas(); cargarEntregadas(); }));
+  $('entPlaza').addEventListener('change', cargarEntregadas);
+  $('entHoy').addEventListener('click', () => cambiarRangoEntregadas(fechaLocalISO(), fechaLocalISO()));
+  $('entSemana').addEventListener('click', () => cambiarRangoEntregadas(fechaLocalISO(6), fechaLocalISO()));
+  $('entMes').addEventListener('click', () => cambiarRangoEntregadas(primeroDelMes(), fechaLocalISO()));
+
+  function nombreEntregadas(ext) {
+    const { desde, hasta, plaza } = rangoEntregadas();
+    return `entregadas-${desde === hasta ? desde : `${desde}_a_${hasta}`}${plaza ? '-' + plaza.toLowerCase() : ''}.${ext}`;
+  }
+
+  function avisoEntregadas() {
+    const { desde, hasta, plaza } = rangoEntregadas();
+    return `Entregadas ${desde === hasta ? `del ${desde}` : `del ${desde} al ${hasta}`}${plaza ? ` · ${plaza}` : ''}.`;
+  }
+
+  $('btnPdfEntregadas').addEventListener('click', () => descargarReporte({
+    url: '/api/reportes/entregadas.pdf?' + consultaEntregadas(), nombre: nombreEntregadas('pdf'),
+    btn: $('btnPdfEntregadas'), msg: 'msgEntregadas', cargando: 'Generando PDF...', aviso: avisoEntregadas(),
+  }));
+  $('btnCsvEntregadas').addEventListener('click', () => descargarReporte({
+    url: '/api/reportes/entregadas.csv?' + consultaEntregadas(), nombre: nombreEntregadas('csv'),
+    btn: $('btnCsvEntregadas'), msg: 'msgEntregadas', cargando: 'Generando Excel...', aviso: avisoEntregadas(),
+  }));
+
+  // ---------- Reporte de guias en bodega ----------
+  // Foto del momento: no lleva fechas, solo plaza.
+
+  // Mismo umbral que el aviso de estancadas de la barra superior
+  const DIAS_ATENCION_BODEGA = 2;
+
+  function textoDias(n) {
+    return n === 0 ? 'Hoy' : `${n} dia${n === 1 ? '' : 's'}`;
+  }
+
+  function consultaBodega() {
+    const plaza = $('bodPlaza').value;
+    return plaza ? `plaza=${plaza}` : '';
+  }
+
+  let versionBodega = 0;
+  async function cargarBodega() {
+    const version = ++versionBodega;
+    $('bodResumen').textContent = '';
+    $('bodTbody').innerHTML = UI.skeletonRows(4, 5);
+    try {
+      const r = await api('/api/reportes/bodega?' + consultaBodega());
+      if (version !== versionBodega) return;
+      $('btnPdfBodega').disabled = $('btnCsvBodega').disabled = r.total === 0;
+      const viejas = r.guias.filter((g) => g.dias >= DIAS_ATENCION_BODEGA).length;
+      $('bodResumen').textContent = r.total === 0
+        ? 'No hay guias en bodega'
+        : (r.plaza
+          ? `${r.total} en bodega ${r.plaza}`
+          : `${r.total} en bodega: ${r.porPlaza.MTY || 0} en MTY y ${r.porPlaza.CDMX || 0} en CDMX`) +
+          (viejas ? ` · ${viejas} con ${DIAS_ATENCION_BODEGA} dias o mas` : '');
+      if (r.total === 0) {
+        $('bodTbody').innerHTML = `<tr><td colspan="5">${UI.emptyState({
+          titulo: 'No hay guias en bodega',
+          descripcion: 'Todo lo que llego ya salio a reparto, se entrego o va en camino.',
+        })}</td></tr>`;
+        return;
+      }
+      $('bodTbody').innerHTML = r.guias.map((g, i) => `
+        <tr class="clic" data-guia="${esc(g.numero_guia)}">
+          <td class="rep-num"><span class="mono t-tertiary">${i + 1}</span></td>
+          <td><span class="mono t-primary">${esc(g.numero_guia)}</span>${g.complemento ? ` <span class="nota">(comp. ${esc(g.complemento)})</span>` : ''}</td>
+          <td class="rep-movil-oculta">${g.plaza}</td>
+          <td><span class="mono t-tertiary">${esc(fmtFecha(g.llegada))}</span></td>
+          <td><span class="rep-dias${g.dias >= DIAS_ATENCION_BODEGA ? ' rep-dias--atencion' : ''}">${textoDias(g.dias)}</span></td>
+        </tr>`).join('');
+      $('bodTbody').querySelectorAll('.clic').forEach((el) =>
+        el.addEventListener('click', () => (location.hash = '#/guia/' + encodeURIComponent(el.dataset.guia)))
+      );
+    } catch (e) {
+      if (version !== versionBodega) return;
+      $('btnPdfBodega').disabled = $('btnCsvBodega').disabled = true;
+      $('bodTbody').innerHTML = `<tr><td colspan="5">${UI.errorState(e.message)}</td></tr>`;
+    }
+  }
+
+  $('bodPlaza').addEventListener('change', cargarBodega);
+
+  function nombreBodega(ext) {
+    const plaza = $('bodPlaza').value;
+    return `en-bodega-${fechaLocalISO()}${plaza ? '-' + plaza.toLowerCase() : ''}.${ext}`;
+  }
+
+  function avisoBodega() {
+    const plaza = $('bodPlaza').value;
+    return `Guias en bodega${plaza ? ` · ${plaza}` : ''}.`;
+  }
+
+  $('btnPdfBodega').addEventListener('click', () => descargarReporte({
+    url: '/api/reportes/bodega.pdf?' + consultaBodega(), nombre: nombreBodega('pdf'),
+    btn: $('btnPdfBodega'), msg: 'msgBodega', cargando: 'Generando PDF...', aviso: avisoBodega(),
+  }));
+  $('btnCsvBodega').addEventListener('click', () => descargarReporte({
+    url: '/api/reportes/bodega.csv?' + consultaBodega(), nombre: nombreBodega('csv'),
+    btn: $('btnCsvBodega'), msg: 'msgBodega', cargando: 'Generando Excel...', aviso: avisoBodega(),
+  }));
 
   // ---------- Bitacora ----------
   // Registro inmutable de correcciones. Se arma con los eventos CORRECCION

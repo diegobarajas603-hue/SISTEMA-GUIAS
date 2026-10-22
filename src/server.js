@@ -385,6 +385,50 @@ app.get('/api/reportes/salidas.pdf', requireAuth, async (req, res) => {
   }
 });
 
+// Entregadas en un rango de dias (?desde y ?hasta en AAAA-MM-DD, hoy por
+// omision) y guias en bodega al momento. Cada uno en JSON para la vista
+// previa, en PDF con el formato de la casa y en CSV para abrir en Excel.
+const REPORTES = {
+  entregadas: {
+    datos: (q) => reportes.entregasEnRango({ desde: q.desde, hasta: q.hasta, plaza: q.plaza }),
+    pdf: reportes.generarPdfEntregadas,
+    csv: reportes.csvEntregadas,
+    nombre: reportes.nombreEntregadas,
+  },
+  bodega: {
+    datos: (q) => reportes.guiasEnBodega({ plaza: q.plaza }),
+    pdf: reportes.generarPdfBodega,
+    csv: reportes.csvBodega,
+    nombre: reportes.nombreBodega,
+  },
+};
+
+app.get('/api/reportes/:tipo(entregadas|bodega).:formato(json|pdf|csv)?', requireAuth, async (req, res) => {
+  const r = REPORTES[req.params.tipo];
+  const formato = req.params.formato || 'json';
+  let datos;
+  try {
+    datos = await r.datos(req.query);
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+  if (formato === 'json') return res.json(datos);
+
+  res.setHeader('Content-Disposition', `attachment; filename="${r.nombre(datos, formato)}"`);
+  if (formato === 'csv') {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    return res.send(r.csv(datos));
+  }
+  res.setHeader('Content-Type', 'application/pdf');
+  try {
+    await r.pdf(datos, req.usuario.nombre || req.usuario.usuario, res);
+  } catch (e) {
+    console.error(`Error generando el PDF de ${req.params.tipo}:`, e);
+    if (!res.headersSent) res.status(500).json({ error: 'No se pudo generar el PDF' });
+    else res.destroy();
+  }
+});
+
 app.get('/api/guias/:numeroGuia', requireAuth, seguro(async (req, res) => {
   const numeroGuia = req.params.numeroGuia.trim().toUpperCase();
   // Busca tambien por el numero de complemento

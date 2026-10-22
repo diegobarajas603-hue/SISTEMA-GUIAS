@@ -2167,6 +2167,15 @@ tbody tr.clic:hover {
    boton de descarga como unica accion primaria.
    ==========================================================================*/
 
+/* Selector de reporte: salidas, entregadas o en bodega */
+.rep-tipos {
+  margin-bottom: var(--space-16);
+}
+
+.rep-panel {
+  max-width: 760px;
+}
+
 .reporte-controles {
   display: flex;
   flex-wrap: wrap;
@@ -2183,6 +2192,25 @@ tbody tr.clic:hover {
   display: flex;
   gap: var(--space-8);
   padding-bottom: 2px;
+}
+
+/* Excel y PDF juntos a la derecha; PDF es la accion principal */
+.reporte-descargas {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-8);
+  margin-top: var(--space-16);
+}
+
+/* Dias en bodega: las que ya cuentan como estancadas se marcan en ambar,
+   el mismo color del aviso de la barra superior */
+.rep-dias {
+  font-variant-numeric: tabular-nums;
+}
+
+.rep-dias--atencion {
+  color: var(--st-transito-text);
+  font-weight: 600;
 }
 
 .reporte-previa-head {
@@ -2215,6 +2243,15 @@ tbody tr.clic:hover {
 
   .reporte-controles .spacer {
     display: none;
+  }
+
+  .reporte-descargas {
+    flex-direction: column-reverse;
+  }
+
+  .rep-tipos {
+    width: 100%;
+    overflow-x: auto;
   }
 
   .reporte-controles .field .input,
