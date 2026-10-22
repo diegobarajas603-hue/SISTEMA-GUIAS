@@ -1925,6 +1925,39 @@ tbody tr.clic:hover {
    CONFIGURACION
    ==========================================================================*/
 
+/* Selector de seccion: mi cuenta, usuarios o agregar usuario */
+.cfg-tabs {
+  margin-bottom: var(--space-16);
+}
+
+.cfg-tabs[hidden],
+.cfg-panel[hidden] {
+  display: none;
+}
+
+.cfg-usuarios-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+/* El alta no necesita todo el ancho: un formulario de dos columnas */
+.cfg-nuevo {
+  max-width: 720px;
+}
+
+/* La rejilla del formulario ya separa los campos; con el margen propio de
+   .field el primero quedaba mas arriba que su vecino */
+.cfg-nuevo .field {
+  margin: 0;
+}
+
+/* Con la tabla a todo lo ancho la plaza se lee completa */
+.usuarios-tabla .sel-plaza {
+  min-width: 110px;
+}
+
 .config-grid {
   display: grid;
   grid-template-columns: 5fr 7fr;
