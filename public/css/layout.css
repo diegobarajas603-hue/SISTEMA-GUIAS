@@ -227,6 +227,19 @@
   }
 }
 
+/* ---------- Pie: abrir y cerrar la barra ---------- */
+
+.sidebar__pie {
+  display: flex;
+  justify-content: flex-start;
+  padding: var(--space-12);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.app.is-collapsed .sidebar__pie {
+  justify-content: center;
+}
+
 /* ---------- Estado colapsado ---------- */
 
 .app.is-collapsed .marca,
@@ -694,6 +707,10 @@
     width: var(--w-sidebar-collapsed);
   }
 
+  .sidebar__pie {
+    display: none;
+  }
+
   .marca,
   .nav-item__texto,
   .nav-group {
@@ -770,13 +787,11 @@
 }
 
 /* En telefono la barra superior guarda solo lo esencial: la hora ya la trae
-   la barra del propio celular, los accesos a escanear viven en el riel de
-   navegacion y el sidebar ya esta colapsado, asi que su boton no hace nada
-   util. Sin esto, el reloj se encimaba con el buscador. */
+   la barra del propio celular y los accesos a escanear viven en el riel de
+   navegacion. Sin esto, el reloj se encimaba con el buscador. */
 @media (max-width: 700px) {
   .reloj,
-  #btnIrEscanear,
-  #btnColapsar {
+  #btnIrEscanear {
     display: none;
   }
 
