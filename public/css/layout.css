@@ -29,13 +29,10 @@
    SIDEBAR — 240px, colapsable a 64px
    ==========================================================================*/
 
-/* El sidebar se queda quieto y solo se desplaza el contenido.
-   Antes era un hijo de flex sin alto propio, asi que se estiraba hasta el
-   alto del documento: en una lista larga de guias el pie —la plaza, el
-   usuario y cerrar sesion— quedaba al final de la pagina y habia que bajar
-   hasta abajo para alcanzarlo. Con sticky y 100vh el pie esta siempre a la
-   vista, y si el menu no cabe se desplaza por dentro (.sidebar__nav ya
-   lleva overflow-y). */
+/* El sidebar se queda quieto y solo se desplaza el contenido: con sticky y
+   100vh el menu esta siempre a la vista, y si no cabe se desplaza por
+   dentro (.sidebar__nav lleva overflow-y). La cuenta y cerrar sesion viven
+   en el menu de perfil de la barra superior. */
 .sidebar {
   position: sticky;
   top: 0;
@@ -230,56 +227,11 @@
   }
 }
 
-/* ---------- Pie del sidebar ---------- */
-
-.sidebar__pie {
-  padding: var(--space-12);
-  border-top: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-12);
-}
-
-.usuario {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  min-width: 0;
-}
-
-.usuario__datos {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-}
-
-.usuario__nombre {
-  display: block;
-  font-size: var(--t-small-size);
-  line-height: var(--t-small-line);
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.usuario__rol {
-  display: block;
-  font-size: var(--t-label-size);
-  line-height: var(--t-label-line);
-  color: var(--text-tertiary);
-  text-transform: capitalize;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* ---------- Estado colapsado ---------- */
 
 .app.is-collapsed .marca,
 .app.is-collapsed .nav-item__texto,
-.app.is-collapsed .nav-group,
-.app.is-collapsed .usuario__datos {
+.app.is-collapsed .nav-group {
   display: none;
 }
 
@@ -296,14 +248,6 @@
 .app.is-collapsed .nav-item {
   justify-content: center;
   padding: 0;
-}
-
-.app.is-collapsed .sidebar__pie {
-  align-items: center;
-}
-
-.app.is-collapsed .usuario {
-  justify-content: center;
 }
 
 /* Separacion visible entre grupos cuando no hay etiquetas */
@@ -528,6 +472,129 @@
   6%           { transform: translateX(-2px); }
 }
 
+/* ---------- Menu de la cuenta ----------
+   El circulo con las iniciales cierra la barra por la derecha y despliega
+   la cuenta: nombre, Mi cuenta, el tema y cerrar sesion. */
+
+.perfil-wrap {
+  position: relative;
+  margin-left: var(--space-4);
+}
+
+.perfil-btn {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  transition: box-shadow var(--t-fast) var(--ease);
+}
+
+.perfil-btn .avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.perfil-btn:hover,
+.perfil-btn[aria-expanded="true"] {
+  box-shadow: 0 0 0 2px var(--accent-border);
+}
+
+.perfil-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.perfil {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-8));
+  z-index: var(--z-overlay);
+  width: min(280px, calc(100vw - var(--space-32)));
+  padding: var(--space-8);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), var(--sheen);
+  animation: modal-in var(--t-normal) var(--ease);
+}
+
+.perfil[hidden] {
+  display: none;
+}
+
+.perfil__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-8) var(--space-12);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.perfil__datos {
+  min-width: 0;
+}
+
+.perfil__nombre {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.perfil__rol {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.perfil__items {
+  display: flex;
+  flex-direction: column;
+}
+
+.perfil__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  padding: var(--space-8);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+.perfil__item:hover {
+  background: var(--overlay-hover);
+}
+
+.perfil__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Icono en circulo gris, como en los menus de cuenta de las redes */
+.perfil__ico {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--overlay-hover);
+  color: var(--text-secondary);
+}
+
+.perfil__ico svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* ---------- Reloj ---------- */
 
 .reloj {
@@ -629,8 +696,7 @@
 
   .marca,
   .nav-item__texto,
-  .nav-group,
-  .usuario__datos {
+  .nav-group {
     display: none;
   }
 
@@ -660,8 +726,8 @@
   }
 }
 
-/* En telefono el sidebar se apila arriba como una franja: el logo, los
-   accesos en una fila que se desliza de lado y el usuario al final. */
+/* En telefono el sidebar se apila arriba como una franja: el logo y los
+   accesos en una fila que se desliza de lado. */
 @media (max-width: 700px) {
   .app {
     flex-direction: column;
@@ -700,11 +766,6 @@
 
   .nav-indicator {
     display: none;
-  }
-
-  .sidebar__pie {
-    border-top: 0;
-    padding: var(--space-8);
   }
 }
 
