@@ -576,6 +576,10 @@ tbody tr.clic:hover {
               color var(--t-fast) var(--ease);
 }
 
+/* Los tipos de operacion nunca se encogen por debajo de su texto: si no caben
+   en una fila, bajan a la siguiente en vez de cortarse */
+#toggleModo .pill { min-width: max-content; }
+
 .pill:hover {
   border-color: var(--border-strong);
   color: var(--text-primary);
@@ -941,6 +945,11 @@ tbody tr.clic:hover {
 @media (max-width: 700px) {
   .captura { height: 120px; font-size: 22px; }
   .pill { min-width: 100px; }
+  /* Los tres tipos de operacion no caben lado a lado en un telefono: el
+     texto se cortaba ("Ocurre (recoge e...") y la pantalla se desplazaba de
+     lado. Van uno debajo de otro, a todo lo ancho. */
+  #toggleModo { flex-direction: column; }
+  #toggleModo .pill { flex: none; width: 100%; }
 }
 
 /* ============================================================================
