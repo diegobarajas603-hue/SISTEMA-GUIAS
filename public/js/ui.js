@@ -149,7 +149,9 @@
       const rAct = activo.getBoundingClientRect();
       const borde = parseFloat(getComputedStyle(contenedor).borderLeftWidth) || 0;
       thumb.style.setProperty('--seg-w', rAct.width + 'px');
-      thumb.style.setProperty('--seg-x', rAct.left - rCont.left - borde + 'px');
+      // + scrollLeft: si el control se desliza de lado (telefono), el pill
+      // vive dentro del contenido desplazado
+      thumb.style.setProperty('--seg-x', rAct.left - rCont.left - borde + contenedor.scrollLeft + 'px');
     }
 
     function seleccionar(valor, avisar) {

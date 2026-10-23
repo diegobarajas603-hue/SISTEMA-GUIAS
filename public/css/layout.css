@@ -309,6 +309,25 @@
   flex-shrink: 0;
 }
 
+/* En escritorio el buscador queda siempre en el mismo lugar: antes iba
+   pegado al titulo y se movia de pestaña en pestaña segun lo largo del
+   nombre ("Guias" vs "Escanear en Ciudad de Mexico"). Tres columnas: titulo,
+   buscador al centro y acciones a la derecha. */
+@media (min-width: 901px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+  }
+
+  .topbar__titulo {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .topbar__derecha { justify-self: end; }
+}
+
 /* ---------- Buscador ---------- */
 
 .buscador {
