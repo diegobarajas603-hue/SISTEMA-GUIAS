@@ -787,11 +787,9 @@
 }
 
 /* En telefono la barra superior guarda solo lo esencial: la hora ya la trae
-   la barra del propio celular y los accesos a escanear viven en el riel de
-   navegacion. Sin esto, el reloj se encimaba con el buscador. */
+   la barra del propio celular. Sin esto, el reloj se encimaba con el buscador. */
 @media (max-width: 700px) {
-  .reloj,
-  #btnIrEscanear {
+  .reloj {
     display: none;
   }
 

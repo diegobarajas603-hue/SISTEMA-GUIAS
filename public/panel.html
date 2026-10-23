@@ -136,9 +136,6 @@
         <div class="reloj" aria-hidden="true">
           <span class="reloj__texto" id="relojHora">--:--</span>
         </div>
-        <button class="btn btn--ghost btn--icon" id="btnIrEscanear" type="button" title="Ir a escanear" aria-label="Ir a escanear">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5v10M6.5 5v10M10 5v10M13.5 5v10M17 5v10"/></svg>
-        </button>
         <div class="notif-wrap">
         <button class="btn btn--ghost btn--icon" id="btnPendientes" type="button" title="Notificaciones"
                 aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
@@ -785,8 +782,6 @@
   }
   pintarReloj();
   setInterval(pintarReloj, 10000);
-
-  $('btnIrEscanear').addEventListener('click', () => { location.hash = '#/escanear'; });
 
   // ---------- Shell: aviso de guias estancadas ----------
   // Una guia que lleva dias en el mismo estatus no la reclama nadie hasta que
