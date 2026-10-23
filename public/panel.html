@@ -64,14 +64,24 @@
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span>
         <span class="nav-item__texto">Dashboard</span>
       </button>
-      <button class="nav-item" data-ruta="escanear-mty" title="Escanear en Monterrey">
+      <!-- Un solo acceso a escanear; las dos plazas van adentro. Con la barra
+           completa se despliegan debajo; con la barra angosta o en telefono
+           salen en un menu flotante. Quien tiene plaza asignada entra directo
+           a la suya, sin submenu. -->
+      <button class="nav-item nav-item--padre" id="navEscanear" type="button" title="Escanear"
+              aria-expanded="false" aria-controls="navEscanearSub">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span>
-        <span class="nav-item__texto">Escanear en Monterrey</span>
+        <span class="nav-item__texto">Escanear</span>
+        <svg class="nav-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5L8 10l3.5-3.5"/></svg>
       </button>
-      <button class="nav-item" data-ruta="escanear-cdmx" title="Escanear en Ciudad de Mexico">
-        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span>
-        <span class="nav-item__texto">Escanear en Ciudad de Mexico</span>
-      </button>
+      <div class="nav-sub" id="navEscanearSub" hidden>
+        <button class="nav-sub__item" data-ruta="escanear-mty" type="button" title="Escanear en Monterrey">
+          <span class="nav-sub__plaza">MTY</span><span>Monterrey</span>
+        </button>
+        <button class="nav-sub__item" data-ruta="escanear-cdmx" type="button" title="Escanear en Ciudad de Mexico">
+          <span class="nav-sub__plaza">CDMX</span><span>Ciudad de México</span>
+        </button>
+      </div>
       <button class="nav-item" data-ruta="guias" title="Guias">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
         <span class="nav-item__texto">Guias</span>
@@ -741,13 +751,18 @@
     const colapsado = $('app').classList.toggle('is-collapsed');
     localStorage.setItem('sidebarColapsado', colapsado ? '1' : '0');
     rotularColapsar();
-    moverIndicador();
+    // Al pasar de barra completa a iconos (o al reves) el submenu cambia de forma
+    const enEscaneo = vistaActual === 'escanear' && !$('navEscanear').classList.contains('nav-item--directo');
+    abrirSubEscanear(enEscaneo && !colapsado);
   });
 
   // ---------- Shell: indicador de navegacion que se desliza ----------
   function moverIndicador(sinAnimar) {
     const ind = $('navIndicator');
-    const activo = document.querySelector('.nav-item.is-active');
+    // El activo visible dentro de la barra: si la plaza activa esta en el menu
+    // flotante o con el submenu cerrado, el indicador se queda en "Escanear"
+    const activo = [...document.querySelectorAll('.nav-item.is-active, .nav-sub__item.is-active')]
+      .reverse().find((el) => el.offsetParent !== null && !el.closest('.is-flotante'));
     if (!activo || activo.offsetParent === null) { ind.classList.remove('is-on'); return; }
     if (sinAnimar) ind.classList.add('no-anim');
     ind.style.setProperty('--nav-y', activo.offsetTop + (activo.offsetHeight - 16) / 2 + 'px');
@@ -1016,11 +1031,10 @@
     // bloquea en el router, por si alguien escribe #/bitacora a mano.
     document.querySelector('[data-ruta="bitacora"]').style.display = esAdmin ? '' : 'none';
 
-    // Un usuario con plaza asignada solo ve el boton de escanear de su plaza
-    document.querySelector('[data-ruta="escanear-mty"]').style.display =
-      !plazaUsuario || plazaUsuario === 'MTY' ? '' : 'none';
-    document.querySelector('[data-ruta="escanear-cdmx"]').style.display =
-      !plazaUsuario || plazaUsuario === 'CDMX' ? '' : 'none';
+    // Un usuario con plaza asignada entra directo a escanear en su plaza: el
+    // boton no despliega nada
+    $('navEscanear').classList.toggle('nav-item--directo', !!plazaUsuario);
+    if (plazaUsuario) abrirSubEscanear(false);
     if (plazaUsuario) setPlaza(plazaUsuario);
     else pintarPillsPlaza();
 
@@ -1149,7 +1163,12 @@
 
     const navRuta = vista === 'detalle' ? 'guias' : vista === 'escanear' ? 'escanear-' + plaza.toLowerCase() : vista;
     VISTAS.forEach((v) => ($('v-' + v).style.display = v === vista ? '' : 'none'));
-    document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('is-active', b.dataset.ruta === navRuta));
+    document.querySelectorAll('.nav-item[data-ruta], .nav-sub__item').forEach((b) => b.classList.toggle('is-active', b.dataset.ruta === navRuta));
+    $('navEscanear').classList.toggle('is-active', vista === 'escanear');
+    // Con la barra completa, estar escaneando deja a la vista en que plaza;
+    // el menu flotante se cierra al elegir
+    if (vista === 'escanear' && !navCompacta() && !$('navEscanear').classList.contains('nav-item--directo')) abrirSubEscanear(true);
+    else if (navCompacta()) abrirSubEscanear(false);
     $('tituloVista').textContent = vista === 'escanear' ? 'Escanear en ' + NOMBRE_PLAZA[plaza] : TITULOS[vista];
     moverIndicador();
 
@@ -1163,7 +1182,50 @@
     if (vista === 'config') cargarConfig();
   }
   window.addEventListener('hashchange', render);
-  document.querySelectorAll('.nav-item').forEach((b) => b.addEventListener('click', () => (location.hash = '#/' + b.dataset.ruta)));
+  document.querySelectorAll('.nav-item[data-ruta], .nav-sub__item').forEach((b) => b.addEventListener('click', () => (location.hash = '#/' + b.dataset.ruta)));
+
+  // ---------- Menu de escanear ----------
+  // Barra angosta (colapsada, tablet o telefono): solo iconos, el submenu
+  // flota junto al boton en vez de desplegarse debajo
+  const navCompacta = () => $('app').classList.contains('is-collapsed') || matchMedia('(max-width: 900px)').matches;
+
+  function abrirSubEscanear(abrir) {
+    const sub = $('navEscanearSub');
+    const btn = $('navEscanear');
+    const flotante = abrir && navCompacta();
+    sub.hidden = !abrir;
+    sub.classList.toggle('is-flotante', flotante);
+    btn.classList.toggle('is-abierto', abrir);
+    btn.classList.toggle('is-en-linea', abrir && !flotante);
+    btn.setAttribute('aria-expanded', String(abrir));
+    if (flotante) {
+      const r = btn.getBoundingClientRect();
+      // En telefono la barra va arriba: el menu cae debajo; si no, a la derecha
+      const arriba = matchMedia('(max-width: 700px)').matches;
+      sub.style.top = (arriba ? r.bottom + 6 : r.top) + 'px';
+      sub.style.left = (arriba ? Math.min(r.left, innerWidth - 226) : r.right + 8) + 'px';
+    }
+    moverIndicador();
+  }
+
+  $('navEscanear').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const plazaUsuario = usuarioActual && usuarioActual.plaza;
+    if (plazaUsuario) { location.hash = '#/escanear-' + plazaUsuario.toLowerCase(); return; }
+    abrirSubEscanear($('navEscanearSub').hidden);
+  });
+  document.addEventListener('click', (e) => {
+    if ($('navEscanearSub').classList.contains('is-flotante') && !e.target.closest('#navEscanearSub')) abrirSubEscanear(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && $('navEscanearSub').classList.contains('is-flotante')) {
+      abrirSubEscanear(false);
+      $('navEscanear').focus();
+    }
+  });
+  // Al cambiar de ancho o colapsar la barra, el menu flotante ya no apunta a nada
+  window.addEventListener('resize', () => { if ($('navEscanearSub').classList.contains('is-flotante')) abrirSubEscanear(false); });
+  $('sidebarNav').addEventListener('scroll', () => { if ($('navEscanearSub').classList.contains('is-flotante')) abrirSubEscanear(false); });
 
   $('buscarRapido').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && $('buscarRapido').value.trim()) {
