@@ -606,6 +606,9 @@
   function beep(tipo) {
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      // Un contexto creado con la pestaña en segundo plano nace suspendido y
+      // sin esto se quedaba mudo para siempre
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.connect(gain);
@@ -801,6 +804,7 @@
   let estancadas = [];
   let totalEstancadas = 0;
   let timerEstancadas = null;
+  let timerEstancadasEscaneo = null;  // refresco tras una rafaga de escaneos
   let ultimaRevisionEstancadas = 0;
 
   const diasEnEstatus = (g) =>
@@ -855,6 +859,7 @@
   function detenerVigilancia() {
     clearInterval(timerEstancadas);
     timerEstancadas = null;
+    clearTimeout(timerEstancadasEscaneo);
     estancadas = [];
     totalEstancadas = 0;
     $('btnEstancadas').hidden = true;
@@ -1551,35 +1556,53 @@
     </div>`;
   }
 
-  function logRow(numeroGuia, texto) {
-    const div = document.createElement('div');
-    div.className = 'reciente';
-    div.innerHTML = `<span class="reciente__guia"></span><span class="reciente__txt"></span>
-                     <span class="reciente__hora">${new Date().toLocaleTimeString('es-MX', { hour12: false })}</span>`;
-    div.children[0].textContent = numeroGuia;
+  // Cada escaneo aparece en la lista en cuanto se da Enter, como "Enviando...",
+  // y la misma fila se completa cuando contesta el servidor. Antes la fila
+  // salia hasta tener respuesta: con la red lenta el operador no veia nada y
+  // parecia que la pistola no habia leido.
+  function logRow(numeroGuia, texto, id, pendiente) {
+    const log = $('log');
+    let div = id && log.querySelector(`[data-id="${id}"]`);
+    if (!div) {
+      div = document.createElement('div');
+      div.className = 'reciente';
+      if (id) div.dataset.id = id;
+      div.innerHTML = '<span class="reciente__guia"></span><span class="reciente__txt"></span><span class="reciente__hora"></span>';
+      div.children[0].textContent = numeroGuia;
+      log.prepend(div);
+      // Solo se conservan los ultimos 5 escaneos en pantalla
+      while (log.children.length > 5) log.lastChild.remove();
+    }
+    div.classList.toggle('reciente--pendiente', !!pendiente);
     div.children[1].textContent = texto;
-    $('log').prepend(div);
-    // Solo se conservan los ultimos 5 escaneos en pantalla
-    while ($('log').children.length > 5) $('log').lastChild.remove();
+    div.children[2].textContent = new Date().toLocaleTimeString('es-MX', { hour12: false });
   }
 
   // ---------- Cola de escaneos ----------
   //
   // Ningun escaneo se pierde por lentitud. Cada escaneo entra a una cola
-  // guardada en localStorage y se envia en orden, uno a la vez. Si el servidor
-  // no contesta (red caida, hosting dormido, tiempo agotado) se reintenta solo
-  // con espera creciente hasta que conteste, y la cola sobrevive a recargar la
-  // pagina o a que expire la sesion. Cada escaneo lleva un id unico que el
-  // servidor reconoce en los reenvios, asi que reintentar nunca aplica un
-  // movimiento dos veces (una llegada reenviada no se vuelve salida).
+  // guardada en localStorage. Si el servidor no contesta (red caida, hosting
+  // dormido, tiempo agotado) se reintenta solo con espera creciente hasta que
+  // conteste, y la cola sobrevive a recargar la pagina o a que expire la
+  // sesion. Cada escaneo lleva un id unico que el servidor reconoce en los
+  // reenvios, asi que reintentar nunca aplica un movimiento dos veces (una
+  // llegada reenviada no se vuelve salida).
+  //
+  // Se envian varios a la vez. Antes iban de uno en uno: con 600 ms de red,
+  // el doceavo escaneo de una rafaga esperaba casi 4 s su confirmacion y la
+  // pantalla parecia trabada. Lo unico que debe ir en orden es una MISMA
+  // guia escaneada dos veces (la segunda tiene que ver ya aplicada la
+  // primera para salir como repetido); guias distintas no dependen entre si.
   //
   // Mientras tanto el operador sigue escaneando: el campo nunca se bloquea.
   const TIEMPO_LIMITE_ESCANEO = 15000; // ms sin respuesta para dar el envio por perdido
   const ESPERA_REINTENTO_MAX = 30000;
   const AVISAR_LENTO_MS = 1000;        // a partir de aqui se avisa que el servidor tarda
+  const MAX_EN_VUELO = 4;              // escaneos enviados a la vez
+  const ESPERA_ESTANCADAS_MS = 3000;   // pausa sin escanear para refrescar el aviso de estancadas
 
-  let cola = leerCola();               // [{ id, numeroGuia, plaza, modo, intentos, creadoEn }]
-  let enviando = null;                 // escaneo en vuelo
+  let cola = leerCola();               // [{ id, numeroGuia, plaza, modo, intentos, creadoEn, reintentarEn }]
+  const enVuelo = new Map();           // id -> momento en que salio
   let timerReintento = null;
   let timerLento = null;
 
@@ -1600,8 +1623,10 @@
   }
 
   function encolarEscaneo(numeroGuia) {
-    cola.push({ id: idEscaneo(), numeroGuia, plaza, modo, intentos: 0, creadoEn: Date.now() });
+    const item = { id: idEscaneo(), numeroGuia, plaza, modo, intentos: 0, creadoEn: Date.now() };
+    cola.push(item);
     guardarCola();
+    logRow(numeroGuia, 'Enviando...', item.id, true);
     pintarCola();
     procesarCola();
   }
@@ -1611,15 +1636,28 @@
     guardarCola();
   }
 
-  async function procesarCola() {
-    if (enviando || !cola.length || !sesionToken) return;
+  // Arranca todos los envios que se puedan ahora mismo, en orden de cola
+  function procesarCola() {
     clearTimeout(timerReintento);
     timerReintento = null;
-    const item = cola[0];
-    enviando = item;
-    item.desde = Date.now();
-    clearTimeout(timerLento);
-    timerLento = setTimeout(pintarCola, AVISAR_LENTO_MS);
+    if (!sesionToken) return;
+    const ahora = Date.now();
+    const vistas = new Set();   // guias con un escaneo anterior aun pendiente
+    let proximo = Infinity;
+    for (const item of cola) {
+      if (enVuelo.size >= MAX_EN_VUELO) break;
+      const ocupada = vistas.has(item.numeroGuia);
+      vistas.add(item.numeroGuia);
+      if (ocupada || enVuelo.has(item.id)) continue;
+      if (item.reintentarEn > ahora) { proximo = Math.min(proximo, item.reintentarEn); continue; }
+      enviarEscaneo(item);
+    }
+    if (proximo < Infinity) timerReintento = setTimeout(procesarCola, proximo - ahora);
+  }
+
+  async function enviarEscaneo(item) {
+    enVuelo.set(item.id, Date.now());
+    pintarCola();
     try {
       const data = await api('/api/guias/escanear', {
         method: 'POST',
@@ -1637,10 +1675,9 @@
     } catch (e) {
       if (e.reintentable) {
         item.intentos++;
-        guardarCola();
         // 2 s, 4 s, 8 s, 16 s y de ahi cada 30 s, hasta que conteste
-        const espera = Math.min(1000 * 2 ** Math.min(item.intentos, 5), ESPERA_REINTENTO_MAX);
-        timerReintento = setTimeout(procesarCola, espera);
+        item.reintentarEn = Date.now() + Math.min(1000 * 2 ** Math.min(item.intentos, 5), ESPERA_REINTENTO_MAX);
+        guardarCola();
       } else if (e.message === 'Sesion expirada') {
         // Se queda en la cola y sigue en cuanto el usuario vuelva a entrar
       } else {
@@ -1648,10 +1685,9 @@
         mostrarEscaneoError(item, e.message);
       }
     } finally {
-      clearTimeout(timerLento);
-      enviando = null;
+      enVuelo.delete(item.id);
       pintarCola();
-      if (!timerReintento) procesarCola();
+      procesarCola();
     }
   }
 
@@ -1659,18 +1695,22 @@
     const estatus = data.guia && data.guia.estatus;
     const kind = data.tipo === 'repetido' ? 'neutro' : UI.statusKind(estatus);
     mostrarResultado(cardResultado(item.numeroGuia, estatus, TITULO_TIPO[data.tipo] || data.mensaje, kind), kind);
-    logRow(item.numeroGuia, data.mensaje);
+    logRow(item.numeroGuia, data.mensaje, item.id);
     beep(data.tipo === 'repetido' ? 'warn' : 'ok');
     // Mover una guia puede sacarla de la lista de estancadas: el aviso se
-    // actualiza en el momento, sin esperar a la siguiente revision. Si no hay
-    // ninguna estancada no hay nada que actualizar (mover una guia no la
-    // estanca), y se ahorra una peticion por escaneo.
-    if (data.tipo !== 'repetido' && totalEstancadas > 0) revisarEstancadas();
+    // actualiza, pero una sola vez cuando el operador deja de escanear, no
+    // una consulta por guia (antes cada escaneo pedia otra vez la lista
+    // completa y en una rafaga competia con los propios escaneos). Si no hay
+    // ninguna estancada no hay nada que actualizar: mover una guia no la estanca.
+    if (data.tipo !== 'repetido' && totalEstancadas > 0) {
+      clearTimeout(timerEstancadasEscaneo);
+      timerEstancadasEscaneo = setTimeout(revisarEstancadas, ESPERA_ESTANCADAS_MS);
+    }
   }
 
   function mostrarEscaneoError(item, mensaje) {
     mostrarResultado(cardResultado(item.numeroGuia, null, mensaje, 'error'), 'error');
-    logRow(item.numeroGuia, mensaje);
+    logRow(item.numeroGuia, mensaje, item.id);
     beep('err');
   }
 
@@ -1680,10 +1720,14 @@
   function pintarCola() {
     const aviso = $('colaAviso');
     const n = cola.length;
+    // Se vuelve a mirar justo cuando el envio mas viejo cumpla el segundo
+    clearTimeout(timerLento);
+    const espera = enVuelo.size ? Math.min(...enVuelo.values()) + AVISAR_LENTO_MS - Date.now() : Infinity;
+    if (espera > 0 && espera < Infinity) timerLento = setTimeout(pintarCola, espera + 10);
     if (!n) { aviso.hidden = true; return; }
 
-    const reintentando = cola[0].intentos > 0;
-    const lento = enviando && Date.now() - enviando.desde >= AVISAR_LENTO_MS - 50;
+    const reintentando = cola.some((x) => x.intentos > 0);
+    const lento = espera <= 0;
     if (!reintentando && !lento && sesionToken) { aviso.hidden = true; return; }
 
     const numeros = cola.slice(0, 3).map((x) => `<strong>${esc(x.numeroGuia)}</strong>`).join(', ') + (n > 3 ? ` y ${n - 3} mas` : '');
@@ -1693,7 +1737,7 @@
     } else if (reintentando) {
       texto = `${n} escaneo${n > 1 ? 's' : ''} sin confirmar (${numeros}). El servidor no responde; se reintenta solo. No cierres esta pagina.`;
     } else {
-      texto = `Enviando ${numeros}... el servidor tarda en responder${n > 1 ? `; ${n - 1} en espera` : ''}. Puedes seguir escaneando.`;
+      texto = `Enviando ${numeros}... el servidor tarda en responder. Puedes seguir escaneando.`;
     }
     $('colaAvisoTxt').innerHTML = texto;
     aviso.hidden = false;
@@ -1701,7 +1745,7 @@
 
   // En cuanto vuelve la red se reintenta sin esperar el siguiente turno
   window.addEventListener('online', () => {
-    if (timerReintento) { clearTimeout(timerReintento); timerReintento = null; }
+    cola.forEach((x) => { x.reintentarEn = 0; });
     procesarCola();
   });
 
