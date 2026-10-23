@@ -262,3 +262,19 @@ a:hover {
     transform: none !important;
   }
 }
+
+/* En telefono (iPhone sobre todo) el navegador hace zoom solo al entrar a un
+   campo con letra menor de 16px, y la pantalla se queda acercada despues:
+   pasaba al iniciar sesion, porque el login pone el cursor en "Usuario" de
+   entrada. Con 16px en pantallas tactiles no hay zoom. El !important es a
+   proposito: le gana a las clases de cada campo (.input, .select...) sin
+   repetirlas una por una (la captura del escaner ya es mas grande y se deja
+   fuera). No se usa maximum-scale=1 en el viewport porque
+   eso quitaria tambien el zoom con los dedos a quien lo necesita. */
+@media (pointer: coarse), (max-width: 700px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.captura),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

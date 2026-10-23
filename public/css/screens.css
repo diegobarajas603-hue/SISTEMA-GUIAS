@@ -943,7 +943,11 @@ tbody tr.clic:hover {
 
 /* Tablet: la zona de captura se adapta sin perder tamaño de toque */
 @media (max-width: 700px) {
-  .captura { height: 120px; font-size: 22px; }
+  /* Con 120px el texto "Escanea el numero de guia" quedaba encimado sobre
+     la pastilla "Listo para escanear": no cabian el icono, el texto y la
+     pastilla en ese alto */
+  .captura { height: 148px; font-size: 22px; }
+  .captura::placeholder { font-size: 16px; }
   .pill { min-width: 100px; }
   /* Los tres tipos de operacion no caben lado a lado en un telefono: el
      texto se cortaba ("Ocurre (recoge e...") y la pantalla se desplazaba de
