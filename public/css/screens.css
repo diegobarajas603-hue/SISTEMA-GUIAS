@@ -943,7 +943,11 @@ tbody tr.clic:hover {
 
 /* Tablet: la zona de captura se adapta sin perder tamaño de toque */
 @media (max-width: 700px) {
-  .captura { height: 120px; font-size: 22px; }
+  /* Con 120px el texto "Escanea el numero de guia" quedaba encimado sobre
+     la pastilla "Listo para escanear": no cabian el icono, el texto y la
+     pastilla en ese alto */
+  .captura { height: 148px; font-size: 22px; }
+  .captura::placeholder { font-size: 16px; }
   .pill { min-width: 100px; }
   /* Los tres tipos de operacion no caben lado a lado en un telefono: el
      texto se cortaba ("Ocurre (recoge e...") y la pantalla se desplazaba de
@@ -1034,6 +1038,13 @@ tbody tr.clic:hover {
   gap: var(--space-12);
   padding: var(--space-12) var(--space-16);
   flex-wrap: wrap;
+}
+
+/* Telefono: el filtro de estatus a todo lo ancho, igual que el buscador de
+   arriba (se quedaba en 260px y dejaba un hueco a la derecha). El
+   !important vence al estilo puesto en el propio elemento. */
+@media (max-width: 700px) {
+  #filtroEstatus { max-width: none !important; }
 }
 
 .filtros__fila + .filtros__fila {
@@ -1373,6 +1384,15 @@ tbody tr.clic:hover {
   text-indent: 0.16em;
 }
 
+/* Detalle: las tarjetas iban pegadas una a otra (0-2px); llevan la misma
+   separacion que en el resto del panel */
+#v-detalle > .card,
+#v-detalle > .grid-2 { margin-bottom: var(--card-gap); }
+
+/* La fecha de cada evento en una sola linea: partida en dos ("12-oct," /
+   "01:55") hacia cada renglon el doble de alto */
+#tbodyDetEventos td:first-child { white-space: nowrap; }
+
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 340px;
@@ -1462,6 +1482,50 @@ tbody tr.clic:hover {
   font-size: var(--t-label-size);
   color: var(--text-tertiary);
   margin-top: 2px;
+}
+
+/* Telefono: el progreso va de arriba hacia abajo. En horizontal solo cabian
+   tres de los cinco pasos y el tercero salia cortado ("En bodega dest"). */
+@media (max-width: 700px) {
+  .stepper { flex-direction: column; overflow: visible; }
+
+  .paso {
+    display: grid;
+    grid-template-columns: var(--space-32) minmax(0, 1fr);
+    column-gap: var(--space-12);
+    align-items: center;
+    min-width: 0;
+    padding-bottom: var(--space-16);
+    text-align: left;
+  }
+
+  .paso:last-child { padding-bottom: 0; }
+  .paso::before { display: none; }
+
+  /* Tramo hacia el paso siguiente, en verde si ese paso ya se alcanzo */
+  .paso:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: calc(var(--space-32) / 2 - 1px);
+    top: 50%;
+    height: 100%;
+    width: 2px;
+    background: var(--border-default);
+  }
+
+  .paso:has(+ .paso.hecho)::after,
+  .paso:has(+ .paso.actual)::after { background: var(--accent); }
+
+  .paso .circulo { grid-row: span 2; margin: 0; }
+  .paso .nombre { align-self: end; }
+  .paso .fecha { align-self: start; margin-top: 0; }
+}
+
+/* Tabla de eventos del detalle en telefono: la descripcion con un ancho
+   minimo; si no, se partia palabra por palabra y cada renglon media media
+   pantalla. La tabla ya se desliza de lado. */
+@media (max-width: 700px) {
+  #tbodyDetEventos td:last-child { min-width: 240px; }
 }
 
 /* El timeline del detalle es el mismo componente que el de Eventos
@@ -1716,7 +1780,38 @@ tbody tr.clic:hover {
   background: var(--st-neutro-color);
 }
 
+/* Mismo formato que las tarjetas de resumen de Guias: antes estas clases no
+   tenian estilo y el numero salia del tamaño del texto normal */
+.bita-kpi .kpi-valor {
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.bita-kpi .kpi-etiqueta {
+  margin-top: var(--space-4);
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
 .bita-kpi--rojo::before  { background: var(--st-eliminada-color); }
+
+/* En telefono: contadores de dos en dos (uno por renglon ocupaba media
+   pantalla) y el filtro de tipo se desliza de lado en vez de salirse de la
+   tarjeta */
+@media (max-width: 700px) {
+  .bita-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #bitTipo { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  #bitTipo .seg__option { flex-shrink: 0; }
+  #bitTipo::-webkit-scrollbar { display: none; }
+}
 .bita-kpi--ambar::before { background: var(--st-cancelada-color); }
 
 /* ---------- Aviso de inmutabilidad ---------- */
@@ -2358,4 +2453,16 @@ tbody tr.clic:hover {
     padding-left: var(--space-8);
     padding-right: var(--space-8);
   }
+}
+
+/* Formulario de dos columnas (Agregar usuario). En telefono va en una sola:
+   a dos columnas el selector de plaza salia cortado ("Monterrey (sc") */
+.form-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-16);
+}
+
+@media (max-width: 700px) {
+  .form-2col { grid-template-columns: minmax(0, 1fr); }
 }
