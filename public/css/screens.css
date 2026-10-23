@@ -917,6 +917,9 @@ tbody tr.clic:hover {
   white-space: nowrap;
 }
 
+/* Recien escaneada, esperando al servidor */
+.reciente--pendiente .reciente__txt { color: var(--text-tertiary); font-style: italic; }
+
 .reciente__hora {
   font-family: var(--font-mono);
   font-size: var(--t-label-size);
