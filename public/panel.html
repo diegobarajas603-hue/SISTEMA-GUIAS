@@ -1327,18 +1327,17 @@
 
   // ---------- Guias detenidas ----------
   // Guias en transito sin movimiento en mas de HORAS_DETENIDA horas.
-  // Se deriva en el cliente de /api/guias; no requiere endpoint nuevo.
+  // Las decide el servidor sobre todas las guias: el listado normal solo trae
+  // las 200 movidas mas recientemente y las detenidas, por definicion, son
+  // las que llevan mas tiempo sin moverse.
   let detenidas = [];
-
-  function esDetenida(g, limite) {
-    return g.estatus.startsWith('EN_TRANSITO') && new Date(g.actualizado_en).getTime() < limite;
-  }
+  let totalDetenidas = 0;
 
   async function revisarDetenidas() {
     try {
-      const guias = await api('/api/guias');
-      const limite = Date.now() - HORAS_DETENIDA * 3600 * 1000;
-      detenidas = guias.filter((g) => esDetenida(g, limite));
+      const r = await api('/api/guias/detenidas?horas=' + HORAS_DETENIDA);
+      detenidas = r.guias || [];
+      totalDetenidas = r.total || 0;
       pintarNotificaciones();
     } catch {}
   }
@@ -1349,8 +1348,8 @@
   // donde ir. Cada notificacion dice a que lleva y se navega al tocarla.
   function notificaciones() {
     const lista = [];
-    if (detenidas.length) {
-      const n = detenidas.length;
+    if (totalDetenidas) {
+      const n = totalDetenidas;
       lista.push({
         id: 'detenidas',
         tono: 'aviso',
@@ -1358,9 +1357,9 @@
         desc: `En transito sin ningun escaneo desde hace mas de ${HORAS_DETENIDA} h.`,
         ir: irADetenidas,
       });
-      // Las tres mas antiguas, para poder ir directo a una sola guia
-      const porFecha = [...detenidas].sort((a, b) => new Date(a.actualizado_en) - new Date(b.actualizado_en));
-      for (const g of porFecha.slice(0, 3)) {
+      // Las tres mas antiguas (el servidor ya las manda de la mas vieja a la
+      // mas nueva), para poder ir directo a una sola guia
+      for (const g of detenidas.slice(0, 3)) {
         lista.push({
           id: 'guia-' + g.numero_guia,
           tono: 'guia',
@@ -1375,9 +1374,9 @@
 
   function pintarNotificaciones() {
     const lista = notificaciones();
-    $('puntoPendientes').style.display = detenidas.length ? '' : 'none';
-    $('btnPendientes').title = detenidas.length
-      ? `${detenidas.length} guia(s) detenida(s) mas de ${HORAS_DETENIDA} h`
+    $('puntoPendientes').style.display = totalDetenidas ? '' : 'none';
+    $('btnPendientes').title = totalDetenidas
+      ? `${totalDetenidas} guia(s) detenida(s) mas de ${HORAS_DETENIDA} h`
       : 'Sin notificaciones';
     $('notifConteo').textContent = lista.length ? lista.length : '';
 
@@ -1946,13 +1945,9 @@
     // El listado de estancadas lo arma el servidor sin pestaña ni estatus, asi
     // que esos dos filtros se aplican aqui: si no, mover la pestaña de plaza no
     // hacia nada y parecia que el filtro estaba descompuesto.
-    if (soloEstancadas) {
+    if (soloEstancadas || soloDetenidas) {
       if (plazaTab) out = out.filter((g) => tabDeEstatus(g.estatus) === plazaTab);
       if ($('filtroEstatus').value) out = out.filter((g) => g.estatus === $('filtroEstatus').value);
-    }
-    if (soloDetenidas) {
-      const limite = Date.now() - HORAS_DETENIDA * 3600 * 1000;
-      out = out.filter((g) => esDetenida(g, limite));
     }
     if (filtroFecha) {
       const dias = filtroFecha === 'hoy' ? 1 : 7;
@@ -2040,9 +2035,9 @@
   async function cargarGuias() {
     const params = new URLSearchParams();
     const buscar = $('buscar').value.trim();
-    // Buscar un numero manda sobre el filtro de estancadas: quien lo escribe
+    // Buscar un numero manda sobre los filtros de estancadas y detenidas: quien lo escribe
     // quiere esa guia, no la lista acotada
-    if (buscar) soloEstancadas = false;
+    if (buscar) { soloEstancadas = false; soloDetenidas = false; }
     if (buscar) {
       // La busqueda por numero revisa todas las guias, sin importar la pestaña
       params.set('buscar', buscar);
@@ -2060,8 +2055,11 @@
       // Las estancadas las decide el servidor (mira desde cuando lleva cada
       // guia el mismo estatus), no un filtro sobre la pagina ya cargada: si no,
       // se quedarian fuera las que no cupieron en el listado.
+      // Lo mismo con las detenidas.
       const crudas = soloEstancadas
         ? (await api('/api/guias/estancadas?dias=' + DIAS_ESTANCADA)).guias
+        : soloDetenidas
+        ? (await api('/api/guias/detenidas?horas=' + HORAS_DETENIDA)).guias
         : await api('/api/guias?' + params);
       pintarGuias(filtrarCliente(crudas));
     } catch (e) {

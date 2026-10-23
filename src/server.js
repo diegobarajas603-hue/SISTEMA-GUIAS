@@ -326,6 +326,12 @@ app.get('/api/guias/estancadas', requireAuth, seguro(async (req, res) => {
   res.json(await guias.listarEstancadas({ dias: req.query.dias }));
 }));
 
+// Guias detenidas: en transito y sin escaneo en ?horas o mas. Alimenta la
+// campana de notificaciones. Tambien va antes de /api/guias/:numero.
+app.get('/api/guias/detenidas', requireAuth, seguro(async (req, res) => {
+  res.json(await guias.listarDetenidas({ horas: req.query.horas }));
+}));
+
 const ACCIONES_INTERNAS = ['ESCANEO_REPETIDO', 'CORRECCION', 'CAMBIO_NUMERO', 'COMPLEMENTO'];
 
 // Quien hizo cada movimiento es informacion solo para administradores. A los
