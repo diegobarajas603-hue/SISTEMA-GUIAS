@@ -975,6 +975,34 @@ async function listarEstancadas({ dias = DIAS_ESTANCADA, limit = 200 } = {}) {
   };
 }
 
+// ---------- Guias detenidas ----------
+//
+// Una guia detenida va en transito y lleva HORAS o mas sin ningun escaneo
+// (actualizado_en: cuenta tambien un escaneo repetido, que prueba que alguien
+// la tuvo en la mano). Lo decide el servidor sobre TODAS las guias: antes el
+// panel lo filtraba sobre el listado normal, que solo trae las 200 movidas mas
+// recientemente, y justo las detenidas (las que llevan mas sin moverse) eran
+// las que se quedaban fuera.
+const HORAS_DETENIDA = 24;
+
+async function listarDetenidas({ horas = HORAS_DETENIDA, limit = 500 } = {}) {
+  const h = Math.min(Math.max(Number(horas) || HORAS_DETENIDA, 1), 24 * 90);
+  const limite = new Date(Date.now() - h * 3600 * 1000);
+  const { rows } = await pool.query(
+    `SELECT *, COUNT(*) OVER ()::int AS total
+       FROM guias
+      WHERE estatus = ANY($1) AND actualizado_en < $2
+      ORDER BY actualizado_en ASC
+      LIMIT $3`,
+    [PLAZAS.map(enTransitoA), limite, limit]
+  );
+  return {
+    horas: h,
+    total: rows.length ? rows[0].total : 0,
+    guias: rows.map(({ total, ...guia }) => guia),
+  };
+}
+
 async function listarEventos({ limit = 50 } = {}) {
   const { rows } = await pool.query(
     `SELECT e.numero_guia, e.accion, e.estatus, e.plaza, e.descripcion, e.revertido, e.usuario,
@@ -1127,6 +1155,7 @@ async function resumen() {
 }
 
 module.exports = {
+  listarDetenidas,
   escanearGuia: (numeroGuia, plaza, modo, usuario, opciones = {}) =>
     conCandado(numeroGuia, async () => {
       try {
