@@ -102,7 +102,7 @@
 
   function avatar(nombre, opciones) {
     const o = opciones || {};
-    const clase = 'avatar' + (o.sm ? ' avatar--sm' : '');
+    const clase = 'avatar' + (o.sm ? ' avatar--sm' : '') + (o.lg ? ' avatar--lg' : '');
     return `<span class="${clase}" style="--avatar-h:${avatarHue(nombre)}" aria-hidden="true">${esc(initials(nombre))}</span>`;
   }
 

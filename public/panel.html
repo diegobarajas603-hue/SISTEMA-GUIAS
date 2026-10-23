@@ -96,18 +96,6 @@
       </button>
     </nav>
 
-    <div class="sidebar__pie">
-      <div class="usuario">
-        <span id="usuarioAvatar"></span>
-        <span class="usuario__datos">
-          <span class="usuario__nombre" id="usuarioNombre"></span>
-          <span class="usuario__rol" id="usuarioRol"></span>
-        </span>
-        <button class="btn btn--ghost btn--icon" id="btnLogout" type="button" title="Cerrar sesion" aria-label="Cerrar sesion">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><path d="M13 14l4-4-4-4M17 10H8"/></svg>
-        </button>
-      </div>
-    </div>
   </aside>
 
   <!-- ========================================================== Main ==== -->
@@ -159,12 +147,40 @@
           <div class="notif__lista" id="notifLista"></div>
         </div>
         </div>
-        <button class="btn btn--ghost btn--icon" id="btnTema" type="button" title="Cambiar a tema claro" aria-label="Cambiar a tema claro">
-          <svg id="icoTema" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></svg>
-        </button>
         <button class="btn btn--ghost btn--icon" id="btnColapsar" type="button" title="Colapsar barra lateral" aria-label="Colapsar barra lateral">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M8 3.5v13"/></svg>
         </button>
+        <!-- Menu de la cuenta: el circulo con las iniciales abre tu nombre,
+             Mi cuenta, el cambio de tema y cerrar sesion -->
+        <div class="perfil-wrap">
+          <button class="perfil-btn" id="btnPerfil" type="button" title="Tu cuenta"
+                  aria-label="Tu cuenta" aria-haspopup="true" aria-expanded="false">
+            <span id="usuarioAvatar"></span>
+          </button>
+          <div class="perfil" id="panelPerfil" hidden>
+            <div class="perfil__head">
+              <span id="perfilAvatar"></span>
+              <span class="perfil__datos">
+                <span class="perfil__nombre" id="usuarioNombre"></span>
+                <span class="perfil__rol" id="usuarioRol"></span>
+              </span>
+            </div>
+            <div class="perfil__items">
+              <button class="perfil__item" id="btnMiCuenta" type="button">
+                <span class="perfil__ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg></span>
+                Mi cuenta
+              </button>
+              <button class="perfil__item" id="btnTema" type="button">
+                <span class="perfil__ico"><svg id="icoTema" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></svg></span>
+                <span id="txtTema">Modo claro</span>
+              </button>
+              <button class="perfil__item" id="btnLogout" type="button">
+                <span class="perfil__ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><path d="M13 14l4-4-4-4M17 10H8"/></svg></span>
+                Cerrar sesion
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -726,9 +742,7 @@
     const claro = temaActual() === 'claro';
     // El icono muestra a donde vas, no donde estas
     $('icoTema').innerHTML = claro ? ICO_LUNA : ICO_SOL;
-    const etiqueta = claro ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro';
-    $('btnTema').title = etiqueta;
-    $('btnTema').setAttribute('aria-label', etiqueta);
+    $('txtTema').textContent = claro ? 'Modo oscuro' : 'Modo claro';
   }
 
   $('btnTema').addEventListener('click', () => {
@@ -941,7 +955,8 @@
     const esAdmin = usuarioActual.roles.includes('admin');
     const plazaUsuario = usuarioActual.plaza || '';
 
-    $('usuarioAvatar').innerHTML = UI.avatar(usuarioActual.nombre, { sm: true });
+    $('usuarioAvatar').innerHTML = UI.avatar(usuarioActual.nombre);
+    $('perfilAvatar').innerHTML = UI.avatar(usuarioActual.nombre, { lg: true });
     pintarNombreUsuario();
     $('usuarioRol').textContent = nombresRoles(usuarioActual.roles) + (plazaUsuario ? ' · ' + plazaUsuario : '');
 
@@ -1371,6 +1386,7 @@
   }
 
   function abrirNotificaciones() {
+    cerrarPerfil();
     pintarNotificaciones();
     $('panelNotif').hidden = false;
     $('btnPendientes').setAttribute('aria-expanded', 'true');
@@ -1389,12 +1405,42 @@
     else cerrarNotificaciones();
   });
 
-  // Se cierra al tocar fuera o con Escape, como cualquier menu
+  // ---------- Menu de la cuenta ----------
+  function abrirPerfil() {
+    cerrarNotificaciones();
+    $('panelPerfil').hidden = false;
+    $('btnPerfil').setAttribute('aria-expanded', 'true');
+    $('btnMiCuenta').focus();
+  }
+
+  function cerrarPerfil() {
+    $('panelPerfil').hidden = true;
+    $('btnPerfil').setAttribute('aria-expanded', 'false');
+  }
+
+  $('btnPerfil').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if ($('panelPerfil').hidden) abrirPerfil();
+    else cerrarPerfil();
+  });
+
+  $('btnMiCuenta').addEventListener('click', () => {
+    cerrarPerfil();
+    location.hash = '#/config';
+    mostrarSeccionConfig('cuenta');
+  });
+
+  // Se cierran al tocar fuera o con Escape, como cualquier menu
   document.addEventListener('click', (e) => {
+    if (!$('panelPerfil').hidden && !e.target.closest('.perfil-wrap')) cerrarPerfil();
     if ($('panelNotif').hidden) return;
     if (!e.target.closest('.notif-wrap')) cerrarNotificaciones();
   });
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('panelPerfil').hidden) {
+      cerrarPerfil();
+      $('btnPerfil').focus();
+    }
     if (e.key === 'Escape' && !$('panelNotif').hidden) {
       cerrarNotificaciones();
       $('btnPendientes').focus();
