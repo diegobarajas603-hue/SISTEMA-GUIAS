@@ -370,7 +370,7 @@
 }
 
 /* ---------- Aviso de guias estancadas ----------
-   Pastilla ambar a la izquierda del reloj. El ambar es el color de "atencion
+   Pastilla ambar a la izquierda de la fecha. El ambar es el color de "atencion
    sin alarma" del sistema; el rojo sigue reservado a lo destructivo.
 
    Es deliberadamente insistente: late sin parar y cada 9 s se sacude. Una
@@ -608,22 +608,6 @@
   height: 18px;
 }
 
-/* ---------- Reloj ---------- */
-
-.reloj {
-  text-align: right;
-  line-height: 1.1;
-  padding-right: var(--space-4);
-  white-space: nowrap;
-}
-
-/* "Mié 21 oct · 18:10" en una sola linea */
-.reloj__texto {
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
 /* ============================================================================
    LOGIN
    ==========================================================================*/
@@ -786,13 +770,7 @@
   }
 }
 
-/* En telefono la barra superior guarda solo lo esencial: la hora ya la trae
-   la barra del propio celular. Sin esto, el reloj se encimaba con el buscador. */
 @media (max-width: 700px) {
-  .reloj {
-    display: none;
-  }
-
   .topbar {
     gap: var(--space-8);
   }

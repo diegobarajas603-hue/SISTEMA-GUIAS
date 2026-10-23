@@ -969,6 +969,22 @@
   color: var(--text-tertiary);
 }
 
+/* Desplegable de fecha y hora: reutiliza la caja de notificaciones */
+.fecha-wrap { position: relative; }
+.notif.fecha { width: 240px; }
+.fecha__cuerpo { padding: var(--space-16) var(--space-16) 18px; }
+.fecha__dia { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.fecha__anio { font-size: 13px; color: var(--text-tertiary); margin-top: 2px; }
+.fecha__hora {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--space-12);
+}
+.fecha__nota { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+
 /* Tope de alto: con muchas guias detenidas la lista se desplaza por dentro
    en vez de crecer hasta salirse de la pantalla */
 .notif__lista { max-height: min(420px, 60vh); overflow-y: auto; }

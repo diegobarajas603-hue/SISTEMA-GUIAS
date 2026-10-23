@@ -121,7 +121,7 @@
       </div>
 
       <div class="topbar__derecha">
-        <!-- Aviso de guias estancadas. Vive pegado al reloj a proposito: la
+        <!-- Aviso de guias estancadas. Vive junto a la fecha a proposito: la
              pregunta que contesta ("cuanto lleva esto parado") es del mismo
              tipo que la hora. No se puede cerrar ni silenciar: parpadea
              mientras haya guias detenidas y se va solo cuando se mueven. -->
@@ -133,8 +133,25 @@
           <span class="alerta-estancadas__txt" id="estancadasTxt"></span>
           <span class="alerta-estancadas__corto" id="estancadasCorto" aria-hidden="true"></span>
         </a>
-        <div class="reloj" aria-hidden="true">
-          <span class="reloj__texto" id="relojHora">--:--</span>
+        <!-- Fecha y hora: un icono que despliega el dia completo. Antes iba
+             escrita en la barra y la saturaba. -->
+        <div class="fecha-wrap">
+          <button class="btn btn--ghost btn--icon" id="btnFecha" type="button" title="Fecha y hora"
+                  aria-label="Fecha y hora" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 2.8v3.2M13 2.8v3.2"/></svg>
+          </button>
+          <div class="notif fecha" id="panelFecha" hidden>
+            <div class="notif__head">
+              <span class="notif__titulo">Hoy</span>
+              <span class="notif__conteo" id="fechaSemana"></span>
+            </div>
+            <div class="fecha__cuerpo">
+              <div class="fecha__dia" id="fechaDia"></div>
+              <div class="fecha__anio" id="fechaAnio"></div>
+              <div class="fecha__hora" id="fechaHora"></div>
+              <div class="fecha__nota">Hora de Monterrey / CDMX</div>
+            </div>
+          </div>
         </div>
         <div class="notif-wrap">
         <button class="btn btn--ghost btn--icon" id="btnPendientes" type="button" title="Notificaciones"
@@ -770,22 +787,32 @@
   // ---------- Shell: reloj ----------
   // 24 h: en operacion logistica "18:40" se lee mas rapido y sin ambiguedad
   // que "6:40 p.m.", y ocupa menos.
+  // Vive en el desplegable del icono de calendario de la barra superior.
+  const ZONA_MX = 'America/Mexico_City';
+
+  // Semana ISO (lunes a domingo), la de los reportes semanales
+  function semanaIso(d) {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+    return Math.ceil(((t - Date.UTC(t.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
+  }
+
   function pintarReloj() {
     const ahora = new Date();
-    const hora = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
-    // "Mié 21 oct · 18:10": sin puntos de abreviatura ni comas, una sola linea
-    let fecha = ahora.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
-      .replace(/[.,]/g, '').replace(/ de /g, ' ');
-    // Solo la inicial en mayuscula: "Mié 21 oct", no "Mié 21 De Oct"
-    fecha = fecha.charAt(0).toUpperCase() + fecha.slice(1);
-    $('relojHora').textContent = `${fecha} · ${hora}`;
+    $('fechaHora').textContent = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: ZONA_MX });
+    // "Viernes 23 de octubre": sin coma y con la inicial en mayuscula
+    const dia = ahora.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: ZONA_MX }).replace(',', '');
+    $('fechaDia').textContent = dia.charAt(0).toUpperCase() + dia.slice(1);
+    const mx = new Date(ahora.toLocaleString('en-US', { timeZone: ZONA_MX }));
+    $('fechaAnio').textContent = mx.getFullYear();
+    $('fechaSemana').textContent = 'Semana ' + semanaIso(mx);
   }
   pintarReloj();
   setInterval(pintarReloj, 10000);
 
   // ---------- Shell: aviso de guias estancadas ----------
   // Una guia que lleva dias en el mismo estatus no la reclama nadie hasta que
-  // llama el cliente. El aviso vive junto al reloj, no se puede cerrar y no
+  // llama el cliente. El aviso vive junto a la fecha, no se puede cerrar y no
   // deja de parpadear mientras haya guias detenidas; al tocarlo lleva directo
   // al listado de esas guias, de la mas atrasada a la menos.
   //
@@ -1397,6 +1424,7 @@
 
   function abrirNotificaciones() {
     cerrarPerfil();
+    cerrarFecha();
     pintarNotificaciones();
     $('panelNotif').hidden = false;
     $('btnPendientes').setAttribute('aria-expanded', 'true');
@@ -1418,6 +1446,7 @@
   // ---------- Menu de la cuenta ----------
   function abrirPerfil() {
     cerrarNotificaciones();
+    cerrarFecha();
     $('panelPerfil').hidden = false;
     $('btnPerfil').setAttribute('aria-expanded', 'true');
     $('btnMiCuenta').focus();
@@ -1434,6 +1463,26 @@
     else cerrarPerfil();
   });
 
+  // ---------- Fecha y hora ----------
+  function abrirFecha() {
+    cerrarNotificaciones();
+    cerrarPerfil();
+    pintarReloj();
+    $('panelFecha').hidden = false;
+    $('btnFecha').setAttribute('aria-expanded', 'true');
+  }
+
+  function cerrarFecha() {
+    $('panelFecha').hidden = true;
+    $('btnFecha').setAttribute('aria-expanded', 'false');
+  }
+
+  $('btnFecha').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if ($('panelFecha').hidden) abrirFecha();
+    else cerrarFecha();
+  });
+
   $('btnMiCuenta').addEventListener('click', () => {
     cerrarPerfil();
     location.hash = '#/config';
@@ -1443,6 +1492,7 @@
   // Se cierran al tocar fuera o con Escape, como cualquier menu
   document.addEventListener('click', (e) => {
     if (!$('panelPerfil').hidden && !e.target.closest('.perfil-wrap')) cerrarPerfil();
+    if (!$('panelFecha').hidden && !e.target.closest('.fecha-wrap')) cerrarFecha();
     if ($('panelNotif').hidden) return;
     if (!e.target.closest('.notif-wrap')) cerrarNotificaciones();
   });
@@ -1454,6 +1504,10 @@
     if (e.key === 'Escape' && !$('panelNotif').hidden) {
       cerrarNotificaciones();
       $('btnPendientes').focus();
+    }
+    if (e.key === 'Escape' && !$('panelFecha').hidden) {
+      cerrarFecha();
+      $('btnFecha').focus();
     }
   });
 
