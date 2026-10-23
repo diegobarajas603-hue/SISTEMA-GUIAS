@@ -64,13 +64,11 @@
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span>
         <span class="nav-item__texto">Dashboard</span>
       </button>
-      <button class="nav-item" data-ruta="escanear-mty" title="Escanear en Monterrey">
+      <!-- Un solo acceso: lleva a escanear en la ultima plaza usada y la plaza
+           se cambia adentro, con los botones de Monterrey / Ciudad de Mexico -->
+      <button class="nav-item" data-ruta="escanear" title="Escanear">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span>
-        <span class="nav-item__texto">Escanear en Monterrey</span>
-      </button>
-      <button class="nav-item" data-ruta="escanear-cdmx" title="Escanear en Ciudad de Mexico">
-        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span>
-        <span class="nav-item__texto">Escanear en Ciudad de Mexico</span>
+        <span class="nav-item__texto">Escanear</span>
       </button>
       <button class="nav-item" data-ruta="guias" title="Guias">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
@@ -121,7 +119,7 @@
       </div>
 
       <div class="topbar__derecha">
-        <!-- Aviso de guias estancadas. Vive pegado al reloj a proposito: la
+        <!-- Aviso de guias estancadas. Vive junto a la fecha a proposito: la
              pregunta que contesta ("cuanto lleva esto parado") es del mismo
              tipo que la hora. No se puede cerrar ni silenciar: parpadea
              mientras haya guias detenidas y se va solo cuando se mueven. -->
@@ -133,12 +131,26 @@
           <span class="alerta-estancadas__txt" id="estancadasTxt"></span>
           <span class="alerta-estancadas__corto" id="estancadasCorto" aria-hidden="true"></span>
         </a>
-        <div class="reloj" aria-hidden="true">
-          <span class="reloj__texto" id="relojHora">--:--</span>
+        <!-- Fecha y hora: un icono que despliega el dia completo. Antes iba
+             escrita en la barra y la saturaba. -->
+        <div class="fecha-wrap">
+          <button class="btn btn--ghost btn--icon" id="btnFecha" type="button" title="Fecha y hora"
+                  aria-label="Fecha y hora" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 2.8v3.2M13 2.8v3.2"/></svg>
+          </button>
+          <div class="notif fecha" id="panelFecha" hidden>
+            <div class="notif__head">
+              <span class="notif__titulo">Hoy</span>
+              <span class="notif__conteo" id="fechaSemana"></span>
+            </div>
+            <div class="fecha__cuerpo">
+              <div class="fecha__dia" id="fechaDia"></div>
+              <div class="fecha__anio" id="fechaAnio"></div>
+              <div class="fecha__hora" id="fechaHora"></div>
+              <div class="fecha__nota">Hora de Monterrey / CDMX</div>
+            </div>
+          </div>
         </div>
-        <button class="btn btn--ghost btn--icon" id="btnIrEscanear" type="button" title="Ir a escanear" aria-label="Ir a escanear">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5v10M6.5 5v10M10 5v10M13.5 5v10M17 5v10"/></svg>
-        </button>
         <div class="notif-wrap">
         <button class="btn btn--ghost btn--icon" id="btnPendientes" type="button" title="Notificaciones"
                 aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
@@ -641,8 +653,8 @@
     pintarPillsPlaza();
   }
 
-  // Pills de plaza: un usuario con plaza asignada solo ve la suya, igual que
-  // en el sidebar. El servidor rechaza cualquier escaneo en la otra plaza.
+  // Pills de plaza: aqui se elige donde se escanea. Un usuario con plaza
+  // asignada solo ve la suya. El servidor rechaza cualquier escaneo en la otra plaza.
   function pintarPillsPlaza() {
     const plazaUsuario = usuarioActual && usuarioActual.plaza;
     const opciones = plazaUsuario ? [plazaUsuario] : ['MTY', 'CDMX'];
@@ -773,24 +785,32 @@
   // ---------- Shell: reloj ----------
   // 24 h: en operacion logistica "18:40" se lee mas rapido y sin ambiguedad
   // que "6:40 p.m.", y ocupa menos.
+  // Vive en el desplegable del icono de calendario de la barra superior.
+  const ZONA_MX = 'America/Mexico_City';
+
+  // Semana ISO (lunes a domingo), la de los reportes semanales
+  function semanaIso(d) {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+    return Math.ceil(((t - Date.UTC(t.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
+  }
+
   function pintarReloj() {
     const ahora = new Date();
-    const hora = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
-    // "Mié 21 oct · 18:10": sin puntos de abreviatura ni comas, una sola linea
-    let fecha = ahora.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
-      .replace(/[.,]/g, '').replace(/ de /g, ' ');
-    // Solo la inicial en mayuscula: "Mié 21 oct", no "Mié 21 De Oct"
-    fecha = fecha.charAt(0).toUpperCase() + fecha.slice(1);
-    $('relojHora').textContent = `${fecha} · ${hora}`;
+    $('fechaHora').textContent = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: ZONA_MX });
+    // "Viernes 23 de octubre": sin coma y con la inicial en mayuscula
+    const dia = ahora.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: ZONA_MX }).replace(',', '');
+    $('fechaDia').textContent = dia.charAt(0).toUpperCase() + dia.slice(1);
+    const mx = new Date(ahora.toLocaleString('en-US', { timeZone: ZONA_MX }));
+    $('fechaAnio').textContent = mx.getFullYear();
+    $('fechaSemana').textContent = 'Semana ' + semanaIso(mx);
   }
   pintarReloj();
   setInterval(pintarReloj, 10000);
 
-  $('btnIrEscanear').addEventListener('click', () => { location.hash = '#/escanear'; });
-
   // ---------- Shell: aviso de guias estancadas ----------
   // Una guia que lleva dias en el mismo estatus no la reclama nadie hasta que
-  // llama el cliente. El aviso vive junto al reloj, no se puede cerrar y no
+  // llama el cliente. El aviso vive junto a la fecha, no se puede cerrar y no
   // deja de parpadear mientras haya guias detenidas; al tocarlo lleva directo
   // al listado de esas guias, de la mas atrasada a la menos.
   //
@@ -994,11 +1014,6 @@
     // bloquea en el router, por si alguien escribe #/bitacora a mano.
     document.querySelector('[data-ruta="bitacora"]').style.display = esAdmin ? '' : 'none';
 
-    // Un usuario con plaza asignada solo ve el boton de escanear de su plaza
-    document.querySelector('[data-ruta="escanear-mty"]').style.display =
-      !plazaUsuario || plazaUsuario === 'MTY' ? '' : 'none';
-    document.querySelector('[data-ruta="escanear-cdmx"]').style.display =
-      !plazaUsuario || plazaUsuario === 'CDMX' ? '' : 'none';
     if (plazaUsuario) setPlaza(plazaUsuario);
     else pintarPillsPlaza();
 
@@ -1103,13 +1118,15 @@
     let vista = ruta;
     let arg = null;
     if (ruta.startsWith('guia/')) { vista = 'detalle'; arg = decodeURIComponent(ruta.slice(5)); }
-    if (ruta === 'escanear') { location.hash = '#/escanear-' + plaza.toLowerCase(); return; }
+    // replace y no hash: la redireccion no deja una entrada en el historial,
+    // si no el boton Atras del navegador regresaba aqui y volvia a saltar
+    if (ruta === 'escanear') { location.replace('#/escanear-' + plaza.toLowerCase()); return; }
     if (ruta === 'escanear-mty' || ruta === 'escanear-cdmx') {
       const pedida = ruta === 'escanear-mty' ? 'MTY' : 'CDMX';
       // Un usuario con plaza asignada solo puede escanear en su plaza
       const plazaUsuario = usuarioActual && usuarioActual.plaza;
       if (plazaUsuario && plazaUsuario !== pedida) {
-        location.hash = '#/escanear-' + plazaUsuario.toLowerCase();
+        location.replace('#/escanear-' + plazaUsuario.toLowerCase());
         return;
       }
       vista = 'escanear';
@@ -1125,7 +1142,7 @@
     }
     vistaActual = vista;
 
-    const navRuta = vista === 'detalle' ? 'guias' : vista === 'escanear' ? 'escanear-' + plaza.toLowerCase() : vista;
+    const navRuta = vista === 'detalle' ? 'guias' : vista;
     VISTAS.forEach((v) => ($('v-' + v).style.display = v === vista ? '' : 'none'));
     document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('is-active', b.dataset.ruta === navRuta));
     $('tituloVista').textContent = vista === 'escanear' ? 'Escanear en ' + NOMBRE_PLAZA[plaza] : TITULOS[vista];
@@ -1402,6 +1419,7 @@
 
   function abrirNotificaciones() {
     cerrarPerfil();
+    cerrarFecha();
     pintarNotificaciones();
     $('panelNotif').hidden = false;
     $('btnPendientes').setAttribute('aria-expanded', 'true');
@@ -1423,6 +1441,7 @@
   // ---------- Menu de la cuenta ----------
   function abrirPerfil() {
     cerrarNotificaciones();
+    cerrarFecha();
     $('panelPerfil').hidden = false;
     $('btnPerfil').setAttribute('aria-expanded', 'true');
     $('btnMiCuenta').focus();
@@ -1439,6 +1458,26 @@
     else cerrarPerfil();
   });
 
+  // ---------- Fecha y hora ----------
+  function abrirFecha() {
+    cerrarNotificaciones();
+    cerrarPerfil();
+    pintarReloj();
+    $('panelFecha').hidden = false;
+    $('btnFecha').setAttribute('aria-expanded', 'true');
+  }
+
+  function cerrarFecha() {
+    $('panelFecha').hidden = true;
+    $('btnFecha').setAttribute('aria-expanded', 'false');
+  }
+
+  $('btnFecha').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if ($('panelFecha').hidden) abrirFecha();
+    else cerrarFecha();
+  });
+
   $('btnMiCuenta').addEventListener('click', () => {
     cerrarPerfil();
     location.hash = '#/config';
@@ -1448,6 +1487,7 @@
   // Se cierran al tocar fuera o con Escape, como cualquier menu
   document.addEventListener('click', (e) => {
     if (!$('panelPerfil').hidden && !e.target.closest('.perfil-wrap')) cerrarPerfil();
+    if (!$('panelFecha').hidden && !e.target.closest('.fecha-wrap')) cerrarFecha();
     if ($('panelNotif').hidden) return;
     if (!e.target.closest('.notif-wrap')) cerrarNotificaciones();
   });
@@ -1459,6 +1499,10 @@
     if (e.key === 'Escape' && !$('panelNotif').hidden) {
       cerrarNotificaciones();
       $('btnPendientes').focus();
+    }
+    if (e.key === 'Escape' && !$('panelFecha').hidden) {
+      cerrarFecha();
+      $('btnFecha').focus();
     }
   });
 
