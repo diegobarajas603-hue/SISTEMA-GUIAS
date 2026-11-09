@@ -63,34 +63,41 @@
       <button class="nav-item" data-ruta="dashboard" title="Dashboard">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span>
         <span class="nav-item__texto">Dashboard</span>
+        <span class="nav-item__corto" aria-hidden="true">Dashboard</span>
       </button>
       <!-- Un solo acceso: lleva a escanear en la ultima plaza usada y la plaza
            se cambia adentro, con los botones de Monterrey / Ciudad de Mexico -->
       <button class="nav-item" data-ruta="escanear" title="Escanear">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6v12M7 6v12M11 6v12M15 6v12M19 6v12"/></svg></span>
         <span class="nav-item__texto">Escanear</span>
+        <span class="nav-item__corto" aria-hidden="true">Escanear</span>
       </button>
       <button class="nav-item" data-ruta="guias" title="Guias">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
         <span class="nav-item__texto">Guias</span>
+        <span class="nav-item__corto" aria-hidden="true">Guias</span>
       </button>
       <button class="nav-item" data-ruta="eventos" title="Eventos">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
         <span class="nav-item__texto">Eventos</span>
+        <span class="nav-item__corto" aria-hidden="true">Eventos</span>
       </button>
       <button class="nav-item" data-ruta="reportes" title="Reportes">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>
         <span class="nav-item__texto">Reportes</span>
+        <span class="nav-item__corto" aria-hidden="true">Reportes</span>
       </button>
 
       <span class="nav-group">Sistema</span>
       <button class="nav-item" data-ruta="bitacora" title="Bitacora">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17h11M9 8h6"/></svg></span>
         <span class="nav-item__texto">Bitacora</span>
+        <span class="nav-item__corto" aria-hidden="true">Bitacora</span>
       </button>
       <button class="nav-item" data-ruta="config" title="Configuracion">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.5"/><circle cx="8" cy="16" r="2.5"/></svg></span>
         <span class="nav-item__texto">Configuracion</span>
+        <span class="nav-item__corto" aria-hidden="true">Ajustes</span>
       </button>
     </nav>
 
@@ -751,8 +758,32 @@
     ind.style.setProperty('--nav-y', activo.offsetTop + (activo.offsetHeight - 16) / 2 + 'px');
     ind.classList.add('is-on');
     if (sinAnimar) requestAnimationFrame(() => ind.classList.remove('no-anim'));
+    centrarEnDock(activo, sinAnimar);
   }
-  window.addEventListener('resize', () => moverIndicador(true));
+  window.addEventListener('resize', () => { moverIndicador(true); marcarBordesDock(); });
+
+  // ---------- Shell: franja de navegacion del telefono (<=700 px) ----------
+  // Ahi el menu es una fila que se desliza de lado. Se difumina el borde por
+  // donde quedan accesos escondidos, para que se note que hay mas, y la
+  // seccion activa se desliza a la vista al cambiar de pantalla.
+  const dock = $('sidebarNav');
+  const esDock = () => window.matchMedia('(max-width: 700px)').matches;
+
+  function marcarBordesDock() {
+    const hayScroll = esDock() && dock.scrollWidth > dock.clientWidth + 1;
+    dock.classList.toggle('hay-mas-izq', hayScroll && dock.scrollLeft > 2);
+    dock.classList.toggle('hay-mas-der', hayScroll && dock.scrollLeft + dock.clientWidth < dock.scrollWidth - 2);
+  }
+
+  function centrarEnDock(activo, sinAnimar) {
+    if (!esDock() || dock.scrollWidth <= dock.clientWidth) return;
+    // Se mueve solo la franja, nunca la pagina (scrollIntoView movia ambas)
+    const destino = activo.offsetLeft - (dock.clientWidth - activo.offsetWidth) / 2;
+    dock.scrollTo({ left: Math.max(0, destino), behavior: sinAnimar ? 'auto' : 'smooth' });
+  }
+
+  dock.addEventListener('scroll', marcarBordesDock, { passive: true });
+  marcarBordesDock();
 
   // ---------- Shell: tema claro / oscuro ----------
   // El tema se aplica en el <head> para que no parpadee; aqui solo se
