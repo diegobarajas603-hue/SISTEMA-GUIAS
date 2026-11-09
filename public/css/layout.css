@@ -798,3 +798,304 @@
     justify-content: flex-start;
   }
 }
+
+/* ============================================================================
+   MENU COMPACTO — icono con etiqueta corta
+   Antes, colapsado o en pantalla angosta, el menu eran iconos sueltos sin
+   nombre: habia que adivinar que era cada uno. Ahora cada acceso lleva su
+   etiqueta corta debajo del icono y la seccion activa se marca con una
+   pildora, igual en el riel lateral (colapsado o 701-900 px) que en la
+   franja superior del telefono (700 px o menos).
+   ==========================================================================*/
+
+/* La etiqueta corta solo existe en los modos compactos */
+.nav-item__corto {
+  display: none;
+}
+
+/* ---------- Pieza comun: icono en pildora + etiqueta ---------- */
+.app.is-collapsed .nav-item,
+.app.is-collapsed .nav-item:hover,
+.app.is-collapsed .nav-item.is-active {
+  background: transparent;
+}
+
+@media (max-width: 900px) {
+  .nav-item,
+  .nav-item:hover,
+  .nav-item.is-active {
+    background: transparent;
+  }
+}
+
+/* Riel colapsado a mano (cualquier ancho mayor a 700 px) */
+.app.is-collapsed .nav-item {
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  height: 58px;
+  padding: 0 2px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-lg);
+}
+
+.app.is-collapsed .nav-item__ico {
+  box-sizing: content-box;
+  width: 18px;
+  height: 18px;
+  padding: 5px 15px;
+  border-radius: var(--radius-full);
+  transition: background-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease),
+              box-shadow var(--t-fast) var(--ease);
+}
+
+.app.is-collapsed .nav-item__corto {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10.5px;
+  line-height: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text-tertiary);
+  transition: color var(--t-fast) var(--ease);
+}
+
+.app.is-collapsed .nav-item:hover .nav-item__ico {
+  background: var(--overlay-hover);
+  color: var(--text-primary);
+}
+
+.app.is-collapsed .nav-item:hover .nav-item__corto {
+  color: var(--text-secondary);
+}
+
+.app.is-collapsed .nav-item.is-active .nav-item__ico {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+.app.is-collapsed .nav-item.is-active .nav-item__corto {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.app.is-collapsed .nav-item:focus-visible {
+  outline: none;
+}
+
+.app.is-collapsed .nav-item:focus-visible .nav-item__ico {
+  box-shadow: 0 0 0 3px var(--accent-ring), inset 0 0 0 1px var(--accent-border);
+}
+
+/* Los grupos se vuelven una linea fina en lugar de desaparecer: asi se
+   distingue "Operaciones" de "Sistema" sin ocupar espacio con el titulo. */
+.app.is-collapsed .nav-group {
+  display: block;
+  height: 1px;
+  padding: 0;
+  margin: var(--space-8) var(--space-16) var(--space-12);
+  font-size: 0;
+  background: var(--border-subtle);
+}
+
+.app.is-collapsed .nav-indicator + .nav-group {
+  display: none;
+}
+
+.app.is-collapsed .nav-group + .nav-item {
+  margin-top: 0;
+}
+
+/* ---------- Riel lateral automatico (701-900 px) ----------
+   Las mismas reglas de arriba, para cuando el ancho colapsa la barra aunque
+   no se haya colapsado a mano. */
+@media (max-width: 900px) {
+  .nav-item {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    height: 58px;
+    padding: 0 2px;
+    margin-bottom: 4px;
+    border-radius: var(--radius-lg);
+  }
+
+  .nav-item__ico {
+    box-sizing: content-box;
+    width: 18px;
+    height: 18px;
+    padding: 5px 15px;
+    border-radius: var(--radius-full);
+    transition: background-color var(--t-fast) var(--ease),
+                color var(--t-fast) var(--ease),
+                box-shadow var(--t-fast) var(--ease);
+  }
+
+  .nav-item__corto {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 10.5px;
+    line-height: 13px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: var(--text-tertiary);
+    transition: color var(--t-fast) var(--ease);
+  }
+
+  .nav-item:hover .nav-item__ico {
+    background: var(--overlay-hover);
+    color: var(--text-primary);
+  }
+
+  .nav-item:hover .nav-item__corto {
+    color: var(--text-secondary);
+  }
+
+  .nav-item.is-active .nav-item__ico {
+    background: var(--accent-subtle);
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent-border);
+  }
+
+  .nav-item.is-active .nav-item__corto {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .nav-item:focus-visible {
+    outline: none;
+  }
+
+  .nav-item:focus-visible .nav-item__ico {
+    box-shadow: 0 0 0 3px var(--accent-ring), inset 0 0 0 1px var(--accent-border);
+  }
+
+  .nav-group {
+    display: block;
+    height: 1px;
+    padding: 0;
+    margin: var(--space-8) var(--space-16) var(--space-12);
+    font-size: 0;
+    background: var(--border-subtle);
+  }
+
+  .nav-indicator + .nav-group {
+    display: none;
+  }
+}
+
+/* ---------- Telefono (<=700 px): franja superior tipo dock ----------
+   El logo a la izquierda y los accesos en una barra redondeada que se
+   desliza de lado. Cada acceso es una pastilla con icono y nombre; la
+   activa queda rellena. Los grupos se separan con una linea vertical. */
+@media (max-width: 700px) {
+  .sidebar,
+  .app.is-collapsed .sidebar {
+    gap: var(--space-4);
+    padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
+    background: var(--bg-base);
+  }
+
+  .sidebar__logo,
+  .app.is-collapsed .sidebar__logo {
+    padding: 0;
+  }
+
+  .marca-mono {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(160deg, var(--accent-solid), var(--accent-solid-hover));
+    border-color: transparent;
+    color: var(--text-on-solid);
+    box-shadow: var(--sheen-strong), 0 4px 14px rgba(37, 99, 235, 0.30);
+  }
+
+  .sidebar__nav,
+  .app.is-collapsed .sidebar__nav {
+    flex: 1;
+    min-width: 0;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 18px;
+    background: var(--bg-surface);
+    box-shadow: var(--sheen);
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebar__nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Difumina el borde por donde hay mas accesos escondidos */
+  .sidebar__nav.hay-mas-der {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+            mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+  .sidebar__nav.hay-mas-izq {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+            mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+  }
+  .sidebar__nav.hay-mas-izq.hay-mas-der {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+            mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+  }
+
+  .nav-item,
+  .app.is-collapsed .nav-item {
+    width: auto;
+    min-width: 66px;
+    height: 52px;
+    margin: 0;
+    padding: 0 var(--space-8);
+    gap: 3px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    scroll-snap-align: center;
+    transition: background-color var(--t-fast) var(--ease);
+  }
+
+  /* En el dock la pastilla es todo el acceso, no solo el icono */
+  .nav-item__ico,
+  .app.is-collapsed .nav-item__ico {
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .nav-item:hover,
+  .app.is-collapsed .nav-item:hover {
+    background: var(--overlay-hover);
+  }
+
+  .nav-item.is-active,
+  .app.is-collapsed .nav-item.is-active {
+    background: var(--accent-subtle);
+    box-shadow: inset 0 0 0 1px var(--accent-border);
+  }
+
+  .nav-item:focus-visible,
+  .app.is-collapsed .nav-item:focus-visible {
+    box-shadow: 0 0 0 3px var(--accent-ring), inset 0 0 0 1px var(--accent-border);
+  }
+
+  .nav-group,
+  .app.is-collapsed .nav-group {
+    flex-shrink: 0;
+    width: 1px;
+    height: 28px;
+    margin: 0 var(--space-4);
+  }
+}
