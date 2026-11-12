@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
 const { pool } = require('./db');
-const { PLAZAS, NOMBRES_PLAZA, otraPlaza } = require('./estatus');
+const { PLAZAS, NOMBRES_PLAZA, otraPlaza, plazaDeEstatus } = require('./estatus');
 
 // ---------------------------------------------------------------------------
 //  Reporte de salidas del dia
@@ -175,6 +175,44 @@ async function guiasEnBodega({ plaza } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+//  Guias estancadas
+//
+//  Las mismas que cuenta el aviso ambar de la barra del panel: las que no
+//  estan entregadas y llevan DIAS o mas sin cambiar de estatus. El reporte es
+//  para revisarlas en papel una por una (se cancelo, se le hizo complemento,
+//  se quedo en otra bodega...), asi que trae TODAS, sin el tope de 200 del
+//  aviso, y deja una columna en blanco para anotar a mano.
+//
+//  La condicion se escribe igual que en listarEstancadas() de guias.js y que
+//  el indice parcial idx_guias_estancadas de db.js: si cambia alla, cambia
+//  aqui, o el PDF y el aviso dirian numeros distintos.
+// ---------------------------------------------------------------------------
+
+const DIAS_ESTANCADA = 2;
+
+async function guiasEstancadas({ plaza, dias } = {}) {
+  const p = normalizarPlaza(plaza);
+  const d = Math.min(Math.max(Number(dias) || DIAS_ESTANCADA, 1), 90);
+  const ahora = Date.now();
+  const limite = new Date(ahora - d * 24 * 3600 * 1000);
+
+  const { rows } = await pool.query(
+    `SELECT numero_guia, complemento, numero_anterior, estatus, estatus_desde
+       FROM guias
+      WHERE estatus NOT IN ('ENTREGADO_MTY', 'ENTREGADO_CDMX') AND estatus_desde <= $1
+      ORDER BY estatus_desde ASC, numero_guia ASC`,
+    [limite]
+  );
+
+  // La plaza de una estancada es la que tiene que moverla: donde esta (en
+  // bodega o en reparto) o hacia donde iba (en transito).
+  const guias = rows
+    .map((r) => ({ ...r, plaza: plazaDeEstatus(r.estatus), dias: diasDesde(r.estatus_desde, ahora) }))
+    .filter((g) => !p || g.plaza === p);
+  return { corte: new Date(ahora).toISOString(), dias: d, plaza: p, total: guias.length, porPlaza: contarPorPlaza(guias), guias };
+}
+
+// ---------------------------------------------------------------------------
 //  El PDF
 //
 //  Se dibuja con pdfkit, igual que las cotizaciones del CRM: el contenedor de
@@ -219,7 +257,18 @@ const COL_BODEGA = [
   { titulo: 'LLEGÓ A BODEGA', ancho: 150 },
   { titulo: 'DÍAS EN BODEGA', ancho: ANCHO - 30 - 190 - 150 },
 ];
+// Estancadas: la ultima columna va en blanco para anotar a mano que paso
+// con cada guia, y por eso las filas son mas altas: hay que poder escribir.
+const COL_ESTANCADAS = [
+  COL_NUM,
+  { titulo: 'GUIA', ancho: 135 },
+  { titulo: 'ESTATUS', ancho: 95 },
+  { titulo: 'SIN MOVER DESDE', ancho: 95 },
+  { titulo: 'DÍAS', ancho: 50 },
+  { titulo: 'REVISIÓN / NOTAS', ancho: ANCHO - 30 - 135 - 95 - 95 - 50 },
+];
 const ALTO_FILA = 19;
+const ALTO_FILA_ANOTAR = 28;
 
 // Una guia que lleva este tiempo en bodega ya cuenta como estancada en el
 // resto del sistema; en el PDF se marca para que salte a la vista.
@@ -299,6 +348,19 @@ function nombreEntregadas({ desde, hasta, plaza }, ext) {
 
 function nombreBodega({ corte, plaza }, ext) {
   return `en-bodega-${fmtFechaCsv.format(new Date(corte))}${sufijoPlaza(plaza)}.${ext}`;
+}
+
+function nombreEstancadas({ corte, plaza }, ext) {
+  return `estancadas-${fmtFechaCsv.format(new Date(corte))}${sufijoPlaza(plaza)}.${ext}`;
+}
+
+// Mismo texto que las etiquetas del panel, con acentos (WinAnsi los tiene)
+function textoEstatus(estatus) {
+  const p = plazaDeEstatus(estatus);
+  if (estatus.startsWith('EN_TRANSITO_A_')) return `En tránsito a ${p}`;
+  if (estatus.startsWith('EN_BODEGA_')) return `En bodega ${p}`;
+  if (estatus.startsWith('EN_RUTA_ENTREGA_')) return `En reparto ${p}`;
+  return estatus;
 }
 
 function guiaConComplemento(f) {
@@ -386,6 +448,32 @@ function generarPdfBodega(datos, generadoPor, stream) {
   });
 }
 
+function generarPdfEstancadas(datos, generadoPor, stream) {
+  const { plaza, total, porPlaza, guias, dias } = datos;
+  return generarPdf(stream, generadoPor, {
+    titulo: 'GUIAS ESTANCADAS',
+    subtitulo: `Sin cambiar de estatus en ${dias} días o más · Fletes Tauro`,
+    fecha: `Corte al ${fmtFechaHora.format(new Date(datos.corte))}`,
+    alcance: plaza
+      ? `Solo ${NOMBRES_PLAZA[plaza]} (en bodega, en reparto o en camino hacia alla)`
+      : 'Monterrey y Ciudad de Mexico',
+    total: `Total estancadas: ${total}`,
+    desglose: plaza ? null : totalesPorPlaza(porPlaza),
+    vacio: `Ninguna guia${plaza ? ` de ${NOMBRES_PLAZA[plaza]}` : ''} lleva ${dias} dias o mas sin moverse.`,
+    columnas: COL_ESTANCADAS,
+    altoFila: ALTO_FILA_ANOTAR,
+    secciones: secciones(plaza, guias, (p) => `${NOMBRES_PLAZA[p].toUpperCase()}: EN BODEGA, EN REPARTO O EN CAMINO HACIA ALLA`),
+    celdas: (f) => [
+      { texto: guiaConComplemento(f), negrita: true },
+      { texto: textoEstatus(f.estatus) },
+      { texto: fmtFechaHora.format(new Date(f.estatus_desde)), chica: true },
+      { texto: textoDias(f.dias), negrita: true, color: AMBAR },
+      // En blanco a proposito: aqui se anota a mano lo que se encontro
+      { texto: '' },
+    ],
+  });
+}
+
 function operadorCelda(operador) {
   return operador ? { texto: operador, chica: true } : { texto: 'sin registrar', chica: true, gris: true };
 }
@@ -437,7 +525,7 @@ function generarPdf(stream, generadoPor, r) {
   }
 
   for (const s of r.secciones) {
-    y = seccionPlaza(doc, y, s, r.columnas, r.celdas);
+    y = seccionPlaza(doc, y, s, r.columnas, r.celdas, r.altoFila || ALTO_FILA);
   }
 
   terminar(doc, generadoPor);
@@ -445,9 +533,9 @@ function generarPdf(stream, generadoPor, r) {
 }
 
 // Dibuja el titulo de la seccion y su tabla; regresa la Y donde quedo el cursor.
-function seccionPlaza(doc, y, seccion, columnas, celdas) {
+function seccionPlaza(doc, y, seccion, columnas, celdas, alto = ALTO_FILA) {
   const { titulo, filas } = seccion;
-  y = saltoSiNoCabe(doc, y, 26 + ALTO_FILA * 2);
+  y = saltoSiNoCabe(doc, y, 26 + alto * 2);
 
   doc.rect(MARGEN, y, ANCHO, 24).fill(AZUL);
   doc.font('Helvetica-Bold').fontSize(10).fillColor('#FFFFFF')
@@ -459,14 +547,14 @@ function seccionPlaza(doc, y, seccion, columnas, celdas) {
   y = encabezadoTabla(doc, y, columnas);
 
   for (let i = 0; i < filas.length; i++) {
-    if (y + ALTO_FILA > alturaUtil(doc)) {
+    if (y + alto > alturaUtil(doc)) {
       doc.addPage();
       y = doc.page.margins.top;
       y = encabezadoTabla(doc, y, columnas);
     }
-    if (i % 2 === 1) doc.rect(MARGEN, y, ANCHO, ALTO_FILA).fill(FONDO_FILA);
+    if (i % 2 === 1) doc.rect(MARGEN, y, ANCHO, alto).fill(FONDO_FILA);
 
-    const linea = y + 5.5;
+    const linea = y + (alto - 8) / 2;
     let x = MARGEN;
     doc.font('Helvetica').fontSize(9).fillColor(GRIS)
       .text(String(i + 1), x, linea, { width: columnas[0].ancho - 8, align: 'right', lineBreak: false });
@@ -481,7 +569,7 @@ function seccionPlaza(doc, y, seccion, columnas, celdas) {
       x += col.ancho;
     });
 
-    y += ALTO_FILA;
+    y += alto;
     doc.moveTo(MARGEN, y).lineTo(MARGEN + ANCHO, y).lineWidth(0.5).strokeColor(BORDE).stroke();
   }
 
@@ -597,8 +685,19 @@ function csvBodega({ guias }) {
   );
 }
 
+function csvEstancadas({ guias }) {
+  return aCsv(
+    ['Guia', 'Complemento', 'Numero anterior', 'Plaza', 'Estatus', 'Sin moverse desde (fecha)', 'Sin moverse desde (hora)', 'Dias', 'Revision'],
+    guias.map((f) => {
+      const d = new Date(f.estatus_desde);
+      return [f.numero_guia, f.complemento, f.numero_anterior, f.plaza, textoEstatus(f.estatus), fmtFechaCsv.format(d), fmtHoraCsv.format(d), f.dias, ''];
+    })
+  );
+}
+
 module.exports = {
   salidasDelDia, generarPdfSalidas, csvSalidas, nombreSalidas,
   entregasEnRango, generarPdfEntregadas, csvEntregadas, nombreEntregadas,
   guiasEnBodega, generarPdfBodega, csvBodega, nombreBodega,
+  guiasEstancadas, generarPdfEstancadas, csvEstancadas, nombreEstancadas,
 };
