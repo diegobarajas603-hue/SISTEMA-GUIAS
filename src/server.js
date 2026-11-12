@@ -372,6 +372,7 @@ app.get('/api/eventos', requireAuth, seguro(async (req, res) => {
 //    omision), con hora y operador, para cotejar contra el manifiesto.
 //  - entregadas: las entregadas en un rango de dias (?desde y ?hasta).
 //  - bodega: lo que hay en bodega al momento.
+//  - estancadas: las que llevan ?dias (2) o mas sin cambiar de estatus.
 const REPORTES = {
   salidas: {
     datos: (q) => reportes.salidasDelDia({ fecha: q.fecha, plaza: q.plaza }),
@@ -391,9 +392,17 @@ const REPORTES = {
     csv: reportes.csvBodega,
     nombre: reportes.nombreBodega,
   },
+  // Las mismas del aviso ambar de la barra, todas y sin tope, para revisarlas
+  // en papel (?dias, 2 por omision)
+  estancadas: {
+    datos: (q) => reportes.guiasEstancadas({ plaza: q.plaza, dias: q.dias }),
+    pdf: reportes.generarPdfEstancadas,
+    csv: reportes.csvEstancadas,
+    nombre: reportes.nombreEstancadas,
+  },
 };
 
-app.get('/api/reportes/:tipo(salidas|entregadas|bodega).:formato(json|pdf|csv)?', requireAuth, async (req, res) => {
+app.get('/api/reportes/:tipo(salidas|entregadas|bodega|estancadas).:formato(json|pdf|csv)?', requireAuth, async (req, res) => {
   const r = REPORTES[req.params.tipo];
   const formato = req.params.formato || 'json';
   let datos;

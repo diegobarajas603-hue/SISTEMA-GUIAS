@@ -401,6 +401,7 @@
                   <option value="entregadas">Entregadas</option>
                   <option value="bodega">En bodega</option>
                   <option value="salidas">Salidas del dia</option>
+                  <option value="estancadas">Estancadas (2 dias o mas sin moverse)</option>
                 </select>
               </label>
               <label class="field" id="repPlazaCampo" hidden>
@@ -1969,7 +1970,9 @@
     if (!soloEstancadas) { cont.innerHTML = ''; return; }
     cont.innerHTML = `<button class="chip is-active" id="chipEstancadas">
       Estancadas +${DIAS_ESTANCADA} dias <span class="chip__count">quitar &times;</span>
-    </button>`;
+    </button>
+    <button class="chip" id="btnPdfEstancadas" type="button" title="Descargar el PDF de todas las estancadas para revisarlas">Imprimir PDF</button>`;
+    $('btnPdfEstancadas').addEventListener('click', () => imprimirEstancadas($('btnPdfEstancadas')));
     $('chipEstancadas').addEventListener('click', () => {
       soloEstancadas = false;
       pintarAvisoEstancadas();
@@ -2747,6 +2750,21 @@
         `<span class="rep-dias${g.dias >= DIAS_ATENCION_BODEGA ? ' rep-dias--atencion' : ''}">${textoDias(g.dias)}</span>`,
       ],
     },
+    estancadas: {
+      preguntaPlaza: '¿De que plaza?',
+      prep: 'de',
+      fechas: null,
+      explica: 'Todas las guias que llevan 2 dias o mas sin cambiar de estatus (las mismas del aviso ambar de la barra), con su estatus y desde cuando no se mueven. El PDF trae una columna en blanco para anotar a mano que paso con cada una: si se cancelo, si se le hizo complemento, etc.',
+      lista: (r) => r.guias,
+      vacio: ['No hay guias estancadas', 'Todas las guias se han movido en los ultimos 2 dias.'],
+      cuenta: (n) => `${n} estancada${n === 1 ? '' : 's'}`,
+      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Estatus'], ['Sin moverse desde', 'rep-movil-oculta'], ['Dias']],
+      fila: (g, i, conPlaza) => [
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, badge(g.estatus),
+        `<span class="mono t-tertiary">${esc(fmtFecha(g.estatus_desde))}</span>`,
+        `<span class="rep-dias rep-dias--atencion">${textoDias(g.dias)}</span>`,
+      ],
+    },
     salidas: {
       preguntaPlaza: '¿De que plaza salieron?',
       prep: 'de',
@@ -2896,12 +2914,34 @@
         aviso: `Entregadas ${e.desde === e.hasta ? `del ${e.desde}` : `del ${e.desde} al ${e.hasta}`}${plazaTxt}.`,
       };
     }
+    if (e.tipo === 'estancadas') return { nombre: `estancadas-${fechaLocalISO()}${sufijo}.${ext}`, aviso: `Guias estancadas${plazaTxt}.` };
     return { nombre: `en-bodega-${fechaLocalISO()}${sufijo}.${ext}`, aviso: `Guias en bodega${plazaTxt}.` };
   }
 
   // La descarga va con fetch y no con un <a href> directo porque el archivo
   // exige el token de sesion en el header; el blob resultante se entrega al
   // navegador como archivo con su nombre.
+  async function bajarArchivo(ruta, nombre) {
+    const res = await fetch(ruta, { headers: { Authorization: 'Bearer ' + sesionToken } });
+    if (res.status === 401) { mostrarLogin('Tu sesion expiro. Inicia sesion de nuevo.'); return false; }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'No se pudo generar el reporte');
+    }
+    const blob = await res.blob();
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Se revoca despues de un momento: hacerlo de inmediato cancela la
+    // descarga en algunos navegadores
+    setTimeout(() => URL.revokeObjectURL(href), 10000);
+    return true;
+  }
+
   async function descargarReporte(ext, btn) {
     const e = estadoReporte();
     const { nombre, aviso } = describirReporte(ext);
@@ -2910,28 +2950,29 @@
     btn.textContent = ext === 'pdf' ? 'Generando PDF...' : 'Generando Excel...';
     msgForm('msgReporte', '', '');
     try {
-      const res = await fetch(`/api/reportes/${e.tipo}.${ext}?` + consultaReporte(), {
-        headers: { Authorization: 'Bearer ' + sesionToken },
-      });
-      if (res.status === 401) { mostrarLogin('Tu sesion expiro. Inicia sesion de nuevo.'); return; }
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'No se pudo generar el reporte');
+      if (await bajarArchivo(`/api/reportes/${e.tipo}.${ext}?` + consultaReporte(), nombre)) {
+        UI.toast({ tipo: 'ok', titulo: 'Reporte descargado', descripcion: aviso });
       }
-      const blob = await res.blob();
-      const href = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = href;
-      a.download = nombre;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      // Se revoca despues de un momento: hacerlo de inmediato cancela la
-      // descarga en algunos navegadores
-      setTimeout(() => URL.revokeObjectURL(href), 10000);
-      UI.toast({ tipo: 'ok', titulo: 'Reporte descargado', descripcion: aviso });
     } catch (err) {
       msgForm('msgReporte', err.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  }
+
+  // Desde el listado de estancadas: el PDF de todas, de las dos plazas, para
+  // imprimirlo y revisarlas una por una sin pasar por la pantalla de reportes
+  async function imprimirEstancadas(btn) {
+    btn.disabled = true;
+    const textoOriginal = btn.textContent;
+    btn.textContent = 'Generando PDF...';
+    try {
+      if (await bajarArchivo(`/api/reportes/estancadas.pdf?dias=${DIAS_ESTANCADA}`, `estancadas-${fechaLocalISO()}.pdf`)) {
+        UI.toast({ tipo: 'ok', titulo: 'PDF descargado', descripcion: 'Guias estancadas de las dos plazas, con columna para anotar la revision.' });
+      }
+    } catch (err) {
+      UI.toast({ tipo: 'error', titulo: 'No se pudo generar el PDF', descripcion: err.message });
     } finally {
       btn.disabled = false;
       btn.textContent = textoOriginal;
