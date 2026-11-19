@@ -5,7 +5,8 @@ const { init, latenciaBd, estadoPool } = require('./db');
 const guias = require('./guias');
 const reportes = require('./reportes');
 const auth = require('./auth');
-const { mensajeEstatus } = require('./estatus');
+const sad = require('./sad');
+const { mensajeEstatus, documentada } = require('./estatus');
 const { extraerNumeroGuia, enviarMensaje } = require('./whatsapp');
 
 // Red de seguridad del proceso.
@@ -205,6 +206,16 @@ app.post('/api/guias/escanear', requireAuth, async (req, res) => {
       idEscaneo,
       reintento: reintento === true,
     });
+    // Una guia que se da de alta con este escaneo se coteja con el SAD: si no
+    // aparece facturada o su factura esta cancelada, el panel lo avisa. Nunca
+    // frena el escaneo (el paquete fisico manda) ni lo hace fallar si el
+    // cotejo falla.
+    if (resultado.nueva) {
+      resultado.aviso = await sad.avisoAlRegistrar(numero).catch((e) => {
+        console.warn('[sad] No se pudo cotejar la guia con el SAD:', e.message);
+        return null;
+      });
+    }
     // El panel muestra quien y cuando en la confirmacion del escaneo
     resultado.operador = req.usuario.nombre || req.usuario.usuario;
     resultado.hora = new Date().toISOString();
@@ -213,7 +224,7 @@ app.post('/api/guias/escanear', requireAuth, async (req, res) => {
     resultado.ms = Math.round(performance.now() - inicio);
     console.log(
       `[escaneo] ${req.usuario.usuario} ${plaza} ${modoPedido} ${numero} -> ${resultado.tipo}` +
-        `${resultado.yaAplicado ? ' (reintento, ya aplicado)' : ''} ${resultado.ms} ms`
+        `${resultado.yaAplicado ? ' (reintento, ya aplicado)' : ''}${resultado.aviso ? ` [aviso SAD: ${resultado.aviso}]` : ''} ${resultado.ms} ms`
     );
     res.json(resultado);
   } catch (e) {
@@ -332,6 +343,32 @@ app.get('/api/guias/detenidas', requireAuth, seguro(async (req, res) => {
   res.json(await guias.listarDetenidas({ horas: req.query.horas }));
 }));
 
+// ---------- Conexion con el SAD (facturacion) ----------
+
+// Estado de la sincronizacion: si esta configurada, cuando leyo por ultima
+// vez y si fallo.
+app.get('/api/sad/estado', requireAuth, (req, res) => {
+  res.json(sad.estadoSincronizacion());
+});
+
+// Guias facturadas en el SAD que nadie ha escaneado todavia (?plaza=MTY|CDMX)
+app.get('/api/sad/por-salir', requireAuth, async (req, res) => {
+  try {
+    res.json(await sad.listarPorSalir({ plaza: req.query.plaza && String(req.query.plaza).toUpperCase() }));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Leer el SAD en este momento sin esperar al siguiente ciclo (administradores)
+app.post('/api/sad/sincronizar', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    res.json({ resumen: await sad.sincronizar(), estado: sad.estadoSincronizacion() });
+  } catch (e) {
+    res.status(502).json({ error: e.message, estado: sad.estadoSincronizacion() });
+  }
+});
+
 const ACCIONES_INTERNAS = ['ESCANEO_REPETIDO', 'CORRECCION', 'CAMBIO_NUMERO', 'COMPLEMENTO'];
 
 // Quien hizo cada movimiento es informacion solo para administradores. A los
@@ -434,7 +471,8 @@ app.get('/api/guias/:numeroGuia', requireAuth, seguro(async (req, res) => {
   const guia = await guias.buscarGuia(numeroGuia);
   if (!guia) return res.status(404).json({ error: 'Guia no encontrada' });
   const historial = sinUsuario(await guias.obtenerHistorial(guia.numero_guia), req.usuario);
-  res.json({ ...guia, mensaje: mensajeEstatus(guia.numero_guia, guia.estatus), historial });
+  const factura = await sad.facturaDe(guia.numero_guia).catch(() => null);
+  res.json({ ...guia, mensaje: mensajeEstatus(guia.numero_guia, guia.estatus), historial, sad: factura });
 }));
 
 // Listado de guias. Ademas de buscar por numero y filtrar por estatus y plaza,
@@ -472,12 +510,32 @@ app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
   }
   // Busca tambien por el numero de complemento: ambos numeros rastrean la guia
   const guia = await guias.buscarGuia(numeroGuia);
-  if (!guia) return res.status(404).json({ error: 'No encontramos esa guia. Verifica el numero e intenta de nuevo.' });
+  if (!guia) {
+    // Aun sin escanear, si ya se facturo en el SAD el cliente ve que su envio
+    // fue documentado
+    const factura = await sad.facturaDe(numeroGuia).catch(() => null);
+    if (factura && !factura.cancelada) {
+      const estatus = documentada(factura.plaza_origen);
+      const fecha = factura.registrada_en || factura.visto_en;
+      return res.json({
+        numeroGuia,
+        complemento: null,
+        estatus,
+        mensaje: mensajeEstatus(numeroGuia, estatus),
+        actualizado_en: fecha,
+        historial: [eventoDocumentada(factura)],
+      });
+    }
+    return res.status(404).json({ error: 'No encontramos esa guia. Verifica el numero e intenta de nuevo.' });
+  }
   // Los escaneos repetidos, las anotaciones internas (correcciones, cambios de
   // numero, complementos) y los escaneos revertidos no se muestran al cliente
   const historial = (await guias.obtenerHistorial(guia.numero_guia))
     .filter((ev) => !ACCIONES_INTERNAS.includes(ev.accion) && !ev.revertido)
     .map(({ accion, descripcion, creado_en }) => ({ accion, descripcion, creado_en }));
+  // El primer paso de la historia es cuando se documento en el SAD
+  const factura = await sad.facturaDe(guia.numero_guia).catch(() => null);
+  if (factura && !factura.cancelada) historial.push(eventoDocumentada(factura));
   res.json({
     numeroGuia: guia.numero_guia,
     complemento: guia.complemento || null,
@@ -487,6 +545,15 @@ app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
     historial,
   });
 }));
+
+function eventoDocumentada(factura) {
+  const plaza = factura.plaza_origen === 'MTY' ? 'MTY' : 'CDMX';
+  return {
+    accion: 'DOCUMENTADA',
+    descripcion: `Envio documentado en ${plaza}`,
+    creado_en: factura.registrada_en || factura.visto_en,
+  };
+}
 
 // ---------- Webhook de WhatsApp Business Cloud API (Meta) ----------
 
@@ -523,6 +590,11 @@ app.post('/webhook/whatsapp', async (req, res) => {
     // Busca tambien por el numero de complemento
     const guia = await guias.buscarGuia(numeroGuia);
     if (!guia) {
+      const factura = await sad.facturaDe(numeroGuia).catch(() => null);
+      if (factura && !factura.cancelada) {
+        await enviarMensaje(de, mensajeEstatus(numeroGuia, documentada(factura.plaza_origen)));
+        return;
+      }
       await enviarMensaje(de, `No encontramos la guia ${numeroGuia}. Verifica el numero e intenta de nuevo.`);
       return;
     }
@@ -550,6 +622,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 init()
   .then(() => auth.initAuth())
+  .then(() => sad.initSad())
   .then(() => guias.marcarRevertidosHistoricos())
   .then(() => guias.marcarDuplicadosHistoricos())
   .then(() => guias.migrarComplementos())
@@ -559,6 +632,7 @@ init()
     app.listen(PORT, () => {
       console.log(`Sistema de guias escuchando en http://localhost:${PORT}`);
     });
+    sad.arrancar();
   })
   .catch((e) => {
     console.error('Error inicializando la base de datos:', e);

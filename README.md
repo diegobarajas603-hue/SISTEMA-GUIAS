@@ -148,6 +148,48 @@ faltaron por escanear.
 - Con las dos plazas, el PDF trae una seccion por plaza (MTY con guias AN y
   CDMX con guias BN) y el total de cada una.
 
+## Conexion con el SAD (facturacion)
+
+Cada guia nace en el SAD: se arma el embarque, se factura y **el folio de la
+factura es el numero de guia** (AN sale de MTY, BN sale de CDMX). El sistema
+lee el SAD cada 5 minutos (`src/sad.js`) y guarda lo que encuentra en la tabla
+`facturas_sad`. Con eso:
+
+- **Por salir** (menu del panel): guias facturadas que nadie ha escaneado
+  todavia, con cliente, destinatario, telefono, si van a ocurre o a domicilio
+  y cuanto llevan esperando (en ambar a partir de 24 h). Una guia sale de esta
+  lista en cuanto se escanea su salida.
+- **Aviso al escanear**: si una guia nueva no aparece en el SAD o su factura
+  esta cancelada, el panel avisa (sonido y mensaje). El escaneo **no se
+  frena**: el paquete fisico manda, el aviso es para revisarlo.
+- **Rastreo y WhatsApp**: desde que se factura, el cliente ve
+  "Documentado: se esta preparando para salir" aunque aun no se escanee, y el
+  historial empieza con "Envio documentado en MTY/CDMX".
+- **Detalle de guia**: tarjeta "Facturacion (SAD)" con los datos de la factura.
+
+El escaneo sigue siendo lo que confirma que el paquete salio: el estatus
+"Transito" del SAD solo se muestra como referencia.
+
+Como el SAD no tiene API, el sistema inicia sesion y lee sus pantallas
+(listado de embarques, ventas canceladas y el detalle de cada venta). **Solo
+lee**: nunca crea, modifica ni cancela nada en el SAD. Si DISA cambia esas
+pantallas, `src/sad.js` es lo unico que hay que ajustar, y mientras tanto el
+escaneo funciona igual.
+
+Para activarlo, crea en el SAD un usuario de **solo consulta** (ventas y
+embarques) y define en Railway `SAD_USUARIO` y `SAD_PASSWORD` (ver
+`.env.example`). Sin esas variables la conexion queda apagada. En "Por salir"
+se ve cuando se leyo el SAD por ultima vez y, si fallo, por que; un
+administrador puede forzar una lectura con "Leer el SAD ahora".
+
+API:
+
+```
+GET  /api/sad/estado                  # configuracion y ultima lectura
+GET  /api/sad/por-salir?plaza=MTY     # facturadas sin escanear (plaza opcional)
+POST /api/sad/sincronizar             # leer el SAD ya (solo administradores)
+```
+
 ## Instalacion
 
 Requiere PostgreSQL (local o en un servicio como Railway/Render/Supabase).

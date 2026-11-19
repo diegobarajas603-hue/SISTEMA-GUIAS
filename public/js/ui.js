@@ -22,6 +22,8 @@
      estatus son los del sistema y no se tocan. */
 
   const ETIQUETAS = {
+    DOCUMENTADA_MTY: 'Facturada en MTY',
+    DOCUMENTADA_CDMX: 'Facturada en CDMX',
     EN_TRANSITO_A_CDMX: 'En transito a CDMX',
     EN_TRANSITO_A_MTY: 'En transito a MTY',
     EN_BODEGA_CDMX: 'En bodega CDMX',

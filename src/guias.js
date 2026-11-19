@@ -361,7 +361,8 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null, 
     validarPrefijoSalida(numeroGuia, plaza);
     const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
     const nueva = await crearGuiaConSalida(numeroGuia, plaza, destino, { accion: ACCIONES.SALIDA, descripcion }, usuario, idEscaneo);
-    return { guia: nueva, tipo: 'salida', mensaje: descripcion };
+    // nueva: el escaneo dio de alta la guia; el servidor la coteja con el SAD
+    return { guia: nueva, tipo: 'salida', mensaje: descripcion, nueva: true };
   }
 
   if (guia.estatus === enTransitoA(plaza)) {

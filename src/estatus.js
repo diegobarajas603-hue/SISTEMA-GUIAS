@@ -77,8 +77,18 @@ function eventoDeEstatus(estatus, tipoEntrega = null) {
   return { accion: ACCIONES.ENTREGA, plaza, descripcion: `Entregado en ${plaza}` };
 }
 
+// Estatus de una guia que ya se facturo en el SAD pero que todavia nadie
+// escanea. No vive en la tabla guias (ahi una guia nace con su primer
+// escaneo): solo lo usan el rastreo publico y WhatsApp para que el cliente
+// vea su envio desde que se documenta.
+function documentada(plaza) {
+  return `DOCUMENTADA_${plaza}`;
+}
+
 // Mensajes que ve el cliente (rastreo publico y WhatsApp)
 const MENSAJES = {
+  DOCUMENTADA_MTY: (g) => `Tu envío ${g} fue documentado y se está preparando para salir de nuestra sucursal en Monterrey.`,
+  DOCUMENTADA_CDMX: (g) => `Tu envío ${g} fue documentado y se está preparando para salir de nuestra sucursal en Ciudad de México.`,
   EN_TRANSITO_A_CDMX: (g) => `Tu envío ${g} se encuentra en ruta hacia nuestro centro de distribución.`,
   EN_TRANSITO_A_MTY: (g) => `Tu envío ${g} se encuentra en ruta hacia nuestro centro de distribución.`,
   EN_BODEGA_CDMX: (g) => `Tu envío ${g} fue recibido en nuestra sucursal y está siendo preparado para su siguiente etapa.`,
@@ -106,5 +116,6 @@ module.exports = {
   enBodega,
   enRutaEntrega,
   entregado,
+  documentada,
   mensajeEstatus,
 };
