@@ -2466,3 +2466,10 @@ tbody tr.clic:hover {
 @media (max-width: 700px) {
   .form-2col { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Conteo de guias en las pestañas de "Por salir" */
+.ps-n {
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}

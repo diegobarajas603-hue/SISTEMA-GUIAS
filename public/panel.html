@@ -333,9 +333,9 @@
         <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
           <div class="seg" id="psPlaza">
             <span class="seg__thumb"></span>
-            <button class="seg__option" data-value="" aria-selected="true">Todas</button>
-            <button class="seg__option" data-value="MTY" aria-selected="false">Salen de MTY</button>
-            <button class="seg__option" data-value="CDMX" aria-selected="false">Salen de CDMX</button>
+            <button class="seg__option" data-value="" aria-selected="true">Todas<span class="ps-n" id="psNTodas"></span></button>
+            <button class="seg__option" data-value="MTY" aria-selected="false">Salen de MTY<span class="ps-n" id="psNMTY"></span></button>
+            <button class="seg__option" data-value="CDMX" aria-selected="false">Salen de CDMX<span class="ps-n" id="psNCDMX"></span></button>
           </div>
           <span class="spacer"></span>
           <span class="nota" id="psEstado"></span>
@@ -3045,6 +3045,7 @@
   // A partir de estas horas sin salir la fila se marca en ambar
   const HORAS_POR_SALIR_AVISO = 24;
   let psPlaza = '';
+  let segPorSalir = null;   // control de pestañas; se arma mas abajo
 
   function textoSincronizacion(e) {
     if (!e || !e.habilitado) return 'Conexion con el SAD apagada';
@@ -3067,8 +3068,16 @@
     const esAdminPs = !!(usuarioActual && usuarioActual.roles.includes('admin'));
     $('tbodyPorSalir').innerHTML = UI.skeletonRows(5, 7);
     try {
-      const r = await api('/api/sad/por-salir' + (psPlaza ? '?plaza=' + psPlaza : ''));
+      // Se piden siempre las dos plazas: asi cada pestaña muestra su conteo y
+      // el filtro de plaza se aplica aqui mismo
+      const r = await api('/api/sad/por-salir');
       const e = r.sincronizacion;
+      const todas = r.guias;
+      const cuenta = (pl) => todas.filter((g) => g.plaza_origen === pl).length;
+      const n = { Todas: todas.length, MTY: cuenta('MTY'), CDMX: cuenta('CDMX') };
+      for (const k of Object.keys(n)) $('psN' + k).textContent = e.habilitado ? ` (${n[k]})` : '';
+      if (segPorSalir) segPorSalir.mover();
+      r.guias = psPlaza ? todas.filter((g) => g.plaza_origen === psPlaza) : todas;
       $('psEstado').textContent = textoSincronizacion(e);
       $('btnSadSync').style.display = esAdminPs && e.habilitado ? '' : 'none';
       if (!e.habilitado) {
@@ -3081,7 +3090,9 @@
       if (!r.guias.length) {
         $('tbodyPorSalir').innerHTML = `<tr><td colspan="7">${UI.emptyState({
           titulo: 'Nada pendiente',
-          descripcion: 'Todas las guias facturadas en el SAD ya tienen su escaneo de salida.',
+          descripcion: psPlaza
+            ? `Todas las guias facturadas que salen de ${psPlaza} ya tienen su escaneo de salida.`
+            : 'Todas las guias facturadas en el SAD ya tienen su escaneo de salida.',
         })}</td></tr>`;
         return;
       }
@@ -3102,7 +3113,7 @@
     }
   }
 
-  UI.segmented($('psPlaza'), (valor) => { psPlaza = valor; cargarPorSalir(); });
+  segPorSalir = UI.segmented($('psPlaza'), (valor) => { psPlaza = valor; cargarPorSalir(); });
 
   $('btnSadSync').addEventListener('click', async () => {
     const b = $('btnSadSync');
