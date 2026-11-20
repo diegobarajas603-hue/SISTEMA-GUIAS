@@ -7,6 +7,7 @@
 // alguien la escanee:
 //
 //  - "Por salir": guias facturadas que nadie ha escaneado todavia.
+//  - Las que el SAD ya tiene en "Transito" se dan de alta en transito solas.
 //  - Aviso al escanear una guia nueva que no aparece en el SAD o cuya
 //    factura esta cancelada.
 //  - El cliente ve "Tu envio fue documentado" desde que se factura.
@@ -356,6 +357,43 @@ async function completarDetalles() {
   return leidos;
 }
 
+// Estatus de embarque del SAD que significan que el paquete ya salio de su
+// plaza de origen
+const ESTATUS_YA_SALIO = ['Transito', 'Cedis Destino'];
+
+// Guias que el SAD ya tiene en camino y que nadie escaneo al salir: se dan de
+// alta EN TRANSITO hacia la otra plaza, con una salida registrada por "SAD".
+// Solo crea guias que no existen: una guia ya escaneada nunca se toca (el
+// escaneo manda). Tampoco revive numeros que un administrador elimino o
+// cancelo (quedan en la bitacora). Una sola sentencia: guia y evento entran
+// juntos, y si en ese instante alguien escanea la guia, gana el escaneo.
+async function marcarEnTransito() {
+  const ahora = new Date();
+  const { rows } = await pool.query(
+    `WITH candidatas AS (
+       SELECT f.numero_guia, f.plaza_origen AS origen,
+              CASE WHEN f.plaza_origen = 'MTY' THEN 'CDMX' ELSE 'MTY' END AS destino
+         FROM facturas_sad f
+        WHERE NOT f.cancelada
+          AND f.estatus_sad = ANY($2::text[])
+          AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
+          AND NOT EXISTS (SELECT 1 FROM bitacora b WHERE b.numero_guia = f.numero_guia)
+     ), nuevas AS (
+       INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, estatus_desde)
+       SELECT numero_guia, origen, destino, 'EN_TRANSITO_A_' || destino, $1, $1, $1 FROM candidatas
+       ON CONFLICT (numero_guia) DO NOTHING
+       RETURNING numero_guia, origen, destino, estatus
+     )
+     INSERT INTO eventos (numero_guia, accion, estatus, plaza, descripcion, creado_en, usuario)
+     SELECT numero_guia, 'SALIDA', estatus, origen,
+            'Salio de bodega ' || origen || ' con destino a ' || destino || ' (registrado en el SAD)', $1, 'SAD'
+       FROM nuevas
+     RETURNING numero_guia`,
+    [ahora, ESTATUS_YA_SALIO]
+  );
+  return rows.length;
+}
+
 async function sincronizar() {
   if (!habilitado) throw new Error('La conexion con el SAD no esta configurada (faltan SAD_USUARIO y SAD_PASSWORD)');
   if (estado.enCurso) return estado.ultimoResumen;
@@ -366,12 +404,17 @@ async function sincronizar() {
     const filas = await leerEmbarquesRecientes();
     const nuevas = await guardarEmbarques(filas);
     const canceladas = await marcarCanceladas();
+    // Despues de las canceladas: una factura cancelada nunca sale en transito
+    const enTransito = await marcarEnTransito();
     const detalles = await completarDetalles();
-    const resumen = { embarques: filas.length, nuevas, canceladas, detalles, ms: Date.now() - inicio };
+    const resumen = { embarques: filas.length, nuevas, canceladas, enTransito, detalles, ms: Date.now() - inicio };
     estado.ultimoExito = new Date().toISOString();
     estado.ultimoError = null;
     estado.ultimoResumen = resumen;
-    console.log(`[sad] ${filas.length} embarques leidos, ${nuevas} nuevos, ${canceladas} cancelados, ${detalles} detalles, ${resumen.ms} ms`);
+    console.log(
+      `[sad] ${filas.length} embarques leidos, ${nuevas} nuevos, ${canceladas} cancelados, ` +
+        `${enTransito} puestos en transito, ${detalles} detalles, ${resumen.ms} ms`
+    );
     return resumen;
   } catch (e) {
     estado.ultimoError = e.message;

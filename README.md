@@ -155,8 +155,8 @@ factura es el numero de guia** (AN sale de MTY, BN sale de CDMX). El sistema
 lee el SAD cada 5 minutos (`src/sad.js`) y guarda lo que encuentra en la tabla
 `facturas_sad`. Con eso:
 
-- **Por salir** (menu del panel): guias facturadas que nadie ha escaneado
-  todavia, con cliente, destinatario, telefono, si van a ocurre o a domicilio
+- **Por salir** (menu del panel): guias facturadas que todavia no salen (en
+  el SAD siguen en "Cedis-Local") y que nadie ha escaneado, con cliente, destinatario, telefono, si van a ocurre o a domicilio
   y cuanto llevan esperando (en ambar a partir de 24 h). Una guia sale de esta
   lista en cuanto se escanea su salida.
 - **Aviso al escanear**: si una guia nueva no aparece en el SAD o su factura
@@ -167,6 +167,12 @@ lee el SAD cada 5 minutos (`src/sad.js`) y guarda lo que encuentra en la tabla
   historial empieza con "Envio documentado en MTY/CDMX".
 - **Detalle de guia**: tarjeta "Facturacion (SAD)" con los datos de la factura.
 
+- **Salida automatica**: cuando el SAD pone un embarque en "Transito" (o
+  "Cedis Destino") y la guia no existe en el sistema, se da de alta EN
+  TRANSITO hacia la otra plaza, con la salida registrada por "SAD". En la
+  plaza destino solo se escanea la llegada. Nunca se toca una guia que ya
+  existe (el escaneo manda) ni se revive un numero que un administrador
+  elimino o cancelo.
 - **Llegada sin escaneo de salida**: si una guia de la otra plaza (una BN
   escaneada en MTY) nunca se escaneo al salir pero el SAD la tiene facturada,
   el escaneo registra su llegada. Queda la salida con la hora del SAD y la
