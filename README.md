@@ -167,8 +167,11 @@ lee el SAD cada 5 minutos (`src/sad.js`) y guarda lo que encuentra en la tabla
   historial empieza con "Envio documentado en MTY/CDMX".
 - **Detalle de guia**: tarjeta "Facturacion (SAD)" con los datos de la factura.
 
-El escaneo sigue siendo lo que confirma que el paquete salio: el estatus
-"Transito" del SAD solo se muestra como referencia.
+- **Llegada sin escaneo de salida**: si una guia de la otra plaza (una BN
+  escaneada en MTY) nunca se escaneo al salir pero el SAD la tiene facturada,
+  el escaneo registra su llegada. Queda la salida con la hora del SAD y la
+  llegada con el escaneo. Sin factura en el SAD, o con la factura cancelada,
+  se rechaza como antes.
 
 Como el SAD no tiene API, el sistema inicia sesion y lee sus pantallas
 (listado de embarques, ventas canceladas y el detalle de cada venta). **Solo

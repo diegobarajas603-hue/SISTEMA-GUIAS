@@ -1,4 +1,5 @@
 const { pool } = require('./db');
+const sad = require('./sad');
 const {
   PLAZAS,
   ACCIONES,
@@ -78,6 +79,35 @@ async function crearGuiaConSalida(numeroGuia, plaza, destino, evento, usuario, i
      )
      SELECT * FROM g`,
     [numeroGuia, plaza, destino, estatus, now(), evento.accion, evento.descripcion, usuario, idEscaneo]
+  );
+  return rows[0];
+}
+
+// Da de alta una guia que LLEGA sin haberse escaneado su salida, cuando el
+// SAD confirma que existe (ya se facturo y embarco en la otra plaza). Quedan
+// dos movimientos en una sola consulta: la salida de la plaza de origen, con
+// la hora del SAD, y la llegada con este escaneo. Asi el historial, el rastreo
+// del cliente, los reportes y "revertir ultimo escaneo" ven una guia normal.
+async function crearGuiaConLlegada(numeroGuia, origen, plaza, horaSalida, descripcionLlegada, usuario, idEscaneo) {
+  const ahora = now();
+  const salida = horaSalida && new Date(horaSalida) < ahora ? new Date(horaSalida) : ahora;
+  const { rows } = await pool.query(
+    `WITH g AS (
+       INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, estatus_desde)
+       VALUES ($1, $2, $3, $4, $5, $6, $6)
+       RETURNING *
+     ), e AS (
+       INSERT INTO eventos (${COLUMNAS_EVENTO})
+       SELECT g.numero_guia, $7, $8, $2, $9, $5, 'SAD', NULL FROM g
+       UNION ALL
+       SELECT g.numero_guia, $10, $4, $3, $11, $6, $12, $13 FROM g
+     )
+     SELECT * FROM g`,
+    [
+      numeroGuia, origen, plaza, enBodega(plaza), salida, ahora,
+      ACCIONES.SALIDA, enTransitoA(plaza), `Salio de bodega ${origen} con destino a ${plaza} (registrado en el SAD)`,
+      ACCIONES.LLEGADA, descripcionLlegada, usuario, idEscaneo,
+    ]
   );
   return rows[0];
 }
@@ -356,6 +386,32 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null, 
   if (guia) numeroGuia = guia.numero_guia;
 
   if (!guia) {
+    // Una guia de la otra plaza (una BN escaneada en MTY) que nunca se
+    // escaneo al salir: si el SAD la tiene facturada, ya viene embarcada y
+    // este escaneo es su LLEGADA. Sin factura en el SAD se rechaza como antes,
+    // para que un numero mal capturado no se registre.
+    const origenSerie = plazaDeSalida(numeroGuia, null);
+    if (origenSerie && origenSerie !== plaza) {
+      const factura = await sad.facturaDe(numeroGuia).catch(() => null);
+      if (factura && !factura.cancelada) {
+        const descripcion = `Llego a bodega ${plaza} (sin escaneo de salida de ${origenSerie}; salida tomada del SAD)`;
+        const g = await crearGuiaConLlegada(
+          numeroGuia, origenSerie, plaza, factura.registrada_en || factura.visto_en, descripcion, usuario, idEscaneo
+        );
+        return { guia: g, tipo: 'llegada', mensaje: descripcion };
+      }
+      if (factura && factura.cancelada) {
+        throw new Error(
+          `La guia ${numeroGuia} es una salida de ${origenSerie} y su factura esta CANCELADA en el SAD: no se registra su llegada. Revisa la etiqueta.`
+        );
+      }
+      if (sad.habilitado) {
+        throw new Error(
+          `La guia ${numeroGuia} es una salida de ${origenSerie} y no aparece en el SAD: no se puede registrar su llegada a ${plaza}. ` +
+            `Revisa el numero; si se acaba de facturar, espera unos minutos a que se lea el SAD.`
+        );
+      }
+    }
     // Registrar una guia nueva es registrar su salida: el prefijo debe
     // corresponder a la plaza (AN sale de MTY, BN sale de CDMX)
     validarPrefijoSalida(numeroGuia, plaza);
