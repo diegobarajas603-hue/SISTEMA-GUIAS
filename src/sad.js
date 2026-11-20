@@ -91,6 +91,13 @@ async function initSad() {
       actualizado_en TIMESTAMPTZ NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_facturas_sad_visto_en ON facturas_sad (visto_en DESC);
+
+    -- Cuando una factura se cancela en el SAD despues de que su guia ya
+    -- existe aqui, se avisa en el panel hasta que un administrador lo revisa.
+    -- cancelada_en: cuando se detecto la cancelacion.
+    ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS cancelada_en TIMESTAMPTZ;
+    ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS cancelacion_revisada_en TIMESTAMPTZ;
+    ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS cancelacion_revisada_por TEXT;
     CREATE INDEX IF NOT EXISTS idx_facturas_sad_sin_detalle ON facturas_sad (venta_id) WHERE detalle_en IS NULL;
   `);
 }
@@ -277,6 +284,8 @@ async function guardarEmbarques(filas) {
          cliente = EXCLUDED.cliente, fecha_embarque = EXCLUDED.fecha_embarque,
          estatus_sad = EXCLUDED.estatus_sad,
          cancelada = facturas_sad.cancelada OR EXCLUDED.cancelada,
+         cancelada_en = CASE WHEN EXCLUDED.cancelada AND NOT facturas_sad.cancelada
+                             THEN EXCLUDED.actualizado_en ELSE facturas_sad.cancelada_en END,
          actualizado_en = CASE WHEN facturas_sad.estatus_sad IS DISTINCT FROM EXCLUDED.estatus_sad
                                THEN EXCLUDED.actualizado_en ELSE facturas_sad.actualizado_en END
        RETURNING (xmax = 0) AS nueva`,
@@ -318,9 +327,9 @@ async function marcarCanceladas() {
   if (!folios.length) return 0;
   const ahora = new Date();
   const { rowCount } = await pool.query(
-    `INSERT INTO facturas_sad (numero_guia, plaza_origen, cancelada, visto_en, actualizado_en)
-     SELECT f, CASE WHEN f LIKE 'AN%' THEN 'MTY' ELSE 'CDMX' END, TRUE, $2, $2 FROM unnest($1::text[]) AS f
-     ON CONFLICT (numero_guia) DO UPDATE SET cancelada = TRUE, actualizado_en = $2
+    `INSERT INTO facturas_sad (numero_guia, plaza_origen, cancelada, cancelada_en, visto_en, actualizado_en)
+     SELECT f, CASE WHEN f LIKE 'AN%' THEN 'MTY' ELSE 'CDMX' END, TRUE, $2, $2, $2 FROM unnest($1::text[]) AS f
+     ON CONFLICT (numero_guia) DO UPDATE SET cancelada = TRUE, cancelada_en = $2, actualizado_en = $2
        WHERE facturas_sad.cancelada = FALSE`,
     [folios, ahora]
   );
@@ -347,7 +356,9 @@ async function completarDetalles() {
     await pool.query(
       `UPDATE facturas_sad SET remitente_sucursal = $2, destinatario = $3, destinatario_sucursal = $4,
               tipo_entrega = $5, telefono = $6, direccion = $7, registrada_en = $8,
-              cancelada = cancelada OR $9, detalle_en = $10
+              cancelada = cancelada OR $9,
+              cancelada_en = CASE WHEN $9 AND NOT cancelada THEN $10 ELSE cancelada_en END,
+              detalle_en = $10
         WHERE numero_guia = $1`,
       [r.numero_guia, v.remitenteSucursal, v.destinatario, v.destinatarioSucursal, v.tipoEntrega,
         v.telefono, v.direccion, v.registradaEn, v.estatus === 'cancelada', new Date()]
@@ -499,8 +510,39 @@ async function listarPorSalir({ plaza, limit = 500 } = {}) {
   return { sincronizacion: estadoSincronizacion(), guias: rows };
 }
 
+// Guias que existen en el sistema y cuya factura se cancelo en el SAD, sin
+// revisar todavia. No se borran ni se mueven solas: un administrador decide
+// (cancelar la guia con su numero nuevo, eliminarla o dejarla como esta).
+// Cuenta tanto el numero principal como el complemento.
+async function listarCanceladasConGuia({ limit = 200 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT g.numero_guia, f.numero_guia AS factura, g.estatus, g.actualizado_en, f.cliente,
+            COALESCE(f.cancelada_en, f.actualizado_en) AS cancelada_en
+       FROM facturas_sad f
+       JOIN guias g ON g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia
+      WHERE f.cancelada AND f.cancelacion_revisada_en IS NULL
+      ORDER BY COALESCE(f.cancelada_en, f.actualizado_en) DESC
+      LIMIT $1`,
+    [Math.min(Number(limit) || 200, 1000)]
+  );
+  return { total: rows.length, guias: rows };
+}
+
+async function marcarCancelacionRevisada(factura, usuario) {
+  const { rows } = await pool.query(
+    `UPDATE facturas_sad SET cancelacion_revisada_en = $2, cancelacion_revisada_por = $3
+      WHERE numero_guia = $1 AND cancelada
+      RETURNING numero_guia, cancelacion_revisada_en, cancelacion_revisada_por`,
+    [factura, new Date(), usuario]
+  );
+  if (!rows[0]) throw new Error('Esa factura no esta cancelada en el SAD');
+  return rows[0];
+}
+
 module.exports = {
   habilitado,
+  listarCanceladasConGuia,
+  marcarCancelacionRevisada,
   initSad,
   arrancar,
   sincronizar,

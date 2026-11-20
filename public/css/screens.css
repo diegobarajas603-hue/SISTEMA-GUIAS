@@ -2473,3 +2473,12 @@ tbody tr.clic:hover {
   font-variant-numeric: tabular-nums;
   opacity: 0.75;
 }
+
+/* Aviso de factura cancelada en el SAD (detalle de guia) */
+.sad-cancelada {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--space-12) 0;
+}

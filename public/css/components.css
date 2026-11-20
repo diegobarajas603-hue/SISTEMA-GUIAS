@@ -1016,6 +1016,7 @@
 
 .notif__item--aviso .notif__punto { background: var(--st-transito-color); }
 .notif__item--guia .notif__punto  { background: var(--border-strong); }
+.notif__item--error .notif__punto { background: var(--st-cancelada-color); }
 
 .notif__cuerpo { flex: 1; min-width: 0; }
 

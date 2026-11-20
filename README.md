@@ -166,6 +166,10 @@ lee el SAD cada 5 minutos (`src/sad.js`) y guarda lo que encuentra en la tabla
   "Documentado: se esta preparando para salir" aunque aun no se escanee, y el
   historial empieza con "Envio documentado en MTY/CDMX".
 - **Detalle de guia**: tarjeta "Facturacion (SAD)" con los datos de la factura.
+- **Factura cancelada despues**: si se cancela en el SAD la factura de una guia
+  que ya existe aqui, la guia no se toca, pero aparece en la campana de
+  notificaciones y en su detalle hasta que un administrador la marca como
+  revisada (y decide si la cancela con su numero nuevo o la elimina).
 
 - **Salida automatica**: cuando el SAD pone un embarque en "Transito" (o
   "Cedis Destino") y la guia no existe en el sistema, se da de alta EN

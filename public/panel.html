@@ -388,6 +388,7 @@
         </div>
         <div class="card" id="detSadCard" style="display:none">
           <h2 class="titulo-card">Facturacion (SAD)</h2>
+          <div id="detSadAviso"></div>
           <div class="det-meta" id="detSad"></div>
         </div>
         <div class="card">
@@ -939,8 +940,9 @@
   // a quien preguntarle.
   function arrancarVigilancia() {
     revisarEstancadas();
+    revisarCanceladasSad();
     clearInterval(timerEstancadas);
-    timerEstancadas = setInterval(revisarEstancadas, MIN_REVISAR_ESTANCADAS * 60 * 1000);
+    timerEstancadas = setInterval(() => { revisarEstancadas(); revisarCanceladasSad(); }, MIN_REVISAR_ESTANCADAS * 60 * 1000);
   }
 
   function detenerVigilancia() {
@@ -949,6 +951,7 @@
     clearTimeout(timerEstancadasEscaneo);
     estancadas = [];
     totalEstancadas = 0;
+    canceladasSad = [];
     $('btnEstancadas').hidden = true;
   }
 
@@ -1418,6 +1421,16 @@
   let detenidas = [];
   let totalDetenidas = 0;
 
+  // Guias cuya factura se cancelo en el SAD despues de registrarse aqui
+  let canceladasSad = [];
+  async function revisarCanceladasSad() {
+    try {
+      const r = await api('/api/sad/canceladas');
+      canceladasSad = r.guias || [];
+      pintarNotificaciones();
+    } catch {}
+  }
+
   async function revisarDetenidas() {
     try {
       const r = await api('/api/guias/detenidas?horas=' + HORAS_DETENIDA);
@@ -1433,6 +1446,26 @@
   // donde ir. Cada notificacion dice a que lleva y se navega al tocarla.
   function notificaciones() {
     const lista = [];
+    // Primero las facturas canceladas: son las que piden una decision
+    for (const g of canceladasSad.slice(0, 5)) {
+      const deComplemento = g.factura !== g.numero_guia;
+      lista.push({
+        id: 'cancelada-' + g.factura,
+        tono: 'error',
+        titulo: `${g.numero_guia}: factura cancelada`,
+        desc: `${deComplemento ? `El complemento ${g.factura}` : 'La factura'} se cancelo en el SAD ${fmtRelativo(g.cancelada_en)}. Revisa la guia.`,
+        ir: () => (location.hash = '#/guia/' + encodeURIComponent(g.numero_guia)),
+      });
+    }
+    if (canceladasSad.length > 5) {
+      lista.push({
+        id: 'canceladas-mas',
+        tono: 'error',
+        titulo: `${canceladasSad.length - 5} factura(s) cancelada(s) mas`,
+        desc: 'Abre cada guia desde el buscador para revisarla.',
+        ir: () => (location.hash = '#/guia/' + encodeURIComponent(canceladasSad[5].numero_guia)),
+      });
+    }
     if (totalDetenidas) {
       const n = totalDetenidas;
       lista.push({
@@ -1459,10 +1492,12 @@
 
   function pintarNotificaciones() {
     const lista = notificaciones();
-    $('puntoPendientes').style.display = totalDetenidas ? '' : 'none';
-    $('btnPendientes').title = totalDetenidas
-      ? `${totalDetenidas} guia(s) detenida(s) mas de ${HORAS_DETENIDA} h`
-      : 'Sin notificaciones';
+    const hayAlgo = totalDetenidas || canceladasSad.length;
+    $('puntoPendientes').style.display = hayAlgo ? '' : 'none';
+    $('btnPendientes').title = [
+      canceladasSad.length ? `${canceladasSad.length} factura(s) cancelada(s) en el SAD` : '',
+      totalDetenidas ? `${totalDetenidas} guia(s) detenida(s) mas de ${HORAS_DETENIDA} h` : '',
+    ].filter(Boolean).join(' · ') || 'Sin notificaciones';
     $('notifConteo').textContent = lista.length ? lista.length : '';
 
     $('notifLista').innerHTML = lista.length
@@ -2549,12 +2584,42 @@
   });
 
   // Lo que el SAD sabe de la guia: cliente, destinatario, tipo de entrega...
-  function pintarSadDetalle(f) {
-    $('detSadCard').style.display = f ? '' : 'none';
-    if (!f) return;
+  function avisoCancelacion(f, etiqueta) {
+    if (!f || !f.cancelada) return '';
+    const esAdminDet = !!(usuarioActual && usuarioActual.roles.includes('admin'));
+    const revisada = f.cancelacion_revisada_en
+      ? `<span class="t-tertiary">Revisada por ${esc(f.cancelacion_revisada_por || '-')} · ${fmtFecha(f.cancelacion_revisada_en)}</span>`
+      : esAdminDet
+        ? `<button class="btn btn--secondary" type="button" data-revisar-cancelada="${esc(f.numero_guia)}">Marcar como revisada</button>`
+        : '<span class="t-tertiary">Pendiente de revision por un administrador</span>';
+    return `<div class="sad-cancelada">
+      ${badge('CANCELADA', { texto: `${etiqueta} ${f.numero_guia} cancelada en el SAD` })}
+      <p class="nota">La guia sigue en el sistema. Si se refacturo con otro folio, usa "Revertir ultimo escaneo" para cancelarla con su numero nuevo; si no debia existir, eliminala.</p>
+      ${revisada}
+    </div>`;
+  }
+
+  function pintarSadDetalle(f, fComplemento) {
+    $('detSadCard').style.display = f || fComplemento ? '' : 'none';
+    if (!f && !fComplemento) return;
     const dato = (k, v, mono) => v ? `<div><span class="k">${k}</span><span${mono ? ' class="mono"' : ''}>${esc(v)}</span></div>` : '';
+    $('detSadAviso').innerHTML = avisoCancelacion(f, 'Factura') + avisoCancelacion(fComplemento, 'Complemento');
+    $('detSadAviso').querySelectorAll('[data-revisar-cancelada]').forEach((b) =>
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          await api('/api/sad/canceladas/' + encodeURIComponent(b.dataset.revisarCancelada) + '/revisada', { method: 'POST' });
+          UI.toast({ tipo: 'ok', titulo: 'Cancelacion revisada', descripcion: 'Ya no aparece en las notificaciones.' });
+          revisarCanceladasSad();
+          if (guiaDetalleActual) cargarDetalle(guiaDetalleActual);
+        } catch (err) {
+          b.disabled = false;
+          UI.toast({ tipo: 'error', titulo: 'No se pudo marcar', descripcion: err.message });
+        }
+      })
+    );
+    if (!f) { $('detSad').innerHTML = ''; return; }
     $('detSad').innerHTML = [
-      f.cancelada ? `<div><span class="k">Factura</span>${badge('CANCELADA', { texto: 'Cancelada en el SAD' })}</div>` : '',
       dato('Cliente', f.cliente),
       dato('Destinatario', f.destinatario),
       dato('Entrega', f.tipo_entrega === 'ocurre' ? `Ocurre (${f.destinatario_sucursal})` : f.tipo_entrega === 'domicilio' ? 'A domicilio' : null),
@@ -2589,7 +2654,7 @@
       // Guia a la que reemplazo (por complemento o cancelacion); ya no esta activa
       $('detAnteriorFila').style.display = d.numero_anterior ? '' : 'none';
       $('detAnterior').textContent = d.numero_anterior || '';
-      pintarSadDetalle(d.sad);
+      pintarSadDetalle(d.sad, d.sadComplemento);
 
       // Codigo de barras (si la libreria cargo)
       try {

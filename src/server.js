@@ -360,6 +360,21 @@ app.get('/api/sad/por-salir', requireAuth, async (req, res) => {
   }
 });
 
+// Guias que ya existen aqui y cuya factura se cancelo en el SAD (campana)
+app.get('/api/sad/canceladas', requireAuth, seguro(async (req, res) => {
+  res.json(await sad.listarCanceladasConGuia());
+}));
+
+// Un administrador ya reviso la cancelacion: deja de avisarse
+app.post('/api/sad/canceladas/:factura/revisada', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const factura = req.params.factura.trim().toUpperCase();
+    res.json(await sad.marcarCancelacionRevisada(factura, req.usuario.usuario));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 // Leer el SAD en este momento sin esperar al siguiente ciclo (administradores)
 app.post('/api/sad/sincronizar', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -472,7 +487,14 @@ app.get('/api/guias/:numeroGuia', requireAuth, seguro(async (req, res) => {
   if (!guia) return res.status(404).json({ error: 'Guia no encontrada' });
   const historial = sinUsuario(await guias.obtenerHistorial(guia.numero_guia), req.usuario);
   const factura = await sad.facturaDe(guia.numero_guia).catch(() => null);
-  res.json({ ...guia, mensaje: mensajeEstatus(guia.numero_guia, guia.estatus), historial, sad: factura });
+  const facturaComplemento = guia.complemento ? await sad.facturaDe(guia.complemento).catch(() => null) : null;
+  res.json({
+    ...guia,
+    mensaje: mensajeEstatus(guia.numero_guia, guia.estatus),
+    historial,
+    sad: factura,
+    sadComplemento: facturaComplemento,
+  });
 }));
 
 // Listado de guias. Ademas de buscar por numero y filtrar por estatus y plaza,
