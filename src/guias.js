@@ -72,6 +72,7 @@ async function crearGuiaConSalida(numeroGuia, plaza, destino, evento, usuario, i
     `WITH g AS (
        INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, estatus_desde)
        VALUES ($1, $2, $3, $4, $5, $5, $5)
+       ON CONFLICT (numero_guia) DO NOTHING
        RETURNING *
      ), e AS (
        INSERT INTO eventos (${COLUMNAS_EVENTO})
@@ -95,6 +96,7 @@ async function crearGuiaConLlegada(numeroGuia, origen, plaza, horaSalida, descri
     `WITH g AS (
        INSERT INTO guias (numero_guia, origen, destino, estatus, creado_en, actualizado_en, estatus_desde)
        VALUES ($1, $2, $3, $4, $5, $6, $6)
+       ON CONFLICT (numero_guia) DO NOTHING
        RETURNING *
      ), e AS (
        INSERT INTO eventos (${COLUMNAS_EVENTO})
@@ -398,6 +400,9 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null, 
         const g = await crearGuiaConLlegada(
           numeroGuia, origenSerie, plaza, factura.registrada_en || factura.visto_en, descripcion, usuario, idEscaneo
         );
+        // La sincronizacion con el SAD la dio de alta en ese mismo instante:
+        // se vuelve a evaluar el escaneo con la guia ya existente
+        if (!g) return escanearGuia(numeroGuia, plaza, modo, usuario, { ...opciones, reintento: false });
         return { guia: g, tipo: 'llegada', mensaje: descripcion };
       }
       if (factura && factura.cancelada) {
@@ -417,6 +422,9 @@ async function escanearGuia(numeroGuia, plaza, modo = 'bodega', usuario = null, 
     validarPrefijoSalida(numeroGuia, plaza);
     const descripcion = `Salio de bodega ${plaza} con destino a ${destino}`;
     const nueva = await crearGuiaConSalida(numeroGuia, plaza, destino, { accion: ACCIONES.SALIDA, descripcion }, usuario, idEscaneo);
+    // Igual que arriba: si la sincronizacion la creo en ese instante, se
+    // evalua de nuevo (sera un escaneo repetido de su salida)
+    if (!nueva) return escanearGuia(numeroGuia, plaza, modo, usuario, { ...opciones, reintento: false });
     // nueva: el escaneo dio de alta la guia; el servidor la coteja con el SAD
     return { guia: nueva, tipo: 'salida', mensaje: descripcion, nueva: true };
   }

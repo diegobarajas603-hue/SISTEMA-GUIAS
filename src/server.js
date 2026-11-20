@@ -378,7 +378,11 @@ app.post('/api/sad/canceladas/:factura/revisada', requireAuth, requireAdmin, asy
 // Leer el SAD en este momento sin esperar al siguiente ciclo (administradores)
 app.post('/api/sad/sincronizar', requireAuth, requireAdmin, async (req, res) => {
   try {
-    res.json({ resumen: await sad.sincronizar(), estado: sad.estadoSincronizacion() });
+    const resumen = await sad.sincronizar({ forzar: true });
+    if (resumen && resumen.enCurso) {
+      return res.status(409).json({ error: 'Ya se esta leyendo el SAD en este momento; espera un minuto.' });
+    }
+    res.json({ resumen, estado: sad.estadoSincronizacion() });
   } catch (e) {
     res.status(502).json({ error: e.message, estado: sad.estadoSincronizacion() });
   }
@@ -545,7 +549,7 @@ app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
         estatus,
         mensaje: mensajeEstatus(numeroGuia, estatus),
         actualizado_en: fecha,
-        historial: [eventoDocumentada(factura)],
+        historial: [eventoDocumentada(factura, null)],
       });
     }
     return res.status(404).json({ error: 'No encontramos esa guia. Verifica el numero e intenta de nuevo.' });
@@ -557,7 +561,7 @@ app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
     .map(({ accion, descripcion, creado_en }) => ({ accion, descripcion, creado_en }));
   // El primer paso de la historia es cuando se documento en el SAD
   const factura = await sad.facturaDe(guia.numero_guia).catch(() => null);
-  if (factura && !factura.cancelada) historial.push(eventoDocumentada(factura));
+  if (factura && !factura.cancelada) historial.push(eventoDocumentada(factura, guia));
   res.json({
     numeroGuia: guia.numero_guia,
     complemento: guia.complemento || null,
@@ -568,13 +572,15 @@ app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
   });
 }));
 
-function eventoDocumentada(factura) {
+// Primer paso de la historia: cuando se facturo. Mientras no se lee el
+// detalle de la factura solo se sabe cuando la vio la sincronizacion, que
+// puede ser DESPUES de los escaneos; en ese caso se usa el registro de la guia
+// para que la historia no quede desordenada.
+function eventoDocumentada(factura, guia) {
   const plaza = factura.plaza_origen === 'MTY' ? 'MTY' : 'CDMX';
-  return {
-    accion: 'DOCUMENTADA',
-    descripcion: `Envio documentado en ${plaza}`,
-    creado_en: factura.registrada_en || factura.visto_en,
-  };
+  let fecha = factura.registrada_en || factura.visto_en;
+  if (!factura.registrada_en && guia && new Date(guia.creado_en) < new Date(fecha)) fecha = guia.creado_en;
+  return { accion: 'DOCUMENTADA', descripcion: `Envio documentado en ${plaza}`, creado_en: fecha };
 }
 
 // ---------- Webhook de WhatsApp Business Cloud API (Meta) ----------

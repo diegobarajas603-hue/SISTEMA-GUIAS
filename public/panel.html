@@ -3138,8 +3138,8 @@
       const r = await api('/api/sad/por-salir');
       const e = r.sincronizacion;
       const todas = r.guias;
-      const cuenta = (pl) => todas.filter((g) => g.plaza_origen === pl).length;
-      const n = { Todas: todas.length, MTY: cuenta('MTY'), CDMX: cuenta('CDMX') };
+      const c = r.conteo || {};
+      const n = { Todas: c.total ?? todas.length, MTY: c.MTY ?? 0, CDMX: c.CDMX ?? 0 };
       for (const k of Object.keys(n)) $('psN' + k).textContent = e.habilitado ? ` (${n[k]})` : '';
       if (segPorSalir) segPorSalir.mover();
       r.guias = psPlaza ? todas.filter((g) => g.plaza_origen === psPlaza) : todas;

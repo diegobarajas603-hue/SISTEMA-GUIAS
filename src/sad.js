@@ -91,6 +91,9 @@ async function initSad() {
       actualizado_en TIMESTAMPTZ NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_facturas_sad_visto_en ON facturas_sad (visto_en DESC);
+    -- Veces que fallo leer el detalle; despues de 3 se deja de intentar para
+    -- que una factura rota no frene a las demas
+    ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS detalle_fallos INTEGER NOT NULL DEFAULT 0;
 
     -- Cuando una factura se cancela en el SAD despues de que su guia ya
     -- existe aqui, se avisa en el panel hasta que un administrador lo revisa.
@@ -152,6 +155,7 @@ async function iniciarSesion() {
   // incorrectos regresa a la pantalla de acceso
   const destino = res.headers.get('location') || '';
   if (!(res.status >= 300 && res.status < 400) || /\/access\//.test(destino)) {
+    bloqueadoHasta = Date.now() + 60 * 60 * 1000;
     throw new Error('El SAD rechazo el usuario o la contrasena (revisa SAD_USUARIO y SAD_PASSWORD)');
   }
 }
@@ -264,9 +268,12 @@ function leerVenta(html) {
 
 // ---------- Sincronizacion ----------
 
+// Fecha (AAAA-MM-DD) de hace `dias` dias en la hora del SAD, no en UTC: a
+// las 7 pm de Monterrey en UTC ya es el dia siguiente
 function hoyMenos(dias) {
-  const d = new Date(Date.now() - dias * 86400000);
-  return d.toISOString().slice(0, 10);
+  const signo = ZONA[0] === '-' ? -1 : 1;
+  const desfaseMs = signo * (Number(ZONA.slice(1, 3)) * 60 + Number(ZONA.slice(4, 6))) * 60000;
+  return new Date(Date.now() + desfaseMs - dias * 86400000).toISOString().slice(0, 10);
 }
 
 async function guardarEmbarques(filas) {
@@ -339,13 +346,22 @@ async function marcarCanceladas() {
 async function completarDetalles() {
   const { rows } = await pool.query(
     `SELECT numero_guia, venta_id FROM facturas_sad
-      WHERE detalle_en IS NULL AND venta_id IS NOT NULL
+      WHERE detalle_en IS NULL AND venta_id IS NOT NULL AND detalle_fallos < 3
       ORDER BY visto_en DESC LIMIT $1`,
     [DETALLES_POR_CICLO]
   );
   let leidos = 0;
   for (const r of rows) {
-    const v = leerVenta(await pagina(`/sale/view/?id=${r.venta_id}`));
+    let v;
+    try {
+      v = leerVenta(await pagina(`/sale/view/?id=${r.venta_id}`));
+    } catch (e) {
+      // Una factura que no carga no debe frenar el ciclo: se anota el fallo
+      // y se sigue con la siguiente (se reintenta hasta 3 veces en total)
+      console.warn(`[sad] No se pudo leer el detalle de ${r.numero_guia}:`, e.message);
+      await pool.query('UPDATE facturas_sad SET detalle_fallos = detalle_fallos + 1 WHERE numero_guia = $1', [r.numero_guia]);
+      continue;
+    }
     // Si el folio de la pantalla no coincide, el id no corresponde: no se
     // guarda nada para no mezclar datos de otra factura
     if (v.folio && v.folio !== r.numero_guia) {
@@ -387,6 +403,9 @@ async function marcarEnTransito() {
          FROM facturas_sad f
         WHERE NOT f.cancelada
           AND f.estatus_sad = ANY($2::text[])
+          -- Solo lo que se acaba de leer: un estatus viejo que ya no se
+          -- refresca no debe volver a crear guias (p. ej. tras "borrar todas")
+          AND f.fecha_embarque >= $3::date
           AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
           AND NOT EXISTS (SELECT 1 FROM bitacora b WHERE b.numero_guia = f.numero_guia)
      ), nuevas AS (
@@ -400,14 +419,21 @@ async function marcarEnTransito() {
             'Salio de bodega ' || origen || ' con destino a ' || destino || ' (registrado en el SAD)', $1, 'SAD'
        FROM nuevas
      RETURNING numero_guia`,
-    [ahora, ESTATUS_YA_SALIO]
+    [ahora, ESTATUS_YA_SALIO, hoyMenos(DIAS)]
   );
   return rows.length;
 }
 
-async function sincronizar() {
+let bloqueadoHasta = 0;
+
+async function sincronizar({ forzar = false } = {}) {
   if (!habilitado) throw new Error('La conexion con el SAD no esta configurada (faltan SAD_USUARIO y SAD_PASSWORD)');
-  if (estado.enCurso) return estado.ultimoResumen;
+  if (estado.enCurso) return { enCurso: true };
+  // Despues de un usuario o contrasena rechazados se espera una hora antes de
+  // volver a intentar, para no bloquear la cuenta en el SAD
+  if (bloqueadoHasta > Date.now() && !forzar) {
+    throw new Error(`${estado.ultimoError || 'El SAD rechazo el acceso'} (se reintenta a las ${new Date(bloqueadoHasta).toISOString().slice(11, 16)} UTC)`);
+  }
   estado.enCurso = true;
   estado.ultimoIntento = new Date().toISOString();
   const inicio = Date.now();
@@ -495,6 +521,16 @@ async function listarPorSalir({ plaza, limit = 500 } = {}) {
     filtro = `AND f.plaza_origen = $${params.length}`;
   }
   params.push(Math.min(Number(limit) || 500, 2000));
+  // Conteo por plaza aparte de la lista: la lista lleva tope, el conteo no
+  const { rows: conteo } = await pool.query(
+    `SELECT f.plaza_origen, COUNT(*)::int AS n
+       FROM facturas_sad f
+      WHERE NOT f.cancelada
+        AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
+      GROUP BY f.plaza_origen`
+  );
+  const porPlaza = { MTY: 0, CDMX: 0 };
+  for (const c of conteo) porPlaza[c.plaza_origen] = c.n;
   const { rows } = await pool.query(
     `SELECT f.numero_guia, f.plaza_origen, f.embarque, f.cliente, f.destinatario, f.destinatario_sucursal,
             f.tipo_entrega, f.telefono, f.estatus_sad, f.fecha_embarque::text AS fecha_embarque,
@@ -507,7 +543,11 @@ async function listarPorSalir({ plaza, limit = 500 } = {}) {
       LIMIT $${params.length}`,
     params
   );
-  return { sincronizacion: estadoSincronizacion(), guias: rows };
+  return {
+    sincronizacion: estadoSincronizacion(),
+    conteo: { total: porPlaza.MTY + porPlaza.CDMX, ...porPlaza },
+    guias: rows,
+  };
 }
 
 // Guias que existen en el sistema y cuya factura se cancelo en el SAD, sin
