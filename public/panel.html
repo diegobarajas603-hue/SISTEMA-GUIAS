@@ -331,23 +331,49 @@
            llenan solas con la sincronizacion; desaparecen de aqui en cuanto
            se escanea su salida. -->
       <section id="v-porsalir" style="display:none">
-        <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
-          <div class="seg" id="psPlaza">
-            <span class="seg__thumb"></span>
-            <button class="seg__option" data-value="" aria-selected="true">Todas<span class="ps-n" id="psNTodas"></span></button>
-            <button class="seg__option" data-value="MTY" aria-selected="false">Salen de MTY<span class="ps-n" id="psNMTY"></span></button>
-            <button class="seg__option" data-value="CDMX" aria-selected="false">Salen de CDMX<span class="ps-n" id="psNCDMX"></span></button>
-          </div>
+        <!-- Totales: cada tarjeta es tambien el filtro -->
+        <div class="ps-kpis" id="psKpis" role="tablist" aria-label="Filtrar guias por salir">
+          <button class="ps-kpi ps-kpi--todas is-active" type="button" data-filtro="">
+            <span class="ps-kpi__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
+            <span class="ps-kpi__num" id="psNTodas">-</span>
+            <span class="ps-kpi__txt">Por salir</span>
+          </button>
+          <button class="ps-kpi ps-kpi--mty" type="button" data-filtro="MTY">
+            <span class="ps-kpi__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h2a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h2v-5l-3-4h-4V6H3z"/></svg></span>
+            <span class="ps-kpi__num" id="psNMTY">-</span>
+            <span class="ps-kpi__txt">Salen de Monterrey</span>
+          </button>
+          <button class="ps-kpi ps-kpi--cdmx" type="button" data-filtro="CDMX">
+            <span class="ps-kpi__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h2a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h2v-5l-3-4h-4V6H3z"/></svg></span>
+            <span class="ps-kpi__num" id="psNCDMX">-</span>
+            <span class="ps-kpi__txt">Salen de CDMX</span>
+          </button>
+          <button class="ps-kpi ps-kpi--atrasadas" type="button" data-filtro="ATRASADAS">
+            <span class="ps-kpi__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <span class="ps-kpi__num" id="psNAtrasadas">-</span>
+            <span class="ps-kpi__txt">Atrasadas (+24 h)</span>
+          </button>
+        </div>
+        <div class="card ps-barra">
+          <span class="ps-sad" id="psSad"><span class="ps-sad__punto"></span><span id="psEstado"></span></span>
           <span class="spacer"></span>
-          <span class="nota" id="psEstado"></span>
+          <span class="input-wrap ps-buscar">
+            <svg class="input-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+            <input class="input" type="text" id="psBuscar" placeholder="Buscar guia o cliente..." autocomplete="off" />
+          </span>
           <button class="btn btn--secondary" id="btnSadSync" type="button" style="display:none">Leer el SAD ahora</button>
         </div>
         <div class="card card--flush">
           <div class="tabla-scroll">
-            <table>
-              <thead><tr><th>Guia</th><th>Cliente</th><th>Destinatario</th><th>Entrega</th><th>Facturada</th><th>Esperando</th><th>Estatus en SAD</th></tr></thead>
+            <table class="ps-tabla">
+              <thead><tr><th>Guia</th><th>Cliente / destinatario</th><th>Entrega</th><th>Facturada</th><th>Esperando</th><th>En el SAD</th></tr></thead>
               <tbody id="tbodyPorSalir"></tbody>
             </table>
+          </div>
+          <div class="ps-leyenda">
+            <span><i class="ps-dot ps-dot--ok"></i>Menos de 12 h</span>
+            <span><i class="ps-dot ps-dot--medio"></i>12 a 24 h</span>
+            <span><i class="ps-dot ps-dot--alto"></i>Mas de 24 h</span>
           </div>
         </div>
       </section>
@@ -3324,7 +3350,6 @@
   // A partir de estas horas sin salir la fila se marca en ambar
   const HORAS_POR_SALIR_AVISO = 24;
   let psPlaza = '';
-  let segPorSalir = null;   // control de pestañas; se arma mas abajo
 
   function textoSincronizacion(e) {
     if (!e || !e.habilitado) return 'Conexion con el SAD apagada';
@@ -3332,6 +3357,48 @@
     if (!e.ultimoExito) return e.enCurso ? 'Leyendo el SAD por primera vez...' : 'Todavia no se lee el SAD';
     const inicio = e.desde ? ` · desde el ${e.desde.split('-').reverse().join('/')}` : '';
     return `SAD leido ${UI.fmtRelativo(e.ultimoExito)} · se lee cada ${e.intervaloMin} min${inicio}`;
+  }
+
+  // Una fila de Por salir: color segun lo que lleva esperando
+  const ICO_DOMICILIO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h2a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h2v-5l-3-4h-4V6H3z"/></svg>';
+  const ICO_OCURRE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6v10H3z"/><path d="M9 20v-6h6v6"/></svg>';
+  const ICO_TEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>';
+  const ICO_RELOJ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+
+  function nivelEspera(h) {
+    return h >= HORAS_POR_SALIR_AVISO ? 'alto' : h >= 12 ? 'medio' : 'ok';
+  }
+
+  function filaPorSalir(g) {
+    const h = horasDesde(g.facturada_en);
+    const nivel = nivelEspera(h);
+    const destino = g.plaza_origen === 'MTY' ? 'CDMX' : 'MTY';
+    const cliente = (g.cliente || '-').replace(/^(\d+)\s*-\s*/, '');
+    const numCliente = /^(\d+)\s*-/.exec(g.cliente || '');
+    const entrega = g.tipo_entrega === 'ocurre'
+      ? `<span class="ps-pill ps-pill--ocurre">${ICO_OCURRE}Ocurre</span>`
+      : g.tipo_entrega === 'domicilio'
+        ? `<span class="ps-pill ps-pill--domicilio">${ICO_DOMICILIO}Domicilio</span>`
+        : '<span class="nota">sin dato</span>';
+    const fecha = new Date(g.facturada_en);
+    const dia = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+    const hora = fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const para = g.destinatario && g.destinatario !== cliente ? `<span class="ps-dest">Para: ${esc(g.destinatario)}</span>` : '';
+    const tel = g.telefono ? `<span class="ps-tel">${ICO_TEL}${esc(g.telefono)}</span>` : '';
+    return `<tr class="ps-fila ps-fila--${nivel}">
+      <td>
+        <span class="ps-guia">${esc(g.numero_guia)}</span>
+        <span class="ps-ruta ps-ruta--${esc(g.plaza_origen)}">${esc(g.plaza_origen)} &rarr; ${destino}</span>
+      </td>
+      <td>
+        <span class="ps-cliente">${esc(cliente)}${numCliente ? `<span class="ps-cliente__num">#${numCliente[1]}</span>` : ''}</span>
+        ${para || tel ? `<span class="ps-sub">${para}${tel}</span>` : ''}
+      </td>
+      <td>${entrega}</td>
+      <td class="ps-fecha"><span>${esc(dia)}</span><span class="ps-fecha__hora">${esc(hora)}</span></td>
+      <td><span class="ps-espera ps-espera--${nivel}">${ICO_RELOJ}${textoEspera(h)}</span></td>
+      <td><span class="ps-sadest">${esc(g.estatus_sad || '-')}</span></td>
+    </tr>`;
   }
 
   function horasDesde(f) {
@@ -3358,46 +3425,59 @@
       else if (h.pendientesDetalle) $('psEstado').textContent = textoSincronizacion(e) + ` · Completando datos de ${h.pendientesDetalle} guia(s) anteriores`;
       const todas = r.guias;
       const c = r.conteo || {};
-      const n = { Todas: c.total ?? todas.length, MTY: c.MTY ?? 0, CDMX: c.CDMX ?? 0 };
-      for (const k of Object.keys(n)) $('psN' + k).textContent = e.habilitado ? ` (${n[k]})` : '';
-      if (segPorSalir) segPorSalir.mover();
-      r.guias = psPlaza ? todas.filter((g) => g.plaza_origen === psPlaza) : todas;
+      const atrasadas = todas.filter((g) => horasDesde(g.facturada_en) >= HORAS_POR_SALIR_AVISO).length;
+      const n = { Todas: c.total ?? todas.length, MTY: c.MTY ?? 0, CDMX: c.CDMX ?? 0, Atrasadas: atrasadas };
+      for (const k of Object.keys(n)) $('psN' + k).textContent = e.habilitado ? n[k] : '-';
+      $('psKpis').querySelector('.ps-kpi--atrasadas').classList.toggle('ps-kpi--alerta', atrasadas > 0);
+      // Indicador de la conexion: verde si lee bien, rojo si fallo
+      const malSad = e.habilitado && e.ultimoError;
+      $('psSad').className = 'ps-sad' + (!e.habilitado ? ' ps-sad--apagado' : malSad ? ' ps-sad--error' : ' ps-sad--ok');
+      let lista = todas;
+      if (psPlaza === 'ATRASADAS') lista = lista.filter((g) => horasDesde(g.facturada_en) >= HORAS_POR_SALIR_AVISO);
+      else if (psPlaza) lista = lista.filter((g) => g.plaza_origen === psPlaza);
+      const q = ($('psBuscar').value || '').trim().toUpperCase();
+      if (q) lista = lista.filter((g) => [g.numero_guia, g.cliente, g.destinatario].some((v) => (v || '').toUpperCase().includes(q)));
+      r.guias = lista;
       if (!h.enCurso && !h.pendientesDetalle) $('psEstado').textContent = textoSincronizacion(e);
       $('btnSadSync').style.display = esAdminPs && e.habilitado ? '' : 'none';
       if (!e.habilitado) {
-        $('tbodyPorSalir').innerHTML = `<tr><td colspan="7">${UI.emptyState({
+        $('tbodyPorSalir').innerHTML = `<tr><td colspan="6">${UI.emptyState({
           titulo: 'La conexion con el SAD no esta configurada',
           descripcion: 'Define SAD_USUARIO y SAD_PASSWORD en las variables de Railway con un usuario de solo consulta del SAD.',
         })}</td></tr>`;
         return;
       }
       if (!r.guias.length) {
-        $('tbodyPorSalir').innerHTML = `<tr><td colspan="7">${UI.emptyState({
-          titulo: 'Nada pendiente',
-          descripcion: psPlaza
-            ? `Todas las guias facturadas que salen de ${psPlaza} ya tienen su escaneo de salida.`
-            : 'Todas las guias facturadas en el SAD ya tienen su escaneo de salida.',
+        $('tbodyPorSalir').innerHTML = `<tr><td colspan="6">${UI.emptyState({
+          titulo: q ? 'Sin resultados' : 'Nada pendiente',
+          descripcion: q
+            ? `Ninguna guia por salir coincide con "${q}".`
+            : psPlaza === 'ATRASADAS'
+              ? 'Ninguna guia lleva mas de 24 h esperando salir.'
+              : psPlaza
+                ? `Todas las guias facturadas que salen de ${psPlaza} ya tienen su salida.`
+                : 'Todas las guias facturadas en el SAD ya tienen su salida.',
         })}</td></tr>`;
         return;
       }
-      $('tbodyPorSalir').innerHTML = r.guias.map((g) => {
-        const h = horasDesde(g.facturada_en);
-        const entrega = g.tipo_entrega === 'ocurre' ? 'Ocurre' : g.tipo_entrega === 'domicilio' ? 'Domicilio' : '-';
-        return `<tr>
-          <td style="white-space:nowrap"><span class="mono">${esc(g.numero_guia)}</span><br><span class="t-tertiary">Sale de ${esc(g.plaza_origen)}</span></td>
-          <td>${esc(g.cliente || '-')}</td>
-          <td>${esc(g.destinatario || '-')}${g.telefono ? `<br><span class="mono t-tertiary">${esc(g.telefono)}</span>` : ''}</td>
-          <td>${entrega}</td>
-          <td style="white-space:nowrap"><span class="mono t-tertiary">${fmtFecha(g.facturada_en)}</span></td>
-          <td>${h >= HORAS_POR_SALIR_AVISO ? badge('EN_TRANSITO', { texto: textoEspera(h) }) : textoEspera(h)}</td>
-          <td>${esc(g.estatus_sad || '-')}</td></tr>`;
-      }).join('');
+      $('tbodyPorSalir').innerHTML = r.guias.map(filaPorSalir).join('');
     } catch (err) {
-      UI.montarError($('tbodyPorSalir'), err.message, cargarPorSalir, (h) => `<tr><td colspan="7">${h}</td></tr>`);
+      UI.montarError($('tbodyPorSalir'), err.message, cargarPorSalir, (h) => `<tr><td colspan="6">${h}</td></tr>`);
     }
   }
 
-  segPorSalir = UI.segmented($('psPlaza'), (valor) => { psPlaza = valor; cargarPorSalir(); });
+  $('psKpis').querySelectorAll('.ps-kpi').forEach((b) =>
+    b.addEventListener('click', () => {
+      psPlaza = b.dataset.filtro;
+      $('psKpis').querySelectorAll('.ps-kpi').forEach((x) => x.classList.toggle('is-active', x === b));
+      cargarPorSalir();
+    })
+  );
+  let timerPsBuscar;
+  $('psBuscar').addEventListener('input', () => {
+    clearTimeout(timerPsBuscar);
+    timerPsBuscar = setTimeout(cargarPorSalir, 250);
+  });
 
   $('btnSadSync').addEventListener('click', async () => {
     const b = $('btnSadSync');
