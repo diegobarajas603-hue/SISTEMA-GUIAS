@@ -116,6 +116,11 @@ async function initSad() {
     ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS historica BOOLEAN NOT NULL DEFAULT FALSE;
     -- Ultima vez que se reviso el estatus de una pendiente vieja en su embarque
     ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS estatus_revisado_en TIMESTAMPTZ;
+    -- Camion y caja con que se documento el flete (Carta Porte de la factura)
+    ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS chofer TEXT;
+    ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS unidad TEXT;
+    ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS remolque TEXT;
+    ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS remolque2 TEXT;
 
     -- Marcas de una sola vez (p. ej. que ya se hizo la carga historica)
     CREATE TABLE IF NOT EXISTS sad_marcas (
@@ -133,6 +138,16 @@ async function initSad() {
     CREATE INDEX IF NOT EXISTS idx_facturas_sad_sin_detalle ON facturas_sad (venta_id) WHERE detalle_en IS NULL;
   `);
   await fijarInicio();
+  // Una sola vez: las facturas cuyo detalle se leyo antes de guardar camion y
+  // caja se vuelven a leer (poco a poco, con el cupo normal de cada ciclo)
+  const { rowCount } = await pool.query(
+    "INSERT INTO sad_marcas (clave, valor) VALUES ('releer_unidad', '1') ON CONFLICT (clave) DO NOTHING"
+  );
+  if (rowCount) {
+    await pool.query(
+      'UPDATE facturas_sad SET detalle_en = NULL WHERE detalle_en IS NOT NULL AND unidad IS NULL AND chofer IS NULL AND NOT cancelada'
+    );
+  }
 }
 
 // La fecha de inicio: SAD_DESDE si viene; si no, la que se guardo la primera
@@ -307,6 +322,13 @@ function leerVenta(html) {
   const estatus = /class="container statusContainer">[\s\S]*?class="area2">([\s\S]*?)<\/div>/.exec(html);
   const registro = /id="registred_by_oringin">[^<]*?(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})/.exec(html);
 
+  // Camion: unidad, remolque(s) y chofer del flete
+  const vehiculo = (etiqueta) => {
+    const m = new RegExp(`fleteVehicleLabel">\\s*${etiqueta}\\s*:\\s*</div>\\s*<div class="area2 fleteVehicleField">([\\s\\S]*?)</div>`).exec(html);
+    return m ? texto(m[1]) || null : null;
+  };
+  const chofer = /class="area2 driver_area2 fleteVehicleField">\s*([^<]*?)\s*<select/.exec(html);
+
   const destinatario = (area22('receiver receiverContainer') || '').replace(/^\d+\s*-\s*/, '') || null;
   const sucursal = area22('receiver receiverSubsidiaryContainer');
   const direccion = [campo(dest, 'client_address'), campo(dest, 'client_num'), campo(dest, 'client_ext'),
@@ -321,6 +343,10 @@ function leerVenta(html) {
     telefono: campo(dest, 'client_tel').replace(/[^\d+]/g, '') || null,
     direccion: direccion || null,
     estatus: estatus ? texto(estatus[1]).toLowerCase() : null,
+    chofer: chofer ? texto(chofer[1]) || null : null,
+    unidad: vehiculo('Unidad'),
+    remolque: vehiculo('Remolque'),
+    remolque2: vehiculo('Remolque 2'),
     registradaEn: registro
       ? new Date(`${registro[3]}-${registro[2]}-${registro[1]}T${registro[4]}:${registro[5]}:00${ZONA}`)
       : null,
@@ -491,10 +517,12 @@ async function completarDetalles() {
               tipo_entrega = $5, telefono = $6, direccion = $7, registrada_en = $8,
               cancelada = cancelada OR $9,
               cancelada_en = CASE WHEN $9 AND NOT cancelada THEN $10 ELSE cancelada_en END,
-              detalle_en = $10
+              detalle_en = $10,
+              chofer = $11, unidad = $12, remolque = $13, remolque2 = $14
         WHERE numero_guia = $1`,
       [r.numero_guia, v.remitenteSucursal, v.destinatario, v.destinatarioSucursal, v.tipoEntrega,
-        v.telefono, v.direccion, v.registradaEn, v.estatus === 'cancelada', new Date()]
+        v.telefono, v.direccion, v.registradaEn, v.estatus === 'cancelada', new Date(),
+        v.chofer, v.unidad, v.remolque, v.remolque2]
     );
     leidos++;
   }

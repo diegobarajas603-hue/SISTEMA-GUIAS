@@ -66,7 +66,7 @@ async function salidasDelDia({ fecha, plaza } = {}) {
     `SELECT e.numero_guia, e.plaza, e.creado_en,
             COALESCE(u.nombre, e.usuario) AS operador,
             g.complemento, g.estatus AS estatus_actual,
-            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque
+            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque, f.unidad, f.remolque, f.remolque2, f.chofer
        FROM eventos e
        LEFT JOIN usuarios u ON u.usuario = e.usuario
        LEFT JOIN guias g ON g.numero_guia = e.numero_guia
@@ -131,7 +131,7 @@ async function entregasEnRango({ desde, hasta, plaza } = {}) {
     `SELECT e.numero_guia, e.plaza, e.creado_en, e.descripcion,
             COALESCE(u.nombre, e.usuario) AS operador,
             g.complemento,
-            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque
+            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque, f.unidad, f.remolque, f.remolque2, f.chofer
        FROM eventos e
        LEFT JOIN usuarios u ON u.usuario = e.usuario
        LEFT JOIN guias g ON g.numero_guia = e.numero_guia
@@ -163,7 +163,7 @@ async function guiasEnBodega({ plaza } = {}) {
   const { rows } = await pool.query(
     `SELECT g.numero_guia, g.complemento, g.estatus,
             COALESCE(g.estatus_desde, g.actualizado_en) AS llegada,
-            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque
+            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque, f.unidad, f.remolque, f.remolque2, f.chofer
        FROM guias g
        LEFT JOIN facturas_sad f ON f.numero_guia = g.numero_guia
       WHERE g.estatus = ANY($1::text[])
@@ -208,7 +208,7 @@ async function guiasEstancadas({ plaza, dias } = {}) {
 
   const { rows } = await pool.query(
     `SELECT g.numero_guia, g.complemento, g.numero_anterior, g.estatus, g.estatus_desde,
-            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque
+            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque, f.unidad, f.remolque, f.remolque2, f.chofer
        FROM guias g
        LEFT JOIN facturas_sad f ON f.numero_guia = g.numero_guia
       WHERE g.estatus NOT IN ('ENTREGADO_MTY', 'ENTREGADO_CDMX') AND g.estatus_desde <= $1
@@ -254,11 +254,12 @@ const COL_NUM = { titulo: '#', ancho: 30, alinear: 'right' };
 // debajo el telefono. Todo sale del SAD; sin datos del SAD queda "sin dato".
 const COL_SALIDAS = [
   COL_NUM,
-  { titulo: 'GUIA', ancho: 92 },
-  { titulo: 'CLIENTE / DESTINATARIO', ancho: 180 },
-  { titulo: 'ENTREGA', ancho: 78 },
-  { titulo: 'HORA', ancho: 58 },
-  { titulo: 'ESCANEÓ', ancho: ANCHO - 30 - 92 - 180 - 78 - 58 },
+  { titulo: 'GUIA', ancho: 88 },
+  { titulo: 'CLIENTE / DESTINATARIO', ancho: 140 },
+  { titulo: 'ENTREGA', ancho: 70 },
+  { titulo: 'UNIDAD / CAJA', ancho: 78 },
+  { titulo: 'HORA', ancho: 40 },
+  { titulo: 'ESCANEÓ', ancho: ANCHO - 30 - 88 - 140 - 70 - 78 - 40 },
 ];
 const COL_ENTREGADAS = [
   COL_NUM,
@@ -400,6 +401,18 @@ function celdaCliente(f) {
   return { texto: cliente, chica: true, sub };
 }
 
+// Solo el codigo de la caja: "C-266 - 53 PIES - 25 TONELADAS" -> "C-266"
+function codigoCaja(remolque) {
+  return remolque ? remolque.split(' - ')[0].trim() : null;
+}
+
+// Unidad arriba y caja(s) debajo
+function celdaUnidad(f) {
+  if (!f.unidad && !f.remolque) return { texto: 'sin dato', gris: true, chica: true };
+  const cajas = [codigoCaja(f.remolque), codigoCaja(f.remolque2)].filter(Boolean).join(' + ');
+  return { texto: f.unidad || '-', negrita: true, sub: cajas ? `Caja ${cajas}` : null };
+}
+
 // Ocurre / Domicilio con el telefono debajo
 function celdaEntrega(f) {
   const tipo = ENTREGA_TXT[f.entrega_sad];
@@ -446,6 +459,7 @@ function generarPdfSalidas(datos, generadoPor, stream) {
       { texto: guiaConComplemento(f), negrita: true },
       celdaCliente(f),
       celdaEntrega(f),
+      celdaUnidad(f),
       { texto: fmtHora.format(new Date(f.creado_en)).slice(0, 5) },
       operadorCelda(f.operador),
     ],
@@ -722,9 +736,10 @@ function aCsv(encabezados, filas) {
 }
 
 // Columnas del SAD que llevan todos los reportes en Excel
-const ENC_SAD = ['Cliente', 'Destinatario', 'Entrega (SAD)', 'Telefono', 'Embarque'];
+const ENC_SAD = ['Cliente', 'Destinatario', 'Entrega (SAD)', 'Telefono', 'Embarque', 'Unidad', 'Caja', 'Caja 2', 'Chofer'];
 function datosSad(f) {
-  return [f.cliente, f.destinatario, ENTREGA_TXT[f.entrega_sad] || '', f.telefono, f.embarque];
+  return [f.cliente, f.destinatario, ENTREGA_TXT[f.entrega_sad] || '', f.telefono, f.embarque,
+    f.unidad, f.remolque, f.remolque2, f.chofer];
 }
 
 function csvSalidas({ salidas }) {

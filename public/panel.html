@@ -2626,6 +2626,9 @@
       dato('Telefono', f.telefono, true),
       dato('Direccion', f.direccion),
       dato('Embarque', f.embarque, true),
+      dato('Unidad', f.unidad, true),
+      dato('Caja', [f.remolque, f.remolque2].filter(Boolean).join(' + ') || null),
+      dato('Chofer', f.chofer),
       dato('Estatus en SAD', f.estatus_sad),
       dato('Facturada', f.registrada_en ? fmtFecha(f.registrada_en) : null),
     ].join('');
@@ -2845,6 +2848,11 @@
     const para = g.destinatario && g.destinatario !== nombre ? `<br><span class="t-tertiary">Para: ${esc(g.destinatario)}</span>` : '';
     return esc(cliente) + para;
   }
+  function celdaUnidadRep(g) {
+    if (!g.unidad && !g.remolque) return '<span class="nota">sin dato</span>';
+    const cajas = [g.remolque, g.remolque2].filter(Boolean).map((r) => r.split(' - ')[0]).join(' + ');
+    return `<span class="mono">${esc(g.unidad || '-')}</span>${cajas ? `<br><span class="t-tertiary">Caja ${esc(cajas)}</span>` : ''}`;
+  }
   function celdaEntregaRep(g) {
     const t = g.entrega_sad === 'ocurre' ? '<b>Ocurre</b>' : g.entrega_sad === 'domicilio' ? 'Domicilio' : '<span class="nota">sin dato</span>';
     return t + (g.telefono ? `<br><span class="mono t-tertiary">${esc(g.telefono)}</span>` : '');
@@ -2912,9 +2920,9 @@
       lista: (r) => r.salidas,
       vacio: ['Ninguna guia salio ese dia', 'Cambia el dia o revisa que los escaneos de salida se hayan hecho.'],
       cuenta: (n) => `${n} salida${n === 1 ? '' : 's'}`,
-      columnas: [['#', 'rep-num'], ['Guia'], ['Salio de', 'rep-movil-oculta', 'plaza'], ['Cliente / destinatario', 'rep-movil-oculta'], ['Entrega', 'rep-movil-oculta'], ['Hora'], ['Escaneó'], ['Estatus actual', 'rep-movil-oculta']],
+      columnas: [['#', 'rep-num'], ['Guia'], ['Salio de', 'rep-movil-oculta', 'plaza'], ['Cliente / destinatario', 'rep-movil-oculta'], ['Entrega', 'rep-movil-oculta'], ['Unidad / caja', 'rep-movil-oculta'], ['Hora'], ['Escaneó'], ['Estatus actual', 'rep-movil-oculta']],
       fila: (g, i, conPlaza) => [
-        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, celdaClienteRep(g), celdaEntregaRep(g),
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, celdaClienteRep(g), celdaEntregaRep(g), celdaUnidadRep(g),
         `<span class="mono t-tertiary">${UI.fmtHora(g.creado_en)}</span>`, celdaOperador(g.operador), badge(g.estatus_actual),
       ],
     },
