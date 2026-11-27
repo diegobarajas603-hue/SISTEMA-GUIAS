@@ -551,7 +551,7 @@ app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
     const factura = await sad.facturaDe(numeroGuia).catch(() => null);
     // Las facturas historicas (de la carga de semanas atras) no se muestran
     // como "Documentado": ese envio seguramente ya se entrego
-    if (factura && !factura.cancelada && !factura.historica) {
+    if (factura && !factura.cancelada && !factura.historica && factura.desde_inicio) {
       const estatus = documentada(factura.plaza_origen);
       const fecha = factura.registrada_en || factura.visto_en;
       return res.json({
@@ -572,7 +572,7 @@ app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
     .map(({ accion, descripcion, creado_en }) => ({ accion, descripcion, creado_en }));
   // El primer paso de la historia es cuando se documento en el SAD
   const factura = await sad.facturaDe(guia.numero_guia).catch(() => null);
-  if (factura && !factura.cancelada) historial.push(eventoDocumentada(factura, guia));
+  if (factura && !factura.cancelada && factura.desde_inicio) historial.push(eventoDocumentada(factura, guia));
   res.json({
     numeroGuia: guia.numero_guia,
     complemento: guia.complemento || null,
@@ -630,7 +630,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
     const guia = await guias.buscarGuia(numeroGuia);
     if (!guia) {
       const factura = await sad.facturaDe(numeroGuia).catch(() => null);
-      if (factura && !factura.cancelada && !factura.historica) {
+      if (factura && !factura.cancelada && !factura.historica && factura.desde_inicio) {
         await enviarMensaje(de, mensajeEstatus(numeroGuia, documentada(factura.plaza_origen)));
         return;
       }

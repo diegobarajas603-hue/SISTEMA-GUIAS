@@ -190,14 +190,13 @@ lee**: nunca crea, modifica ni cancela nada en el SAD. Si DISA cambia esas
 pantallas, `src/sad.js` es lo unico que hay que ajustar, y mientras tanto el
 escaneo funciona igual.
 
-**Carga historica**: la primera vez que arranca con la conexion activa, el
-sistema lee los embarques de los ultimos 30 dias (`SAD_DIAS_HISTORIAL`) para
-completar cliente, destinatario, tipo de entrega y telefono de las guias que
-ya existian. Esas facturas quedan marcadas como historicas: no van a "Por
-salir", no se muestran al cliente como "Documentado" y no se ponen en
-transito. Los datos se completan poco a poco (60 guias por ciclo) y el avance
-se ve en "Por salir". Para repetirla: `POST /api/sad/cargar-historial`
-(administradores, `{ "dias": 60 }` opcional).
+**Fecha de inicio**: la conexion cuenta desde el dia en que se activa (se
+guarda sola la primera vez; se puede fijar con `SAD_DESDE=AAAA-MM-DD`). Solo
+las facturas de ese dia en adelante entran a "Por salir", al transito
+automatico, al "Documentado" del cliente y a los avisos de factura cancelada:
+lo anterior no se sube. Existe una carga historica opcional
+(`POST /api/sad/cargar-historial`, administradores) que solo completa cliente,
+destinatario y tipo de entrega de guias que ya existen; no corre sola.
 
 Para activarlo, crea en el SAD un usuario de **solo consulta** (ventas y
 embarques) y define en Railway `SAD_USUARIO` y `SAD_PASSWORD` (ver

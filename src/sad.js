@@ -66,6 +66,11 @@ const estado = {
   ultimoError: null,
   ultimoResumen: null,
   historial: null, // { enCurso, dias, embarques, nuevas, terminadoEn, error }
+  // Fecha (AAAA-MM-DD) desde la que cuenta la conexion: solo las facturas de
+  // ese dia en adelante entran a Por salir, al transito automatico, al
+  // "Documentado" del cliente y a los avisos de factura cancelada. Lo anterior
+  // no se sube. Se fija sola el dia que se activa, o con SAD_DESDE.
+  desde: null,
 };
 
 function estadoSincronizacion() {
@@ -127,6 +132,32 @@ async function initSad() {
     ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS cancelacion_revisada_por TEXT;
     CREATE INDEX IF NOT EXISTS idx_facturas_sad_sin_detalle ON facturas_sad (venta_id) WHERE detalle_en IS NULL;
   `);
+  await fijarInicio();
+}
+
+// La fecha de inicio: SAD_DESDE si viene; si no, la que se guardo la primera
+// vez que arranco con la conexion activa; si es la primera vez, hoy.
+async function fijarInicio() {
+  const env = process.env.SAD_DESDE;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(env || '')) {
+    estado.desde = env;
+    return;
+  }
+  if (!habilitado) return;
+  const { rows } = await pool.query("SELECT valor FROM sad_marcas WHERE clave = 'inicio'");
+  if (rows[0]) {
+    estado.desde = rows[0].valor;
+    return;
+  }
+  const hoy = hoyMenos(0);
+  await pool.query("INSERT INTO sad_marcas (clave, valor) VALUES ('inicio', $1) ON CONFLICT (clave) DO NOTHING", [hoy]);
+  estado.desde = hoy;
+  console.log(`[sad] Primera activacion: Por salir y el transito automatico cuentan desde ${hoy}`);
+}
+
+// Fecha de inicio para las consultas (si no hay, no filtra)
+function desde() {
+  return estado.desde || '1900-01-01';
 }
 
 // ---------- Cliente HTTP con sesion ----------
@@ -386,12 +417,12 @@ async function revisarPendientesViejas() {
     `SELECT f.numero_guia, f.embarque, f.embarque_id, f.estatus_sad FROM facturas_sad f
       WHERE NOT f.cancelada AND NOT f.historica AND f.embarque_id IS NOT NULL
         AND (f.estatus_sad IS NULL OR f.estatus_sad <> ALL($1::text[]))
-        AND f.fecha_embarque < $2::date
+        AND f.fecha_embarque < $2::date AND f.fecha_embarque >= $4::date
         AND (f.estatus_revisado_en IS NULL OR f.estatus_revisado_en < now() - interval '30 minutes')
         AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
       ORDER BY f.estatus_revisado_en NULLS FIRST, f.fecha_embarque
       LIMIT $3`,
-    [ESTATUS_YA_SALIO, hoyMenos(DIAS), REVISIONES_POR_CICLO]
+    [ESTATUS_YA_SALIO, hoyMenos(DIAS), REVISIONES_POR_CICLO, desde()]
   );
   let cambiaron = 0;
   for (const r of rows) {
@@ -492,6 +523,8 @@ async function marcarEnTransito() {
           -- Solo lo que se acaba de leer: un estatus viejo que ya no se
           -- refresca no debe volver a crear guias (p. ej. tras "borrar todas")
           AND (f.fecha_embarque >= $3::date OR f.estatus_revisado_en > now() - interval '1 hour')
+          -- Nada de antes de que se activara la conexion
+          AND f.fecha_embarque >= $4::date
           AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
           AND NOT EXISTS (SELECT 1 FROM bitacora b WHERE b.numero_guia = f.numero_guia)
      ), nuevas AS (
@@ -505,7 +538,7 @@ async function marcarEnTransito() {
             'Salio de bodega ' || origen || ' con destino a ' || destino || ' (registrado en el SAD)', $1, 'SAD'
        FROM nuevas
      RETURNING numero_guia`,
-    [ahora, ESTATUS_YA_SALIO, hoyMenos(DIAS)]
+    [ahora, ESTATUS_YA_SALIO, hoyMenos(DIAS), desde()]
   );
   return rows.length;
 }
@@ -660,11 +693,9 @@ function arrancar() {
     return;
   }
   const ciclo = () => sincronizar().catch(() => {});
-  // Primero la lectura normal; despues, si nunca se ha hecho, la historica
-  setTimeout(async () => {
-    await ciclo();
-    if (!(await historialHecho().catch(() => true))) cargarHistorial().catch(() => {});
-  }, 5 * 1000).unref();
+  // La carga historica ya no corre sola: lo anterior a la fecha de inicio no
+  // se sube. Si algun dia se quiere, POST /api/sad/cargar-historial.
+  setTimeout(ciclo, 5 * 1000).unref();
   setInterval(ciclo, INTERVALO_MIN * 60 * 1000).unref();
   console.log(`[sad] Conexion con el SAD activa: se lee cada ${INTERVALO_MIN} min`);
 }
@@ -672,7 +703,10 @@ function arrancar() {
 // ---------- Consultas para el resto del sistema ----------
 
 async function facturaDe(numeroGuia, db = pool) {
-  const { rows } = await db.query('SELECT * FROM facturas_sad WHERE numero_guia = $1', [numeroGuia]);
+  const { rows } = await db.query(
+    'SELECT *, (fecha_embarque >= $2::date) AS desde_inicio FROM facturas_sad WHERE numero_guia = $1',
+    [numeroGuia, desde()]
+  );
   return rows[0] || null;
 }
 
@@ -724,9 +758,10 @@ async function listarPorSalir({ plaza, limit = 500 } = {}) {
       WHERE NOT f.cancelada AND NOT f.historica
         -- Si el SAD ya la tiene en camino, no esta "por salir"
         AND (f.estatus_sad IS NULL OR f.estatus_sad <> ALL($1::text[]))
+        AND f.fecha_embarque >= $2::date
         AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
       GROUP BY f.plaza_origen`,
-    [ESTATUS_YA_SALIO]
+    [ESTATUS_YA_SALIO, desde()]
   );
   const porPlaza = { MTY: 0, CDMX: 0 };
   for (const c of conteo) porPlaza[c.plaza_origen] = c.n;
@@ -737,11 +772,12 @@ async function listarPorSalir({ plaza, limit = 500 } = {}) {
        FROM facturas_sad f
       WHERE NOT f.cancelada AND NOT f.historica
         AND (f.estatus_sad IS NULL OR f.estatus_sad <> ALL($${params.length + 1}::text[]))
+        AND f.fecha_embarque >= $${params.length + 2}::date
         AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
         ${filtro}
       ORDER BY COALESCE(f.registrada_en, f.visto_en) ASC
       LIMIT $${params.length}`,
-    [...params, ESTATUS_YA_SALIO]
+    [...params, ESTATUS_YA_SALIO, desde()]
   );
   return {
     sincronizacion: estadoSincronizacion(),
@@ -762,9 +798,10 @@ async function listarCanceladasConGuia({ limit = 200 } = {}) {
        FROM facturas_sad f
        JOIN guias g ON g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia
       WHERE f.cancelada AND f.cancelacion_revisada_en IS NULL
+        AND f.fecha_embarque >= $2::date
       ORDER BY COALESCE(f.cancelada_en, f.actualizado_en) DESC
       LIMIT $1`,
-    [Math.min(Number(limit) || 200, 1000)]
+    [Math.min(Number(limit) || 200, 1000), desde()]
   );
   return { total: rows.length, guias: rows };
 }

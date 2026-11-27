@@ -3131,7 +3131,8 @@
     if (!e || !e.habilitado) return 'Conexion con el SAD apagada';
     if (e.ultimoError) return `Ultima lectura del SAD fallo: ${e.ultimoError}`;
     if (!e.ultimoExito) return e.enCurso ? 'Leyendo el SAD por primera vez...' : 'Todavia no se lee el SAD';
-    return `SAD leido ${UI.fmtRelativo(e.ultimoExito)} · se lee cada ${e.intervaloMin} min`;
+    const inicio = e.desde ? ` · desde el ${e.desde.split('-').reverse().join('/')}` : '';
+    return `SAD leido ${UI.fmtRelativo(e.ultimoExito)} · se lee cada ${e.intervaloMin} min${inicio}`;
   }
 
   function horasDesde(f) {
