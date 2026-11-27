@@ -2349,7 +2349,7 @@ tbody tr.clic:hover {
 
 /* La tabla usa el alto que queda en pantalla y se desplaza por dentro */
 .rep-previa .reporte-tabla {
-  max-height: calc(100vh - 220px);
+  max-height: calc(100vh / var(--zoom, 1) - 220px);
 }
 
 /* En la columna angosta los botones van a lo ancho, PDF arriba */

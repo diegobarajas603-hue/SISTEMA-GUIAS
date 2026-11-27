@@ -4,12 +4,26 @@
    ==========================================================================*/
 
 /* ============================================================================
+   ESCALA
+   En computadora todo el panel se ve al 90%, como con el zoom del navegador:
+   cabe mas informacion sin que nada se amontone. En el telefono se queda al
+   100% para que siga siendo comodo de tocar. Las alturas de pantalla
+   completa se dividen entre --zoom para seguir ocupando toda la ventana.
+   ==========================================================================*/
+
+:root { --zoom: 1; }
+@media (min-width: 901px) {
+  :root { --zoom: 0.9; }
+}
+html { zoom: var(--zoom); }
+
+/* ============================================================================
    MARCO
    ==========================================================================*/
 
 .app {
   display: flex;
-  min-height: 100vh;
+  min-height: calc(100vh / var(--zoom));
 }
 
 .app__main {
@@ -21,7 +35,7 @@
 
 .content {
   padding: var(--space-24);
-  max-width: 1280px;
+  max-width: 1440px;
   width: 100%;
 }
 
@@ -37,8 +51,8 @@
   position: sticky;
   top: 0;
   align-self: flex-start;
-  height: 100vh;
-  height: 100dvh;   /* en moviles descuenta la barra del navegador */
+  height: calc(100vh / var(--zoom));
+  height: calc(100dvh / var(--zoom));   /* en moviles descuenta la barra del navegador */
   width: var(--w-sidebar);
   flex-shrink: 0;
   background: var(--bg-base);
@@ -541,7 +555,7 @@
   right: 0;
   top: calc(100% + var(--space-8));
   z-index: var(--z-overlay);
-  width: min(280px, calc(100vw - var(--space-32)));
+  width: min(280px, calc(100vw / var(--zoom) - var(--space-32)));
   padding: var(--space-8);
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
