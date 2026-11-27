@@ -2837,6 +2837,19 @@
   // Lo que cambia de un reporte a otro: la pregunta de la plaza, que fechas
   // pide, el texto que lo explica y las columnas de la vista previa. La
   // columna de plaza solo sale cuando se piden las dos.
+  // Datos del SAD en la vista previa de reportes
+  function celdaClienteRep(g) {
+    if (!g.cliente && !g.destinatario) return '<span class="nota">sin dato</span>';
+    const cliente = g.cliente || g.destinatario;
+    const nombre = cliente.replace(/^\d+\s*-\s*/, '');
+    const para = g.destinatario && g.destinatario !== nombre ? `<br><span class="t-tertiary">Para: ${esc(g.destinatario)}</span>` : '';
+    return esc(cliente) + para;
+  }
+  function celdaEntregaRep(g) {
+    const t = g.entrega_sad === 'ocurre' ? '<b>Ocurre</b>' : g.entrega_sad === 'domicilio' ? 'Domicilio' : '<span class="nota">sin dato</span>';
+    return t + (g.telefono ? `<br><span class="mono t-tertiary">${esc(g.telefono)}</span>` : '');
+  }
+
   const REPORTES_UI = {
     entregadas: {
       preguntaPlaza: '¿En que plaza se entregaron?',
@@ -2847,9 +2860,9 @@
       lista: (r) => r.entregas,
       vacio: ['Ninguna guia se entrego en esas fechas', 'Cambia las fechas o la plaza.'],
       cuenta: (n) => `${n} entregada${n === 1 ? '' : 's'}`,
-      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Fecha y hora'], ['Tipo', 'rep-movil-oculta'], ['Entregó']],
+      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Cliente / destinatario', 'rep-movil-oculta'], ['Fecha y hora'], ['Tipo', 'rep-movil-oculta'], ['Entregó']],
       fila: (g, i, conPlaza) => [
-        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null,
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, celdaClienteRep(g),
         `<span class="mono t-tertiary">${esc(fmtFecha(g.creado_en))}</span>`,
         TIPO_ENTREGA_TXT[g.tipo] || '<span class="nota">sin dato</span>', celdaOperador(g.operador),
       ],
@@ -2858,17 +2871,19 @@
       preguntaPlaza: '¿En que bodega?',
       prep: 'en',
       fechas: null,
-      explica: 'Lo que hay en bodega en este momento, con el dia y la hora en que llego cada guia y cuantos dias lleva ahi. Las que llevan mas tiempo van primero.',
+      explica: 'Lo que hay en bodega en este momento: cliente, destinatario, si va a ocurre o a domicilio (con telefono, segun el SAD), cuando llego y cuantos dias lleva ahi. Las que llevan mas tiempo van primero.',
       lista: (r) => r.guias,
       vacio: ['No hay guias en bodega', 'Todo lo que llego ya salio a reparto, se entrego o va en camino.'],
       cuenta: (n) => `${n} en bodega`,
       extra: (r) => {
         const viejas = r.guias.filter((g) => g.dias >= DIAS_ATENCION_BODEGA).length;
-        return viejas ? ` · ${viejas} con ${DIAS_ATENCION_BODEGA} dias o mas` : '';
+        const pe = r.porEntrega;
+        const entrega = pe ? ` · ${pe.ocurre} ocurre · ${pe.domicilio} domicilio${pe.sinDato ? ` · ${pe.sinDato} sin dato` : ''}` : '';
+        return entrega + (viejas ? ` · ${viejas} con ${DIAS_ATENCION_BODEGA} dias o mas` : '');
       },
-      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Llegó a bodega'], ['Dias en bodega']],
+      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Cliente / destinatario', 'rep-movil-oculta'], ['Entrega'], ['Llegó a bodega', 'rep-movil-oculta'], ['Dias en bodega']],
       fila: (g, i, conPlaza) => [
-        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null,
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, celdaClienteRep(g), celdaEntregaRep(g),
         `<span class="mono t-tertiary">${esc(fmtFecha(g.llegada))}</span>`,
         `<span class="rep-dias${g.dias >= DIAS_ATENCION_BODEGA ? ' rep-dias--atencion' : ''}">${textoDias(g.dias)}</span>`,
       ],
@@ -2881,9 +2896,9 @@
       lista: (r) => r.guias,
       vacio: ['No hay guias estancadas', 'Todas las guias se han movido en los ultimos 2 dias.'],
       cuenta: (n) => `${n} estancada${n === 1 ? '' : 's'}`,
-      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Estatus'], ['Sin moverse desde', 'rep-movil-oculta'], ['Dias']],
+      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Cliente / destinatario', 'rep-movil-oculta'], ['Estatus'], ['Sin moverse desde', 'rep-movil-oculta'], ['Dias']],
       fila: (g, i, conPlaza) => [
-        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, badge(g.estatus),
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, celdaClienteRep(g), badge(g.estatus),
         `<span class="mono t-tertiary">${esc(fmtFecha(g.estatus_desde))}</span>`,
         `<span class="rep-dias rep-dias--atencion">${textoDias(g.dias)}</span>`,
       ],
@@ -2897,9 +2912,9 @@
       lista: (r) => r.salidas,
       vacio: ['Ninguna guia salio ese dia', 'Cambia el dia o revisa que los escaneos de salida se hayan hecho.'],
       cuenta: (n) => `${n} salida${n === 1 ? '' : 's'}`,
-      columnas: [['#', 'rep-num'], ['Guia'], ['Salio de', 'rep-movil-oculta', 'plaza'], ['Hora'], ['Escaneó'], ['Estatus actual', 'rep-movil-oculta']],
+      columnas: [['#', 'rep-num'], ['Guia'], ['Salio de', 'rep-movil-oculta', 'plaza'], ['Cliente / destinatario', 'rep-movil-oculta'], ['Entrega', 'rep-movil-oculta'], ['Hora'], ['Escaneó'], ['Estatus actual', 'rep-movil-oculta']],
       fila: (g, i, conPlaza) => [
-        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null,
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, celdaClienteRep(g), celdaEntregaRep(g),
         `<span class="mono t-tertiary">${UI.fmtHora(g.creado_en)}</span>`, celdaOperador(g.operador), badge(g.estatus_actual),
       ],
     },
