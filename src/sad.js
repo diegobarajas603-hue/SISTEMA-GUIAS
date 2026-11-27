@@ -424,6 +424,49 @@ async function marcarEnTransito() {
   return rows.length;
 }
 
+// Guias que creo el SAD (salida automatica) y cuya factura despues se cancelo,
+// sin que ninguna persona las haya escaneado: existian solo por el SAD, asi
+// que se eliminan solas. Queda la constancia en la bitacora (usuario "SAD"),
+// que ademas impide que se vuelvan a crear. Si una persona ya la escaneo o
+// corrigio, NO se toca: se queda el aviso para que un administrador decida.
+const MOTIVO_CANCELADA_SAD =
+  'Factura cancelada en el SAD. La guia la habia dado de alta el SAD y nadie la escaneo: se elimino automaticamente.';
+
+async function eliminarCreadasPorSadCanceladas() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT g.numero_guia, g.estatus, g.complemento,
+              (SELECT COUNT(*)::int FROM eventos e WHERE e.numero_guia = g.numero_guia) AS eventos
+         FROM guias g JOIN facturas_sad f ON f.numero_guia = g.numero_guia
+        WHERE f.cancelada
+          AND EXISTS (SELECT 1 FROM eventos e WHERE e.numero_guia = g.numero_guia AND e.usuario = 'SAD')
+          AND NOT EXISTS (SELECT 1 FROM eventos e WHERE e.numero_guia = g.numero_guia AND e.usuario IS DISTINCT FROM 'SAD')
+        FOR UPDATE OF g`
+    );
+    const ahora = new Date();
+    for (const g of rows) {
+      // La constancia va ANTES de borrar, igual que en una eliminacion manual
+      await client.query(
+        `INSERT INTO bitacora (tipo, numero_guia, motivo, usuario, estatus, complemento, eventos, creado_en)
+         VALUES ('ELIMINACION', $1, $2, 'SAD', $3, $4, $5, $6)`,
+        [g.numero_guia, MOTIVO_CANCELADA_SAD, g.estatus, g.complemento, g.eventos, ahora]
+      );
+      await client.query('DELETE FROM eventos WHERE numero_guia = $1', [g.numero_guia]);
+      await client.query('DELETE FROM guias WHERE numero_guia = $1', [g.numero_guia]);
+    }
+    await client.query('COMMIT');
+    if (rows.length) console.log(`[sad] Eliminadas por factura cancelada: ${rows.map((g) => g.numero_guia).join(', ')}`);
+    return rows.length;
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 let bloqueadoHasta = 0;
 
 async function sincronizar({ forzar = false } = {}) {
@@ -444,13 +487,15 @@ async function sincronizar({ forzar = false } = {}) {
     // Despues de las canceladas: una factura cancelada nunca sale en transito
     const enTransito = await marcarEnTransito();
     const detalles = await completarDetalles();
-    const resumen = { embarques: filas.length, nuevas, canceladas, enTransito, detalles, ms: Date.now() - inicio };
+    // Al final: el detalle tambien puede revelar una cancelacion
+    const eliminadas = await eliminarCreadasPorSadCanceladas();
+    const resumen = { embarques: filas.length, nuevas, canceladas, enTransito, detalles, eliminadas, ms: Date.now() - inicio };
     estado.ultimoExito = new Date().toISOString();
     estado.ultimoError = null;
     estado.ultimoResumen = resumen;
     console.log(
       `[sad] ${filas.length} embarques leidos, ${nuevas} nuevos, ${canceladas} cancelados, ` +
-        `${enTransito} puestos en transito, ${detalles} detalles, ${resumen.ms} ms`
+        `${enTransito} puestos en transito, ${eliminadas} eliminadas por cancelacion, ${detalles} detalles, ${resumen.ms} ms`
     );
     return resumen;
   } catch (e) {
