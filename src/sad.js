@@ -483,9 +483,11 @@ async function completarDetalles() {
   // Primero las facturas de la lectura normal; despues, con su propio cupo,
   // las historicas que SI tienen guia aqui (las demas no hace falta leerlas)
   const { rows } = await pool.query(
-    `(SELECT numero_guia, venta_id FROM facturas_sad
-       WHERE detalle_en IS NULL AND venta_id IS NOT NULL AND detalle_fallos < 3 AND NOT historica
-       ORDER BY visto_en DESC LIMIT $1)
+    `(SELECT f.numero_guia, f.venta_id FROM facturas_sad f
+       WHERE f.detalle_en IS NULL AND f.venta_id IS NOT NULL AND f.detalle_fallos < 3 AND NOT f.historica
+       -- Primero las que ya tienen guia aqui (salen en reportes y detalle)
+       ORDER BY EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia) DESC, f.visto_en DESC
+       LIMIT $1)
      UNION ALL
      (SELECT f.numero_guia, f.venta_id FROM facturas_sad f
        WHERE f.detalle_en IS NULL AND f.venta_id IS NOT NULL AND f.detalle_fallos < 3 AND f.historica
