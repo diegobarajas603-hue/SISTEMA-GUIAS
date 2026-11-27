@@ -3152,13 +3152,17 @@
       // el filtro de plaza se aplica aqui mismo
       const r = await api('/api/sad/por-salir');
       const e = r.sincronizacion;
+      const h = r.historial || {};
+      // Avance de la carga historica (completa los datos de guias viejas)
+      if (h.enCurso) $('psEstado').textContent = textoSincronizacion(e) + ` · Cargando historial del SAD (${h.embarques || 0} embarques leidos)...`;
+      else if (h.pendientesDetalle) $('psEstado').textContent = textoSincronizacion(e) + ` · Completando datos de ${h.pendientesDetalle} guia(s) anteriores`;
       const todas = r.guias;
       const c = r.conteo || {};
       const n = { Todas: c.total ?? todas.length, MTY: c.MTY ?? 0, CDMX: c.CDMX ?? 0 };
       for (const k of Object.keys(n)) $('psN' + k).textContent = e.habilitado ? ` (${n[k]})` : '';
       if (segPorSalir) segPorSalir.mover();
       r.guias = psPlaza ? todas.filter((g) => g.plaza_origen === psPlaza) : todas;
-      $('psEstado').textContent = textoSincronizacion(e);
+      if (!h.enCurso && !h.pendientesDetalle) $('psEstado').textContent = textoSincronizacion(e);
       $('btnSadSync').style.display = esAdminPs && e.habilitado ? '' : 'none';
       if (!e.habilitado) {
         $('tbodyPorSalir').innerHTML = `<tr><td colspan="7">${UI.emptyState({

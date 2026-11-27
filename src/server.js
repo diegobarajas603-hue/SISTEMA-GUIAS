@@ -375,6 +375,15 @@ app.post('/api/sad/canceladas/:factura/revisada', requireAuth, requireAdmin, asy
   }
 });
 
+// Volver a hacer la carga historica (?dias, 30 por omision). Se hace sola la
+// primera vez; esto es para repetirla o ampliarla (administradores). Contesta
+// de inmediato: la carga sigue en segundo plano y su avance se ve en Por salir.
+app.post('/api/sad/cargar-historial', requireAuth, requireAdmin, (req, res) => {
+  if (!sad.habilitado) return res.status(400).json({ error: 'La conexion con el SAD no esta configurada' });
+  sad.cargarHistorial({ dias: (req.body || {}).dias }).catch(() => {});
+  res.json({ iniciado: true });
+});
+
 // Leer el SAD en este momento sin esperar al siguiente ciclo (administradores)
 app.post('/api/sad/sincronizar', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -540,7 +549,9 @@ app.get('/api/publico/guias/:numeroGuia', seguro(async (req, res) => {
     // Aun sin escanear, si ya se facturo en el SAD el cliente ve que su envio
     // fue documentado
     const factura = await sad.facturaDe(numeroGuia).catch(() => null);
-    if (factura && !factura.cancelada) {
+    // Las facturas historicas (de la carga de semanas atras) no se muestran
+    // como "Documentado": ese envio seguramente ya se entrego
+    if (factura && !factura.cancelada && !factura.historica) {
       const estatus = documentada(factura.plaza_origen);
       const fecha = factura.registrada_en || factura.visto_en;
       return res.json({
@@ -619,7 +630,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
     const guia = await guias.buscarGuia(numeroGuia);
     if (!guia) {
       const factura = await sad.facturaDe(numeroGuia).catch(() => null);
-      if (factura && !factura.cancelada) {
+      if (factura && !factura.cancelada && !factura.historica) {
         await enviarMensaje(de, mensajeEstatus(numeroGuia, documentada(factura.plaza_origen)));
         return;
       }

@@ -33,12 +33,18 @@ const USUARIO = process.env.SAD_USUARIO || '';
 const PASSWORD = process.env.SAD_PASSWORD || '';
 const INTERVALO_MIN = Math.max(Number(process.env.SAD_INTERVALO_MIN) || 5, 1);
 const DIAS = Math.min(Math.max(Number(process.env.SAD_DIAS) || 2, 1), 15);
+// Dias hacia atras de la carga historica (una sola vez): completa cliente,
+// destinatario y tipo de entrega de las guias que ya existian
+const DIAS_HISTORIAL = Math.min(Math.max(Number(process.env.SAD_DIAS_HISTORIAL) || 30, 3), 120);
 const ZONA = /^[+-]\d{2}:\d{2}$/.test(process.env.SAD_ZONA_UTC || '') ? process.env.SAD_ZONA_UTC : '-06:00';
 
 // Topes para no cargar al SAD: paginas de embarques por ciclo y facturas de
 // las que se consulta el detalle por ciclo (las demas esperan al siguiente).
 const MAX_PAGINAS = 12;
 const DETALLES_POR_CICLO = 30;
+// Detalles de facturas historicas por ciclo (solo las que tienen guia aqui)
+const DETALLES_HISTORIA_POR_CICLO = 60;
+const MAX_PAGINAS_HISTORIAL = 250;
 const TIEMPO_LIMITE_MS = 30 * 1000;
 
 const FOLIO_GUIA = /^(AN|BN)\d+$/;
@@ -56,6 +62,7 @@ const estado = {
   ultimoExito: null,
   ultimoError: null,
   ultimoResumen: null,
+  historial: null, // { enCurso, dias, embarques, nuevas, terminadoEn, error }
 };
 
 function estadoSincronizacion() {
@@ -94,6 +101,18 @@ async function initSad() {
     -- Veces que fallo leer el detalle; despues de 3 se deja de intentar para
     -- que una factura rota no frene a las demas
     ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS detalle_fallos INTEGER NOT NULL DEFAULT 0;
+    -- Facturas que llegaron con la carga historica (mas viejas que la ventana
+    -- normal). Solo sirven para completar los datos de guias que ya existen:
+    -- no van a "Por salir", no se muestran como "Documentado" al cliente y no
+    -- se ponen en transito.
+    ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS historica BOOLEAN NOT NULL DEFAULT FALSE;
+
+    -- Marcas de una sola vez (p. ej. que ya se hizo la carga historica)
+    CREATE TABLE IF NOT EXISTS sad_marcas (
+      clave TEXT PRIMARY KEY,
+      valor TEXT,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
 
     -- Cuando una factura se cancela en el SAD despues de que su guia ya
     -- existe aqui, se avisa en el panel hasta que un administrador lo revisa.
@@ -276,16 +295,18 @@ function hoyMenos(dias) {
   return new Date(Date.now() + desfaseMs - dias * 86400000).toISOString().slice(0, 10);
 }
 
-async function guardarEmbarques(filas) {
+async function guardarEmbarques(filas, { historica = false } = {}) {
   let nuevas = 0;
   const ahora = new Date();
   for (const f of filas) {
     if (!FOLIO_GUIA.test(f.factura)) continue;
     const { rows } = await pool.query(
       `INSERT INTO facturas_sad (numero_guia, plaza_origen, embarque, embarque_id, venta_id, cliente,
-                                 fecha_embarque, estatus_sad, cancelada, visto_en, actualizado_en)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+                                 fecha_embarque, estatus_sad, cancelada, visto_en, actualizado_en, historica)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11)
        ON CONFLICT (numero_guia) DO UPDATE SET
+         -- Una factura que se ve en la lectura normal deja de ser historica
+         historica = facturas_sad.historica AND EXCLUDED.historica,
          embarque = EXCLUDED.embarque, embarque_id = EXCLUDED.embarque_id,
          venta_id = COALESCE(EXCLUDED.venta_id, facturas_sad.venta_id),
          cliente = EXCLUDED.cliente, fecha_embarque = EXCLUDED.fecha_embarque,
@@ -307,6 +328,7 @@ async function guardarEmbarques(filas) {
         f.estatus || null,
         /^cancelad/i.test(f.estatus),
         ahora,
+        historica,
       ]
     );
     if (rows[0]?.nueva) nuevas++;
@@ -344,11 +366,18 @@ async function marcarCanceladas() {
 }
 
 async function completarDetalles() {
+  // Primero las facturas de la lectura normal; despues, con su propio cupo,
+  // las historicas que SI tienen guia aqui (las demas no hace falta leerlas)
   const { rows } = await pool.query(
-    `SELECT numero_guia, venta_id FROM facturas_sad
-      WHERE detalle_en IS NULL AND venta_id IS NOT NULL AND detalle_fallos < 3
-      ORDER BY visto_en DESC LIMIT $1`,
-    [DETALLES_POR_CICLO]
+    `(SELECT numero_guia, venta_id FROM facturas_sad
+       WHERE detalle_en IS NULL AND venta_id IS NOT NULL AND detalle_fallos < 3 AND NOT historica
+       ORDER BY visto_en DESC LIMIT $1)
+     UNION ALL
+     (SELECT f.numero_guia, f.venta_id FROM facturas_sad f
+       WHERE f.detalle_en IS NULL AND f.venta_id IS NOT NULL AND f.detalle_fallos < 3 AND f.historica
+         AND EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
+       ORDER BY f.fecha_embarque DESC LIMIT $2)`,
+    [DETALLES_POR_CICLO, DETALLES_HISTORIA_POR_CICLO]
   );
   let leidos = 0;
   for (const r of rows) {
@@ -401,7 +430,7 @@ async function marcarEnTransito() {
        SELECT f.numero_guia, f.plaza_origen AS origen,
               CASE WHEN f.plaza_origen = 'MTY' THEN 'CDMX' ELSE 'MTY' END AS destino
          FROM facturas_sad f
-        WHERE NOT f.cancelada
+        WHERE NOT f.cancelada AND NOT f.historica
           AND f.estatus_sad = ANY($2::text[])
           -- Solo lo que se acaba de leer: un estatus viejo que ya no se
           -- refresca no debe volver a crear guias (p. ej. tras "borrar todas")
@@ -507,13 +536,73 @@ async function sincronizar({ forzar = false } = {}) {
   }
 }
 
+// ---------- Carga historica (una sola vez) ----------
+
+// Lee los embarques de los ultimos DIAS_HISTORIAL dias y los guarda como
+// historicos. Espera a que termine la lectura normal en curso (comparten la
+// sesion del SAD) y la bloquea mientras lee las paginas (un par de minutos).
+// Los detalles se completan despues, poco a poco, en cada ciclo normal.
+async function cargarHistorial({ dias = DIAS_HISTORIAL } = {}) {
+  if (!habilitado) throw new Error('La conexion con el SAD no esta configurada');
+  if (estado.historial && estado.historial.enCurso) return estado.historial;
+  const d = Math.min(Math.max(Number(dias) || DIAS_HISTORIAL, 3), 120);
+  while (estado.enCurso) await new Promise((r) => setTimeout(r, 2000));
+  estado.enCurso = true;
+  estado.historial = { enCurso: true, dias: d, embarques: 0, nuevas: 0, iniciadoEn: new Date().toISOString() };
+  try {
+    const limite = hoyMenos(d);
+    for (let p = 0; p < MAX_PAGINAS_HISTORIAL; p++) {
+      const pag = leerEmbarques(await pagina(`/route/embarque/search/?regs_offset=${p}&regs_display=50`));
+      if (!pag.length) break;
+      const dentro = pag.filter((f) => !/^\d{4}-\d{2}-\d{2}$/.test(f.fecha) || f.fecha >= limite);
+      estado.historial.nuevas += await guardarEmbarques(dentro, { historica: true });
+      estado.historial.embarques += dentro.length;
+      if (dentro.length < pag.length) break; // ya se paso del limite
+    }
+    await pool.query(
+      `INSERT INTO sad_marcas (clave, valor) VALUES ('carga_historial', $1)
+       ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor, creado_en = now()`,
+      [String(d)]
+    );
+    estado.historial.terminadoEn = new Date().toISOString();
+    console.log(`[sad] Carga historica: ${estado.historial.embarques} embarques de ${d} dias, ${estado.historial.nuevas} facturas nuevas`);
+  } catch (e) {
+    estado.historial.error = e.message;
+    console.error('[sad] Fallo la carga historica:', e.message);
+    throw e;
+  } finally {
+    estado.historial.enCurso = false;
+    estado.enCurso = false;
+  }
+  return estado.historial;
+}
+
+// Cuantas guias de aqui todavia esperan sus datos de la carga historica
+async function progresoHistorial() {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS pendientes FROM facturas_sad f
+      WHERE f.historica AND f.detalle_en IS NULL AND f.venta_id IS NOT NULL AND f.detalle_fallos < 3
+        AND EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)`
+  );
+  return { ...(estado.historial || {}), pendientesDetalle: rows[0].pendientes };
+}
+
+async function historialHecho() {
+  const { rows } = await pool.query("SELECT 1 FROM sad_marcas WHERE clave = 'carga_historial'");
+  return rows.length > 0;
+}
+
 function arrancar() {
   if (!habilitado) {
     console.log('[sad] Sin SAD_USUARIO / SAD_PASSWORD: la conexion con el SAD esta apagada');
     return;
   }
   const ciclo = () => sincronizar().catch(() => {});
-  setTimeout(ciclo, 5 * 1000).unref();
+  // Primero la lectura normal; despues, si nunca se ha hecho, la historica
+  setTimeout(async () => {
+    await ciclo();
+    if (!(await historialHecho().catch(() => true))) cargarHistorial().catch(() => {});
+  }, 5 * 1000).unref();
   setInterval(ciclo, INTERVALO_MIN * 60 * 1000).unref();
   console.log(`[sad] Conexion con el SAD activa: se lee cada ${INTERVALO_MIN} min`);
 }
@@ -570,7 +659,7 @@ async function listarPorSalir({ plaza, limit = 500 } = {}) {
   const { rows: conteo } = await pool.query(
     `SELECT f.plaza_origen, COUNT(*)::int AS n
        FROM facturas_sad f
-      WHERE NOT f.cancelada
+      WHERE NOT f.cancelada AND NOT f.historica
         AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
       GROUP BY f.plaza_origen`
   );
@@ -581,7 +670,7 @@ async function listarPorSalir({ plaza, limit = 500 } = {}) {
             f.tipo_entrega, f.telefono, f.estatus_sad, f.fecha_embarque::text AS fecha_embarque,
             COALESCE(f.registrada_en, f.visto_en) AS facturada_en
        FROM facturas_sad f
-      WHERE NOT f.cancelada
+      WHERE NOT f.cancelada AND NOT f.historica
         AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
         ${filtro}
       ORDER BY COALESCE(f.registrada_en, f.visto_en) ASC
@@ -590,6 +679,7 @@ async function listarPorSalir({ plaza, limit = 500 } = {}) {
   );
   return {
     sincronizacion: estadoSincronizacion(),
+    historial: await progresoHistorial(),
     conteo: { total: porPlaza.MTY + porPlaza.CDMX, ...porPlaza },
     guias: rows,
   };
@@ -626,6 +716,7 @@ async function marcarCancelacionRevisada(factura, usuario) {
 
 module.exports = {
   habilitado,
+  cargarHistorial,
   listarCanceladasConGuia,
   marcarCancelacionRevisada,
   initSad,
