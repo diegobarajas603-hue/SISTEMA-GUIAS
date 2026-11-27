@@ -3189,10 +3189,33 @@
     </div>`;
   }
 
+  // De 10 en 10: las demas filas van ocultas y "Ver 10 mas" las descubre
+  const NC_POR_PAGINA = 10;
   function tablaNc(cabeceras, filas) {
+    const html = filas.map((f, i) => (i < NC_POR_PAGINA ? f : f.replace('<tr', '<tr hidden'))).join('');
+    const quedan = filas.length - NC_POR_PAGINA;
     return `<div class="tabla-scroll"><table>
       <thead><tr>${cabeceras.map((c) => `<th>${c}</th>`).join('')}</tr></thead>
-      <tbody>${filas.join('')}</tbody></table></div>`;
+      <tbody>${html}</tbody></table></div>
+      ${quedan > 0 ? `<div class="nc-mas"><button class="btn btn--secondary btn--sm" type="button" data-nc-mas>Ver ${Math.min(NC_POR_PAGINA, quedan)} mas (quedan ${quedan})</button></div>` : ''}`;
+  }
+
+  function activarVerMas(cont) {
+    cont.querySelectorAll('[data-nc-mas]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const ocultas = [...b.closest('.nc-seccion').querySelectorAll('tbody tr[hidden]')];
+        ocultas.slice(0, NC_POR_PAGINA).forEach((tr) => tr.removeAttribute('hidden'));
+        const quedan = ocultas.length - NC_POR_PAGINA;
+        if (quedan > 0) b.textContent = `Ver ${Math.min(NC_POR_PAGINA, quedan)} mas (quedan ${quedan})`;
+        else b.parentElement.remove();
+      })
+    );
+  }
+
+  // "hace 3 h", "hace 9 dias": fmtRelativo pasa a fecha despues de una semana
+  function haceNc(f) {
+    const dias = Math.floor((Date.now() - new Date(f).getTime()) / 86400000);
+    return dias >= 1 ? `hace ${dias} dia${dias === 1 ? '' : 's'}` : fmtRelativo(f);
   }
 
   async function cargarCentroNotificaciones() {
@@ -3227,7 +3250,7 @@
               <td class="mono">${esc(g.factura)}</td>
               <td>${esc(g.cliente || '-')}</td>
               <td>${badge(g.estatus)}</td>
-              <td class="t-tertiary">${fmtRelativo(g.cancelada_en)}</td>
+              <td class="t-tertiary">${haceNc(g.cancelada_en)}</td>
               <td>${esAdminNc ? `<button class="btn btn--secondary btn--sm" type="button" data-nc-revisar="${esc(g.factura)}">Marcar revisada</button>` : ''}</td></tr>`))
           : '<p class="nc-texto nota">Ninguna guia registrada tiene su factura cancelada.</p>'));
 
@@ -3237,7 +3260,7 @@
               <td><a class="mono" href="#/guia/${encodeURIComponent(g.numero_guia)}">${esc(g.numero_guia)}</a></td>
               <td>${badge(g.estatus)}</td>
               <td class="mono t-tertiary">${fmtFecha(g.actualizado_en)}</td>
-              <td class="t-tertiary">${fmtRelativo(g.actualizado_en)}</td></tr>`))
+              <td class="t-tertiary">${haceNc(g.actualizado_en)}</td></tr>`))
             + (totalDetenidas > detenidas.length ? `<p class="nc-texto nota">Se muestran ${detenidas.length} de ${totalDetenidas}.</p>` : '')
           : '<p class="nc-texto nota">Ninguna guia lleva mas de ' + HORAS_DETENIDA + ' h en transito sin escaneo.</p>',
         totalDetenidas ? '<button class="btn btn--secondary btn--sm" type="button" id="ncIrDetenidas">Ver en Guias</button>' : ''));
@@ -3253,6 +3276,7 @@
       const total = (sadMal ? 1 : 0) + nCanc + totalDetenidas + nEst;
       $('ncResumen').textContent = total ? `${total} pendiente(s) en total` : 'Todo en orden: no hay nada pendiente.';
       $('ncContenido').innerHTML = secciones.join('');
+      activarVerMas($('ncContenido'));
 
       $('ncContenido').querySelectorAll('[data-nc-revisar]').forEach((b) =>
         b.addEventListener('click', async () => {
