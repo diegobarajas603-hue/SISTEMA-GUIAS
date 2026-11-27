@@ -150,10 +150,13 @@
       const rCont = contenedor.getBoundingClientRect();
       const rAct = activo.getBoundingClientRect();
       const borde = parseFloat(getComputedStyle(contenedor).borderLeftWidth) || 0;
-      thumb.style.setProperty('--seg-w', rAct.width + 'px');
+      // Con el panel al 90% (zoom de CSS) los rects vienen en pixeles de
+      // pantalla y el pill se dibuja en pixeles de CSS: se convierten
+      const z = contenedor.offsetWidth ? rCont.width / contenedor.offsetWidth : 1;
+      thumb.style.setProperty('--seg-w', rAct.width / z + 'px');
       // + scrollLeft: si el control se desliza de lado (telefono), el pill
       // vive dentro del contenido desplazado
-      thumb.style.setProperty('--seg-x', rAct.left - rCont.left - borde + contenedor.scrollLeft + 'px');
+      thumb.style.setProperty('--seg-x', (rAct.left - rCont.left) / z - borde + contenedor.scrollLeft + 'px');
     }
 
     function seleccionar(valor, avisar) {

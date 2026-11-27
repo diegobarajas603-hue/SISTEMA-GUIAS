@@ -655,7 +655,7 @@
   flex-direction: column;
   gap: var(--space-8);
   width: 360px;
-  max-width: calc(100vw - var(--space-48));
+  max-width: calc(100vw / var(--zoom, 1) - var(--space-48));
   pointer-events: none;
 }
 
@@ -937,7 +937,7 @@
   right: 0;
   top: calc(100% + var(--space-8));
   z-index: var(--z-overlay);
-  width: min(340px, calc(100vw - var(--space-32)));
+  width: min(340px, calc(100vw / var(--zoom, 1) - var(--space-32)));
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
@@ -987,7 +987,7 @@
 
 /* Tope de alto: con muchas guias detenidas la lista se desplaza por dentro
    en vez de crecer hasta salirse de la pantalla */
-.notif__lista { max-height: min(420px, 60vh); overflow-y: auto; }
+.notif__lista { max-height: min(420px, calc(60vh / var(--zoom, 1))); overflow-y: auto; }
 
 .notif__item {
   display: flex;
