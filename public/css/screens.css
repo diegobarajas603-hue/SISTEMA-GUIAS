@@ -2482,3 +2482,28 @@ tbody tr.clic:hover {
   gap: var(--space-8);
   padding: var(--space-12) 0;
 }
+
+/* Centro de notificaciones */
+#v-notificaciones .nc-seccion { margin-top: var(--card-gap); }
+.nc-seccion__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  padding: var(--space-16) var(--space-20);
+}
+.nc-punto { width: 8px; height: 8px; border-radius: var(--radius-full); flex-shrink: 0; }
+.nc-punto--error { background: var(--st-cancelada-color); }
+.nc-punto--aviso { background: var(--st-transito-color); }
+.nc-conteo {
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: var(--radius-full);
+  background: var(--overlay-hover);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.nc-texto { margin: 0; padding: 0 var(--space-20) var(--space-16); }

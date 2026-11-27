@@ -175,6 +175,7 @@
             <span class="notif__conteo" id="notifConteo"></span>
           </div>
           <div class="notif__lista" id="notifLista"></div>
+          <a class="notif__pie" id="notifVerTodas" href="#/notificaciones">Ver todas las notificaciones</a>
         </div>
         </div>
         <!-- Menu de la cuenta: el circulo con las iniciales abre tu nombre,
@@ -413,6 +414,18 @@
       </section>
 
       <!-- ====================================================== Eventos -->
+      <!-- ============================================== Notificaciones -->
+      <!-- Todo lo que pide atencion, completo: la campana solo muestra las
+           primeras de cada tipo. -->
+      <section id="v-notificaciones" style="display:none">
+        <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
+          <span class="nota" id="ncResumen"></span>
+          <span class="spacer"></span>
+          <button class="btn btn--secondary" id="btnNcActualizar" type="button">Actualizar</button>
+        </div>
+        <div id="ncContenido"></div>
+      </section>
+
       <section id="v-eventos" style="display:none">
         <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
           <input class="input" type="text" id="buscarEvento" placeholder="Filtrar por numero de guia..." autocomplete="off" style="flex:1; min-width:200px;" />
@@ -941,8 +954,12 @@
   function arrancarVigilancia() {
     revisarEstancadas();
     revisarCanceladasSad();
+    revisarDetenidas();
+    revisarSad();
     clearInterval(timerEstancadas);
-    timerEstancadas = setInterval(() => { revisarEstancadas(); revisarCanceladasSad(); }, MIN_REVISAR_ESTANCADAS * 60 * 1000);
+    timerEstancadas = setInterval(() => {
+      revisarEstancadas(); revisarCanceladasSad(); revisarDetenidas(); revisarSad();
+    }, MIN_REVISAR_ESTANCADAS * 60 * 1000);
   }
 
   function detenerVigilancia() {
@@ -952,6 +969,7 @@
     estancadas = [];
     totalEstancadas = 0;
     canceladasSad = [];
+    estadoSad = null;
     $('btnEstancadas').hidden = true;
   }
 
@@ -1180,8 +1198,8 @@
   }
 
   // ---------- Router ----------
-  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', reportes: 'Reportes', bitacora: 'Bitacora', config: 'Configuracion', detalle: 'Detalle de guia', porsalir: 'Facturadas por salir' };
-  const VISTAS = ['dashboard', 'escanear', 'guias', 'porsalir', 'detalle', 'eventos', 'reportes', 'bitacora', 'config'];
+  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', reportes: 'Reportes', bitacora: 'Bitacora', config: 'Configuracion', detalle: 'Detalle de guia', porsalir: 'Facturadas por salir', notificaciones: 'Notificaciones' };
+  const VISTAS = ['dashboard', 'escanear', 'guias', 'porsalir', 'notificaciones', 'detalle', 'eventos', 'reportes', 'bitacora', 'config'];
 
   function render() {
     let ruta = location.hash.replace(/^#\/?/, '') || 'dashboard';
@@ -1222,6 +1240,7 @@
     if (vista === 'guias') setPlazaTab(plazaTab);
     if (vista === 'eventos') cargarEventos();
     if (vista === 'porsalir') cargarPorSalir();
+    if (vista === 'notificaciones') cargarCentroNotificaciones();
     if (vista === 'reportes') cargarReportes();
     if (vista === 'bitacora') cargarBitacora();
     if (vista === 'detalle') cargarDetalle(arg);
@@ -1421,6 +1440,28 @@
   let detenidas = [];
   let totalDetenidas = 0;
 
+  // Estado de la conexion con el SAD: si lleva mas de 30 min sin poder
+  // leerse, se avisa en la campana (el escaneo sigue funcionando igual)
+  const MIN_SAD_SIN_LEER = 30;
+  let estadoSad = null;
+  function problemaSad(e) {
+    if (!e || !e.habilitado || e.enCurso) return null;
+    const minutos = e.ultimoExito ? (Date.now() - new Date(e.ultimoExito).getTime()) / 60000 : Infinity;
+    if (minutos < MIN_SAD_SIN_LEER) return null;
+    if (!e.ultimoExito && !e.ultimoError) return null; // aun no termina la primera lectura
+    return {
+      titulo: 'No se ha podido leer el SAD',
+      desc: (e.ultimoExito ? `Ultima lectura correcta ${fmtRelativo(e.ultimoExito)}. ` : 'No ha habido ninguna lectura correcta. ')
+        + (e.ultimoError ? `Error: ${e.ultimoError}` : ''),
+    };
+  }
+  async function revisarSad() {
+    try {
+      estadoSad = await api('/api/sad/estado');
+      pintarNotificaciones();
+    } catch {}
+  }
+
   // Guias cuya factura se cancelo en el SAD despues de registrarse aqui
   let canceladasSad = [];
   async function revisarCanceladasSad() {
@@ -1446,6 +1487,10 @@
   // donde ir. Cada notificacion dice a que lleva y se navega al tocarla.
   function notificaciones() {
     const lista = [];
+    const sadMal = problemaSad(estadoSad);
+    if (sadMal) {
+      lista.push({ id: 'sad', tono: 'error', titulo: sadMal.titulo, desc: sadMal.desc, ir: () => (location.hash = '#/notificaciones') });
+    }
     // Primero las facturas canceladas: son las que piden una decision
     for (const g of canceladasSad.slice(0, 5)) {
       const deComplemento = g.factura !== g.numero_guia;
@@ -1492,7 +1537,7 @@
 
   function pintarNotificaciones() {
     const lista = notificaciones();
-    const hayAlgo = totalDetenidas || canceladasSad.length;
+    const hayAlgo = totalDetenidas || canceladasSad.length || problemaSad(estadoSad);
     $('puntoPendientes').style.display = hayAlgo ? '' : 'none';
     $('btnPendientes').title = [
       canceladasSad.length ? `${canceladasSad.length} factura(s) cancelada(s) en el SAD` : '',
@@ -3127,6 +3172,111 @@
 
   $('btnRepPdf').addEventListener('click', () => descargarReporte('pdf', $('btnRepPdf')));
   $('btnRepCsv').addEventListener('click', () => descargarReporte('csv', $('btnRepCsv')));
+
+  // ---------- Centro de notificaciones ----------
+  // Todo lo que pide atencion, sin el tope de la campana: conexion con el SAD,
+  // facturas canceladas, guias detenidas en transito y guias estancadas.
+  function seccionNc(titulo, n, tono, cuerpo, accion) {
+    return `<div class="card card--flush nc-seccion">
+      <div class="nc-seccion__head">
+        <span class="nc-punto nc-punto--${tono}"></span>
+        <h2 class="titulo-card" style="margin:0">${titulo}</h2>
+        <span class="nc-conteo">${n}</span>
+        <span class="spacer"></span>
+        ${accion || ''}
+      </div>
+      ${cuerpo}
+    </div>`;
+  }
+
+  function tablaNc(cabeceras, filas) {
+    return `<div class="tabla-scroll"><table>
+      <thead><tr>${cabeceras.map((c) => `<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>${filas.join('')}</tbody></table></div>`;
+  }
+
+  async function cargarCentroNotificaciones() {
+    const esAdminNc = !!(usuarioActual && usuarioActual.roles.includes('admin'));
+    $('ncContenido').innerHTML = `<div class="card">${UI.skeleton('skeleton--text', 'width:60%')}</div>`;
+    try {
+      const [sadE, canc, det, est] = await Promise.all([
+        api('/api/sad/estado').catch(() => null),
+        api('/api/sad/canceladas').catch(() => ({ guias: [] })),
+        api('/api/guias/detenidas?horas=' + HORAS_DETENIDA),
+        api('/api/guias/estancadas?dias=' + DIAS_ESTANCADA),
+      ]);
+      estadoSad = sadE;
+      canceladasSad = canc.guias || [];
+      detenidas = det.guias || [];
+      totalDetenidas = det.total || 0;
+      pintarNotificaciones();
+
+      const secciones = [];
+      const sadMal = problemaSad(sadE);
+      if (sadMal) {
+        secciones.push(seccionNc('Conexion con el SAD', '!', 'error',
+          `<p class="nc-texto">${esc(sadMal.desc)}</p>
+           <p class="nc-texto nota">El escaneo, el rastreo y WhatsApp siguen funcionando. Revisa que SAD_USUARIO y SAD_PASSWORD sigan vigentes en Railway, o que el SAD este en linea.</p>`));
+      }
+
+      const nCanc = canceladasSad.length;
+      secciones.push(seccionNc('Facturas canceladas en el SAD', nCanc, 'error',
+        nCanc
+          ? tablaNc(['Guia', 'Factura', 'Cliente', 'Estatus actual', 'Cancelada', ''], canceladasSad.map((g) => `<tr>
+              <td><a class="mono" href="#/guia/${encodeURIComponent(g.numero_guia)}">${esc(g.numero_guia)}</a></td>
+              <td class="mono">${esc(g.factura)}</td>
+              <td>${esc(g.cliente || '-')}</td>
+              <td>${badge(g.estatus)}</td>
+              <td class="t-tertiary">${fmtRelativo(g.cancelada_en)}</td>
+              <td>${esAdminNc ? `<button class="btn btn--secondary btn--sm" type="button" data-nc-revisar="${esc(g.factura)}">Marcar revisada</button>` : ''}</td></tr>`))
+          : '<p class="nc-texto nota">Ninguna guia registrada tiene su factura cancelada.</p>'));
+
+      secciones.push(seccionNc(`Detenidas en transito (mas de ${HORAS_DETENIDA} h sin escaneo)`, totalDetenidas, 'aviso',
+        totalDetenidas
+          ? tablaNc(['Guia', 'Estatus', 'Ultimo movimiento', 'Hace'], detenidas.map((g) => `<tr>
+              <td><a class="mono" href="#/guia/${encodeURIComponent(g.numero_guia)}">${esc(g.numero_guia)}</a></td>
+              <td>${badge(g.estatus)}</td>
+              <td class="mono t-tertiary">${fmtFecha(g.actualizado_en)}</td>
+              <td class="t-tertiary">${fmtRelativo(g.actualizado_en)}</td></tr>`))
+            + (totalDetenidas > detenidas.length ? `<p class="nc-texto nota">Se muestran ${detenidas.length} de ${totalDetenidas}.</p>` : '')
+          : '<p class="nc-texto nota">Ninguna guia lleva mas de ' + HORAS_DETENIDA + ' h en transito sin escaneo.</p>',
+        totalDetenidas ? '<button class="btn btn--secondary btn--sm" type="button" id="ncIrDetenidas">Ver en Guias</button>' : ''));
+
+      const nEst = est.total != null ? est.total : (est.guias || []).length;
+      secciones.push(seccionNc(`Estancadas (${DIAS_ESTANCADA} dias o mas sin moverse)`, nEst, 'aviso',
+        `<p class="nc-texto nota">${nEst
+          ? 'Guias en bodega, en reparto o en camino que no han cambiado de estatus. Revisalas en Guias o descarga el PDF para revisarlas en papel.'
+          : 'Todas las guias se han movido en los ultimos ' + DIAS_ESTANCADA + ' dias.'}</p>`,
+        nEst ? `<button class="btn btn--secondary btn--sm" type="button" id="ncIrEstancadas">Ver en Guias</button>
+                <button class="btn btn--secondary btn--sm" type="button" id="ncPdfEstancadas">Imprimir PDF</button>` : ''));
+
+      const total = (sadMal ? 1 : 0) + nCanc + totalDetenidas + nEst;
+      $('ncResumen').textContent = total ? `${total} pendiente(s) en total` : 'Todo en orden: no hay nada pendiente.';
+      $('ncContenido').innerHTML = secciones.join('');
+
+      $('ncContenido').querySelectorAll('[data-nc-revisar]').forEach((b) =>
+        b.addEventListener('click', async () => {
+          b.disabled = true;
+          try {
+            await api('/api/sad/canceladas/' + encodeURIComponent(b.dataset.ncRevisar) + '/revisada', { method: 'POST' });
+            UI.toast({ tipo: 'ok', titulo: 'Cancelacion revisada', descripcion: `${b.dataset.ncRevisar} ya no aparece en las notificaciones.` });
+            cargarCentroNotificaciones();
+          } catch (err) {
+            b.disabled = false;
+            UI.toast({ tipo: 'error', titulo: 'No se pudo marcar', descripcion: err.message });
+          }
+        })
+      );
+      if ($('ncIrDetenidas')) $('ncIrDetenidas').addEventListener('click', irADetenidas);
+      if ($('ncIrEstancadas')) $('ncIrEstancadas').addEventListener('click', irAEstancadas);
+      if ($('ncPdfEstancadas')) $('ncPdfEstancadas').addEventListener('click', () => imprimirEstancadas($('ncPdfEstancadas')));
+    } catch (err) {
+      UI.montarError($('ncContenido'), err.message, cargarCentroNotificaciones);
+    }
+  }
+
+  $('btnNcActualizar').addEventListener('click', cargarCentroNotificaciones);
+  $('notifVerTodas').addEventListener('click', () => cerrarNotificaciones());
 
   // ---------- Por salir (facturadas en el SAD sin escanear) ----------
 
