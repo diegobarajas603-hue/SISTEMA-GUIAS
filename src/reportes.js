@@ -65,10 +65,12 @@ async function salidasDelDia({ fecha, plaza } = {}) {
   const { rows } = await pool.query(
     `SELECT e.numero_guia, e.plaza, e.creado_en,
             COALESCE(u.nombre, e.usuario) AS operador,
-            g.complemento, g.estatus AS estatus_actual
+            g.complemento, g.estatus AS estatus_actual,
+            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque, f.unidad, f.remolque, f.remolque2, f.chofer
        FROM eventos e
        LEFT JOIN usuarios u ON u.usuario = e.usuario
        LEFT JOIN guias g ON g.numero_guia = e.numero_guia
+       LEFT JOIN facturas_sad f ON f.numero_guia = e.numero_guia
       WHERE e.accion = 'SALIDA' AND NOT e.revertido
         AND (e.creado_en AT TIME ZONE '${ZONA}')::date = $1::date
         ${filtroPlaza}
@@ -128,10 +130,12 @@ async function entregasEnRango({ desde, hasta, plaza } = {}) {
   const { rows } = await pool.query(
     `SELECT e.numero_guia, e.plaza, e.creado_en, e.descripcion,
             COALESCE(u.nombre, e.usuario) AS operador,
-            g.complemento
+            g.complemento,
+            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque, f.unidad, f.remolque, f.remolque2, f.chofer
        FROM eventos e
        LEFT JOIN usuarios u ON u.usuario = e.usuario
        LEFT JOIN guias g ON g.numero_guia = e.numero_guia
+       LEFT JOIN facturas_sad f ON f.numero_guia = e.numero_guia
       WHERE e.accion = 'ENTREGA' AND NOT e.revertido
         AND (e.creado_en AT TIME ZONE '${ZONA}')::date BETWEEN $1::date AND $2::date
         ${filtroPlaza}
@@ -157,11 +161,13 @@ async function guiasEnBodega({ plaza } = {}) {
   const estatus = p ? [`EN_BODEGA_${p}`] : PLAZAS.map((x) => `EN_BODEGA_${x}`);
 
   const { rows } = await pool.query(
-    `SELECT numero_guia, complemento, estatus,
-            COALESCE(estatus_desde, actualizado_en) AS llegada
-       FROM guias
-      WHERE estatus = ANY($1::text[])
-      ORDER BY COALESCE(estatus_desde, actualizado_en) ASC, numero_guia ASC`,
+    `SELECT g.numero_guia, g.complemento, g.estatus,
+            COALESCE(g.estatus_desde, g.actualizado_en) AS llegada,
+            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque, f.unidad, f.remolque, f.remolque2, f.chofer
+       FROM guias g
+       LEFT JOIN facturas_sad f ON f.numero_guia = g.numero_guia
+      WHERE g.estatus = ANY($1::text[])
+      ORDER BY COALESCE(g.estatus_desde, g.actualizado_en) ASC, g.numero_guia ASC`,
     [estatus]
   );
 
@@ -171,7 +177,11 @@ async function guiasEnBodega({ plaza } = {}) {
     plaza: e.endsWith('_MTY') ? 'MTY' : 'CDMX',
     dias: diasDesde(r.llegada, ahora),
   }));
-  return { corte: new Date(ahora).toISOString(), plaza: p, total: guias.length, porPlaza: contarPorPlaza(guias), guias };
+  // Cuantas espera el cliente en mostrador (ocurre) y cuantas hay que mandar
+  // a ruta (domicilio), segun el SAD
+  const porEntrega = { ocurre: 0, domicilio: 0, sinDato: 0 };
+  for (const g of guias) porEntrega[g.entrega_sad === 'ocurre' || g.entrega_sad === 'domicilio' ? g.entrega_sad : 'sinDato']++;
+  return { corte: new Date(ahora).toISOString(), plaza: p, total: guias.length, porPlaza: contarPorPlaza(guias), porEntrega, guias };
 }
 
 // ---------------------------------------------------------------------------
@@ -197,10 +207,12 @@ async function guiasEstancadas({ plaza, dias } = {}) {
   const limite = new Date(ahora - d * 24 * 3600 * 1000);
 
   const { rows } = await pool.query(
-    `SELECT numero_guia, complemento, numero_anterior, estatus, estatus_desde
-       FROM guias
-      WHERE estatus NOT IN ('ENTREGADO_MTY', 'ENTREGADO_CDMX') AND estatus_desde <= $1
-      ORDER BY estatus_desde ASC, numero_guia ASC`,
+    `SELECT g.numero_guia, g.complemento, g.numero_anterior, g.estatus, g.estatus_desde,
+            f.cliente, f.destinatario, f.tipo_entrega AS entrega_sad, f.telefono, f.embarque, f.unidad, f.remolque, f.remolque2, f.chofer
+       FROM guias g
+       LEFT JOIN facturas_sad f ON f.numero_guia = g.numero_guia
+      WHERE g.estatus NOT IN ('ENTREGADO_MTY', 'ENTREGADO_CDMX') AND g.estatus_desde <= $1
+      ORDER BY g.estatus_desde ASC, g.numero_guia ASC`,
     [limite]
   );
 
@@ -238,37 +250,48 @@ const PIE = 40; // reservado al pie de cada pagina
 // Columnas de cada reporte. La primera siempre es el consecutivo; el ancho
 // de la ultima es lo que sobra de la hoja.
 const COL_NUM = { titulo: '#', ancho: 30, alinear: 'right' };
+// La columna CLIENTE lleva debajo, en chico, el destinatario; ENTREGA lleva
+// debajo el telefono. Todo sale del SAD; sin datos del SAD queda "sin dato".
 const COL_SALIDAS = [
   COL_NUM,
-  { titulo: 'GUIA', ancho: 190 },
-  { titulo: 'HORA DE SALIDA', ancho: 110 },
-  { titulo: 'ESCANEÓ', ancho: ANCHO - 30 - 190 - 110 },
+  { titulo: 'GUIA', ancho: 88 },
+  { titulo: 'CLIENTE / DESTINATARIO', ancho: 140 },
+  { titulo: 'ENTREGA', ancho: 70 },
+  { titulo: 'UNIDAD / CAJA', ancho: 78 },
+  { titulo: 'HORA', ancho: 40 },
+  { titulo: 'ESCANEÓ', ancho: ANCHO - 30 - 88 - 140 - 70 - 78 - 40 },
 ];
 const COL_ENTREGADAS = [
   COL_NUM,
-  { titulo: 'GUIA', ancho: 160 },
-  { titulo: 'FECHA Y HORA', ancho: 115 },
-  { titulo: 'TIPO', ancho: 75 },
-  { titulo: 'ENTREGÓ', ancho: ANCHO - 30 - 160 - 115 - 75 },
+  { titulo: 'GUIA', ancho: 92 },
+  { titulo: 'CLIENTE / DESTINATARIO', ancho: 170 },
+  { titulo: 'FECHA Y HORA', ancho: 92 },
+  { titulo: 'TIPO', ancho: 62 },
+  { titulo: 'ENTREGÓ', ancho: ANCHO - 30 - 92 - 170 - 92 - 62 },
 ];
 const COL_BODEGA = [
   COL_NUM,
-  { titulo: 'GUIA', ancho: 190 },
-  { titulo: 'LLEGÓ A BODEGA', ancho: 150 },
-  { titulo: 'DÍAS EN BODEGA', ancho: ANCHO - 30 - 190 - 150 },
+  { titulo: 'GUIA', ancho: 92 },
+  { titulo: 'CLIENTE / DESTINATARIO', ancho: 180 },
+  { titulo: 'ENTREGA', ancho: 80 },
+  { titulo: 'LLEGÓ', ancho: 80 },
+  { titulo: 'DÍAS', ancho: ANCHO - 30 - 92 - 180 - 80 - 80 },
 ];
 // Estancadas: la ultima columna va en blanco para anotar a mano que paso
 // con cada guia, y por eso las filas son mas altas: hay que poder escribir.
 const COL_ESTANCADAS = [
   COL_NUM,
-  { titulo: 'GUIA', ancho: 135 },
-  { titulo: 'ESTATUS', ancho: 95 },
-  { titulo: 'SIN MOVER DESDE', ancho: 95 },
-  { titulo: 'DÍAS', ancho: 50 },
-  { titulo: 'REVISIÓN / NOTAS', ancho: ANCHO - 30 - 135 - 95 - 95 - 50 },
+  { titulo: 'GUIA', ancho: 88 },
+  { titulo: 'CLIENTE / DESTINATARIO', ancho: 128 },
+  { titulo: 'ESTATUS', ancho: 88 },
+  { titulo: 'SIN MOVER DESDE', ancho: 66 },
+  { titulo: 'DÍAS', ancho: 38 },
+  { titulo: 'REVISIÓN / NOTAS', ancho: ANCHO - 30 - 88 - 128 - 88 - 66 - 38 },
 ];
 const ALTO_FILA = 19;
 const ALTO_FILA_ANOTAR = 28;
+// Filas de dos renglones (cliente arriba, destinatario abajo)
+const ALTO_FILA_DOBLE = 26;
 
 // Una guia que lleva este tiempo en bodega ya cuenta como estancada en el
 // resto del sistema; en el PDF se marca para que salte a la vista.
@@ -363,6 +386,41 @@ function textoEstatus(estatus) {
   return estatus;
 }
 
+const fmtFechaCorta = new Intl.DateTimeFormat('es-MX', {
+  timeZone: ZONA, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+});
+
+const ENTREGA_TXT = { ocurre: 'Ocurre', domicilio: 'Domicilio' };
+
+// Cliente con el destinatario debajo (si es distinto del cliente)
+function celdaCliente(f) {
+  if (!f.cliente && !f.destinatario) return { texto: 'sin dato del SAD', gris: true, chica: true };
+  const cliente = f.cliente || f.destinatario;
+  const nombreCliente = cliente.replace(/^\d+\s*-\s*/, '');
+  const sub = f.destinatario && f.destinatario !== nombreCliente ? `Para: ${f.destinatario}` : null;
+  return { texto: cliente, chica: true, sub };
+}
+
+// Solo el codigo de la caja: "C-266 - 53 PIES - 25 TONELADAS" -> "C-266"
+function codigoCaja(remolque) {
+  return remolque ? remolque.split(' - ')[0].trim() : null;
+}
+
+// Unidad arriba y caja(s) debajo
+function celdaUnidad(f) {
+  if (!f.unidad && !f.remolque) return { texto: 'sin dato', gris: true, chica: true };
+  const cajas = [codigoCaja(f.remolque), codigoCaja(f.remolque2)].filter(Boolean).join(' + ');
+  return { texto: f.unidad || '-', negrita: true, sub: cajas ? `Caja ${cajas}` : null };
+}
+
+// Ocurre / Domicilio con el telefono debajo
+function celdaEntrega(f) {
+  const tipo = ENTREGA_TXT[f.entrega_sad];
+  return tipo
+    ? { texto: tipo, negrita: f.entrega_sad === 'ocurre', sub: f.telefono ? `Tel. ${f.telefono}` : null }
+    : { texto: 'sin dato', gris: true, chica: true };
+}
+
 function guiaConComplemento(f) {
   return f.complemento ? `${f.numero_guia}  (comp. ${f.complemento})` : f.numero_guia;
 }
@@ -396,9 +454,13 @@ function generarPdfSalidas(datos, generadoPor, stream) {
       `SALIDAS DE ${NOMBRES_PLAZA[p].toUpperCase()} → ${NOMBRES_PLAZA[otraPlaza(p)].toUpperCase()}`),
     // El numero va en negrita: es la columna que se coteja contra el
     // manifiesto y debe distinguirse de un vistazo.
+    altoFila: ALTO_FILA_DOBLE,
     celdas: (f) => [
       { texto: guiaConComplemento(f), negrita: true },
-      { texto: fmtHora.format(new Date(f.creado_en)) },
+      celdaCliente(f),
+      celdaEntrega(f),
+      celdaUnidad(f),
+      { texto: fmtHora.format(new Date(f.creado_en)).slice(0, 5) },
       operadorCelda(f.operador),
     ],
   });
@@ -417,9 +479,11 @@ function generarPdfEntregadas(datos, generadoPor, stream) {
     vacio: `No se registro ninguna entrega${plaza ? ` en ${NOMBRES_PLAZA[plaza]}` : ''} ${unDia ? 'ese dia' : 'en esas fechas'}.`,
     columnas: COL_ENTREGADAS,
     secciones: secciones(plaza, entregas, (p) => `ENTREGADAS EN ${NOMBRES_PLAZA[p].toUpperCase()}`),
+    altoFila: ALTO_FILA_DOBLE,
     celdas: (f) => [
       { texto: guiaConComplemento(f), negrita: true },
-      { texto: fmtFechaHora.format(new Date(f.creado_en)) },
+      celdaCliente(f),
+      { texto: fmtFechaCorta.format(new Date(f.creado_en)), chica: true },
       f.tipo ? { texto: f.tipo } : { texto: 'sin dato', gris: true },
       operadorCelda(f.operador),
     ],
@@ -434,18 +498,26 @@ function generarPdfBodega(datos, generadoPor, stream) {
     fecha: `Corte al ${fmtFechaHora.format(new Date(datos.corte))}`,
     alcance: plaza ? `Solo bodega de ${NOMBRES_PLAZA[plaza]}` : 'Bodegas de Monterrey y Ciudad de Mexico',
     total: `Total en bodega: ${total}`,
-    desglose: plaza ? null : totalesPorPlaza(porPlaza),
+    desglose: [plaza ? null : totalesPorPlaza(porPlaza), textoPorEntrega(datos.porEntrega)].filter(Boolean).join('      '),
     vacio: `No hay guias en ${plaza ? `la bodega de ${NOMBRES_PLAZA[plaza]}` : 'bodega'} en este momento.`,
     columnas: COL_BODEGA,
+    altoFila: ALTO_FILA_DOBLE,
     secciones: secciones(plaza, guias, (p) => `EN BODEGA DE ${NOMBRES_PLAZA[p].toUpperCase()}`),
     celdas: (f) => [
       { texto: guiaConComplemento(f), negrita: true },
-      { texto: fmtFechaHora.format(new Date(f.llegada)) },
+      celdaCliente(f),
+      celdaEntrega(f),
+      { texto: fmtFechaCorta.format(new Date(f.llegada)), chica: true },
       f.dias >= DIAS_ATENCION
         ? { texto: textoDias(f.dias), negrita: true, color: AMBAR }
         : { texto: textoDias(f.dias) },
     ],
   });
+}
+
+function textoPorEntrega(pe) {
+  if (!pe) return null;
+  return `Ocurre: ${pe.ocurre}   Domicilio: ${pe.domicilio}${pe.sinDato ? `   Sin dato: ${pe.sinDato}` : ''}`;
 }
 
 function generarPdfEstancadas(datos, generadoPor, stream) {
@@ -465,8 +537,9 @@ function generarPdfEstancadas(datos, generadoPor, stream) {
     secciones: secciones(plaza, guias, (p) => `${NOMBRES_PLAZA[p].toUpperCase()}: EN BODEGA, EN REPARTO O EN CAMINO HACIA ALLA`),
     celdas: (f) => [
       { texto: guiaConComplemento(f), negrita: true },
-      { texto: textoEstatus(f.estatus) },
-      { texto: fmtFechaHora.format(new Date(f.estatus_desde)), chica: true },
+      celdaCliente(f),
+      { texto: textoEstatus(f.estatus), chica: true },
+      { texto: fmtFechaCorta.format(new Date(f.estatus_desde)), chica: true },
       { texto: textoDias(f.dias), negrita: true, color: AMBAR },
       // En blanco a proposito: aqui se anota a mano lo que se encontro
       { texto: '' },
@@ -555,6 +628,9 @@ function seccionPlaza(doc, y, seccion, columnas, celdas, alto = ALTO_FILA) {
     if (i % 2 === 1) doc.rect(MARGEN, y, ANCHO, alto).fill(FONDO_FILA);
 
     const linea = y + (alto - 8) / 2;
+    // Con segundo renglon, el principal sube y el secundario va debajo
+    const lineaArriba = y + 4.5;
+    const lineaAbajo = y + 14.5;
     let x = MARGEN;
     doc.font('Helvetica').fontSize(9).fillColor(GRIS)
       .text(String(i + 1), x, linea, { width: columnas[0].ancho - 8, align: 'right', lineBreak: false });
@@ -563,9 +639,13 @@ function seccionPlaza(doc, y, seccion, columnas, celdas, alto = ALTO_FILA) {
     celdas(filas[i]).forEach((c, j) => {
       const col = columnas[j + 1];
       doc.font(c.negrita ? 'Helvetica-Bold' : 'Helvetica')
-        .fontSize(c.negrita ? 9.5 : c.chica ? 9 : 9.5)
+        .fontSize(c.negrita ? 9.5 : c.chica ? 8.5 : 9.5)
         .fillColor(c.color || (c.gris ? GRIS : TINTA))
-        .text(imprimible(c.texto), x + 8, linea, { width: col.ancho - 12, ellipsis: true, lineBreak: false });
+        .text(imprimible(c.texto), x + 8, c.sub ? lineaArriba : linea, { width: col.ancho - 12, height: 12, ellipsis: true, lineBreak: false });
+      if (c.sub) {
+        doc.font('Helvetica').fontSize(7.5).fillColor(GRIS)
+          .text(imprimible(c.sub), x + 8, lineaAbajo, { width: col.ancho - 12, height: 10, ellipsis: true, lineBreak: false });
+      }
       x += col.ancho;
     });
 
@@ -655,42 +735,49 @@ function aCsv(encabezados, filas) {
   return '\ufeff' + [encabezados, ...filas].map((f) => f.map(celdaCsv).join(',')).join('\r\n') + '\r\n';
 }
 
+// Columnas del SAD que llevan todos los reportes en Excel
+const ENC_SAD = ['Cliente', 'Destinatario', 'Entrega (SAD)', 'Telefono', 'Embarque', 'Unidad', 'Caja', 'Caja 2', 'Chofer'];
+function datosSad(f) {
+  return [f.cliente, f.destinatario, ENTREGA_TXT[f.entrega_sad] || '', f.telefono, f.embarque,
+    f.unidad, f.remolque, f.remolque2, f.chofer];
+}
+
 function csvSalidas({ salidas }) {
   return aCsv(
-    ['Guia', 'Complemento', 'Salio de', 'Fecha', 'Hora', 'Escaneo', 'Estatus actual'],
+    ['Guia', 'Complemento', 'Salio de', 'Fecha', 'Hora', 'Escaneo', 'Estatus actual', ...ENC_SAD],
     salidas.map((f) => {
       const d = new Date(f.creado_en);
-      return [f.numero_guia, f.complemento, f.plaza, fmtFechaCsv.format(d), fmtHoraCsv.format(d), f.operador, f.estatus_actual];
+      return [f.numero_guia, f.complemento, f.plaza, fmtFechaCsv.format(d), fmtHoraCsv.format(d), f.operador, f.estatus_actual, ...datosSad(f)];
     })
   );
 }
 
 function csvEntregadas({ entregas }) {
   return aCsv(
-    ['Guia', 'Complemento', 'Plaza', 'Fecha', 'Hora', 'Tipo de entrega', 'Entrego'],
+    ['Guia', 'Complemento', 'Plaza', 'Fecha', 'Hora', 'Tipo de entrega', 'Entrego', ...ENC_SAD],
     entregas.map((f) => {
       const d = new Date(f.creado_en);
-      return [f.numero_guia, f.complemento, f.plaza, fmtFechaCsv.format(d), fmtHoraCsv.format(d), f.tipo, f.operador];
+      return [f.numero_guia, f.complemento, f.plaza, fmtFechaCsv.format(d), fmtHoraCsv.format(d), f.tipo, f.operador, ...datosSad(f)];
     })
   );
 }
 
 function csvBodega({ guias }) {
   return aCsv(
-    ['Guia', 'Complemento', 'Plaza', 'Fecha de llegada', 'Hora de llegada', 'Dias en bodega'],
+    ['Guia', 'Complemento', 'Plaza', 'Fecha de llegada', 'Hora de llegada', 'Dias en bodega', ...ENC_SAD],
     guias.map((f) => {
       const d = new Date(f.llegada);
-      return [f.numero_guia, f.complemento, f.plaza, fmtFechaCsv.format(d), fmtHoraCsv.format(d), f.dias];
+      return [f.numero_guia, f.complemento, f.plaza, fmtFechaCsv.format(d), fmtHoraCsv.format(d), f.dias, ...datosSad(f)];
     })
   );
 }
 
 function csvEstancadas({ guias }) {
   return aCsv(
-    ['Guia', 'Complemento', 'Numero anterior', 'Plaza', 'Estatus', 'Sin moverse desde (fecha)', 'Sin moverse desde (hora)', 'Dias', 'Revision'],
+    ['Guia', 'Complemento', 'Numero anterior', 'Plaza', 'Estatus', 'Sin moverse desde (fecha)', 'Sin moverse desde (hora)', 'Dias', ...ENC_SAD, 'Revision'],
     guias.map((f) => {
       const d = new Date(f.estatus_desde);
-      return [f.numero_guia, f.complemento, f.numero_anterior, f.plaza, textoEstatus(f.estatus), fmtFechaCsv.format(d), fmtHoraCsv.format(d), f.dias, ''];
+      return [f.numero_guia, f.complemento, f.numero_anterior, f.plaza, textoEstatus(f.estatus), fmtFechaCsv.format(d), fmtHoraCsv.format(d), f.dias, ...datosSad(f), ''];
     })
   );
 }

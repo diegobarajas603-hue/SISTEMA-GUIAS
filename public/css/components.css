@@ -1016,6 +1016,7 @@
 
 .notif__item--aviso .notif__punto { background: var(--st-transito-color); }
 .notif__item--guia .notif__punto  { background: var(--border-strong); }
+.notif__item--error .notif__punto { background: var(--st-cancelada-color); }
 
 .notif__cuerpo { flex: 1; min-width: 0; }
 
@@ -1051,3 +1052,16 @@
   color: var(--text-tertiary);
   text-align: center;
 }
+
+/* Pie de la campana: lleva al centro de notificaciones */
+.notif__pie {
+  display: block;
+  padding: var(--space-12) var(--space-16);
+  border-top: 1px solid var(--border-subtle);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--accent);
+  text-decoration: none;
+}
+.notif__pie:hover { background: var(--overlay-hover); }

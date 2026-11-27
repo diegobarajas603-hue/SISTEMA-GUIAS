@@ -148,6 +148,70 @@ faltaron por escanear.
 - Con las dos plazas, el PDF trae una seccion por plaza (MTY con guias AN y
   CDMX con guias BN) y el total de cada una.
 
+## Conexion con el SAD (facturacion)
+
+Cada guia nace en el SAD: se arma el embarque, se factura y **el folio de la
+factura es el numero de guia** (AN sale de MTY, BN sale de CDMX). El sistema
+lee el SAD cada 5 minutos (`src/sad.js`) y guarda lo que encuentra en la tabla
+`facturas_sad`. Con eso:
+
+- **Por salir** (menu del panel): guias facturadas que todavia no salen (en
+  el SAD siguen en "Cedis-Local") y que nadie ha escaneado, con cliente, destinatario, telefono, si van a ocurre o a domicilio
+  y cuanto llevan esperando (en ambar a partir de 24 h). Una guia sale de esta
+  lista en cuanto se escanea su salida.
+- **Aviso al escanear**: si una guia nueva no aparece en el SAD o su factura
+  esta cancelada, el panel avisa (sonido y mensaje). El escaneo **no se
+  frena**: el paquete fisico manda, el aviso es para revisarlo.
+- **Rastreo y WhatsApp**: desde que se factura, el cliente ve
+  "Documentado: se esta preparando para salir" aunque aun no se escanee, y el
+  historial empieza con "Envio documentado en MTY/CDMX".
+- **Detalle de guia**: tarjeta "Facturacion (SAD)" con los datos de la factura.
+- **Factura cancelada despues**: si la guia la habia creado el SAD (salida
+  automatica) y nadie la ha escaneado, se elimina sola y queda en la bitacora
+  con usuario "SAD". Si una persona ya la escaneo, la guia no se toca, pero aparece en la campana de
+  notificaciones y en su detalle hasta que un administrador la marca como
+  revisada (y decide si la cancela con su numero nuevo o la elimina).
+
+- **Salida automatica**: cuando el SAD pone un embarque en "Transito" (o
+  "Cedis Destino") y la guia no existe en el sistema, se da de alta EN
+  TRANSITO hacia la otra plaza, con la salida registrada por "SAD". En la
+  plaza destino solo se escanea la llegada. Nunca se toca una guia que ya
+  existe (el escaneo manda) ni se revive un numero que un administrador
+  elimino o cancelo.
+- **Llegada sin escaneo de salida**: si una guia de la otra plaza (una BN
+  escaneada en MTY) nunca se escaneo al salir pero el SAD la tiene facturada,
+  el escaneo registra su llegada. Queda la salida con la hora del SAD y la
+  llegada con el escaneo. Sin factura en el SAD, o con la factura cancelada,
+  se rechaza como antes.
+
+Como el SAD no tiene API, el sistema inicia sesion y lee sus pantallas
+(listado de embarques, ventas canceladas y el detalle de cada venta). **Solo
+lee**: nunca crea, modifica ni cancela nada en el SAD. Si DISA cambia esas
+pantallas, `src/sad.js` es lo unico que hay que ajustar, y mientras tanto el
+escaneo funciona igual.
+
+**Fecha de inicio**: la conexion cuenta desde el dia en que se activa (se
+guarda sola la primera vez; se puede fijar con `SAD_DESDE=AAAA-MM-DD`). Solo
+las facturas de ese dia en adelante entran a "Por salir", al transito
+automatico, al "Documentado" del cliente y a los avisos de factura cancelada:
+lo anterior no se sube. Existe una carga historica opcional
+(`POST /api/sad/cargar-historial`, administradores) que solo completa cliente,
+destinatario y tipo de entrega de guias que ya existen; no corre sola.
+
+Para activarlo, crea en el SAD un usuario de **solo consulta** (ventas y
+embarques) y define en Railway `SAD_USUARIO` y `SAD_PASSWORD` (ver
+`.env.example`). Sin esas variables la conexion queda apagada. En "Por salir"
+se ve cuando se leyo el SAD por ultima vez y, si fallo, por que; un
+administrador puede forzar una lectura con "Leer el SAD ahora".
+
+API:
+
+```
+GET  /api/sad/estado                  # configuracion y ultima lectura
+GET  /api/sad/por-salir?plaza=MTY     # facturadas sin escanear (plaza opcional)
+POST /api/sad/sincronizar             # leer el SAD ya (solo administradores)
+```
+
 ## Instalacion
 
 Requiere PostgreSQL (local o en un servicio como Railway/Render/Supabase).

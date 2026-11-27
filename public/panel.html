@@ -77,6 +77,11 @@
         <span class="nav-item__texto">Guias</span>
         <span class="nav-item__corto" aria-hidden="true">Guias</span>
       </button>
+      <button class="nav-item" data-ruta="porsalir" title="Por salir: facturadas en el SAD sin escanear">
+        <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
+        <span class="nav-item__texto">Por salir</span>
+        <span class="nav-item__corto" aria-hidden="true">Por salir</span>
+      </button>
       <button class="nav-item" data-ruta="eventos" title="Eventos">
         <span class="nav-item__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
         <span class="nav-item__texto">Eventos</span>
@@ -170,6 +175,7 @@
             <span class="notif__conteo" id="notifConteo"></span>
           </div>
           <div class="notif__lista" id="notifLista"></div>
+          <a class="notif__pie" id="notifVerTodas" href="#/notificaciones">Ver todas las notificaciones</a>
         </div>
         </div>
         <!-- Menu de la cuenta: el circulo con las iniciales abre tu nombre,
@@ -320,6 +326,32 @@
         <div id="guiasContenido"></div>
       </section>
 
+      <!-- ==================================================== Por salir -->
+      <!-- Guias que ya se facturaron en el SAD y que nadie ha escaneado. Se
+           llenan solas con la sincronizacion; desaparecen de aqui en cuanto
+           se escanea su salida. -->
+      <section id="v-porsalir" style="display:none">
+        <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
+          <div class="seg" id="psPlaza">
+            <span class="seg__thumb"></span>
+            <button class="seg__option" data-value="" aria-selected="true">Todas<span class="ps-n" id="psNTodas"></span></button>
+            <button class="seg__option" data-value="MTY" aria-selected="false">Salen de MTY<span class="ps-n" id="psNMTY"></span></button>
+            <button class="seg__option" data-value="CDMX" aria-selected="false">Salen de CDMX<span class="ps-n" id="psNCDMX"></span></button>
+          </div>
+          <span class="spacer"></span>
+          <span class="nota" id="psEstado"></span>
+          <button class="btn btn--secondary" id="btnSadSync" type="button" style="display:none">Leer el SAD ahora</button>
+        </div>
+        <div class="card card--flush">
+          <div class="tabla-scroll">
+            <table>
+              <thead><tr><th>Guia</th><th>Cliente</th><th>Destinatario</th><th>Entrega</th><th>Facturada</th><th>Esperando</th><th>Estatus en SAD</th></tr></thead>
+              <tbody id="tbodyPorSalir"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ============================================== Detalle de guia -->
       <section id="v-detalle" style="display:none">
         <button class="volver" onclick="history.back()">&larr; Volver</button>
@@ -355,6 +387,11 @@
             </div>
           </div>
         </div>
+        <div class="card" id="detSadCard" style="display:none">
+          <h2 class="titulo-card">Facturacion (SAD)</h2>
+          <div id="detSadAviso"></div>
+          <div class="det-meta" id="detSad"></div>
+        </div>
         <div class="card">
           <h2 class="titulo-card">Progreso del envio</h2>
           <div class="stepper" id="stepper"></div>
@@ -377,6 +414,18 @@
       </section>
 
       <!-- ====================================================== Eventos -->
+      <!-- ============================================== Notificaciones -->
+      <!-- Todo lo que pide atencion, completo: la campana solo muestra las
+           primeras de cada tipo. -->
+      <section id="v-notificaciones" style="display:none">
+        <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
+          <span class="nota" id="ncResumen"></span>
+          <span class="spacer"></span>
+          <button class="btn btn--secondary" id="btnNcActualizar" type="button">Actualizar</button>
+        </div>
+        <div id="ncContenido"></div>
+      </section>
+
       <section id="v-eventos" style="display:none">
         <div class="card" style="display:flex; gap:var(--space-12); flex-wrap:wrap; align-items:center;">
           <input class="input" type="text" id="buscarEvento" placeholder="Filtrar por numero de guia..." autocomplete="off" style="flex:1; min-width:200px;" />
@@ -904,8 +953,13 @@
   // a quien preguntarle.
   function arrancarVigilancia() {
     revisarEstancadas();
+    revisarCanceladasSad();
+    revisarDetenidas();
+    revisarSad();
     clearInterval(timerEstancadas);
-    timerEstancadas = setInterval(revisarEstancadas, MIN_REVISAR_ESTANCADAS * 60 * 1000);
+    timerEstancadas = setInterval(() => {
+      revisarEstancadas(); revisarCanceladasSad(); revisarDetenidas(); revisarSad();
+    }, MIN_REVISAR_ESTANCADAS * 60 * 1000);
   }
 
   function detenerVigilancia() {
@@ -914,6 +968,8 @@
     clearTimeout(timerEstancadasEscaneo);
     estancadas = [];
     totalEstancadas = 0;
+    canceladasSad = [];
+    estadoSad = null;
     $('btnEstancadas').hidden = true;
   }
 
@@ -1142,8 +1198,8 @@
   }
 
   // ---------- Router ----------
-  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', reportes: 'Reportes', bitacora: 'Bitacora', config: 'Configuracion', detalle: 'Detalle de guia' };
-  const VISTAS = ['dashboard', 'escanear', 'guias', 'detalle', 'eventos', 'reportes', 'bitacora', 'config'];
+  const TITULOS = { dashboard: 'Dashboard', guias: 'Guias', eventos: 'Eventos', reportes: 'Reportes', bitacora: 'Bitacora', config: 'Configuracion', detalle: 'Detalle de guia', porsalir: 'Facturadas por salir', notificaciones: 'Notificaciones' };
+  const VISTAS = ['dashboard', 'escanear', 'guias', 'porsalir', 'notificaciones', 'detalle', 'eventos', 'reportes', 'bitacora', 'config'];
 
   function render() {
     let ruta = location.hash.replace(/^#\/?/, '') || 'dashboard';
@@ -1183,6 +1239,8 @@
     if (vista === 'dashboard') cargarDashboard();
     if (vista === 'guias') setPlazaTab(plazaTab);
     if (vista === 'eventos') cargarEventos();
+    if (vista === 'porsalir') cargarPorSalir();
+    if (vista === 'notificaciones') cargarCentroNotificaciones();
     if (vista === 'reportes') cargarReportes();
     if (vista === 'bitacora') cargarBitacora();
     if (vista === 'detalle') cargarDetalle(arg);
@@ -1382,6 +1440,38 @@
   let detenidas = [];
   let totalDetenidas = 0;
 
+  // Estado de la conexion con el SAD: si lleva mas de 30 min sin poder
+  // leerse, se avisa en la campana (el escaneo sigue funcionando igual)
+  const MIN_SAD_SIN_LEER = 30;
+  let estadoSad = null;
+  function problemaSad(e) {
+    if (!e || !e.habilitado || e.enCurso) return null;
+    const minutos = e.ultimoExito ? (Date.now() - new Date(e.ultimoExito).getTime()) / 60000 : Infinity;
+    if (minutos < MIN_SAD_SIN_LEER) return null;
+    if (!e.ultimoExito && !e.ultimoError) return null; // aun no termina la primera lectura
+    return {
+      titulo: 'No se ha podido leer el SAD',
+      desc: (e.ultimoExito ? `Ultima lectura correcta ${fmtRelativo(e.ultimoExito)}. ` : 'No ha habido ninguna lectura correcta. ')
+        + (e.ultimoError ? `Error: ${e.ultimoError}` : ''),
+    };
+  }
+  async function revisarSad() {
+    try {
+      estadoSad = await api('/api/sad/estado');
+      pintarNotificaciones();
+    } catch {}
+  }
+
+  // Guias cuya factura se cancelo en el SAD despues de registrarse aqui
+  let canceladasSad = [];
+  async function revisarCanceladasSad() {
+    try {
+      const r = await api('/api/sad/canceladas');
+      canceladasSad = r.guias || [];
+      pintarNotificaciones();
+    } catch {}
+  }
+
   async function revisarDetenidas() {
     try {
       const r = await api('/api/guias/detenidas?horas=' + HORAS_DETENIDA);
@@ -1397,6 +1487,30 @@
   // donde ir. Cada notificacion dice a que lleva y se navega al tocarla.
   function notificaciones() {
     const lista = [];
+    const sadMal = problemaSad(estadoSad);
+    if (sadMal) {
+      lista.push({ id: 'sad', tono: 'error', titulo: sadMal.titulo, desc: sadMal.desc, ir: () => (location.hash = '#/notificaciones') });
+    }
+    // Primero las facturas canceladas: son las que piden una decision
+    for (const g of canceladasSad.slice(0, 5)) {
+      const deComplemento = g.factura !== g.numero_guia;
+      lista.push({
+        id: 'cancelada-' + g.factura,
+        tono: 'error',
+        titulo: `${g.numero_guia}: factura cancelada`,
+        desc: `${deComplemento ? `El complemento ${g.factura}` : 'La factura'} se cancelo en el SAD ${fmtRelativo(g.cancelada_en)}. Revisa la guia.`,
+        ir: () => (location.hash = '#/guia/' + encodeURIComponent(g.numero_guia)),
+      });
+    }
+    if (canceladasSad.length > 5) {
+      lista.push({
+        id: 'canceladas-mas',
+        tono: 'error',
+        titulo: `${canceladasSad.length - 5} factura(s) cancelada(s) mas`,
+        desc: 'Abre cada guia desde el buscador para revisarla.',
+        ir: () => (location.hash = '#/guia/' + encodeURIComponent(canceladasSad[5].numero_guia)),
+      });
+    }
     if (totalDetenidas) {
       const n = totalDetenidas;
       lista.push({
@@ -1423,10 +1537,12 @@
 
   function pintarNotificaciones() {
     const lista = notificaciones();
-    $('puntoPendientes').style.display = totalDetenidas ? '' : 'none';
-    $('btnPendientes').title = totalDetenidas
-      ? `${totalDetenidas} guia(s) detenida(s) mas de ${HORAS_DETENIDA} h`
-      : 'Sin notificaciones';
+    const hayAlgo = totalDetenidas || canceladasSad.length || problemaSad(estadoSad);
+    $('puntoPendientes').style.display = hayAlgo ? '' : 'none';
+    $('btnPendientes').title = [
+      canceladasSad.length ? `${canceladasSad.length} factura(s) cancelada(s) en el SAD` : '',
+      totalDetenidas ? `${totalDetenidas} guia(s) detenida(s) mas de ${HORAS_DETENIDA} h` : '',
+    ].filter(Boolean).join(' · ') || 'Sin notificaciones';
     $('notifConteo').textContent = lista.length ? lista.length : '';
 
     $('notifLista').innerHTML = lista.length
@@ -1770,8 +1886,10 @@
     const estatus = data.guia && data.guia.estatus;
     const kind = data.tipo === 'repetido' ? 'neutro' : UI.statusKind(estatus);
     mostrarResultado(cardResultado(item.numeroGuia, estatus, TITULO_TIPO[data.tipo] || data.mensaje, kind), kind);
-    logRow(item.numeroGuia, data.mensaje, item.id);
-    beep(data.tipo === 'repetido' ? 'warn' : 'ok');
+    logRow(item.numeroGuia, data.aviso ? `${data.mensaje} · ⚠ ${data.aviso}` : data.mensaje, item.id);
+    beep(data.tipo === 'repetido' || data.aviso ? 'warn' : 'ok');
+    // Cotejo con el SAD: la guia se registro igual, pero alguien debe revisarla
+    if (data.aviso) UI.toast({ tipo: 'warn', titulo: `Revisa la guia ${item.numeroGuia}`, descripcion: data.aviso });
     // Mover una guia puede sacarla de la lista de estancadas: el aviso se
     // actualiza, pero una sola vez cuando el operador deja de escanear, no
     // una consulta por guia (antes cada escaneo pedia otra vez la lista
@@ -2510,6 +2628,57 @@
     }
   });
 
+  // Lo que el SAD sabe de la guia: cliente, destinatario, tipo de entrega...
+  function avisoCancelacion(f, etiqueta) {
+    if (!f || !f.cancelada) return '';
+    const esAdminDet = !!(usuarioActual && usuarioActual.roles.includes('admin'));
+    const revisada = f.cancelacion_revisada_en
+      ? `<span class="t-tertiary">Revisada por ${esc(f.cancelacion_revisada_por || '-')} · ${fmtFecha(f.cancelacion_revisada_en)}</span>`
+      : esAdminDet
+        ? `<button class="btn btn--secondary" type="button" data-revisar-cancelada="${esc(f.numero_guia)}">Marcar como revisada</button>`
+        : '<span class="t-tertiary">Pendiente de revision por un administrador</span>';
+    return `<div class="sad-cancelada">
+      ${badge('CANCELADA', { texto: `${etiqueta} ${f.numero_guia} cancelada en el SAD` })}
+      <p class="nota">La guia sigue en el sistema. Si se refacturo con otro folio, usa "Revertir ultimo escaneo" para cancelarla con su numero nuevo; si no debia existir, eliminala.</p>
+      ${revisada}
+    </div>`;
+  }
+
+  function pintarSadDetalle(f, fComplemento) {
+    $('detSadCard').style.display = f || fComplemento ? '' : 'none';
+    if (!f && !fComplemento) return;
+    const dato = (k, v, mono) => v ? `<div><span class="k">${k}</span><span${mono ? ' class="mono"' : ''}>${esc(v)}</span></div>` : '';
+    $('detSadAviso').innerHTML = avisoCancelacion(f, 'Factura') + avisoCancelacion(fComplemento, 'Complemento');
+    $('detSadAviso').querySelectorAll('[data-revisar-cancelada]').forEach((b) =>
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          await api('/api/sad/canceladas/' + encodeURIComponent(b.dataset.revisarCancelada) + '/revisada', { method: 'POST' });
+          UI.toast({ tipo: 'ok', titulo: 'Cancelacion revisada', descripcion: 'Ya no aparece en las notificaciones.' });
+          revisarCanceladasSad();
+          if (guiaDetalleActual) cargarDetalle(guiaDetalleActual);
+        } catch (err) {
+          b.disabled = false;
+          UI.toast({ tipo: 'error', titulo: 'No se pudo marcar', descripcion: err.message });
+        }
+      })
+    );
+    if (!f) { $('detSad').innerHTML = ''; return; }
+    $('detSad').innerHTML = [
+      dato('Cliente', f.cliente),
+      dato('Destinatario', f.destinatario),
+      dato('Entrega', f.tipo_entrega === 'ocurre' ? `Ocurre (${f.destinatario_sucursal})` : f.tipo_entrega === 'domicilio' ? 'A domicilio' : null),
+      dato('Telefono', f.telefono, true),
+      dato('Direccion', f.direccion),
+      dato('Embarque', f.embarque, true),
+      dato('Unidad', f.unidad, true),
+      dato('Caja', [f.remolque, f.remolque2].filter(Boolean).join(' + ') || null),
+      dato('Chofer', f.chofer),
+      dato('Estatus en SAD', f.estatus_sad),
+      dato('Facturada', f.registrada_en ? fmtFecha(f.registrada_en) : null),
+    ].join('');
+  }
+
   async function cargarDetalle(numeroGuia) {
     $('thDetUsuario').hidden = !verUsuarios();
     $('tbodyDetEventos').innerHTML = UI.skeletonRows(4, verUsuarios() ? 5 : 4);
@@ -2533,6 +2702,7 @@
       // Guia a la que reemplazo (por complemento o cancelacion); ya no esta activa
       $('detAnteriorFila').style.display = d.numero_anterior ? '' : 'none';
       $('detAnterior').textContent = d.numero_anterior || '';
+      pintarSadDetalle(d.sad, d.sadComplemento);
 
       // Codigo de barras (si la libreria cargo)
       try {
@@ -2596,6 +2766,7 @@
       $('detBadge').innerHTML = '';
       $('detCreada').textContent = $('detActualizada').textContent = $('detEscaneos').textContent = '-';
       $('detAnteriorFila').style.display = 'none';
+      pintarSadDetalle(null);
       $('stepper').innerHTML = '';
       $('barcodeWrap').style.display = 'none';
       UI.montarError($('tbodyDetEventos'), e.message, () => cargarDetalle(numeroGuia),
@@ -2714,6 +2885,24 @@
   // Lo que cambia de un reporte a otro: la pregunta de la plaza, que fechas
   // pide, el texto que lo explica y las columnas de la vista previa. La
   // columna de plaza solo sale cuando se piden las dos.
+  // Datos del SAD en la vista previa de reportes
+  function celdaClienteRep(g) {
+    if (!g.cliente && !g.destinatario) return '<span class="nota">sin dato</span>';
+    const cliente = g.cliente || g.destinatario;
+    const nombre = cliente.replace(/^\d+\s*-\s*/, '');
+    const para = g.destinatario && g.destinatario !== nombre ? `<br><span class="t-tertiary">Para: ${esc(g.destinatario)}</span>` : '';
+    return esc(cliente) + para;
+  }
+  function celdaUnidadRep(g) {
+    if (!g.unidad && !g.remolque) return '<span class="nota">sin dato</span>';
+    const cajas = [g.remolque, g.remolque2].filter(Boolean).map((r) => r.split(' - ')[0]).join(' + ');
+    return `<span class="mono">${esc(g.unidad || '-')}</span>${cajas ? `<br><span class="t-tertiary">Caja ${esc(cajas)}</span>` : ''}`;
+  }
+  function celdaEntregaRep(g) {
+    const t = g.entrega_sad === 'ocurre' ? '<b>Ocurre</b>' : g.entrega_sad === 'domicilio' ? 'Domicilio' : '<span class="nota">sin dato</span>';
+    return t + (g.telefono ? `<br><span class="mono t-tertiary">${esc(g.telefono)}</span>` : '');
+  }
+
   const REPORTES_UI = {
     entregadas: {
       preguntaPlaza: '¿En que plaza se entregaron?',
@@ -2724,9 +2913,9 @@
       lista: (r) => r.entregas,
       vacio: ['Ninguna guia se entrego en esas fechas', 'Cambia las fechas o la plaza.'],
       cuenta: (n) => `${n} entregada${n === 1 ? '' : 's'}`,
-      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Fecha y hora'], ['Tipo', 'rep-movil-oculta'], ['Entregó']],
+      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Cliente / destinatario', 'rep-movil-oculta'], ['Fecha y hora'], ['Tipo', 'rep-movil-oculta'], ['Entregó']],
       fila: (g, i, conPlaza) => [
-        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null,
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, celdaClienteRep(g),
         `<span class="mono t-tertiary">${esc(fmtFecha(g.creado_en))}</span>`,
         TIPO_ENTREGA_TXT[g.tipo] || '<span class="nota">sin dato</span>', celdaOperador(g.operador),
       ],
@@ -2735,17 +2924,19 @@
       preguntaPlaza: '¿En que bodega?',
       prep: 'en',
       fechas: null,
-      explica: 'Lo que hay en bodega en este momento, con el dia y la hora en que llego cada guia y cuantos dias lleva ahi. Las que llevan mas tiempo van primero.',
+      explica: 'Lo que hay en bodega en este momento: cliente, destinatario, si va a ocurre o a domicilio (con telefono, segun el SAD), cuando llego y cuantos dias lleva ahi. Las que llevan mas tiempo van primero.',
       lista: (r) => r.guias,
       vacio: ['No hay guias en bodega', 'Todo lo que llego ya salio a reparto, se entrego o va en camino.'],
       cuenta: (n) => `${n} en bodega`,
       extra: (r) => {
         const viejas = r.guias.filter((g) => g.dias >= DIAS_ATENCION_BODEGA).length;
-        return viejas ? ` · ${viejas} con ${DIAS_ATENCION_BODEGA} dias o mas` : '';
+        const pe = r.porEntrega;
+        const entrega = pe ? ` · ${pe.ocurre} ocurre · ${pe.domicilio} domicilio${pe.sinDato ? ` · ${pe.sinDato} sin dato` : ''}` : '';
+        return entrega + (viejas ? ` · ${viejas} con ${DIAS_ATENCION_BODEGA} dias o mas` : '');
       },
-      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Llegó a bodega'], ['Dias en bodega']],
+      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Cliente / destinatario', 'rep-movil-oculta'], ['Entrega'], ['Llegó a bodega', 'rep-movil-oculta'], ['Dias en bodega']],
       fila: (g, i, conPlaza) => [
-        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null,
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, celdaClienteRep(g), celdaEntregaRep(g),
         `<span class="mono t-tertiary">${esc(fmtFecha(g.llegada))}</span>`,
         `<span class="rep-dias${g.dias >= DIAS_ATENCION_BODEGA ? ' rep-dias--atencion' : ''}">${textoDias(g.dias)}</span>`,
       ],
@@ -2758,9 +2949,9 @@
       lista: (r) => r.guias,
       vacio: ['No hay guias estancadas', 'Todas las guias se han movido en los ultimos 2 dias.'],
       cuenta: (n) => `${n} estancada${n === 1 ? '' : 's'}`,
-      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Estatus'], ['Sin moverse desde', 'rep-movil-oculta'], ['Dias']],
+      columnas: [['#', 'rep-num'], ['Guia'], ['Plaza', 'rep-movil-oculta', 'plaza'], ['Cliente / destinatario', 'rep-movil-oculta'], ['Estatus'], ['Sin moverse desde', 'rep-movil-oculta'], ['Dias']],
       fila: (g, i, conPlaza) => [
-        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, badge(g.estatus),
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, celdaClienteRep(g), badge(g.estatus),
         `<span class="mono t-tertiary">${esc(fmtFecha(g.estatus_desde))}</span>`,
         `<span class="rep-dias rep-dias--atencion">${textoDias(g.dias)}</span>`,
       ],
@@ -2774,9 +2965,9 @@
       lista: (r) => r.salidas,
       vacio: ['Ninguna guia salio ese dia', 'Cambia el dia o revisa que los escaneos de salida se hayan hecho.'],
       cuenta: (n) => `${n} salida${n === 1 ? '' : 's'}`,
-      columnas: [['#', 'rep-num'], ['Guia'], ['Salio de', 'rep-movil-oculta', 'plaza'], ['Hora'], ['Escaneó'], ['Estatus actual', 'rep-movil-oculta']],
+      columnas: [['#', 'rep-num'], ['Guia'], ['Salio de', 'rep-movil-oculta', 'plaza'], ['Cliente / destinatario', 'rep-movil-oculta'], ['Entrega', 'rep-movil-oculta'], ['Unidad / caja', 'rep-movil-oculta'], ['Hora'], ['Escaneó'], ['Estatus actual', 'rep-movil-oculta']],
       fila: (g, i, conPlaza) => [
-        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null,
+        `<span class="mono t-tertiary">${i + 1}</span>`, celdaGuia(g), conPlaza ? g.plaza : null, celdaClienteRep(g), celdaEntregaRep(g), celdaUnidadRep(g),
         `<span class="mono t-tertiary">${UI.fmtHora(g.creado_en)}</span>`, celdaOperador(g.operador), badge(g.estatus_actual),
       ],
     },
@@ -2981,6 +3172,249 @@
 
   $('btnRepPdf').addEventListener('click', () => descargarReporte('pdf', $('btnRepPdf')));
   $('btnRepCsv').addEventListener('click', () => descargarReporte('csv', $('btnRepCsv')));
+
+  // ---------- Centro de notificaciones ----------
+  // Todo lo que pide atencion, sin el tope de la campana: conexion con el SAD,
+  // facturas canceladas, guias detenidas en transito y guias estancadas.
+  // Cada seccion empieza cerrada: solo titulo y conteo. "Desplegar" la abre
+  // con las primeras 10 filas.
+  function seccionNc(titulo, n, tono, cuerpo, accion) {
+    return `<div class="card card--flush nc-seccion">
+      <div class="nc-seccion__head">
+        <span class="nc-punto nc-punto--${tono}"></span>
+        <h2 class="titulo-card" style="margin:0">${titulo}</h2>
+        <span class="nc-conteo">${n}</span>
+        <span class="spacer"></span>
+        <span class="nc-acciones" hidden>${accion || ''}</span>
+        <button class="btn btn--secondary btn--sm" type="button" data-nc-toggle aria-expanded="false">Desplegar</button>
+      </div>
+      <div class="nc-cuerpo" hidden>${cuerpo}</div>
+    </div>`;
+  }
+
+  function activarPlegado(cont) {
+    cont.querySelectorAll('[data-nc-toggle]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const sec = b.closest('.nc-seccion');
+        const abrir = b.getAttribute('aria-expanded') !== 'true';
+        sec.querySelector('.nc-cuerpo').hidden = !abrir;
+        sec.querySelector('.nc-acciones').hidden = !abrir;
+        b.setAttribute('aria-expanded', String(abrir));
+        b.textContent = abrir ? 'Ocultar' : 'Desplegar';
+      })
+    );
+  }
+
+  // De 10 en 10: las demas filas van ocultas y "Ver 10 mas" las descubre
+  const NC_POR_PAGINA = 10;
+  function tablaNc(cabeceras, filas) {
+    const html = filas.map((f, i) => (i < NC_POR_PAGINA ? f : f.replace('<tr', '<tr hidden'))).join('');
+    const quedan = filas.length - NC_POR_PAGINA;
+    return `<div class="tabla-scroll"><table>
+      <thead><tr>${cabeceras.map((c) => `<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>${html}</tbody></table></div>
+      ${quedan > 0 ? `<div class="nc-mas"><button class="btn btn--secondary btn--sm" type="button" data-nc-mas>Ver ${Math.min(NC_POR_PAGINA, quedan)} mas (quedan ${quedan})</button></div>` : ''}`;
+  }
+
+  function activarVerMas(cont) {
+    cont.querySelectorAll('[data-nc-mas]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const ocultas = [...b.closest('.nc-seccion').querySelectorAll('tbody tr[hidden]')];
+        ocultas.slice(0, NC_POR_PAGINA).forEach((tr) => tr.removeAttribute('hidden'));
+        const quedan = ocultas.length - NC_POR_PAGINA;
+        if (quedan > 0) b.textContent = `Ver ${Math.min(NC_POR_PAGINA, quedan)} mas (quedan ${quedan})`;
+        else b.parentElement.remove();
+      })
+    );
+  }
+
+  // "hace 3 h", "hace 9 dias": fmtRelativo pasa a fecha despues de una semana
+  function haceNc(f) {
+    const dias = Math.floor((Date.now() - new Date(f).getTime()) / 86400000);
+    return dias >= 1 ? `hace ${dias} dia${dias === 1 ? '' : 's'}` : fmtRelativo(f);
+  }
+
+  async function cargarCentroNotificaciones() {
+    const esAdminNc = !!(usuarioActual && usuarioActual.roles.includes('admin'));
+    $('ncContenido').innerHTML = `<div class="card">${UI.skeleton('skeleton--text', 'width:60%')}</div>`;
+    try {
+      const [sadE, canc, det, est] = await Promise.all([
+        api('/api/sad/estado').catch(() => null),
+        api('/api/sad/canceladas').catch(() => ({ guias: [] })),
+        api('/api/guias/detenidas?horas=' + HORAS_DETENIDA),
+        api('/api/guias/estancadas?dias=' + DIAS_ESTANCADA),
+      ]);
+      estadoSad = sadE;
+      canceladasSad = canc.guias || [];
+      detenidas = det.guias || [];
+      totalDetenidas = det.total || 0;
+      pintarNotificaciones();
+
+      const secciones = [];
+      const sadMal = problemaSad(sadE);
+      if (sadMal) {
+        secciones.push(seccionNc('Conexion con el SAD', '!', 'error',
+          `<p class="nc-texto">${esc(sadMal.desc)}</p>
+           <p class="nc-texto nota">El escaneo, el rastreo y WhatsApp siguen funcionando. Revisa que SAD_USUARIO y SAD_PASSWORD sigan vigentes en Railway, o que el SAD este en linea.</p>`));
+      }
+
+      const nCanc = canceladasSad.length;
+      secciones.push(seccionNc('Facturas canceladas en el SAD', nCanc, 'error',
+        nCanc
+          ? tablaNc(['Guia', 'Factura', 'Cliente', 'Estatus actual', 'Cancelada', ''], canceladasSad.map((g) => `<tr>
+              <td><a class="mono" href="#/guia/${encodeURIComponent(g.numero_guia)}">${esc(g.numero_guia)}</a></td>
+              <td class="mono">${esc(g.factura)}</td>
+              <td>${esc(g.cliente || '-')}</td>
+              <td>${badge(g.estatus)}</td>
+              <td class="t-tertiary">${haceNc(g.cancelada_en)}</td>
+              <td>${esAdminNc ? `<button class="btn btn--secondary btn--sm" type="button" data-nc-revisar="${esc(g.factura)}">Marcar revisada</button>` : ''}</td></tr>`))
+          : '<p class="nc-texto nota">Ninguna guia registrada tiene su factura cancelada.</p>'));
+
+      secciones.push(seccionNc(`Detenidas en transito (mas de ${HORAS_DETENIDA} h sin escaneo)`, totalDetenidas, 'aviso',
+        totalDetenidas
+          ? tablaNc(['Guia', 'Estatus', 'Ultimo movimiento', 'Hace'], detenidas.map((g) => `<tr>
+              <td><a class="mono" href="#/guia/${encodeURIComponent(g.numero_guia)}">${esc(g.numero_guia)}</a></td>
+              <td>${badge(g.estatus)}</td>
+              <td class="mono t-tertiary">${fmtFecha(g.actualizado_en)}</td>
+              <td class="t-tertiary">${haceNc(g.actualizado_en)}</td></tr>`))
+            + (totalDetenidas > detenidas.length ? `<p class="nc-texto nota">Se muestran ${detenidas.length} de ${totalDetenidas}.</p>` : '')
+          : '<p class="nc-texto nota">Ninguna guia lleva mas de ' + HORAS_DETENIDA + ' h en transito sin escaneo.</p>',
+        totalDetenidas ? '<button class="btn btn--secondary btn--sm" type="button" id="ncIrDetenidas">Ver en Guias</button>' : ''));
+
+      const nEst = est.total != null ? est.total : (est.guias || []).length;
+      secciones.push(seccionNc(`Estancadas (${DIAS_ESTANCADA} dias o mas sin moverse)`, nEst, 'aviso',
+        `<p class="nc-texto nota">${nEst
+          ? 'Guias en bodega, en reparto o en camino que no han cambiado de estatus. Revisalas en Guias o descarga el PDF para revisarlas en papel.'
+          : 'Todas las guias se han movido en los ultimos ' + DIAS_ESTANCADA + ' dias.'}</p>`,
+        nEst ? `<button class="btn btn--secondary btn--sm" type="button" id="ncIrEstancadas">Ver en Guias</button>
+                <button class="btn btn--secondary btn--sm" type="button" id="ncPdfEstancadas">Imprimir PDF</button>` : ''));
+
+      const total = (sadMal ? 1 : 0) + nCanc + totalDetenidas + nEst;
+      $('ncResumen').textContent = total ? `${total} pendiente(s) en total` : 'Todo en orden: no hay nada pendiente.';
+      $('ncContenido').innerHTML = secciones.join('');
+      activarVerMas($('ncContenido'));
+      activarPlegado($('ncContenido'));
+
+      $('ncContenido').querySelectorAll('[data-nc-revisar]').forEach((b) =>
+        b.addEventListener('click', async () => {
+          b.disabled = true;
+          try {
+            await api('/api/sad/canceladas/' + encodeURIComponent(b.dataset.ncRevisar) + '/revisada', { method: 'POST' });
+            UI.toast({ tipo: 'ok', titulo: 'Cancelacion revisada', descripcion: `${b.dataset.ncRevisar} ya no aparece en las notificaciones.` });
+            cargarCentroNotificaciones();
+          } catch (err) {
+            b.disabled = false;
+            UI.toast({ tipo: 'error', titulo: 'No se pudo marcar', descripcion: err.message });
+          }
+        })
+      );
+      if ($('ncIrDetenidas')) $('ncIrDetenidas').addEventListener('click', irADetenidas);
+      if ($('ncIrEstancadas')) $('ncIrEstancadas').addEventListener('click', irAEstancadas);
+      if ($('ncPdfEstancadas')) $('ncPdfEstancadas').addEventListener('click', () => imprimirEstancadas($('ncPdfEstancadas')));
+    } catch (err) {
+      UI.montarError($('ncContenido'), err.message, cargarCentroNotificaciones);
+    }
+  }
+
+  $('btnNcActualizar').addEventListener('click', cargarCentroNotificaciones);
+  $('notifVerTodas').addEventListener('click', () => cerrarNotificaciones());
+
+  // ---------- Por salir (facturadas en el SAD sin escanear) ----------
+
+  // A partir de estas horas sin salir la fila se marca en ambar
+  const HORAS_POR_SALIR_AVISO = 24;
+  let psPlaza = '';
+  let segPorSalir = null;   // control de pestañas; se arma mas abajo
+
+  function textoSincronizacion(e) {
+    if (!e || !e.habilitado) return 'Conexion con el SAD apagada';
+    if (e.ultimoError) return `Ultima lectura del SAD fallo: ${e.ultimoError}`;
+    if (!e.ultimoExito) return e.enCurso ? 'Leyendo el SAD por primera vez...' : 'Todavia no se lee el SAD';
+    const inicio = e.desde ? ` · desde el ${e.desde.split('-').reverse().join('/')}` : '';
+    return `SAD leido ${UI.fmtRelativo(e.ultimoExito)} · se lee cada ${e.intervaloMin} min${inicio}`;
+  }
+
+  function horasDesde(f) {
+    return Math.max(0, (Date.now() - new Date(f).getTime()) / 3600000);
+  }
+
+  function textoEspera(h) {
+    if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
+    if (h < 48) return `${Math.floor(h)} h`;
+    return `${Math.floor(h / 24)} dias`;
+  }
+
+  async function cargarPorSalir() {
+    const esAdminPs = !!(usuarioActual && usuarioActual.roles.includes('admin'));
+    $('tbodyPorSalir').innerHTML = UI.skeletonRows(5, 7);
+    try {
+      // Se piden siempre las dos plazas: asi cada pestaña muestra su conteo y
+      // el filtro de plaza se aplica aqui mismo
+      const r = await api('/api/sad/por-salir');
+      const e = r.sincronizacion;
+      const h = r.historial || {};
+      // Avance de la carga historica (completa los datos de guias viejas)
+      if (h.enCurso) $('psEstado').textContent = textoSincronizacion(e) + ` · Cargando historial del SAD (${h.embarques || 0} embarques leidos)...`;
+      else if (h.pendientesDetalle) $('psEstado').textContent = textoSincronizacion(e) + ` · Completando datos de ${h.pendientesDetalle} guia(s) anteriores`;
+      const todas = r.guias;
+      const c = r.conteo || {};
+      const n = { Todas: c.total ?? todas.length, MTY: c.MTY ?? 0, CDMX: c.CDMX ?? 0 };
+      for (const k of Object.keys(n)) $('psN' + k).textContent = e.habilitado ? ` (${n[k]})` : '';
+      if (segPorSalir) segPorSalir.mover();
+      r.guias = psPlaza ? todas.filter((g) => g.plaza_origen === psPlaza) : todas;
+      if (!h.enCurso && !h.pendientesDetalle) $('psEstado').textContent = textoSincronizacion(e);
+      $('btnSadSync').style.display = esAdminPs && e.habilitado ? '' : 'none';
+      if (!e.habilitado) {
+        $('tbodyPorSalir').innerHTML = `<tr><td colspan="7">${UI.emptyState({
+          titulo: 'La conexion con el SAD no esta configurada',
+          descripcion: 'Define SAD_USUARIO y SAD_PASSWORD en las variables de Railway con un usuario de solo consulta del SAD.',
+        })}</td></tr>`;
+        return;
+      }
+      if (!r.guias.length) {
+        $('tbodyPorSalir').innerHTML = `<tr><td colspan="7">${UI.emptyState({
+          titulo: 'Nada pendiente',
+          descripcion: psPlaza
+            ? `Todas las guias facturadas que salen de ${psPlaza} ya tienen su escaneo de salida.`
+            : 'Todas las guias facturadas en el SAD ya tienen su escaneo de salida.',
+        })}</td></tr>`;
+        return;
+      }
+      $('tbodyPorSalir').innerHTML = r.guias.map((g) => {
+        const h = horasDesde(g.facturada_en);
+        const entrega = g.tipo_entrega === 'ocurre' ? 'Ocurre' : g.tipo_entrega === 'domicilio' ? 'Domicilio' : '-';
+        return `<tr>
+          <td style="white-space:nowrap"><span class="mono">${esc(g.numero_guia)}</span><br><span class="t-tertiary">Sale de ${esc(g.plaza_origen)}</span></td>
+          <td>${esc(g.cliente || '-')}</td>
+          <td>${esc(g.destinatario || '-')}${g.telefono ? `<br><span class="mono t-tertiary">${esc(g.telefono)}</span>` : ''}</td>
+          <td>${entrega}</td>
+          <td style="white-space:nowrap"><span class="mono t-tertiary">${fmtFecha(g.facturada_en)}</span></td>
+          <td>${h >= HORAS_POR_SALIR_AVISO ? badge('EN_TRANSITO', { texto: textoEspera(h) }) : textoEspera(h)}</td>
+          <td>${esc(g.estatus_sad || '-')}</td></tr>`;
+      }).join('');
+    } catch (err) {
+      UI.montarError($('tbodyPorSalir'), err.message, cargarPorSalir, (h) => `<tr><td colspan="7">${h}</td></tr>`);
+    }
+  }
+
+  segPorSalir = UI.segmented($('psPlaza'), (valor) => { psPlaza = valor; cargarPorSalir(); });
+
+  $('btnSadSync').addEventListener('click', async () => {
+    const b = $('btnSadSync');
+    b.disabled = true;
+    b.textContent = 'Leyendo el SAD...';
+    try {
+      const r = await api('/api/sad/sincronizar', { method: 'POST', timeout: 180000 });
+      const n = r.resumen ? r.resumen.nuevas : 0;
+      UI.toast({ tipo: 'ok', titulo: 'SAD leido', descripcion: n ? `${n} guia(s) nueva(s) del SAD` : 'Sin guias nuevas' });
+    } catch (err) {
+      UI.toast({ tipo: 'error', titulo: 'No se pudo leer el SAD', descripcion: err.message });
+    } finally {
+      b.disabled = false;
+      b.textContent = 'Leer el SAD ahora';
+      if (vistaActual === 'porsalir') cargarPorSalir();
+    }
+  });
 
   // ---------- Bitacora ----------
   // Registro inmutable de correcciones. Se arma con los eventos CORRECCION
