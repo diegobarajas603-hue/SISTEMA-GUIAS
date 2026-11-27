@@ -3176,6 +3176,8 @@
   // ---------- Centro de notificaciones ----------
   // Todo lo que pide atencion, sin el tope de la campana: conexion con el SAD,
   // facturas canceladas, guias detenidas en transito y guias estancadas.
+  // Cada seccion empieza cerrada: solo titulo y conteo. "Desplegar" la abre
+  // con las primeras 10 filas.
   function seccionNc(titulo, n, tono, cuerpo, accion) {
     return `<div class="card card--flush nc-seccion">
       <div class="nc-seccion__head">
@@ -3183,10 +3185,24 @@
         <h2 class="titulo-card" style="margin:0">${titulo}</h2>
         <span class="nc-conteo">${n}</span>
         <span class="spacer"></span>
-        ${accion || ''}
+        <span class="nc-acciones" hidden>${accion || ''}</span>
+        <button class="btn btn--secondary btn--sm" type="button" data-nc-toggle aria-expanded="false">Desplegar</button>
       </div>
-      ${cuerpo}
+      <div class="nc-cuerpo" hidden>${cuerpo}</div>
     </div>`;
+  }
+
+  function activarPlegado(cont) {
+    cont.querySelectorAll('[data-nc-toggle]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const sec = b.closest('.nc-seccion');
+        const abrir = b.getAttribute('aria-expanded') !== 'true';
+        sec.querySelector('.nc-cuerpo').hidden = !abrir;
+        sec.querySelector('.nc-acciones').hidden = !abrir;
+        b.setAttribute('aria-expanded', String(abrir));
+        b.textContent = abrir ? 'Ocultar' : 'Desplegar';
+      })
+    );
   }
 
   // De 10 en 10: las demas filas van ocultas y "Ver 10 mas" las descubre
@@ -3277,6 +3293,7 @@
       $('ncResumen').textContent = total ? `${total} pendiente(s) en total` : 'Todo en orden: no hay nada pendiente.';
       $('ncContenido').innerHTML = secciones.join('');
       activarVerMas($('ncContenido'));
+      activarPlegado($('ncContenido'));
 
       $('ncContenido').querySelectorAll('[data-nc-revisar]').forEach((b) =>
         b.addEventListener('click', async () => {

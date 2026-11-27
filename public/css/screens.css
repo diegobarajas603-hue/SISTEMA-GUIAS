@@ -2508,3 +2508,5 @@ tbody tr.clic:hover {
 }
 .nc-texto { margin: 0; padding: 0 var(--space-20) var(--space-16); }
 .nc-mas { padding: var(--space-12) var(--space-20); border-top: 1px solid var(--border-subtle); text-align: center; }
+.nc-acciones { display: inline-flex; gap: var(--space-8); }
+.nc-acciones[hidden] { display: none; }
