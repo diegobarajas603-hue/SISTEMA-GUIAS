@@ -44,6 +44,9 @@ const MAX_PAGINAS = 12;
 const DETALLES_POR_CICLO = 30;
 // Detalles de facturas historicas por ciclo (solo las que tienen guia aqui)
 const DETALLES_HISTORIA_POR_CICLO = 60;
+// Pendientes viejas (fuera de la ventana) cuyo estatus se vuelve a revisar
+// por ciclo, abriendo su embarque en el SAD
+const REVISIONES_POR_CICLO = 15;
 const MAX_PAGINAS_HISTORIAL = 250;
 const TIEMPO_LIMITE_MS = 30 * 1000;
 
@@ -106,6 +109,8 @@ async function initSad() {
     -- no van a "Por salir", no se muestran como "Documentado" al cliente y no
     -- se ponen en transito.
     ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS historica BOOLEAN NOT NULL DEFAULT FALSE;
+    -- Ultima vez que se reviso el estatus de una pendiente vieja en su embarque
+    ALTER TABLE facturas_sad ADD COLUMN IF NOT EXISTS estatus_revisado_en TIMESTAMPTZ;
 
     -- Marcas de una sola vez (p. ej. que ya se hizo la carga historica)
     CREATE TABLE IF NOT EXISTS sad_marcas (
@@ -240,6 +245,12 @@ function leerEmbarques(html) {
   return filas;
 }
 
+// Detalle de un embarque: solo interesa su estatus
+function leerEmbarque(html) {
+  const m = /class="container subsidiaryContainer">\s*<div class="area1">\s*Status\s*<\/div>\s*<div class="area2">([\s\S]*?)<\/div>/.exec(html);
+  return { estatus: m ? texto(m[1]) : null };
+}
+
 // Listado de ventas filtrado por canceladas: solo interesan los folios
 function leerCanceladas(html) {
   const folios = [];
@@ -365,6 +376,52 @@ async function marcarCanceladas() {
   return rowCount;
 }
 
+// Las pendientes (sin guia aqui) que ya salieron de la ventana de lectura
+// dejarian de actualizarse: si despues pasan a "Transito" en el SAD, nadie se
+// enteraria y se quedarian en "Por salir" para siempre. En cada ciclo se
+// revisa el embarque de algunas, empezando por las que hace mas que no se
+// revisan.
+async function revisarPendientesViejas() {
+  const { rows } = await pool.query(
+    `SELECT f.numero_guia, f.embarque, f.embarque_id, f.estatus_sad FROM facturas_sad f
+      WHERE NOT f.cancelada AND NOT f.historica AND f.embarque_id IS NOT NULL
+        AND (f.estatus_sad IS NULL OR f.estatus_sad <> ALL($1::text[]))
+        AND f.fecha_embarque < $2::date
+        AND (f.estatus_revisado_en IS NULL OR f.estatus_revisado_en < now() - interval '30 minutes')
+        AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
+      ORDER BY f.estatus_revisado_en NULLS FIRST, f.fecha_embarque
+      LIMIT $3`,
+    [ESTATUS_YA_SALIO, hoyMenos(DIAS), REVISIONES_POR_CICLO]
+  );
+  let cambiaron = 0;
+  for (const r of rows) {
+    let html;
+    try {
+      html = await pagina(`/route/embarque/view/?id=${r.embarque_id}`);
+    } catch (e) {
+      console.warn(`[sad] No se pudo revisar el embarque de ${r.numero_guia}:`, e.message);
+      continue;
+    }
+    const { estatus } = leerEmbarque(html);
+    // Si la pagina no es la del embarque esperado, no se toca nada
+    if (!estatus || (r.embarque && !html.includes(r.embarque))) {
+      await pool.query('UPDATE facturas_sad SET estatus_revisado_en = now() WHERE numero_guia = $1', [r.numero_guia]);
+      continue;
+    }
+    const cambio = estatus !== r.estatus_sad;
+    if (cambio) cambiaron++;
+    await pool.query(
+      `UPDATE facturas_sad SET estatus_sad = $2, estatus_revisado_en = now(),
+              actualizado_en = CASE WHEN $3 THEN now() ELSE actualizado_en END,
+              cancelada = cancelada OR $4,
+              cancelada_en = CASE WHEN $4 AND NOT cancelada THEN now() ELSE cancelada_en END
+        WHERE numero_guia = $1`,
+      [r.numero_guia, estatus, cambio, /^cancelad/i.test(estatus)]
+    );
+  }
+  return { revisadas: rows.length, cambiaron };
+}
+
 async function completarDetalles() {
   // Primero las facturas de la lectura normal; despues, con su propio cupo,
   // las historicas que SI tienen guia aqui (las demas no hace falta leerlas)
@@ -434,7 +491,7 @@ async function marcarEnTransito() {
           AND f.estatus_sad = ANY($2::text[])
           -- Solo lo que se acaba de leer: un estatus viejo que ya no se
           -- refresca no debe volver a crear guias (p. ej. tras "borrar todas")
-          AND f.fecha_embarque >= $3::date
+          AND (f.fecha_embarque >= $3::date OR f.estatus_revisado_en > now() - interval '1 hour')
           AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
           AND NOT EXISTS (SELECT 1 FROM bitacora b WHERE b.numero_guia = f.numero_guia)
      ), nuevas AS (
@@ -512,13 +569,18 @@ async function sincronizar({ forzar = false } = {}) {
   try {
     const filas = await leerEmbarquesRecientes();
     const nuevas = await guardarEmbarques(filas);
+    // Antes del transito automatico, para que tome los cambios de las viejas
+    const revision = await revisarPendientesViejas();
     const canceladas = await marcarCanceladas();
     // Despues de las canceladas: una factura cancelada nunca sale en transito
     const enTransito = await marcarEnTransito();
     const detalles = await completarDetalles();
     // Al final: el detalle tambien puede revelar una cancelacion
     const eliminadas = await eliminarCreadasPorSadCanceladas();
-    const resumen = { embarques: filas.length, nuevas, canceladas, enTransito, detalles, eliminadas, ms: Date.now() - inicio };
+    const resumen = {
+      embarques: filas.length, nuevas, canceladas, enTransito, detalles, eliminadas,
+      viejasRevisadas: revision.revisadas, viejasCambiaron: revision.cambiaron, ms: Date.now() - inicio,
+    };
     estado.ultimoExito = new Date().toISOString();
     estado.ultimoError = null;
     estado.ultimoResumen = resumen;
@@ -660,8 +722,11 @@ async function listarPorSalir({ plaza, limit = 500 } = {}) {
     `SELECT f.plaza_origen, COUNT(*)::int AS n
        FROM facturas_sad f
       WHERE NOT f.cancelada AND NOT f.historica
+        -- Si el SAD ya la tiene en camino, no esta "por salir"
+        AND (f.estatus_sad IS NULL OR f.estatus_sad <> ALL($1::text[]))
         AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
-      GROUP BY f.plaza_origen`
+      GROUP BY f.plaza_origen`,
+    [ESTATUS_YA_SALIO]
   );
   const porPlaza = { MTY: 0, CDMX: 0 };
   for (const c of conteo) porPlaza[c.plaza_origen] = c.n;
@@ -671,11 +736,12 @@ async function listarPorSalir({ plaza, limit = 500 } = {}) {
             COALESCE(f.registrada_en, f.visto_en) AS facturada_en
        FROM facturas_sad f
       WHERE NOT f.cancelada AND NOT f.historica
+        AND (f.estatus_sad IS NULL OR f.estatus_sad <> ALL($${params.length + 1}::text[]))
         AND NOT EXISTS (SELECT 1 FROM guias g WHERE g.numero_guia = f.numero_guia OR g.complemento = f.numero_guia)
         ${filtro}
       ORDER BY COALESCE(f.registrada_en, f.visto_en) ASC
       LIMIT $${params.length}`,
-    params
+    [...params, ESTATUS_YA_SALIO]
   );
   return {
     sincronizacion: estadoSincronizacion(),
@@ -730,4 +796,5 @@ module.exports = {
   leerEmbarques,
   leerCanceladas,
   leerVenta,
+  leerEmbarque,
 };
